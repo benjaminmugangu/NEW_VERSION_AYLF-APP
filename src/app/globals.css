@@ -1,0 +1,193 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+@layer base {
+  :root {
+    /* Light Mode (kept for user preference, but dark mode is the new default presentation) */
+    --background: 210 30% 98%; /* Very light cool gray */
+    --foreground: 220 20% 10%; /* Dark blue/gray */
+    --card: 0 0% 100%; /* White */
+    --card-foreground: 220 20% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 20% 10%;
+    --primary: 175 55% 40%; /* Teal/Aqua - slightly desaturated for light mode */
+    --primary-foreground: 0 0% 100%; /* White text on primary */
+    --secondary: 210 30% 92%; /* Lighter cool gray */
+    --secondary-foreground: 220 15% 20%; /* Darker gray for text */
+    --muted: 210 30% 88%; /* Even lighter cool gray */
+    --muted-foreground: 220 10% 45%; /* Medium gray for muted text */
+    --accent: 50 95% 75%; /* Even Lighter Yellow accent */
+    --accent-foreground: 240 10% 20%; /* Dark grayish blue for text on yellow */
+    --destructive: 0 60% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 20% 85%; /* Light gray border */
+    --input: 210 20% 90%; /* Slightly off-white input background */
+    --ring: 175 55% 45%; /* Primary color for focus rings */
+    
+    --chart-1: 175 55% 40%; /* Primary - Teal */
+    --chart-2: 50 95% 75%;   /* Accent - Even Lighter Yellow */
+    --chart-3: 45 80% 60%;  /* Gold/Yellow */
+    --chart-4: 260 70% 65%; /* Vibrant Purple */
+    --chart-5: 210 80% 60%; /* Vibrant Blue */
+    
+    --radius: 0.75rem; /* Softer corners */
+
+    /* Sidebar specific vars - Light Mode */
+    --sidebar-background: 210 30% 95%; 
+    --sidebar-foreground: 220 20% 15%;
+    --sidebar-primary: 175 55% 35%; 
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 50 95% 70%; /* Lighter Yellow for sidebar accent */
+    --sidebar-accent-foreground: 240 10% 20%; /* Dark text on sidebar yellow */
+    --sidebar-border: 210 20% 80%;
+    --sidebar-ring: 175 55% 40%;
+  }
+
+  .dark {
+    /* Dark Mode - New Default Presentation */
+    --background: 220 15% 10%; /* Very dark desaturated blue */
+    --foreground: 210 20% 95%; /* Very light, slightly cool gray */
+    --card: 220 15% 15%; /* Slightly lighter than background */
+    --card-foreground: 210 20% 95%;
+    --popover: 220 15% 12%; /* Darker for popovers */
+    --popover-foreground: 210 20% 95%;
+    --primary: 175 70% 50%; /* Vibrant Cyan/Teal */
+    --primary-foreground: 220 20% 10%; /* Dark text on primary buttons */
+    --secondary: 220 15% 25%; /* Muted darker blue for secondary elements */
+    --secondary-foreground: 210 15% 80%; /* Lighter text for secondary */
+    --muted: 220 15% 20%; /* For subtle backgrounds or text */
+    --muted-foreground: 210 15% 60%; /* Muted text color */
+    --accent: 50 90% 80%; /* Very Light Yellow accent */
+    --accent-foreground: 240 10% 20%; /* Dark grayish blue for text on yellow */
+    --destructive: 0 60% 55%; /* Destructive action color */
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 15% 25%; /* Borders for cards, inputs */
+    --input: 220 15% 18%; /* Input field background */
+    --ring: 175 70% 55%; /* Primary color for focus rings */
+
+    --chart-1: 175 70% 50%; /* Primary - Vibrant Cyan/Teal */
+    --chart-2: 50 90% 80%;   /* Accent - Very Lighter Yellow */
+    --chart-3: 50 85% 65%;  /* Bright Gold/Yellow */
+    --chart-4: 260 75% 70%; /* Bright Purple */
+    --chart-5: 210 85% 65%; /* Bright Blue */
+    
+    --radius: 0.75rem; /* Softer corners */
+
+    /* Sidebar specific vars - Dark Mode */
+    --sidebar-background: 220 15% 12%; 
+    --sidebar-foreground: 210 20% 90%;
+    --sidebar-primary: 175 70% 45%; 
+    --sidebar-primary-foreground: 220 20% 10%;
+    --sidebar-accent: 50 90% 75%; /* Lighter Yellow for sidebar accent */
+    --sidebar-accent-foreground: 240 10% 20%; /* Dark text on sidebar yellow */
+    --sidebar-border: 220 15% 20%;
+    --sidebar-ring: 175 70% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Print specific styles */
+@media print {
+  body {
+    font-family: Arial, sans-serif; /* Use a common print-friendly font */
+    font-size: 10pt;
+    background-color: white !important; /* Ensure white background for printing */
+    color: black !important; /* Ensure black text for printing */
+    -webkit-print-color-adjust: exact; /* Force printing of background colors and images in Chrome/Safari */
+    print-color-adjust: exact; /* Standard property */
+  }
+
+  /* Hide elements not relevant for printing */
+  [data-sidebar="sidebar"], 
+  [data-sidebar="trigger"], 
+  .no-print,
+  header.sticky, /* Main app header */
+  footer.border-t, /* Main app footer */
+  .group\/sidebar-wrapper > .peer, /* Sidebar placeholder div */
+  .user-nav-dropdown /* Assuming UserNav has a class like this or use its specific selector */
+   {
+    display: none !important;
+  }
+
+  /* Ensure main content takes full width */
+  main.flex-1, .flex-1 {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  
+  /* Resetting some page layout for print */
+  .container, .page-container /* Example classes, adjust to your layout */ {
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Improve readability of cards and tables in print */
+  .card, .table {
+    border: 1px solid #ccc !important;
+    box-shadow: none !important;
+    page-break-inside: avoid; /* Try to avoid breaking cards/tables across pages */
+  }
+  .card-header, .card-content, .card-footer {
+    padding: 8pt !important;
+  }
+  th, td {
+    padding: 4pt !important;
+    border: 1px solid #ddd !important;
+  }
+  th {
+    background-color: #f0f0f0 !important;
+  }
+
+  /* Ensure charts are visible - this might need specific adjustments per chart library */
+  .recharts-wrapper, canvas, svg {
+    display: block !important; /* Ensure they are not hidden by other print styles */
+    max-width: 100% !important; /* Ensure they scale down if too large */
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Remove excessive margins or paddings that might cause issues in print */
+  .mb-6, .mb-8, .mt-6, .mt-8, .gap-6, .gap-8 {
+    margin-bottom: 10pt !important; /* Adjust as needed */
+    margin-top: 10pt !important;
+    gap: 10pt !important;
+  }
+  .p-4, .p-6, .p-8 {
+    padding: 10pt !important;
+  }
+
+  @page {
+    size: A4; /* Default page size, can be overridden by specific components */
+    margin: 20mm; /* Default margins */
+  }
+}
+
+/* Subtle Card hover animation */
+@layer components {
+  .card {
+    @apply transition-all duration-300 ease-in-out;
+  }
+  /* Applying a more selective hover if needed, or keeping it general */
+  /* .card:hover {
+    @apply shadow-xl transform scale-[1.01]; 
+  } */
+}
+
