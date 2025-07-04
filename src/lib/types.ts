@@ -174,6 +174,19 @@ export interface NavItem {
 // FORM DATA & SERVICE TYPES
 // =============================================================================
 
+export interface ActivityFormData {
+  name: string;
+  description: string;
+  date: string; // ISO date string
+  status: "planned" | "executed" | "cancelled";
+  level: "national" | "site" | "small_group";
+  siteId?: string;
+  smallGroupId?: string;
+  participantsCount?: number;
+  imageUrl?: string;
+  activityTypeId?: string;
+}
+
 export interface SmallGroupFormData {
   name: string;
   leaderId?: string;
