@@ -1,13 +1,13 @@
 // src/app/dashboard/users/[userId]/edit/page.tsx
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { UserForm } from "../../components/UserForm";
 import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
 import { ROLES } from "@/lib/constants";
-import { mockUsers } from "@/lib/mockData";
+import userService from "@/services/userService";
 import type { User, UserFormData } from "@/lib/types";
 import { Edit, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -20,29 +20,69 @@ export default function EditUserPage() {
   const { toast } = useToast();
   const userId = params.userId as string;
 
-  const userToEdit = mockUsers.find(u => u.id === userId);
+  const [userToEdit, setUserToEdit] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleUpdateUser = async (data: UserFormData) => {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const updatedUser: User = {
-      id: userId,
-      ...data,
-      mandateStartDate: data.mandateStartDate?.toISOString(),
-      mandateEndDate: data.mandateEndDate?.toISOString(),
+  useEffect(() => {
+    if (!userId) {
+      setIsLoading(false);
+      return;
+    }
+
+    const fetchUser = async () => {
+      setIsLoading(true);
+      try {
+        const response = await userService.getUserById(userId);
+        if (response.success && response.data) {
+          setUserToEdit(response.data);
+        } else {
+          console.error("Failed to fetch user:", response.error);
+          setUserToEdit(null);
+        }
+      } catch (error) {
+        console.error("Failed to fetch user:", error);
+        setUserToEdit(null);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
-    // Mock update
-    // const index = mockUsers.findIndex(u => u.id === userId);
-    // if (index !== -1) mockUsers[index] = updatedUser;
-    console.log("User Updated (mock):", updatedUser);
+    fetchUser();
+  }, [userId]);
 
-    toast({
-      title: "User Updated!",
-      description: `User "${updatedUser.name}" has been successfully updated.`,
-    });
-    router.push("/dashboard/users");
+  const handleUpdateUser = async (data: UserFormData) => {
+    if (!userId) return;
+
+    const result = await userService.updateUser(userId, data);
+
+    if (result.success && result.data) {
+      toast({
+        title: "User Updated!",
+        description: `User "${result.data.name}" has been successfully updated.`,
+      });
+      router.push("/dashboard/users");
+    } else {
+      console.error("Failed to update user:", result.error);
+      toast({
+        title: "Error Updating User",
+        description: result.error || "An unknown error occurred. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
+
+  if (isLoading) {
+    return (
+      <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR]}>
+        <PageHeader title="Loading..." icon={Edit} />
+        <Card>
+          <CardContent className="pt-6">
+            <p>Loading user details for editing...</p>
+          </CardContent>
+        </Card>
+      </RoleBasedGuard>
+    );
+  }
 
   if (!userToEdit) {
     return (
@@ -60,7 +100,7 @@ export default function EditUserPage() {
 
   return (
     <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR]}>
-      <PageHeader 
+      <PageHeader
         title={`Edit User: ${userToEdit.name}`}
         description="Modify the details, role, and assignments for this user."
         icon={Edit}

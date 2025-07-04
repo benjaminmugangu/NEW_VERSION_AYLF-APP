@@ -1,14 +1,15 @@
 // src/app/dashboard/sites/[siteId]/small-groups/[smallGroupId]/edit/page.tsx
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { SmallGroupForm, type SmallGroupFormData } from "../../../../components/SmallGroupForm";
+import { SmallGroupForm, type SmallGroupFormData } from "@/app/dashboard/sites/components/SmallGroupForm";
 import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
 import { ROLES } from "@/lib/constants";
-import { mockSites, mockSmallGroups, mockUsers } from "@/lib/mockData";
-import type { SmallGroup as SmallGroupType, User } from "@/lib/types";
+import siteService from "@/services/siteService";
+import smallGroupService from "@/services/smallGroupService";
+import type { Site, SmallGroup as SmallGroupType } from "@/lib/types";
 import { Edit, Info, Users as UsersIcon } from "lucide-react"; 
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,92 +25,70 @@ export default function EditSmallGroupPage() {
   const siteId = params.siteId as string;
   const smallGroupId = params.smallGroupId as string;
 
-  const site = mockSites.find(s => s.id === siteId);
-  const smallGroupToEdit = mockSmallGroups.find(sg => sg.id === smallGroupId && sg.siteId === siteId);
+  const [site, setSite] = useState<Site | null>(null);
+  const [smallGroupToEdit, setSmallGroupToEdit] = useState<SmallGroupType | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleUpdateSmallGroup = async (data: SmallGroupFormData) => {
-    if (!smallGroupToEdit) return;
+  useEffect(() => {
+    if (!siteId || !smallGroupId) {
+      setIsLoading(false);
+      return;
+    }
 
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const siteResponse = await siteService.getSiteById(siteId);
+        const sgResponse = await smallGroupService.getSmallGroupById(smallGroupId);
 
-    const oldLeaderId = smallGroupToEdit.leaderId;
-    const newLeaderId = data.leaderId;
-    const oldLogisticsId = smallGroupToEdit.logisticsAssistantId;
-    const newLogisticsId = data.logisticsAssistantId;
-    const oldFinanceId = smallGroupToEdit.financeAssistantId;
-    const newFinanceId = data.financeAssistantId;
-
-    // Helper to update user assignment
-    const updateUserAssignment = (userIdToUpdate: string | undefined, newSgId: string | undefined, newSiteId: string, isPrimaryLeader: boolean) => {
-      if (!userIdToUpdate) return;
-      const userIndex = mockUsers.findIndex(u => u.id === userIdToUpdate);
-      if (userIndex !== -1) {
-        // If user is being assigned, set their SG and site
-        if (newSgId) {
-          // If user was previously a leader/assistant of another SG, clear that old SG's leader/assistant field
-          if (mockUsers[userIndex].smallGroupId && mockUsers[userIndex].smallGroupId !== newSgId) {
-            const prevSgIndex = mockSmallGroups.findIndex(sg => sg.id === mockUsers[userIndex].smallGroupId);
-            if (prevSgIndex !== -1) {
-              if (mockSmallGroups[prevSgIndex].leaderId === userIdToUpdate) mockSmallGroups[prevSgIndex].leaderId = undefined;
-              if (mockSmallGroups[prevSgIndex].logisticsAssistantId === userIdToUpdate) mockSmallGroups[prevSgIndex].logisticsAssistantId = undefined;
-              if (mockSmallGroups[prevSgIndex].financeAssistantId === userIdToUpdate) mockSmallGroups[prevSgIndex].financeAssistantId = undefined;
-            }
-          }
-          mockUsers[userIndex].smallGroupId = newSgId;
-          mockUsers[userIndex].siteId = newSiteId; // Assign site ID as well
-          // Ensure role is SGL if they are not NC or SC
-          if (isPrimaryLeader && mockUsers[userIndex].role !== ROLES.NATIONAL_COORDINATOR && mockUsers[userIndex].role !== ROLES.SITE_COORDINATOR) {
-            mockUsers[userIndex].role = ROLES.SMALL_GROUP_LEADER;
-          }
-        } else { // User is being unassigned from this SG
-          if (mockUsers[userIndex].smallGroupId === smallGroupId) { // Only clear if they were assigned to *this* SG
-            mockUsers[userIndex].smallGroupId = undefined;
-            // Optionally, revert role if they are no longer leading any SG, but this is complex. For now, role stays.
-          }
+        if (siteResponse.success && siteResponse.data && sgResponse.success && sgResponse.data && sgResponse.data.siteId === siteId) {
+          setSite(siteResponse.data);
+          setSmallGroupToEdit(sgResponse.data);
+        } else {
+          setSite(null);
+          setSmallGroupToEdit(null);
+          toast({ title: "Error", description: "Could not load data for editing.", variant: 'destructive' });
         }
+      } catch (error) {
+        console.error("Failed to fetch data:", error);
+        toast({ title: "Error", description: "Could not load data for editing.", variant: 'destructive' });
+      } finally {
+        setIsLoading(false);
       }
     };
-    
-    // Main leader
-    if (oldLeaderId !== newLeaderId) {
-      updateUserAssignment(oldLeaderId, undefined, siteId, true); // Unassign old
-      updateUserAssignment(newLeaderId, smallGroupId, siteId, true); // Assign new
-    }
-    // Logistics assistant
-    if (oldLogisticsId !== newLogisticsId) {
-      updateUserAssignment(oldLogisticsId, undefined, siteId, false);
-      updateUserAssignment(newLogisticsId, smallGroupId, siteId, false);
-    }
-    // Finance assistant
-    if (oldFinanceId !== newFinanceId) {
-      updateUserAssignment(oldFinanceId, undefined, siteId, false);
-      updateUserAssignment(newFinanceId, smallGroupId, siteId, false);
-    }
-    
-    const sgIndex = mockSmallGroups.findIndex(sg => sg.id === smallGroupId);
-    if (sgIndex !== -1) {
-      mockSmallGroups[sgIndex] = { 
-        ...mockSmallGroups[sgIndex], 
-        name: data.name,
-        leaderId: data.leaderId,
-        logisticsAssistantId: data.logisticsAssistantId,
-        financeAssistantId: data.financeAssistantId,
-        siteId: siteId // Ensure siteId remains consistent
-      }; 
-    }
 
-    console.log("Small Group Updated (mock):", mockSmallGroups[sgIndex]);
-    // console.log("Users Updated (mock):", mockUsers.filter(u => 
-    //   [oldLeaderId, newLeaderId, oldLogisticsId, newLogisticsId, oldFinanceId, newFinanceId].includes(u.id)
-    // ));
+    fetchData();
+  }, [siteId, smallGroupId]);
 
-
-    toast({
-      title: "Small Group Updated!",
-      description: `Small Group "${data.name}" has been successfully updated.`,
-    });
-    router.push(`/dashboard/sites/${siteId}`); 
+  const handleUpdateSmallGroup = async (data: SmallGroupFormData) => {
+    try {
+      const result = await smallGroupService.updateSmallGroup(smallGroupId, data);
+      if (result.success && result.data) {
+        toast({
+          title: "Small Group Updated!",
+          description: `Small Group "${result.data.name}" has been successfully updated.`,
+        });
+        router.push(`/dashboard/sites/${siteId}`);
+      } else {
+        throw new Error(result.error || "Update failed");
+      }
+    } catch (error) {
+      console.error("Failed to update small group:", error);
+      toast({
+        title: "Error",
+        description: "Could not update the small group. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
+
+  if (isLoading) {
+    return (
+      <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR]}>
+        <PageHeader title="Loading..." icon={UsersIcon} />
+      </RoleBasedGuard>
+    );
+  }
 
   if (!site || !smallGroupToEdit) {
     return (
@@ -117,40 +96,35 @@ export default function EditSmallGroupPage() {
         <PageHeader title="Small Group Not Found" icon={Info} />
         <Card>
           <CardContent className="pt-6">
-            <p>The small group you are looking for (within the specified site) does not exist or could not be found.</p>
+            <p>The small group you are looking for does not exist or could not be found.</p>
             <Button onClick={() => router.push(siteId ? `/dashboard/sites/${siteId}` : '/dashboard/sites')} className="mt-4">
-              {siteId ? `Back to ${site?.name || 'Site Details'}` : 'Back to Sites'}
+              Back to Site Details
             </Button>
           </CardContent>
         </Card>
       </RoleBasedGuard>
     );
   }
-  
-  const canEdit = currentUser?.role === ROLES.NATIONAL_COORDINATOR;
 
-  if (!canEdit) { 
-     return (
+  if (currentUser?.role !== ROLES.NATIONAL_COORDINATOR) {
+    return (
       <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR]}>
-        <PageHeader title="Access Denied" description="You do not have permission to edit this small group." icon={Info} />
-         <Button onClick={() => router.push(`/dashboard/sites/${siteId}`)} className="mt-4">
-            Back to {site.name}
-          </Button>
+        <PageHeader title="Access Denied" icon={Info} />
       </RoleBasedGuard>
-     );
+    );
   }
 
   return (
     <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR]}>
-      <PageHeader 
+      <PageHeader
         title={`Edit Small Group: ${smallGroupToEdit.name}`}
         description={`Modifying details for "${smallGroupToEdit.name}" within ${site.name}.`}
-        icon={UsersIcon} 
+        icon={UsersIcon}
       />
-      <SmallGroupForm 
-        smallGroup={smallGroupToEdit} 
-        siteId={siteId} 
-        onSubmitForm={handleUpdateSmallGroup} 
+      <SmallGroupForm
+        smallGroup={smallGroupToEdit}
+        siteId={siteId}
+        onSubmitForm={handleUpdateSmallGroup}
       />
     </RoleBasedGuard>
   );

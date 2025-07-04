@@ -372,7 +372,7 @@ export function getDateRangeFromFilterValue(filterValue: DateFilterValue): { sta
 }
 
 
-export function applyDateFilter<T extends { date?: string; submissionDate?: string; joinDate?: string }>(
+export function applyDateFilter<T extends { date?: string; submissionDate?: string; joinDate?: string; allocationDate?: string }>(
   items: T[],
   filterValue: DateFilterValue | undefined
 ): T[] {
@@ -389,7 +389,7 @@ export function applyDateFilter<T extends { date?: string; submissionDate?: stri
   }
   
   return items.filter(item => {
-    const itemDateStr = item.date || item.submissionDate || item.joinDate;
+    const itemDateStr = item.date || item.submissionDate || item.joinDate || item.allocationDate;
     if (!itemDateStr) return false; 
     
     try {

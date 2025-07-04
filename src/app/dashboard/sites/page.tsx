@@ -1,97 +1,74 @@
 // src/app/dashboard/sites/page.tsx
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
 import { ROLES } from "@/lib/constants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building, PlusCircle, Edit, Trash2, Eye, UsersRound } from "lucide-react";
+import { Building, PlusCircle, Edit, Trash2, Eye, UsersRound, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { mockSites, mockSmallGroups, mockMembers } from "@/lib/mockData"; 
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Skeleton } from "@/components/ui/skeleton";
-import type { Site } from "@/lib/types";
+import { TableRowSkeleton } from "@/components/shared/skeletons/TableRowSkeleton";
+import { useSites } from "@/hooks/useSites";
+import type { SiteWithDetails } from "@/hooks/useSites";
 import { StatCard } from "@/components/shared/StatCard";
-
-// New component for the analytics part to isolate useEffect
-function SitePerformanceAnalytics() {
-  const [totalSiteMembers, setTotalSiteMembers] = useState<string | null>(null);
-  const [avgActivities, setAvgActivities] = useState<string | null>(null);
-  const totalSmallGroupsCount = mockSmallGroups.length; // Not date filtered
-
-  useEffect(() => {
-    // These will only run on the client, after initial hydration
-    // Calculate total members across all sites using mockMembers for better accuracy
-    const totalMembers = mockMembers.filter(member => member.siteId && mockSites.some(site => site.id === member.siteId)).length;
-    setTotalSiteMembers(totalMembers.toString());
-    setAvgActivities((Math.random() * 50 + 20).toFixed(0)); // Keep average activities as random for now
-  }, []); // Empty dependency array ensures this runs once on mount
-
-  return (
-    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <StatCard 
-            title="Total Sites" 
-            value={mockSites.length} 
-            icon={Building} 
-            description="Number of operational sites"
-        />
-        <StatCard 
-            title="Total Small Groups" 
-            value={totalSmallGroupsCount} 
-            icon={UsersRound} 
-            description="Across all sites"
-            href="/dashboard/sites" // Pointing to sites page for drill-down
-        />
-        <StatCard 
-            title="Total Site Members" 
-            value={totalSiteMembers !== null ? totalSiteMembers : <Skeleton className="h-7 w-12 inline-block" />} 
-            icon={UsersRound} 
-            description="Members affiliated with any site"
-            href="/dashboard/members"
-        />
-        {/* Placeholder for average activities - can be made more dynamic later */}
-        {/* <div className="border p-4 rounded-lg bg-secondary/30 text-center">
-            {avgActivities !== null ? (
-              <h4 className="text-2xl font-bold text-primary">{avgActivities}</h4>
-            ) : (
-              <Skeleton className="h-7 w-10 mx-auto mb-1" />
-            )}
-            <p className="text-sm text-muted-foreground">Average Activities per Site (Mock)</p>
-        </div> */}
-    </div>
-  );
-}
-
+import { StatCardSkeleton } from "@/components/shared/skeletons/StatCardSkeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+import { getInitials } from "@/lib/utils";
 
 export default function ManageSitesPage() {
-  const [sitesWithCounts, setSitesWithCounts] = useState<Array<Site & { membersCount: number; smallGroupsCount: number }>>([]);
+  const { sites, allSites, isLoading, error, deleteSite, searchTerm, setSearchTerm } = useSites();
+  const { toast } = useToast();
+  const [siteToDelete, setSiteToDelete] = useState<SiteWithDetails | null>(null);
 
-  useEffect(() => {
-    setSitesWithCounts(
-      mockSites.map(site => ({
-        ...site,
-        membersCount: mockMembers.filter(member => member.siteId === site.id).length,
-        smallGroupsCount: mockSmallGroups.filter(sg => sg.siteId === site.id).length,
-      }))
-    );
-  }, []);
-  
-  // site.coordinatorId now stores the name directly
-  const getCoordinatorName = (coordinatorName?: string) => {
-    return coordinatorName || "N/A";
-  };
-  
-  const getCoordinatorInitials = (name: string) => {
-    if (!name || name === "N/A") return "N/A";
-    const names = name.split(' ');
-    if (names.length > 1 && names[0] && names[names.length -1]) {
-      return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
+  const handleDeleteSite = async () => {
+    if (!siteToDelete) return;
+
+    const result = await deleteSite(siteToDelete.id);
+
+    if (result.success) {
+      toast({
+        title: "Site Deleted!",
+        description: `Site "${siteToDelete.name}" has been successfully deleted.`,
+      });
+    } else {
+      toast({
+        title: "Error Deleting Site",
+        description: result.error || "An unknown error occurred.",
+        variant: "destructive",
+      });
     }
-    return name.substring(0, 2).toUpperCase();
+    setSiteToDelete(null);
   };
+
+  const analytics = useMemo(() => {
+    if (isLoading || error) {
+      return { totalSites: 0, totalSmallGroups: 0, totalMembers: 0 };
+    }
+    return {
+      totalSites: allSites.length,
+      totalSmallGroups: allSites.reduce((acc, site) => acc + site.smallGroupsCount, 0),
+      totalMembers: allSites.reduce((acc, site) => acc + site.membersCount, 0),
+    };
+  }, [allSites, isLoading, error]);
+
+  if (error) {
+    toast({ title: "Error", description: error, variant: "destructive" });
+  }
 
   return (
     <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR]}>
@@ -100,8 +77,8 @@ export default function ManageSitesPage() {
         description="Oversee all AYLF operational sites, their coordinators, and performance."
         icon={Building}
         actions={
-          <Link href="/dashboard/sites/new" passHref legacyBehavior>
-            <Button> 
+          <Link href="/dashboard/sites/new">
+            <Button>
               <PlusCircle className="mr-2 h-4 w-4" /> Add New Site
             </Button>
           </Link>
@@ -113,6 +90,18 @@ export default function ManageSitesPage() {
           <CardDescription>List of registered sites and their key information.</CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="mb-4">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search by site name..."
+                className="pl-8 w-full max-w-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -120,69 +109,60 @@ export default function ManageSitesPage() {
                   <TableHead>Site Name</TableHead>
                   <TableHead>Coordinator</TableHead>
                   <TableHead>Total Members</TableHead>
-                  <TableHead>Active Small Groups</TableHead>
-                  <TableHead className="text-right w-[150px]">Actions</TableHead>
+                  <TableHead>Total Small Groups</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sitesWithCounts.length > 0 ? sitesWithCounts.map(site => {
-                  const coordinatorDisplayName = getCoordinatorName(site.coordinatorId);
-                  return (
-                    <TableRow key={site.id}>
-                      <TableCell className="font-medium">{site.name}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8">
-                            {/* Use coordinatorDisplayName for avatar generation if not "N/A" */}
-                            <AvatarImage 
-                              src={coordinatorDisplayName !== "N/A" ? `https://avatar.vercel.sh/${coordinatorDisplayName.replace(/\s+/g, '')}.png` : undefined} 
-                              alt={coordinatorDisplayName} 
-                              data-ai-hint="coordinator avatar" />
-                            <AvatarFallback>{getCoordinatorInitials(coordinatorDisplayName)}</AvatarFallback>
-                          </Avatar>
-                          <span>{coordinatorDisplayName}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{site.membersCount}</TableCell>
-                      <TableCell>{site.smallGroupsCount}</TableCell>
-                      <TableCell className="text-right space-x-1">
-                        <Link href={`/dashboard/sites/${site.id}`} passHref legacyBehavior>
-                          <Button variant="ghost" size="icon" title="View Details">
-                            <Eye className="h-4 w-4" />
+                {isLoading ? (
+                  <TableRowSkeleton 
+                    rowCount={3}
+                    colSpan={5} 
+                    cellWidths={['w-1/3', 'w-1/4', 'w-1/6', 'w-1/6', 'w-[120px]']}
+                  />
+                ) : sites.length > 0 ? (
+                  sites.map(site => {
+                    const coordinatorName = site.coordinator?.name || "N/A";
+                    return (
+                      <TableRow key={site.id}>
+                        <TableCell className="font-medium">{site.name}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Avatar>
+                              <AvatarImage src={site.coordinator?.profilePicture} />
+                              <AvatarFallback>{getInitials(coordinatorName)}</AvatarFallback>
+                            </Avatar>
+                            <span>{coordinatorName}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>{site.membersCount}</TableCell>
+                        <TableCell>{site.smallGroupsCount}</TableCell>
+                        <TableCell className="text-right space-x-1">
+                          <Link href={`/dashboard/sites/${site.id}`}>
+                            <Button variant="ghost" size="icon" title="View Details"><Eye className="h-4 w-4" /></Button>
+                          </Link>
+                          <Link href={`/dashboard/sites/${site.id}/edit`}>
+                            <Button variant="ghost" size="icon" title="Edit Site"><Edit className="h-4 w-4" /></Button>
+                          </Link>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            title="Delete Site" 
+                            className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
+                            onClick={() => setSiteToDelete(site)}
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </Button>
-                        </Link>
-                        <Link href={`/dashboard/sites/${site.id}/edit`} passHref legacyBehavior>
-                          <Button variant="ghost" size="icon" title="Edit Site">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </Link>
-                        <Button variant="ghost" size="icon" title="Delete Site (Not Implemented)" className="text-destructive hover:text-destructive-foreground hover:bg-destructive" disabled>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-              }) : (
-                  [...Array(5)].map((_, index) => ( 
-                    <TableRow key={`skeleton-${index}`}>
-                      <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Skeleton className="h-8 w-8 rounded-full" />
-                          <Skeleton className="h-5 w-20" />
-                        </div>
-                      </TableCell>
-                      <TableCell><Skeleton className="h-5 w-10" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-10" /></TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Skeleton className="h-8 w-8" />
-                          <Skeleton className="h-8 w-8" />
-                          <Skeleton className="h-8 w-8" />
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center">
+                      {searchTerm ? `No sites found for "${searchTerm}".` : "No sites found."}
+                    </TableCell>
+                  </TableRow>
                 )}
               </TableBody>
             </Table>
@@ -195,9 +175,57 @@ export default function ManageSitesPage() {
             <CardDescription>Key metrics for site engagement, growth, and activity levels across the network.</CardDescription>
         </CardHeader>
         <CardContent>
-            <SitePerformanceAnalytics />
+          {isLoading ? (
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+            </div>
+          ) : (
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <StatCard 
+                title="Total Sites" 
+                value={analytics.totalSites} 
+                icon={Building} 
+                description="Number of operational sites"
+              />
+              <StatCard 
+                title="Total Small Groups" 
+                value={analytics.totalSmallGroups} 
+                icon={UsersRound} 
+                description="Across all sites"
+              />
+              <StatCard 
+                title="Total Site Members" 
+                value={analytics.totalMembers} 
+                icon={UsersRound} 
+                description="Members affiliated with any site"
+                href="/dashboard/members"
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
+      <AlertDialog open={!!siteToDelete} onOpenChange={(open) => !open && setSiteToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the site
+              <span className="font-semibold"> {siteToDelete?.name}</span> and all associated data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteSite}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </RoleBasedGuard>
   );
 }

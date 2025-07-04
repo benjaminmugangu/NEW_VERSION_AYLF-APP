@@ -1,18 +1,19 @@
 // src/app/dashboard/sites/[siteId]/edit/page.tsx
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SiteForm } from "../../components/SiteForm";
 import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
 import { ROLES } from "@/lib/constants";
-import { mockSites } from "@/lib/mockData";
-import type { SiteFormData } from "@/lib/types";
+import siteService from "@/services/siteService";
+import type { Site, SiteFormData } from "@/lib/types";
 import { Edit, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { SiteFormSkeleton } from "@/components/shared/skeletons/SiteFormSkeleton";
 
 export default function EditSitePage() {
   const params = useParams();
@@ -20,35 +21,65 @@ export default function EditSitePage() {
   const { toast } = useToast();
   const siteId = params.siteId as string;
 
-  const siteToEdit = mockSites.find(s => s.id === siteId);
+  const [siteToEdit, setSiteToEdit] = useState<Site | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleUpdateSite = async (data: SiteFormData) => {
-    if (!siteToEdit) return;
-
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Update site in mockSites
-    // data.coordinatorId is now the name string from the form
-    const siteIndex = mockSites.findIndex(s => s.id === siteId);
-    if (siteIndex !== -1) {
-      mockSites[siteIndex] = { 
-        ...mockSites[siteIndex], 
-        name: data.name,
-        coordinatorId: data.coordinatorId || undefined, 
-      };
+  useEffect(() => {
+    if (!siteId) {
+      setIsLoading(false);
+      return;
     }
 
-    console.log("Site Updated (mock):", mockSites[siteIndex]);
-    // Note: The previous logic to update mockUsers (assigning/unassigning siteId to coordinator users)
-    // has been removed as coordinatorId from the form is now just a name.
-    // User role and site assignments should be managed via the User Management section.
+    const fetchSite = async () => {
+      setIsLoading(true);
+      try {
+        const response = await siteService.getSiteById(siteId);
+        if (response.success && response.data) {
+          setSiteToEdit(response.data);
+        } else {
+          console.error("Failed to fetch site:", response.error);
+          setSiteToEdit(null);
+        }
+      } catch (error) {
+        console.error("Failed to fetch site:", error);
+        setSiteToEdit(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    toast({
-      title: "Site Updated!",
-      description: `Site "${data.name}" has been successfully updated.`,
-    });
-    router.push(`/dashboard/sites/${siteId}`); 
+    fetchSite();
+  }, [siteId]);
+
+  const handleUpdateSite = async (data: SiteFormData) => {
+    if (!siteId) return;
+
+    const result = await siteService.updateSite(siteId, data);
+
+    if (result.success && result.data) {
+      toast({
+        title: "Site Updated!",
+        description: `Site "${result.data.name}" has been successfully updated.`,
+      });
+      router.push(`/dashboard/sites/${siteId}`);
+    } else {
+      console.error("Failed to update site:", result.error);
+      toast({
+        title: "Error Updating Site",
+        description: result.error || "An unknown error occurred. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
+
+  if (isLoading) {
+    return (
+      <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR]}>
+        <PageHeader title="Edit Site" icon={Edit} description="Loading site details..." />
+        <SiteFormSkeleton />
+      </RoleBasedGuard>
+    );
+  }
 
   if (!siteToEdit) {
     return (
@@ -66,7 +97,7 @@ export default function EditSitePage() {
 
   return (
     <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR]}>
-      <PageHeader 
+      <PageHeader
         title={`Edit Site: ${siteToEdit.name}`}
         description="Modify the details and coordinator for this site."
         icon={Edit}

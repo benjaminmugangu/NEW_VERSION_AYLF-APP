@@ -7,15 +7,29 @@ import Link from "next/link";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
 import { ROLES } from "@/lib/constants";
-import { mockSites, mockSmallGroups, mockUsers, mockMembers } from "@/lib/mockData";
-import type { Site, SmallGroup as SmallGroupType } from "@/lib/types";
+import smallGroupService from "@/services/smallGroupService";
+import siteService from "@/services/siteService";
+import userService from "@/services/userService";
+import type { Site, SmallGroup as SmallGroupType, User } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Building, Users, UserCircle, Eye, Info, Edit, Trash2, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAuth } from "@/hooks/useAuth"; 
+import { useAuth } from "@/hooks/useAuth";
+import { SiteDetailSkeleton } from "@/components/shared/skeletons/SiteDetailSkeleton"; 
+import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"; 
 
 interface SmallGroupWithCounts extends SmallGroupType {
   membersCount: number;
@@ -31,30 +45,85 @@ export default function SiteDetailPage() {
   const [smallGroups, setSmallGroups] = useState<SmallGroupWithCounts[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [totalSiteMembersCount, setTotalSiteMembersCount] = useState(0);
+  const [leadersMap, setLeadersMap] = useState<Record<string, User>>({});
+  const { toast } = useToast();
+  const [groupToDelete, setGroupToDelete] = useState<SmallGroupWithCounts | null>(null);
+
+  const handleDeleteSmallGroup = async () => {
+    if (!groupToDelete) return;
+
+    const result = await smallGroupService.deleteSmallGroup(groupToDelete.id);
+
+    if (result.success) {
+      toast({
+        title: "Small Group Deleted!",
+        description: `The group "${groupToDelete.name}" has been successfully deleted.`,
+      });
+      setSmallGroups(prevGroups => prevGroups.filter(g => g.id !== groupToDelete.id));
+    } else {
+      toast({
+        title: "Error Deleting Group",
+        description: result.error || "An unknown error occurred.",
+        variant: "destructive",
+      });
+    }
+    setGroupToDelete(null);
+  };
 
   useEffect(() => {
-    const foundSite = mockSites.find(s => s.id === siteId);
-    if (foundSite) {
-      setSite(foundSite);
-      const siteSmallGroups = mockSmallGroups
-        .filter(sg => sg.siteId === siteId)
-        .map(sg => ({
-          ...sg,
-          membersCount: mockMembers.filter(mem => mem.smallGroupId === sg.id).length,
-        }));
-      setSmallGroups(siteSmallGroups);
+    if (!siteId) return;
 
-      const membersForThisSite = mockMembers.filter(mem => mem.siteId === siteId).length;
-      setTotalSiteMembersCount(membersForThisSite);
-    }
-    setIsLoading(false);
+    const fetchSiteDetails = async () => {
+      setIsLoading(true);
+      try {
+        const siteResponse = await siteService.getSiteById(siteId);
+        if (siteResponse.success && siteResponse.data) {
+          setSite(siteResponse.data);
+
+          const smallGroupsResponse = await smallGroupService.getSmallGroupsBySiteId(siteId);
+          if (smallGroupsResponse.success && smallGroupsResponse.data) {
+            const groups = smallGroupsResponse.data;
+            setSmallGroups(groups);
+
+            // Fetch leaders
+            const leaderIds = groups.map(g => g.leaderId).filter((id): id is string => !!id);
+            if (leaderIds.length > 0) {
+              const leadersResponse = await userService.getUsersByIds(leaderIds);
+              if (leadersResponse.success && leadersResponse.data) {
+                const newLeadersMap: Record<string, User> = {};
+                leadersResponse.data.forEach(user => {
+                  newLeadersMap[user.id] = user;
+                });
+                setLeadersMap(newLeadersMap);
+              }
+            }
+
+            // Fetch total members count
+            const detailsResponse = await siteService.getSiteDetails(siteId);
+            if (detailsResponse.success) {
+              setTotalSiteMembersCount(detailsResponse.data.membersCount);
+            }
+
+          } else {
+            setSmallGroups([]);
+          }
+        } else {
+          setSite(null);
+        }
+      } catch (error) {
+        console.error("Failed to fetch site details:", error);
+        setSite(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSiteDetails();
   }, [siteId]);
 
   const getLeaderName = (leaderId?: string) => {
-    if (!leaderId) return "N/A";
-    // Small Group leaderId is still a User ID
-    const leader = mockUsers.find(user => user.id === leaderId);
-    return leader ? leader.name : "N/A";
+    if (!leaderId || !leadersMap[leaderId]) return "N/A";
+    return leadersMap[leaderId].name;
   };
 
   const getLeaderInitials = (name: string) => {
@@ -69,11 +138,7 @@ export default function SiteDetailPage() {
   if (isLoading) {
     return (
       <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR]}>
-        <PageHeader title="Loading Site Details..." icon={Building} />
-        <Card>
-          <CardHeader><Skeleton className="h-8 w-3/4" /></CardHeader>
-          <CardContent><Skeleton className="h-40 w-full" /></CardContent>
-        </Card>
+        <SiteDetailSkeleton />
       </RoleBasedGuard>
     );
   }
@@ -107,8 +172,8 @@ export default function SiteDetailPage() {
         actions={
           canManageSite ? (
              <div className="flex gap-2">
-              <Link href={`/dashboard/sites/${site.id}/edit`} passHref legacyBehavior>
-                <Button variant="outline"> 
+              <Link href={`/dashboard/sites/${site.id}/edit`}>
+                <Button variant="outline">
                   <Edit className="mr-2 h-4 w-4" /> Edit Site
                 </Button>
               </Link>
@@ -174,9 +239,11 @@ export default function SiteDetailPage() {
           </div>
           {canManageSmallGroups && ( // Only National Coordinator can add new Small Groups
             // TODO: Link to /dashboard/sites/[siteId]/small-groups/new when form is created
-            (<Button variant="outline" disabled>
-              <PlusCircle className="mr-2 h-4 w-4"/>Add Small Group
-                          </Button>)
+            <Link href={`/dashboard/sites/${siteId}/small-groups/new`} passHref>
+              <Button variant="outline">
+                <PlusCircle className="mr-2 h-4 w-4" />Add Small Group
+              </Button>
+            </Link>
           )}
         </CardHeader>
         <CardContent>
@@ -213,14 +280,18 @@ export default function SiteDetailPage() {
                         {canManageSmallGroups && ( // Only National Coordinator can edit/delete
                           (<>
                             <Link
-                              href={`/dashboard/sites/${siteId}/small-groups/${sg.id}/edit`}
-                              passHref
-                              legacyBehavior>
+                              href={`/dashboard/sites/${siteId}/small-groups/${sg.id}/edit`}>
                               <Button variant="ghost" size="icon" title="Edit Small Group">
                                 <Edit className="h-4 w-4" />
                               </Button>
                             </Link>
-                            <Button variant="ghost" size="icon" title="Delete Small Group (Future)" className="text-destructive hover:text-destructive-foreground hover:bg-destructive" disabled>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Delete Small Group"
+                              className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
+                              onClick={() => setGroupToDelete(sg)}
+                            >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </>)
@@ -237,6 +308,24 @@ export default function SiteDetailPage() {
         </CardContent>
       </Card>
       <Button onClick={() => router.push('/dashboard/sites')} className="mt-6">Back to Sites List</Button>
+
+      <AlertDialog open={!!groupToDelete} onOpenChange={(open) => !open && setGroupToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to delete this group?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the small group <span className="font-semibold">{groupToDelete?.name}</span>. 
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteSmallGroup} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </RoleBasedGuard>
   );
 }

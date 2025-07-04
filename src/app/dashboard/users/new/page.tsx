@@ -6,33 +6,45 @@ import { UserForm } from "../components/UserForm";
 import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
 import { ROLES } from "@/lib/constants";
 import { UserPlus } from "lucide-react";
-import type { UserFormData } from "@/lib/types";
+import { type UserFormData } from "../components/UserForm";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import { mockUsers } from "@/lib/mockData";
 
 export default function NewUserPage() {
   const { toast } = useToast();
   const router = useRouter();
 
-  const handleCreateUser = async (data: UserFormData) => {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const newUser = {
-      id: `user_${Date.now()}`,
-      ...data,
-      mandateStartDate: data.mandateStartDate?.toISOString(),
-      mandateEndDate: data.mandateEndDate?.toISOString(),
-    };
-    
-    // mockUsers.push(newUser); // For mock persistence
-    console.log("New User Created (mock):", newUser);
+    const handleInviteUser = async (data: UserFormData) => {
+    console.log('Data received by handleInviteUser:', data);
+    try {
+      const response = await fetch('/api/users/invite', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
 
-    toast({
-      title: "User Created!",
-      description: `User "${newUser.name}" has been successfully created with role ${newUser.role.replace(/_/g, ' ')}.`,
-    });
-    router.push("/dashboard/users");
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to send invitation.');
+      }
+
+      toast({
+        title: "Invitation Sent!",
+        description: `An invitation has been sent to ${data.email}.`,
+      });
+      router.push("/dashboard/users");
+
+    } catch (error: any) {
+      console.error("Failed to invite user:", error);
+      toast({
+        title: "Error Sending Invitation",
+        description: error.message || "An unknown error occurred. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -42,7 +54,7 @@ export default function NewUserPage() {
         description="Create a new user account and assign roles and permissions."
         icon={UserPlus}
       />
-      <UserForm onSubmitForm={handleCreateUser} />
+      <UserForm onSubmitForm={handleInviteUser} />
     </RoleBasedGuard>
   );
 }

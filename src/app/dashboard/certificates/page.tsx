@@ -2,12 +2,12 @@
 // src/app/dashboard/certificates/page.tsx
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
 import { ROLES, APP_NAME } from "@/lib/constants";
-import { mockUsers, mockSites, mockSmallGroups } from "@/lib/mockData";
-import type { User } from "@/lib/types";
+import type { RosterMember } from "@/services/certificateService";
+import { useCertificates } from "@/hooks/useCertificates";
 import { Award, Printer, UserSquare2, ListFilter, CalendarDays } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -15,149 +15,24 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { PrintableCertificate } from "./components/PrintableCertificate";
 import { Badge } from "@/components/ui/badge";
-import { 
-  format, 
-  startOfYear, 
-  endOfYear, 
-  startOfMonth, 
-  endOfMonth, 
-  subWeeks, 
-  startOfWeek, 
-  endOfWeek,
-  subDays,
-  isValid,
-  parseISO,
-  startOfDay, 
-  endOfDay 
-} from "date-fns";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-type ReportPeriodType = "all_time" | "specific_year" | "specific_month" | "last_week" | "last_7_days" | "last_30_days";
-
-const REPORT_PERIOD_OPTIONS: { value: ReportPeriodType; label: string }[] = [
-  { value: "all_time", label: "All Time" },
-  { value: "specific_year", label: "Specific Year" },
-  { value: "specific_month", label: "Specific Month" },
-  { value: "last_week", label: "Last Week" },
-  { value: "last_7_days", label: "Last 7 Days" },
-  { value: "last_30_days", label: "Last 30 Days" },
-];
-
-const generateYearOptions = () => {
-  const options = [];
-  const maxYear = 2028; 
-  const minYear = 2014; 
-  for (let year = maxYear; year >= minYear; year--) {
-    options.push({ value: year.toString(), label: year.toString() });
-  }
-  return options;
-};
-const YEAR_OPTIONS = generateYearOptions();
-
-const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => ({
-  value: (i).toString(), 
-  label: format(new Date(0, i), "MMMM"),
-}));
+import { format, parseISO } from "date-fns";
+import { DateRangeFilter } from "@/components/shared/DateRangeFilter";
 
 export default function CertificatesPage() {
-  const [selectedUserForCertificate, setSelectedUserForCertificate] = useState<User | null>(null);
+  const [selectedUserForCertificate, setSelectedUserForCertificate] = useState<RosterMember | null>(null);
   const [isCertificateModalOpen, setIsCertificateModalOpen] = useState(false);
-  
-  const [reportPeriodType, setReportPeriodType] = useState<ReportPeriodType>("all_time");
-  const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
-  const [selectedMonth, setSelectedMonth] = useState<string>(new Date().getMonth().toString());
+  const { 
+    roster: coordinatorsAndLeaders, 
+    isLoading, 
+    error, 
+    dateFilter, 
+    setDateFilter 
+  } = useCertificates();
 
-  const coordinatorsAndLeaders = useMemo(() => {
-    let startDate: Date | null = null;
-    let endDate: Date | null = null;
-    const now = new Date();
-
-    switch (reportPeriodType) {
-      case "specific_year":
-        const yearNum = parseInt(selectedYear, 10);
-        if (!isNaN(yearNum)) {
-          startDate = startOfYear(new Date(yearNum, 0, 1));
-          endDate = endOfYear(new Date(yearNum, 0, 1));
-        }
-        break;
-      case "specific_month":
-        const yearForMonth = parseInt(selectedYear, 10);
-        const monthNum = parseInt(selectedMonth, 10);
-        if (!isNaN(yearForMonth) && !isNaN(monthNum)) {
-          startDate = startOfMonth(new Date(yearForMonth, monthNum, 1));
-          endDate = endOfMonth(new Date(yearForMonth, monthNum, 1));
-        }
-        break;
-      case "last_week":
-        startDate = startOfWeek(subWeeks(now, 1), { weekStartsOn: 1 });
-        endDate = endOfWeek(subWeeks(now, 1), { weekStartsOn: 1 });
-        break;
-      case "last_7_days":
-        startDate = subDays(now, 6); 
-        endDate = now; 
-        break;
-      case "last_30_days":
-        startDate = subDays(now, 29); 
-        endDate = now; 
-        break;
-      case "all_time":
-      default:
-        // No date filtering
-        break;
-    }
-    
-    if(startDate) startDate = startOfDay(startDate);
-    if(endDate) endDate = endOfDay(endDate);
-
-
-    return mockUsers.filter(user => {
-      const isLeaderOrCoordinator = user.role === ROLES.SITE_COORDINATOR || user.role === ROLES.SMALL_GROUP_LEADER;
-      if (!isLeaderOrCoordinator) return false;
-      if (!user.mandateStartDate) return false; 
-
-      if (!startDate || !endDate) return true; 
-
-      const mandateStart = parseISO(user.mandateStartDate);
-      const mandateEnd = user.mandateEndDate ? parseISO(user.mandateEndDate) : now;
-
-      if (!isValid(mandateStart) || !isValid(mandateEnd)) return false;
-
-      return mandateStart <= endDate && mandateEnd >= startDate;
-    })
-    .sort((a,b) => (a.mandateEndDate ? 1 : -1) - (b.mandateEndDate ? 1: -1) || new Date(b.mandateStartDate || 0).getTime() - new Date(a.mandateStartDate || 0).getTime());
-  }, [reportPeriodType, selectedYear, selectedMonth]);
-
-  const getEntityName = (user: User): string => {
-    if (user.role === ROLES.SITE_COORDINATOR && user.siteId) {
-      return mockSites.find(s => s.id === user.siteId)?.name || "Unknown Site";
-    }
-    if (user.role === ROLES.SMALL_GROUP_LEADER && user.smallGroupId) {
-      const sg = mockSmallGroups.find(s => s.id === user.smallGroupId);
-      if (sg) {
-        const site = mockSites.find(s => s.id === sg.siteId);
-        return `${sg.name}${site ? ` (${site.name})` : ''}`;
-      }
-      return "Unknown Small Group";
-    }
-    return "N/A";
-  };
-
-  const handleGenerateCertificate = (user: User) => {
+  const handleGenerateCertificate = (user: RosterMember) => {
     setSelectedUserForCertificate(user);
     setIsCertificateModalOpen(true);
   };
-  
-  const getRoleDisplayName = (role: User["role"]) => {
-    return role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-  };
-  
-  const getCurrentFilterDisplay = () => {
-    const option = REPORT_PERIOD_OPTIONS.find(opt => opt.value === reportPeriodType);
-    let display = option ? option.label : "All Time";
-    if (reportPeriodType === 'specific_year') display += `: ${selectedYear}`;
-    if (reportPeriodType === 'specific_month') display += `: ${MONTH_OPTIONS.find(m=>m.value === selectedMonth)?.label} ${selectedYear}`;
-    return display;
-  }
 
   const handlePrintRoster = () => {
     const printWindow = window.open('', '_blank');
@@ -186,7 +61,7 @@ export default function CertificatesPage() {
       printWindow.document.write('</head><body>');
       printWindow.document.write(`<div class="print-header print-only"><img src="https://picsum.photos/seed/aylflogo/150/75" alt="AYLF Logo" data-ai-hint="organization logo"><span>${APP_NAME}</span></div>`);
       printWindow.document.write(`<h1>Coordinator & Leader Roster</h1>`);
-      printWindow.document.write(`<div class="filter-info">Report Period: ${getCurrentFilterDisplay()}</div>`);
+      printWindow.document.write(`<div class="filter-info">Report Period: ${dateFilter.display}</div>`);
       const tableContent = document.getElementById('roster-table')?.outerHTML;
       if (tableContent) {
         printWindow.document.write(tableContent);
@@ -206,7 +81,7 @@ export default function CertificatesPage() {
     <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR]}>
       <PageHeader
         title="Coordinator & Leader Certificates"
-        description={`Generate certificates of service. Filter: ${getCurrentFilterDisplay()}`}
+        description={`Generate certificates of service. Filter: ${dateFilter.display}`}
         icon={Award}
       />
       <Card className="shadow-lg">
@@ -218,45 +93,11 @@ export default function CertificatesPage() {
                 List of individuals who have served or are currently serving in leadership roles.
               </CardDescription>
             </div>
-             <div className="flex flex-col sm:flex-row gap-2 mt-4 sm:mt-0">
-                <Select value={reportPeriodType} onValueChange={(value) => setReportPeriodType(value as ReportPeriodType)}>
-                    <SelectTrigger className="w-full sm:w-[180px]">
-                        <CalendarDays className="mr-2 h-4 w-4 text-muted-foreground" />
-                        <SelectValue placeholder="Filter by period" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {REPORT_PERIOD_OPTIONS.map(option => (
-                            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-                {(reportPeriodType === "specific_year" || reportPeriodType === "specific_month") && (
-                     <Select value={selectedYear} onValueChange={setSelectedYear}>
-                        <SelectTrigger className="w-full sm:w-[120px]">
-                            <SelectValue placeholder="Year" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {YEAR_OPTIONS.map(option => (
-                                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                )}
-                {reportPeriodType === "specific_month" && (
-                    <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                        <SelectTrigger className="w-full sm:w-[150px]">
-                            <SelectValue placeholder="Month" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {MONTH_OPTIONS.map(option => (
-                                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                )}
-                 <Button onClick={handlePrintRoster} variant="outline" className="w-full sm:w-auto">
-                    <Printer className="mr-2 h-4 w-4" /> Print Roster
-                 </Button>
+            <div className="flex flex-col sm:flex-row gap-2 mt-4 sm:mt-0">
+              <DateRangeFilter onFilterChange={setDateFilter} initialRangeKey={dateFilter.rangeKey} />
+              <Button onClick={handlePrintRoster} variant="outline" className="w-full sm:w-auto">
+                <Printer className="mr-2 h-4 w-4" /> Print Roster
+              </Button>
             </div>
           </div>
         </CardHeader>
@@ -275,16 +116,24 @@ export default function CertificatesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {coordinatorsAndLeaders.length > 0 ? coordinatorsAndLeaders.map(user => (
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center h-24">Loading...</TableCell>
+                  </TableRow>
+                ) : error ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center h-24 text-red-500">{error}</TableCell>
+                  </TableRow>
+                ) : coordinatorsAndLeaders.length > 0 ? coordinatorsAndLeaders.map(user => (
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.name}</TableCell>
-                    <TableCell>{getRoleDisplayName(user.role)}</TableCell>
-                    <TableCell>{getEntityName(user)}</TableCell>
+                    <TableCell>{user.roleDisplayName}</TableCell>
+                    <TableCell>{user.entityName}</TableCell>
                     <TableCell>{user.mandateStartDate ? format(parseISO(user.mandateStartDate), "PP") : "N/A"}</TableCell>
                     <TableCell>{user.mandateEndDate ? format(parseISO(user.mandateEndDate), "PP") : "Present"}</TableCell>
                     <TableCell>
-                      <Badge variant={user.mandateEndDate ? "outline" : "default"} className="capitalize">
-                        {user.mandateEndDate ? "Past" : "Active"}
+                      <Badge variant={user.mandateStatus === 'Past' ? "outline" : "default"} className="capitalize">
+                        {user.mandateStatus}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right no-print">
@@ -292,7 +141,6 @@ export default function CertificatesPage() {
                         variant="outline" 
                         size="sm" 
                         onClick={() => handleGenerateCertificate(user)}
-                        disabled={!user.mandateStartDate} 
                       >
                         <UserSquare2 className="mr-2 h-4 w-4" /> Generate Certificate
                       </Button>
@@ -320,7 +168,7 @@ export default function CertificatesPage() {
             <div className="max-h-[70vh] overflow-y-auto"> 
                 <PrintableCertificate 
                     user={selectedUserForCertificate} 
-                    entityName={getEntityName(selectedUserForCertificate)}
+                    entityName={selectedUserForCertificate.entityName}
                     appName={APP_NAME} 
                 />
             </div>
@@ -336,7 +184,7 @@ export default function CertificatesPage() {
                         <style>
                           @page { size: A4 portrait; margin: 15mm; }
                           body { margin: 0; font-family: "Times New Roman", Times, serif; color: #333; }
-                          .certificate-container { border: 6px double hsl(var(--primary)); padding: 25mm; text-align: center; background-color: hsl(var(--background)); position: relative; width: 180mm; height: 267mm; margin: auto; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; }
+                          .certificate-container { border: 6px double hsl(var(--primary)); padding: 20mm; text-align: center; background-color: hsl(var(--background)); position: relative; width: 267mm; height: 180mm; margin: auto; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; }
                           .logo { border-radius: 9999px; margin-bottom: 10mm; width: 30mm; height: 30mm; object-fit: contain; }
                           .title { font-size: 24pt; font-weight: bold; color: hsl(var(--primary)); margin-bottom: 5mm; text-transform: uppercase; letter-spacing: 1px;}
                           .subtitle { font-size: 14pt; color: hsl(var(--muted-foreground)); margin-bottom: 15mm; }

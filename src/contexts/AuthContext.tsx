@@ -1,20 +1,29 @@
 // src/contexts/AuthContext.tsx
 "use client";
 
-import type { Role, User } from "@/lib/types";
+import type { User } from "@/lib/types";
 import React, { createContext, useState, useEffect, ReactNode, useCallback } from "react";
-import { ROLES } from "@/lib/constants";
-import { mockUsers, mockSites, mockSmallGroups } from "@/lib/mockData"; 
+import { supabase } from '@/lib/supabaseClient';
+import profileService from '@/services/profileService';
+import { Session } from "@supabase/supabase-js";
 
 interface AuthContextType {
   currentUser: User | null;
-  login: (email: string, password?: string) => void; // Password optional for now
-  logout: () => void;
+  session: Session | null;
   isLoading: boolean;
-  updateUserProfile: (updatedData: Partial<User>) => void;
+  login: (email: string, password: string) => Promise<{ success: boolean; error: string | null }>;
+  logout: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const useAuth = () => {
+  const context = React.useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -22,71 +31,74 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      const storedUser = localStorage.getItem("currentUser");
-      if (storedUser) {
-        const parsedUser: User = JSON.parse(storedUser);
-        if (Object.values(ROLES).includes(parsedUser.role)) {
-           setCurrentUser(parsedUser);
+    // Marquer le chargement initial comme terminé une fois que la première vérification de session est faite.
+    // Cela évite un écran de chargement vide au démarrage.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) {
+        profileService.getProfile(session.user.id).then(({ data: profile, success }) => {
+          if (success && profile) {
+            setCurrentUser(profile);
+          }
+          setIsLoading(false);
+        });
+      } else {
+        setIsLoading(false);
+      }
+    });
+
+    // Le listener onAuthStateChange gère désormais TOUS les changements d'état d'authentification (login, logout, token refresh, etc.)
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setSession(session);
+      if (session?.user) {
+        const { data: profile, success } = await profileService.getProfile(session.user.id);
+        if (success && profile) {
+          setCurrentUser(profile);
         } else {
-          localStorage.removeItem("currentUser");
+          // Si l'utilisateur existe dans Supabase Auth mais pas dans nos profils, on le déconnecte ou on le traite comme non authentifié.
+          setCurrentUser(null);
         }
+      } else {
+        setCurrentUser(null);
       }
-    } catch (error) {
-      console.error("Failed to parse user from localStorage", error);
-      localStorage.removeItem("currentUser");
-    }
-    setIsLoading(false);
-  }, []);
+      // On ne modifie plus isLoading ici pour éviter les rechargements d'UI.
+    });
 
-  const login = useCallback((email: string, password?: string) => {
-    setIsLoading(true);
-    // This is a temporary, simplified login for front-end development.
-    // It bypasses password validation and logs in a default admin user.
-    const userToLogin: User = {
-      id: 'user-admin-001',
-      name: 'Admin User',
-      email: email,
-      role: ROLES.NATIONAL_COORDINATOR, // Default to highest privilege for development
-      status: 'active',
-      siteId: undefined,
-      smallGroupId: undefined,
+    return () => {
+      authListener?.subscription.unsubscribe();
     };
-
-    setCurrentUser(userToLogin);
-    localStorage.setItem("currentUser", JSON.stringify(userToLogin));
-    setIsLoading(false);
   }, []);
 
-  const logout = useCallback(() => {
+    const login = async (email: string, password: string) => {
     setIsLoading(true);
-    setCurrentUser(null);
-    localStorage.removeItem("currentUser");
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     setIsLoading(false);
-  }, []);
-
-  const updateUserProfile = useCallback((updatedData: Partial<User>) => {
-    if (currentUser) {
-      const newUser = { ...currentUser, ...updatedData };
-      if (updatedData.role && updatedData.role !== currentUser.role) {
-        console.warn("Role cannot be changed from profile edit. Ignoring role update.");
-        newUser.role = currentUser.role;
-      }
-      setCurrentUser(newUser);
-      localStorage.setItem("currentUser", JSON.stringify(newUser));
-
-      const userIndex = mockUsers.findIndex(u => u.id === currentUser.id);
-      if (userIndex !== -1) {
-        mockUsers[userIndex] = { ...mockUsers[userIndex], ...newUser };
-      }
+    if (error) {
+      return { success: false, error: error.message };
     }
-  }, [currentUser]);
+    return { success: true, error: null };
+  };
+
+  const logout = async () => {
+    await supabase.auth.signOut();
+    setCurrentUser(null);
+    setSession(null);
+  };
+
+    const value = {
+    currentUser,
+    session,
+    isLoading,
+    login,
+    logout,
+  };
 
   return (
-    <AuthContext.Provider value={{ currentUser, login, logout, isLoading, updateUserProfile }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

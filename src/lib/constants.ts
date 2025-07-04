@@ -69,33 +69,7 @@ export const NAVIGATION_LINKS: NavItem[] = [
     href: "/dashboard/finances",
     label: "Finances",
     icon: Briefcase, 
-    allowedRoles: [ROLES.NATIONAL_COORDINATOR],
-    children: [
-       {
-        href: "/dashboard/finances/transactions/national-income",
-        label: "National Income",
-        icon: Briefcase,
-        allowedRoles: [ROLES.NATIONAL_COORDINATOR],
-      },
-      {
-        href: "/dashboard/finances/transactions/transfers-to-sites",
-        label: "Transfers to Sites",
-        icon: Briefcase,
-        allowedRoles: [ROLES.NATIONAL_COORDINATOR],
-      },
-       {
-        href: "/dashboard/finances/transactions/national-expenses",
-        label: "National Expenses",
-        icon: Briefcase,
-        allowedRoles: [ROLES.NATIONAL_COORDINATOR],
-      },
-       {
-        href: "/dashboard/finances/transactions/all-national",
-        label: "All National Txns",
-        icon: Briefcase,
-        allowedRoles: [ROLES.NATIONAL_COORDINATOR],
-      }
-    ]
+    allowedRoles: [ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER],
   },
   {
     href: "/dashboard/certificates",

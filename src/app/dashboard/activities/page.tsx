@@ -1,187 +1,132 @@
 // src/app/dashboard/activities/page.tsx
 "use client";
 
+import React from "react";
+import Link from "next/link";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { ActivityChart } from "./components/ActivityChart";
-import { mockActivities, mockSites, mockSmallGroups } from "@/lib/mockData";
 import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
-import { ROLES } from "@/lib/constants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge"; 
-import { Activity as ActivityIcon, ListFilter, Search, Eye, Edit, PlusCircle } from "lucide-react"; 
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import React, { useState, useMemo } from "react";
+import { Activity as ActivityIcon, ListFilter, Search, Eye, Edit, PlusCircle } from "lucide-react";
+import { DateRangeFilter, type DateFilterValue } from "@/components/shared/DateRangeFilter";
+import { ActivityChart } from "./components/ActivityChart";
+import { useActivities } from "@/hooks/useActivities";
+import { ActivitiesPageSkeleton } from "@/components/shared/skeletons/ActivitiesPageSkeleton";
+import { ROLES } from "@/lib/constants";
 import type { Activity } from "@/lib/types";
-import { DateRangeFilter, applyDateFilter, type DateFilterValue } from "@/components/shared/DateRangeFilter";
-import Link from "next/link";
-import { useAuth } from "@/hooks/useAuth"; 
 
 export default function ActivitiesPage() {
-  const { currentUser } = useAuth(); 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [dateFilter, setDateFilter] = useState<DateFilterValue>({ rangeKey: 'all_time', display: "All Time" });
+  const {
+    activities,
+    isLoading,
+    error,
+    filters,
+    setSearchTerm,
+    setDateFilter,
+    setStatusFilter,
+    setLevelFilter,
+    refetch,
+    availableLevelFilters,
+    canEditActivity,
+  } = useActivities();
 
-  const baseActivities = useMemo(() => {
-    if (!currentUser) return [];
-    if (currentUser.role === ROLES.NATIONAL_COORDINATOR) {
-      return mockActivities;
-    }
-    if (currentUser.role === ROLES.SITE_COORDINATOR) {
-      return mockActivities.filter(
-        act => act.siteId === currentUser.siteId || 
-               (act.level === 'small_group' && mockSmallGroups.find(sg => sg.id === act.smallGroupId)?.siteId === currentUser.siteId)
-      );
-    }
-    if (currentUser.role === ROLES.SMALL_GROUP_LEADER) {
-      return mockActivities.filter(act => act.smallGroupId === currentUser.smallGroupId);
-    }
-    return [];
-  }, [currentUser]);
-
-  const availableLevelFilters = useMemo(() => {
-    if (currentUser?.role === ROLES.NATIONAL_COORDINATOR) {
-      return ["national", "site", "small_group"] as Activity["level"][];
-    }
-    if (currentUser?.role === ROLES.SITE_COORDINATOR) {
-      return ["site", "small_group"] as Activity["level"][];
-    }
-    if (currentUser?.role === ROLES.SMALL_GROUP_LEADER) {
-      return ["small_group"] as Activity["level"][];
-    }
-    return [] as Activity["level"][];
-  }, [currentUser?.role]);
-
-  const initialLevelFilterState = useMemo(() => {
-    const state: Record<Activity["level"], boolean> = { national: false, site: false, small_group: false };
-    availableLevelFilters.forEach(level => state[level] = true); // Default to true for available levels
-    return state;
-  }, [availableLevelFilters]);
-
-  const [statusFilter, setStatusFilter] = useState<Record<Activity["status"], boolean>>({
-    planned: true,
-    executed: true,
-    cancelled: true,
-  });
-  const [levelFilter, setLevelFilter] = useState<Record<Activity["level"], boolean>>(initialLevelFilterState);
-
-  // Update levelFilter if availableLevelFilters change (e.g., on user load)
-  React.useEffect(() => {
-    setLevelFilter(initialLevelFilterState);
-  }, [initialLevelFilterState]);
-
-
-  const dateFilteredActivities = useMemo(() => {
-    return applyDateFilter(baseActivities, dateFilter);
-  }, [baseActivities, dateFilter]);
-
-  const fullyFilteredActivities = useMemo(() => {
-    return dateFilteredActivities.filter(activity => {
-      const matchesSearch = activity.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            activity.description.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = statusFilter[activity.status];
-      const matchesLevel = levelFilter[activity.level]; // This will now correctly only filter among available levels
-      return matchesSearch && matchesStatus && matchesLevel;
-    });
-  }, [searchTerm, statusFilter, levelFilter, dateFilteredActivities]);
-
+  // Helper functions for UI rendering
   const getStatusBadgeVariant = (status: Activity["status"]) => {
-    switch (status) {
-      case "executed": return "default"; 
-      case "planned": return "secondary"; 
-      case "cancelled": return "destructive"; 
-      default: return "outline";
-    }
+    const variants: Record<Activity["status"], "success" | "default" | "destructive"> = {
+      executed: "success",
+      planned: "default",
+      cancelled: "destructive",
+    };
+    return variants[status] || "secondary";
   };
-  
+
   const getLevelBadgeColor = (level: Activity["level"]) => {
-    switch(level) {
-      case "national": return "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300";
-      case "site": return "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300";
-      case "small_group": return "bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300";
-      default: return "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300";
-    }
+    const colors: Record<Activity["level"], string> = {
+      national: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+      site: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+      small_group: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+    };
+    return colors[level] || "bg-gray-100 text-gray-800";
+  };
+
+  if (isLoading) {
+    return <ActivitiesPageSkeleton />;
   }
 
-  const canEditActivity = (activity: Activity): boolean => {
-    if (!currentUser) return false;
-    if (currentUser.role === ROLES.NATIONAL_COORDINATOR) {
-      return true;
-    }
-    if (currentUser.role === ROLES.SITE_COORDINATOR) {
-      // Site coordinator can edit site-level activities for their own site,
-      // OR small group activities within their own site.
-      return (activity.level === 'site' && activity.siteId === currentUser.siteId) ||
-             (activity.level === 'small_group' && mockSmallGroups.find(sg => sg.id === activity.smallGroupId)?.siteId === currentUser.siteId);
-    }
-    if (currentUser.role === ROLES.SMALL_GROUP_LEADER) {
-      return activity.level === 'small_group' && activity.smallGroupId === currentUser.smallGroupId;
-    }
-    return false;
-  };
-
-  const pageDescription = useMemo(() => {
-    let contextMessage = `View and manage activities.`;
-    if (currentUser?.role === ROLES.SITE_COORDINATOR && currentUser.siteId) {
-      const siteName = mockSites.find(s => s.id === currentUser.siteId)?.name;
-      contextMessage = `Viewing activities for ${siteName || 'your site'}.`;
-    } else if (currentUser?.role === ROLES.SMALL_GROUP_LEADER && currentUser.smallGroupId) {
-      const sgName = mockSmallGroups.find(sg => sg.id === currentUser.smallGroupId)?.name;
-      contextMessage = `Viewing activities for ${sgName || 'your small group'}.`;
-    }
-    return `${contextMessage} Filter: ${dateFilter.display}`;
-  }, [currentUser, dateFilter.display]);
-
+  if (error) {
+    return (
+      <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER]}>
+        <PageHeader title="Activities" description="Error" icon={ActivityIcon} />
+        <Card className="mt-6">
+          <CardContent className="pt-6">
+            <p className="text-center text-red-500">{error}</p>
+            <div className="text-center mt-4">
+              <Button onClick={() => refetch()}>Try Again</Button>
+            </div>
+          </CardContent>
+        </Card>
+      </RoleBasedGuard>
+    );
+  }
 
   return (
     <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER]}>
       <PageHeader 
-        title="Activity Management"
-        description={pageDescription}
+        title="Activities" 
+        description="Track, manage, and analyze all activities across different levels."
         icon={ActivityIcon}
         actions={
-          <Link href="/dashboard/activities/new" passHref legacyBehavior>
-            <Button>
-              <PlusCircle className="mr-2 h-4 w-4" /> Create New Activity
-            </Button>
-          </Link>
+          <Button asChild>
+            <Link href="/dashboard/activities/new">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Add New Activity
+            </Link>
+          </Button>
         }
       />
-      <div className="mb-6">
-        <ActivityChart activities={fullyFilteredActivities} title="Activities Overview by Status" description={`Summary of activities for the selected period based on their status.`} />
-      </div>
-      <Card className="shadow-lg">
+
+      <ActivityChart 
+        activities={activities} 
+        title="Activity Overview"
+        description="A summary of activity statuses based on the current filters."
+      />
+
+      <Card>
         <CardHeader>
-          <CardTitle>All Activities</CardTitle>
-          <CardDescription>A comprehensive list of recorded activities. Use filters to narrow down your search.</CardDescription>
+          <CardTitle>Activity List</CardTitle>
+          <CardDescription>A comprehensive list of all activities you have access to.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col sm:flex-row items-center gap-4 mb-6">
-            <div className="relative w-full sm:flex-grow">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input 
-                placeholder="Search activities..."
-                value={searchTerm}
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search by activity name..."
+                className="pl-8 w-full"
+                value={filters.searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-full"
               />
             </div>
-            <DateRangeFilter onFilterChange={setDateFilter} initialRangeKey={dateFilter.rangeKey} />
+            <DateRangeFilter onFilterChange={setDateFilter} initialRangeKey={filters.dateFilter.rangeKey} />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="w-full sm:w-auto">
-                  <ListFilter className="mr-2 h-4 w-4" /> Filters
+                <Button variant="outline" className="flex-shrink-0">
+                  <ListFilter className="mr-2 h-4 w-4" />
+                  Filter
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {(Object.keys(statusFilter) as Activity["status"][]).map(status => (
+                {Object.keys(filters.statusFilter).map(status => (
                   <DropdownMenuCheckboxItem
                     key={status}
-                    checked={statusFilter[status]}
+                    checked={filters.statusFilter[status as keyof typeof filters.statusFilter]}
                     onCheckedChange={(checked) => setStatusFilter(prev => ({...prev, [status]: !!checked}))}
                   >
                     {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -189,12 +134,13 @@ export default function ActivitiesPage() {
                 ))}
                 {availableLevelFilters.length > 0 && (
                   <>
+                    <DropdownMenuSeparator />
                     <DropdownMenuLabel>Filter by Level</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     {availableLevelFilters.map(level => (
                       <DropdownMenuCheckboxItem
                         key={level}
-                        checked={levelFilter[level]}
+                        checked={filters.levelFilter[level as keyof typeof filters.levelFilter]}
                         onCheckedChange={(checked) => setLevelFilter(prev => ({...prev, [level]: !!checked}))}
                       >
                         {level.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
@@ -219,14 +165,13 @@ export default function ActivitiesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {fullyFilteredActivities.length > 0 ? fullyFilteredActivities.map(activity => {
-                  const isEditable = canEditActivity(activity);
-                  return (
+                {activities.length > 0 ? (
+                  activities.map(activity => (
                     <TableRow key={activity.id}>
                       <TableCell className="font-medium">{activity.name}</TableCell>
                       <TableCell>{new Date(activity.date).toLocaleDateString()}</TableCell>
                       <TableCell>
-                         <Badge variant="outline" className={`${getLevelBadgeColor(activity.level)} border-none`}>
+                        <Badge variant="outline" className={`${getLevelBadgeColor(activity.level)} border-none`}>
                           {activity.level.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                         </Badge>
                       </TableCell>
@@ -235,31 +180,20 @@ export default function ActivitiesPage() {
                           {activity.status.charAt(0).toUpperCase() + activity.status.slice(1)}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">{activity.participantsCount !== undefined ? activity.participantsCount : "N/A"}</TableCell>
+                      <TableCell className="text-right">{activity.participantsCount ?? "N/A"}</TableCell>
                       <TableCell className="text-right space-x-1">
-                        <Link href={`/dashboard/activities/${activity.id}`} passHref legacyBehavior>
-                          <Button variant="ghost" size="icon" title="View Details">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </Link>
-                        {isEditable ? (
-                          <Link
-                            href={`/dashboard/activities/${activity.id}/edit`}
-                            passHref
-                            legacyBehavior>
-                            <Button variant="ghost" size="icon" title="Edit Activity">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </Link>
-                        ) : (
-                          <Button variant="ghost" size="icon" title="Edit Activity" disabled>
-                            <Edit className="h-4 w-4" />
+                        <Button asChild variant="ghost" size="icon" title="View Details">
+                          <Link href={`/dashboard/activities/${activity.id}`}><Eye className="h-4 w-4" /></Link>
+                        </Button>
+                        {canEditActivity(activity) && (
+                          <Button asChild variant="ghost" size="icon" title="Edit Activity">
+                            <Link href={`/dashboard/activities/${activity.id}/edit`}><Edit className="h-4 w-4" /></Link>
                           </Button>
                         )}
                       </TableCell>
                     </TableRow>
-                  );
-                }) : (
+                  ))
+                ) : (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center h-24">
                       No activities found matching your criteria.

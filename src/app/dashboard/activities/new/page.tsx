@@ -9,35 +9,28 @@ import { Activity as ActivityIcon, PlusCircle } from "lucide-react";
 import type { ActivityFormData } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import { mockActivities } from "@/lib/mockData"; // For mock "saving"
+import activityService from "@/services/activityService";
 
 export default function NewActivityPage() {
   const { toast } = useToast();
   const router = useRouter();
 
   const handleCreateActivity = async (data: ActivityFormData) => {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const newActivity = {
-      id: `act_${Date.now()}`,
-      ...data,
-      date: data.date.toISOString(), // Convert Date object to ISO string
-      participantsCount: data.participantsCount ?? undefined, // Ensure undefined if null
-      imageUrl: data.imageUrl || undefined,
-    };
-    
-    // This is a mock "save". In a real app, you'd POST to an API.
-    // For demonstration, we could try to update mockActivities if it's mutable and accessible,
-    // but direct mutation of imported mockData is not a good practice for real apps.
-    // mockActivities.unshift(newActivity); 
-    console.log("New Activity Created (mock):", newActivity);
+    const result = await activityService.createActivity(data);
 
-    toast({
-      title: "Activity Created!",
-      description: `Activity "${newActivity.name}" has been successfully created.`,
-    });
-    router.push("/dashboard/activities"); // Redirect to activities list
+    if (result.success && result.data) {
+      toast({
+        title: "Activity Created!",
+        description: `Activity "${result.data.name}" has been successfully created.`,
+      });
+      router.push("/dashboard/activities");
+    } else {
+      toast({
+        title: "Error Creating Activity",
+        description: result.error || "An unknown error occurred.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (

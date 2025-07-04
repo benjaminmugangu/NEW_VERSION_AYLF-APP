@@ -7,10 +7,13 @@ import { DollarSign, TrendingDown, TrendingUp, Banknote } from "lucide-react";
 import { FinancialStats } from '@/hooks/useFinancials';
 import { User } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
+import { AllocationList } from './AllocationList';
+import { ReportList } from './ReportList'; // Import the new component
 
 interface FinancialDashboardProps {
   stats: FinancialStats;
   currentUser: User | null;
+  linkGenerator?: (type: 'site' | 'smallGroup', id: string) => string;
 }
 
 const StatCard = ({ title, value, icon: Icon, description, currency = 'USD' }: { title: string; value: number; icon: React.ElementType; description: string; currency?: string; }) => (
@@ -26,10 +29,14 @@ const StatCard = ({ title, value, icon: Icon, description, currency = 'USD' }: {
   </Card>
 );
 
-const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ stats, currentUser }) => {
+const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ stats, currentUser, linkGenerator }) => {
   if (!currentUser) return null;
 
-  const { fundsReceived, expensesDeclared, fundsReallocated, balance } = stats;
+  const { fundsReceived, expensesDeclared, fundsReallocated, balance, allocationsReceived, allocationsSent } = stats;
+
+  const allRelevantAllocations = [...allocationsReceived, ...allocationsSent].sort(
+    (a, b) => new Date(b.allocationDate).getTime() - new Date(a.allocationDate).getTime()
+  );
 
   return (
     <div className="space-y-4">
@@ -59,7 +66,17 @@ const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ stats, currentU
           description="Total des fonds transférés à d'autres entités"
         />
       </div>
-      {/* TODO: Add transactions and reports display logic here */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
+        <AllocationList 
+          allocations={allRelevantAllocations} 
+          title="Recent Allocations"
+          emptyStateMessage="No allocations have been recorded for this entity yet."
+          linkGenerator={linkGenerator}
+        />
+                <ReportList 
+          reports={stats.relevantReports}
+        />
+      </div>
     </div>
   );
 };

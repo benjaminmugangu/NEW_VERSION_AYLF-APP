@@ -87,7 +87,6 @@ export default function ActivityDetailPage() {
           </Link>
         }
       />
-
       {activity.imageUrl && (
         <Card className="mb-6 shadow-lg overflow-hidden">
           <div className="relative w-full aspect-[16/9] sm:aspect-[2/1] md:aspect-[2.5/1] lg:aspect-[3/1]">
@@ -101,7 +100,6 @@ export default function ActivityDetailPage() {
           </div>
         </Card>
       )}
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2 space-y-6">
           <Card className="shadow-lg">

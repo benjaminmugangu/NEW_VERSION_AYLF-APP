@@ -37,6 +37,11 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>({});
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!isLoading && !currentUser) {
@@ -50,7 +55,7 @@ export default function DashboardLayout({
 
   const renderNavItems = (items: NavItem[], isSubmenu = false) => {
     return items
-      .filter(item => currentUser && item.allowedRoles.includes(currentUser.role))
+      .filter(item => currentUser && (!item.allowedRoles || item.allowedRoles.includes(currentUser.role)))
       .map((item) => {
         const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
         const Icon = item.icon;
@@ -73,7 +78,7 @@ export default function DashboardLayout({
               {isSubmenuOpen && (
                 <SidebarMenuSub>
                   {item.children
-                    .filter(child => currentUser && child.allowedRoles.includes(currentUser.role))
+                    .filter(child => currentUser && (!child.allowedRoles || child.allowedRoles.includes(currentUser.role)))
                     .map(child => (
                     <SidebarMenuSubItem key={child.href}>
                       <SidebarMenuSubButton isActive={pathname === child.href} asChild>
@@ -104,7 +109,7 @@ export default function DashboardLayout({
       });
   };
 
-  if (isLoading || !currentUser) {
+  if (!isMounted || isLoading || !currentUser) {
     return (
        <div className="flex h-screen">
         {/* Sidebar Skeleton */}
@@ -145,7 +150,7 @@ export default function DashboardLayout({
           <Link href="/dashboard">
             <span className="flex items-center gap-2 group/logo">
               <Image 
-                src="https://picsum.photos/seed/aylflogo/80/80" // Larger placeholder for logo
+                src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcROsJ0oRg8RYoAuUWm025MBmI5tjiHUI-Pcgw&s"
                 alt="AYLF Logo" 
                 width={40} // Increased width
                 height={40} // Increased height

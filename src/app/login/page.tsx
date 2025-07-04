@@ -26,27 +26,36 @@ export default function LoginPage() {
     }
   }, [currentUser, isLoading, router]);
 
-  const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) {
-      setError("Email is required.");
+    if (!email || !password) {
+      setError("Email and password are required.");
       return;
     }
-    // Password validation can be added here in the future
     setError("");
-    login(email, password);
+
+    const { success, error } = await login(email, password);
+
+    if (!success && error) {
+      setError(error);
+    }
+    // On success, the useEffect will handle the redirect
   };
 
   const isLoginDisabled = !email; // Simplified condition
 
-  if (isLoading) {
+  // If authentication data is loading, or if the user is already logged in
+  // (and will be redirected soon), display a loading state.
+  // This prevents a hydration mismatch where the server renders the login form
+  // but the client, upon finding a session, tries to render null or redirect immediately.
+  if (isLoading || currentUser) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background p-4">
         <Card className="w-full max-w-md shadow-2xl">
           <CardHeader className="items-center text-center">
             <div className="p-2 mb-4">
               <Image 
-                src="https://picsum.photos/seed/aylflogo/200/200" 
+                src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcROsJ0oRg8RYoAuUWm025MBmI5tjiHUI-Pcgw&s" 
                 alt="AYLF Logo" 
                 width={100} 
                 height={100} 
@@ -65,9 +74,7 @@ export default function LoginPage() {
         </Card>
       </div>
     );
-  }
-
-  if (currentUser) return null; 
+  } 
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-center p-4">
@@ -75,7 +82,7 @@ export default function LoginPage() {
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
             <Image 
-              src="/aylf-logo.png" 
+              src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcROsJ0oRg8RYoAuUWm025MBmI5tjiHUI-Pcgw&s" 
               alt="AYLF Logo" 
               width={100} 
               height={100} 

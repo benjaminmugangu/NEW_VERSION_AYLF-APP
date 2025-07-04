@@ -1,179 +1,211 @@
-export type Role = "national_coordinator" | "site_coordinator" | "small_group_leader" | "guest";
+import { LucideIcon } from "lucide-react";
 
-export interface User {
+// =============================================================================
+// BASE & CORE TYPES
+// =============================================================================
+
+export interface BaseEntity {
   id: string;
+}
+
+export type UserRole = 'national_coordinator' | 'site_coordinator' | 'small_group_leader' | 'member';
+
+// Used for create/update forms
+export interface UserFormData {
   name: string;
   email: string;
-  role: Role;
+  role: UserRole;
+  status: "active" | "inactive";
   siteId?: string;
   smallGroupId?: string;
-  mandateStartDate?: string; // ISO date string
-  mandateEndDate?: string;   // ISO date string, if ended
-  status?: "active" | "inactive"; // Added for user management
+  mandateStartDate?: Date;
+  mandateEndDate?: Date;
+  phone?: string;
+  profilePicture?: string;
 }
 
-export interface Site {
-  id: string;
-  name:string;
-  coordinatorId?: string; // Current coordinator - made optional for creation
+export interface User extends BaseEntity {
+  name: string;
+  email: string;
+  role: UserRole;
+  siteId?: string;
+  smallGroupId?: string;
+  profilePicture?: string;
+  mandateStartDate?: string; 
+  mandateEndDate?: string;   
+  status?: "active" | "inactive";
 }
 
-export interface SmallGroup {
-  id: string;
+export interface Site extends BaseEntity {
+  name: string;
+  city: string;
+  country: string;
+  creationDate: string; // ISO 8601 date string
+  coordinatorId: string;
+  coordinator?: User; // Enriched data
+  memberCount?: number; // Enriched data
+  smallGroupCount?: number; // Enriched data
+}
+
+export interface SmallGroup extends BaseEntity {
   name: string;
   siteId: string;
-  leaderId?: string; // Current leader - made optional for creation
-  logisticsAssistantId?: string; // New: For logistics assistant
-  financeAssistantId?: string; // New: For finance assistant
+  leaderId?: string;
+  logisticsAssistantId?: string;
+  financeAssistantId?: string;
+  meetingDay?: 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday' | 'Sunday';
+  meetingTime?: string; // e.g., '18:00'
+  meetingLocation?: string;
+  // Enriched data for UI
+  siteName?: string;
+  leaderName?: string;
+  memberCount?: number;
+  leader?: User;
+  logisticsAssistant?: User;
+  financeAssistant?: User;
 }
 
-export interface Activity {
-  id: string;
+export interface Member extends BaseEntity {
+  userId?: string; // Optional link to a User account
+  name: string;
+  gender: 'Male' | 'Female';
+  type: 'student' | 'non-student';
+  joinDate: string; // ISO 8601 date string
+  phone?: string;
+  email?: string;
+  siteId: string;
+  smallGroupId?: string;
+}
+
+// Enriched Member type for UI display
+export type MemberWithDetails = Member & {
+  siteName: string;
+  smallGroupName: string;
+};
+
+// =============================================================================
+// FEATURE-SPECIFIC TYPES
+// =============================================================================
+
+export interface Activity extends BaseEntity {
   name: string;
   description: string;
   date: string; // ISO date string
-  status: "planned" | "executed" | "cancelled";
-  level: "national" | "site" | "small_group";
-  siteId?: string;
-  smallGroupId?: string;
-  participantsCount?: number; // Expected or actual participants if directly tied to activity record
-  imageUrl?: string; 
-}
-
-export interface Member {
-  id: string;
-  name: string;
-  type: "student" | "non-student";
-  siteId?: string;
-  smallGroupId?: string;
-  joinDate: string; // ISO date string
-  date?: string; // For consistency with date filtering helper
-}
-
-export type ReportStatus = "submitted" | "approved" | "rejected";
-
-export interface Report {
-  id: string;
-  title: string;
-  activityDate: string; // Date of the activity itself
-  submittedBy: string; // User ID
-  submissionDate: string; // ISO date string
-  level: "national" | "site" | "small_group";
-  siteId?: string;
-  smallGroupId?: string;
-  activityType: string; // e.g., "Small Group Meeting", "Workshop", "Conference"
-  thematic: string;
-  speaker?: string; 
-  moderator?: string;
-  girlsCount?: number;
-  boysCount?: number;
-  participantsCountReported?: number; // Derived from girlsCount + boysCount for this specific report
-  amountUsed?: number;
-  currency?: string; // e.g., "USD", "CDF"
-  content: string; // Main narrative/description of the report
-  images?: Array<{ name: string; url: string }>; 
-  financialSummary?: string; // Optional: for more detailed financial notes beyond amountUsed
-  status: ReportStatus;
-  reviewNotes?: string;
-}
-
-export interface NavItem {
-  href: string;
-  label: string;
-  icon: React.ElementType;
-  allowedRoles: Role[];
-  children?: NavItem[];
-  filterKey?: string; 
-  filterValue?: string;
-}
-
-export interface StatCardData {
-  title: string;
-  value: string | number;
-  icon: React.ElementType;
-  description?: string;
-  href?: string;
-  filterKey?: string; 
-  filterValue?: string;
-}
-
-export interface Transaction {
-  id: string;
-  date: string; // ISO date string
-  amount: number; // Always positive
-  description: string;
-  transactionType: 'transfer' | 'expense' | 'income_source'; 
-  
-  senderEntityType: 'national' | 'site' | 'small_group' | 'external_donor';
-  senderEntityId: string; 
-  senderEntityName?: string; 
-
-  recipientEntityType: 'national' | 'site' | 'small_group' | 'vendor' | 'beneficiary' | 'other';
-  recipientEntityId: string; 
-  recipientEntityName?: string;
-
-  level: 'national' | 'site' | 'small_group'; 
-  relatedSiteId?: string; 
-  relatedSmallGroupId?: string; 
-}
-
-// FormData Types
-export interface ActivityFormData {
-  name: string;
-  description: string;
-  date: Date;
   status: "planned" | "executed" | "cancelled";
   level: "national" | "site" | "small_group";
   siteId?: string;
   smallGroupId?: string;
   participantsCount?: number;
   imageUrl?: string;
+  activityTypeId?: string; // Foreign key to activity_types table
 }
 
-export interface MemberFormData {
+export interface ActivityType {
+  id: string;
   name: string;
-  type: "student" | "non-student";
+  category: 'spiritual' | 'outreach' | 'community' | 'training';
+  description?: string;
+}
+
+export type ReportStatus = 'pending' | 'submitted' | 'approved' | 'rejected';
+
+export interface Report extends BaseEntity {
+  title: string;
+  activityDate: string;
+  submittedBy: string; // User ID
+  submissionDate: string; // ISO date string
+  level: "national" | "site" | "small_group";
   siteId?: string;
   smallGroupId?: string;
-  joinDate: Date;
+  activityTypeId: string;
+  thematic: string;
+  speaker?: string;
+  moderator?: string;
+  girlsCount?: number;
+  boysCount?: number;
+  participantsCountReported?: number;
+  expenses?: number;
+  currency?: string;
+  content: string;
+  images?: Array<{ name: string; url: string }>;
+  financialSummary?: string;
+  status: ReportStatus;
+  reviewNotes?: string;
+  attachments?: string[];
 }
 
-export interface UserFormData {
-  name: string;
-  email: string;
-  role: Role;
-  siteId?: string;
-  smallGroupId?: string;
-  mandateStartDate?: Date;
-  mandateEndDate?: Date;
-  status?: "active" | "inactive";
-}
-
-export interface TransactionFormData {
-  date: Date;
+export interface FinancialTransaction extends BaseEntity {
+  type: 'income' | 'expense';
+  category: 'offering' | 'donation' | 'project' | 'operations' | 'other';
   amount: number;
+  date: string; // ISO date string
   description: string;
-  transactionType: 'transfer' | 'expense' | 'income_source';
-  senderEntityType: 'national' | 'site' | 'small_group' | 'external_donor';
-  senderEntityId: string;
-  senderEntityName?: string;
-  recipientEntityType: 'national' | 'site' | 'small_group' | 'vendor' | 'beneficiary' | 'other';
-  recipientEntityId: string;
-  recipientEntityName?: string;
-  level: 'national' | 'site' | 'small_group'; // Usually determined by context or selected
-  relatedSiteId?: string;
-  relatedSmallGroupId?: string;
+  siteId?: string;
+  smallGroupId?: string;
+  recordedBy: string; // User ID
 }
 
-export interface SiteFormData {
-  name: string;
-  coordinatorId?: string;
+export interface FundAllocation extends BaseEntity {
+  amount: number;
+  allocationDate: string; // ISO date string
+  description?: string;
+  senderId: string;
+  senderType: 'national' | 'site';
+  recipientId: string;
+  recipientType: 'site' | 'smallGroup';
+  createdById?: string; // User ID of the creator
 }
 
-// Update SmallGroupFormData to include assistant IDs
+// =============================================================================
+// UI & NAVIGATION TYPES
+// =============================================================================
+
+export interface NavItem {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+  color?: string;
+  isChidren?: boolean;
+  children?: NavItem[];
+  allowedRoles?: UserRole[];
+}
+
+// =============================================================================
+// FORM DATA & SERVICE TYPES
+// =============================================================================
+
 export interface SmallGroupFormData {
   name: string;
   leaderId?: string;
   logisticsAssistantId?: string;
   financeAssistantId?: string;
+  meetingDay?: 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday' | 'Sunday';
+  meetingTime?: string;
+  meetingLocation?: string;
 }
+
+export interface FundAllocationFormData {
+  amount: number;
+  description?: string;
+  recipientId: string;
+  recipientType: 'site' | 'smallGroup';
+}
+
+export type LoginCredentials = {
+  email: string;
+  password?: string;
+};
+
+export interface AuthContextType {
+  session: { user: User | null; loading: boolean };
+  login: (credentials: LoginCredentials) => Promise<void>;
+  logout: () => void;
+}
+
+export interface ServiceResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: { message: string };
+}
+
+

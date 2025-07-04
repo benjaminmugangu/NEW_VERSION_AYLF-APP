@@ -1,18 +1,18 @@
 // src/app/dashboard/page.tsx
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatCard } from "@/components/shared/StatCard";
 import { useAuth } from "@/hooks/useAuth";
 import { ROLES } from "@/lib/constants";
 import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
-import { mockActivities, mockMembers, mockReports, mockSites, mockSmallGroups, mockTransactions } from "@/lib/mockData";
-import { Activity, BarChart3, Building, FileText, Users, DollarSign, ListChecks, UsersRound, Briefcase, Lightbulb, Zap, Printer } from "lucide-react"; 
+import dashboardService, { type DashboardStats } from "@/services/dashboardService";
+import { DashboardSkeleton } from "@/components/shared/skeletons/DashboardSkeleton";
+import { Activity, BarChart3, Building, FileText, Users, DollarSign, ListChecks, UsersRound, Briefcase, Lightbulb, Zap, Printer } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-// import Image from "next/image"; // Not used directly
 import {
   ChartContainer,
   ChartTooltip,
@@ -21,7 +21,7 @@ import {
   ChartLegendContent,
 } from "@/components/ui/chart";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Pie, PieChart, Cell } from "recharts";
-import { DateRangeFilter, applyDateFilter, type DateFilterValue } from "@/components/shared/DateRangeFilter";
+import { DateRangeFilter, type DateFilterValue } from "@/components/shared/DateRangeFilter";
 
 const chartConfigActivities = {
   planned: { label: "Planned", color: "hsl(var(--chart-2))" },
@@ -34,280 +34,242 @@ const chartConfigMembers = {
   nonStudent: { label: "Non-Students", color: "hsl(var(--chart-4))" },
 };
 
-export default function DashboardPage() { 
+export default function DashboardPage() {
   const { currentUser } = useAuth();
   const [dateFilter, setDateFilter] = useState<DateFilterValue>({ rangeKey: 'all_time', display: "All Time" });
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Apply date filter to relevant data
-  const filteredActivities = useMemo(() => applyDateFilter(mockActivities, dateFilter), [dateFilter]);
-  const filteredMembers = useMemo(() => applyDateFilter(mockMembers.map(m => ({...m, date: m.joinDate})), dateFilter), [dateFilter]); // Adapt member data for filter
-  const filteredReports = useMemo(() => applyDateFilter(mockReports.map(r => ({...r, date: r.submissionDate})), dateFilter), [dateFilter]); // Adapt report data for filter
-  const filteredTransactions = useMemo(() => applyDateFilter(mockTransactions, dateFilter), [dateFilter]);
-
-
-  // Calculate stats from filtered data
-  const totalActivities = filteredActivities.length;
-  const plannedActivities = filteredActivities.filter(a => a.status === "planned").length;
-  const executedActivities = filteredActivities.filter(a => a.status === "executed").length;
-  
-  const totalMembers = filteredMembers.length;
-  const studentMembers = filteredMembers.filter(m => m.type === "student").length;
-  const nonStudentMembers = filteredMembers.filter(m => m.type === "non-student").length;
-  
-  const totalReports = filteredReports.length;
-  const totalSites = mockSites.length; // Not typically date filtered
-  const totalSmallGroups = mockSmallGroups.length; // Not typically date filtered
-
-  // Financial data from filtered transactions
-  const totalIncome = filteredTransactions
-    .filter(t => t.transactionType === 'income_source' && t.recipientEntityType === 'national')
-    .reduce((sum, t) => sum + t.amount, 0);
-  const nationalExpenses = filteredTransactions
-    .filter(t => t.senderEntityType === 'national' && t.transactionType === 'expense')
-    .reduce((sum, t) => sum + t.amount, 0);
-  const fundsDistributedToSites = filteredTransactions
-    .filter(t => t.senderEntityType === 'national' && t.recipientEntityType === 'site')
-    .reduce((sum, t) => sum + t.amount, 0);
-  const netBalance = totalIncome - (nationalExpenses + fundsDistributedToSites);
-
-  const activityStatusData = [
-    { status: "Planned", count: plannedActivities, fill: chartConfigActivities.planned.color },
-    { status: "Executed", count: executedActivities, fill: chartConfigActivities.executed.color },
-    { status: "Cancelled", count: filteredActivities.filter(a => a.status === "cancelled").length, fill: chartConfigActivities.cancelled.color },
-  ];
-
-  const memberTypeData = [
-    { type: "Students", count: studentMembers, fill: chartConfigMembers.student.color },
-    { type: "Non-Students", count: nonStudentMembers, fill: chartConfigMembers.nonStudent.color },
-  ];
-
-  const recentActivitiesToDisplay = filteredActivities
-    .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0,3);
-
-  const pageDescription = useMemo(() => {
-    if (!currentUser) return `Filter: ${dateFilter.display}`;
-
-    let assignmentText = "";
-    if (currentUser.role === ROLES.NATIONAL_COORDINATOR) {
-      assignmentText = "Coordinator of AYLF/RDC.";
-    } else if (currentUser.role === ROLES.SITE_COORDINATOR && currentUser.siteId) {
-      const site = mockSites.find(s => s.id === currentUser.siteId);
-      assignmentText = `Coordinator of ${site?.name || 'your site'}.`;
-    } else if (currentUser.role === ROLES.SMALL_GROUP_LEADER && currentUser.smallGroupId) {
-      const sg = mockSmallGroups.find(s => s.id === currentUser.smallGroupId);
-      if (sg) {
-        const site = mockSites.find(s => s.id === sg.siteId);
-        let sgUserRole = "Member"; // Default
-        if (sg.leaderId === currentUser.id) {
-          sgUserRole = "Leader";
-        } else if (sg.logisticsAssistantId === currentUser.id) {
-          sgUserRole = "Logistics Assistant";
-        } else if (sg.financeAssistantId === currentUser.id) {
-          sgUserRole = "Finance Assistant";
-        }
-        assignmentText = `${sgUserRole} of ${sg.name || 'your small group'}${site ? ` (${site.name})` : ''}.`;
-      } else {
-        assignmentText = "Leader of your small group.";
-      }
+  const fetchStats = React.useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    const response = await dashboardService.getDashboardStats(dateFilter);
+    if (response.success && response.data) {
+      setStats(response.data);
     } else {
-      assignmentText = "Overview.";
+      setError(response.error || 'An unknown error occurred.');
+      setStats(null);
     }
-    return `${assignmentText} Filter: ${dateFilter.display}`;
-  }, [currentUser, dateFilter]);
+    setIsLoading(false);
+  }, [dateFilter]);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
 
   const handlePrintPage = () => {
     window.print();
   };
 
+  if (isLoading) {
+    return (
+      <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR]}>
+        <DashboardSkeleton />
+      </RoleBasedGuard>
+    );
+  }
+
+  if (error) {
+    return (
+      <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR]}>
+        <PageHeader title="Dashboard" description="An error occurred" />
+        <Card className="mt-6">
+          <CardContent className="pt-6 text-center">
+            <p className="text-red-500">{error}</p>
+            <Button onClick={fetchStats} className="mt-4">Try Again</Button>
+          </CardContent>
+        </Card>
+      </RoleBasedGuard>
+    );
+  }
+
+  if (!stats) {
+    // This case handles when loading is finished but stats are still null without an error.
+    // It's a fallback, ideally should not be reached if service layer is consistent.
+    return (
+        <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR]}>
+            <PageHeader title="Dashboard" description="No data available." />
+            <Card className="mt-6">
+                <CardContent className="pt-6">
+                    <p className="text-center text-muted-foreground">No dashboard statistics could be loaded.</p>
+                </CardContent>
+            </Card>
+        </RoleBasedGuard>
+    );
+  }
 
   return (
-    <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER]}>
+    <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR]}>
       <PageHeader 
-        title={`Welcome, ${currentUser?.name || 'User'}!`}
-        description={pageDescription}
-        icon={currentUser?.role === ROLES.NATIONAL_COORDINATOR ? Building : (currentUser?.role === ROLES.SITE_COORDINATOR ? ListChecks : Users)}
+        title={`Welcome, ${currentUser?.name ?? 'User'}!`}
+        description={`Here is your dashboard overview for ${dateFilter.display}.`}
         actions={
-          <Button variant="outline" onClick={handlePrintPage} className="no-print">
-            <Printer className="mr-2 h-4 w-4" /> Print Page / Export PDF
-          </Button>
+          <div className="flex items-center gap-2">
+            <DateRangeFilter onFilterChange={setDateFilter} initialRangeKey={dateFilter.rangeKey} />
+            <Button onClick={handlePrintPage} variant="outline" size="icon"><Printer className="h-4 w-4"/></Button>
+          </div>
         }
       />
-      <div className="mb-6 no-print">
-        <DateRangeFilter onFilterChange={setDateFilter} initialRangeKey={dateFilter.rangeKey}/>
-      </div>
-      <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mb-8">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <StatCard 
           title="Total Activities" 
-          value={totalActivities} 
+          value={stats.totalActivities} 
           icon={Activity} 
-          description={`${executedActivities} executed, ${plannedActivities} planned`}
+          description={`${stats.executedActivities} executed, ${stats.plannedActivities} planned`} 
           href="/dashboard/activities" 
         />
         <StatCard 
           title="Total Members" 
-          value={totalMembers} 
+          value={stats.totalMembers} 
           icon={Users} 
-          description={`${studentMembers} students, ${nonStudentMembers} non-students`}
-          href="/dashboard/members"
+          description={`${stats.studentMembers} students, ${stats.nonStudentMembers} non-students`} 
+          href="/dashboard/members" 
         />
-        {currentUser?.role === ROLES.NATIONAL_COORDINATOR && (
-          <>
-            <StatCard 
-              title="Submitted Reports" 
-              value={totalReports} 
-              icon={FileText} 
-              description="Across all levels"
-              href="/dashboard/reports/view" 
-            />
-            <StatCard 
-              title="Total Sites" 
-              value={totalSites} 
-              icon={Building} 
-              description="Managed sites"
-              href="/dashboard/sites" 
-            />
-            <StatCard 
-              title="Total Small Groups" 
-              value={totalSmallGroups} 
-              icon={UsersRound} 
-              description="Active small groups"
-              href="/dashboard/sites" 
-            />
-            <StatCard 
-              title="Net Balance" 
-              value={`${netBalance < 0 ? '-' : ''}$${Math.abs(netBalance).toLocaleString()}`} 
-              icon={Briefcase} 
-              description={`Income: $${totalIncome.toLocaleString()}, Outflows: $${(nationalExpenses + fundsDistributedToSites).toLocaleString()}`}
-              href="/dashboard/finances"
-            />
-          </>
-        )}
-         {currentUser?.role === ROLES.SITE_COORDINATOR && (
-          <>
-             <StatCard 
-               title="Site Reports" 
-               value={filteredReports.filter(r => r.siteId === currentUser?.siteId).length} 
-               icon={FileText}
-               href="/dashboard/reports/view" 
-              />
-             <StatCard 
-               title="Site Small Groups" 
-               value={mockSmallGroups.filter(sg => sg.siteId === currentUser?.siteId).length} 
-               icon={UsersRound}
-               href={currentUser?.siteId ? `/dashboard/sites/${currentUser.siteId}` : "/dashboard/sites"} 
-              />
-          </>
-        )}
-         {currentUser?.role === ROLES.SMALL_GROUP_LEADER && (
-           <StatCard 
-             title="Group Reports" 
-             value={filteredReports.filter(r => r.smallGroupId === currentUser?.smallGroupId).length} 
-             icon={FileText}
-             href="/dashboard/reports/view" 
-            />
-        )}
+        <StatCard 
+          title="Reports Submitted" 
+          value={stats.totalReports} 
+          icon={FileText} 
+          description="All levels combined" 
+          href="/dashboard/reports" 
+        />
+        <StatCard 
+          title="Total Sites" 
+          value={stats.totalSites} 
+          icon={Building} 
+          description="Registered AYLF sites" 
+          href="/dashboard/sites" 
+        />
+        <StatCard 
+          title="Total Small Groups" 
+          value={stats.totalSmallGroups} 
+          icon={UsersRound} 
+          description="Active small groups" 
+          href="/dashboard/small-groups" 
+        />
+        <StatCard 
+          title="Net Balance" 
+          value={new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats.netBalance)} 
+          icon={DollarSign} 
+          description={`Income: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats.totalIncome)} | Expenses: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats.totalExpenses)}`} 
+          href="/dashboard/finances" 
+        />
       </div>
-      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2 mb-8">
-        <Card className="shadow-lg">
+      <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-7">
+        <Card className="shadow-lg lg:col-span-4">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><BarChart3 className="text-primary"/> Activity Status Overview</CardTitle>
-            <CardDescription>Distribution of activities by status for the selected period.</CardDescription>
+            <CardTitle className="flex items-center gap-2"><BarChart3 className="text-primary" /> Activity Status Overview</CardTitle>
+            <CardDescription>Breakdown of planned, executed, and cancelled activities for the selected period.</CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer config={chartConfigActivities} className="h-[250px] w-full">
-              <BarChart data={activityStatusData} layout="vertical" margin={{ left: 10, right: 30 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                <XAxis type="number" />
-                <YAxis dataKey="status" type="category" tickLine={false} axisLine={false} width={80} />
+            <ChartContainer config={chartConfigActivities} className="min-h-[250px] w-full">
+              <BarChart data={stats.activityStatusData} accessibilityLayer>
+                <CartesianGrid vertical={false} />
+                <XAxis dataKey="status" tickLine={false} tickMargin={10} axisLine={false} />
+                <YAxis />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <ChartLegend content={<ChartLegendContent />} />
-                <Bar dataKey="count" radius={5}>
-                  {activityStatusData.map((entry) => (
-                    <Cell key={`cell-${entry.status}`} fill={entry.fill} />
+                <Bar dataKey="count" radius={4}>
+                  {stats.activityStatusData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
                   ))}
                 </Bar>
               </BarChart>
             </ChartContainer>
           </CardContent>
         </Card>
-
-        <Card className="shadow-lg">
+        <Card className="shadow-lg lg:col-span-3">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Users className="text-primary"/> Member Type Distribution</CardTitle>
-            <CardDescription>Breakdown of members by type for the selected period (based on join date).</CardDescription>
+            <CardTitle className="flex items-center gap-2"><Users className="text-primary" /> Member Composition</CardTitle>
+            <CardDescription>Distribution of student vs. non-student members.</CardDescription>
           </CardHeader>
-          <CardContent className="flex justify-center">
-             <ChartContainer config={chartConfigMembers} className="h-[250px] w-full max-w-[300px]">
-              <PieChart>
-                <ChartTooltip content={<ChartTooltipContent nameKey="count" />} />
-                <Pie data={memberTypeData} dataKey="count" nameKey="type" cx="50%" cy="50%" outerRadius={100} labelLine={false}
-                  label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
-                    const RADIAN = Math.PI / 180;
-                    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-                    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                    const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                    if (percent === 0) return null; 
-                    return (
-                      <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize="12px">
-                        {`${(percent * 100).toFixed(0)}%`}
-                      </text>
-                    );
-                  }}
-                >
-                  {memberTypeData.map((entry) => (
-                    <Cell key={`cell-${entry.type}`} fill={entry.fill} />
+          <CardContent>
+            <ChartContainer config={chartConfigMembers} className="min-h-[250px] w-full">
+              <PieChart accessibilityLayer>
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <ChartLegend content={<ChartLegendContent />} />
+                <Pie data={stats.memberTypeData} dataKey="count" nameKey="type" cx="50%" cy="50%" outerRadius={80} label>
+                  {stats.memberTypeData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
                   ))}
                 </Pie>
-                <ChartLegend content={<ChartLegendContent />} />
               </PieChart>
             </ChartContainer>
           </CardContent>
         </Card>
       </div>
       {currentUser?.role === ROLES.NATIONAL_COORDINATOR && (
-        <Card className="shadow-lg mb-8 no-print">
+        <Card className="mt-6 shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><Zap className="text-primary"/> Quick Actions</CardTitle>
+            <CardDescription>Key actions for national-level coordination.</CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <Button asChild variant="outline" className="w-full flex items-start justify-start p-3 h-auto text-left">
+              <Link href="/dashboard/sites/new">
+                <>
+                  <Building className="h-5 w-5 text-primary shrink-0" />
+                  <div className="whitespace-normal ml-2">
+                    <p className="font-semibold">Add New Site</p>
+                    <p className="text-xs text-muted-foreground break-words">Establish a new operational site.</p>
+                  </div>
+                </>
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="w-full flex items-start justify-start p-3 h-auto text-left">
+              <Link href="/dashboard/finances/allocations/new">
+                <>
+                  <DollarSign className="h-5 w-5 text-primary shrink-0" />
+                  <div className="whitespace-normal ml-2">
+                    <p className="font-semibold">Allocate Funds</p>
+                    <p className="text-xs text-muted-foreground break-words">Distribute funds to sites or groups.</p>
+                  </div>
+                </>
+              </Link>
+            </Button>
             <Button asChild variant="outline" className="w-full flex items-start justify-start p-3 h-auto text-left">
                <Link href="/dashboard/reports/submit">
-                <FileText className="h-5 w-5 text-primary shrink-0" />
-                <div className="whitespace-normal ml-2">
-                  <p className="font-semibold">Submit New Report</p>
-                  <p className="text-xs text-muted-foreground break-words">Log national, site, or group activity.</p>
-                </div>
+                <>
+                  <FileText className="h-5 w-5 text-primary shrink-0" />
+                  <div className="whitespace-normal ml-2">
+                    <p className="font-semibold">Submit New Report</p>
+                    <p className="text-xs text-muted-foreground break-words">Log national, site, or group activity.</p>
+                  </div>
+                </>
               </Link>
             </Button>
             <Button asChild variant="outline" className="w-full flex items-start justify-start p-3 h-auto text-left">
              <Link href="/dashboard/suggestions">
-                <Lightbulb className="h-5 w-5 text-primary shrink-0" />
-                 <div className="whitespace-normal ml-2">
-                  <p className="font-semibold">Get AI Suggestions</p>
-                  <p className="text-xs text-muted-foreground break-words">Discover new activity ideas.</p>
-                </div>
+                <>
+                  <Lightbulb className="h-5 w-5 text-primary shrink-0" />
+                   <div className="whitespace-normal ml-2">
+                    <p className="font-semibold">Get AI Suggestions</p>
+                    <p className="text-xs text-muted-foreground break-words">Discover new activity ideas.</p>
+                  </div>
+                </>
               </Link>
             </Button>
             <Button asChild variant="outline" className="w-full flex items-start justify-start p-3 h-auto text-left">
              <Link href="/dashboard/users">
-                <UsersRound className="h-5 w-5 text-primary shrink-0" />
-                <div className="whitespace-normal ml-2">
-                  <p className="font-semibold">Manage Users</p>
-                  <p className="text-xs text-muted-foreground break-words">Administer user accounts and roles.</p>
-                </div>
+                <>
+                  <UsersRound className="h-5 w-5 text-primary shrink-0" />
+                  <div className="whitespace-normal ml-2">
+                    <p className="font-semibold">Manage Users</p>
+                    <p className="text-xs text-muted-foreground break-words">Administer user accounts and roles.</p>
+                  </div>
+                </>
               </Link>
             </Button>
           </CardContent>
         </Card>
       )}
-      <Card className="shadow-lg">
+      <Card className="shadow-lg mt-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><Activity className="text-primary"/> Recent Activities</CardTitle>
           <CardDescription>A quick look at recently executed or planned activities for the selected period.</CardDescription>
         </CardHeader>
         <CardContent>
-          {recentActivitiesToDisplay.length > 0 ? recentActivitiesToDisplay.map(activity => (
+          {stats.recentActivities.length > 0 ? stats.recentActivities.map(activity => (
             <div key={activity.id} className="mb-4 pb-4 border-b last:border-b-0 last:pb-0 last:mb-0">
               <div className="flex justify-between items-start">
                 <div>
@@ -339,4 +301,3 @@ export default function DashboardPage() {
     </RoleBasedGuard>
   );
 }
-

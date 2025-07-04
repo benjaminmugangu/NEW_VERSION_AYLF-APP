@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import type { User, UserFormData, Role, Site, SmallGroup } from "@/lib/types";
+import type { User, UserRole, Site, SmallGroup } from "@/lib/types";
 import { ROLES } from "@/lib/constants";
 import { mockSites, mockSmallGroups } from "@/lib/mockData";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -23,25 +23,30 @@ import { cn } from "@/lib/utils";
 const userFormSchema = z.object({
   name: z.string().min(3, "Name must be at least 3 characters."),
   email: z.string().email("Invalid email address."),
-  role: z.enum([ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER], { required_error: "Role is required." }),
-  siteId: z.string().optional(),
-  smallGroupId: z.string().optional(),
-  mandateStartDate: z.date().optional(),
-  mandateEndDate: z.date().optional(),
+  role: z.enum([ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER]),
+  siteId: z.string().nullable().optional(),
+  smallGroupId: z.string().nullable().optional(),
+  mandateStartDate: z.coerce.date().nullable().optional(),
+  mandateEndDate: z.coerce.date().nullable().optional(),
   status: z.enum(["active", "inactive"]).optional().default("active"),
-})
-.refine(data => data.role !== ROLES.SITE_COORDINATOR || !!data.siteId, {
-  message: "Site assignment is required for Site Coordinators.",
-  path: ["siteId"],
-})
-.refine(data => data.role !== ROLES.SMALL_GROUP_LEADER || (!!data.siteId && !!data.smallGroupId), {
-  message: "Site and Small Group assignment are required for Small Group Leaders.",
-  path: ["smallGroupId"],
-})
-.refine(data => !data.mandateEndDate || (data.mandateStartDate && data.mandateEndDate >= data.mandateStartDate), {
-    message: "Mandate end date cannot be before start date.",
-    path: ["mandateEndDate"],
 });
+
+// Infer the type from the schema
+export type UserFormData = z.infer<typeof userFormSchema>;
+
+const refinedUserFormSchema = userFormSchema
+  .refine(data => data.role !== ROLES.SITE_COORDINATOR || !!data.siteId, {
+    message: "Site assignment is required for Site Coordinators.",
+    path: ["siteId"],
+  })
+  .refine(data => data.role !== ROLES.SMALL_GROUP_LEADER || (!!data.siteId && !!data.smallGroupId), {
+    message: "Site and Small Group assignment are required for Small Group Leaders.",
+    path: ["smallGroupId"],
+  })
+  .refine(data => !data.mandateEndDate || !data.mandateStartDate || (data.mandateEndDate >= data.mandateStartDate), {
+      message: "Mandate end date cannot be before start date.",
+      path: ["mandateEndDate"],
+  });
 
 interface UserFormProps {
   user?: User; // For editing
@@ -58,13 +63,13 @@ export function UserForm({ user, onSubmitForm }: UserFormProps) {
     mandateEndDate: user.mandateEndDate ? parseISO(user.mandateEndDate) : undefined,
     status: user.status || "active",
   } : {
-    role: ROLES.SMALL_GROUP_LEADER as Role, // Default to SG Leader for new users
+    role: ROLES.SMALL_GROUP_LEADER as UserRole, // Default to SG Leader for new users
     mandateStartDate: new Date(),
     status: "active" as const,
   };
 
   const { control, handleSubmit, register, watch, formState: { errors, isSubmitting }, reset, setValue } = useForm<UserFormData>({
-    resolver: zodResolver(userFormSchema),
+    resolver: zodResolver(refinedUserFormSchema),
     defaultValues,
   });
 
@@ -275,7 +280,7 @@ export function UserForm({ user, onSubmitForm }: UserFormProps) {
 
           <Button type="submit" className="w-full py-3 text-base" disabled={isSubmitting}>
             <Save className="mr-2 h-5 w-5" />
-            {isSubmitting ? "Saving..." : (user ? "Save Changes" : "Create User")}
+            {isSubmitting ? (user ? 'Saving...' : 'Sending Invitation...') : (user ? 'Save Changes' : 'Send Invitation')}
           </Button>
         </form>
       </CardContent>

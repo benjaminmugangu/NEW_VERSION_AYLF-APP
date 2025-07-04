@@ -34,15 +34,19 @@ export function UserNav() {
     return null; // Or a login button if appropriate for the context
   }
 
-  const getInitials = (name: string) => {
+    const getInitials = (name: string | null | undefined) => {
+    if (!name) return '??';
     const names = name.split(' ');
-    if (names.length > 1 && names[0] && names[names.length-1]) { // Check if names[0] and names[names.length -1] exist
+    if (names.length > 1 && names[0] && names[names.length - 1]) {
       return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
     }
     return name.substring(0, 2).toUpperCase();
   };
 
-  const canEditProfile = currentUser.role === ROLES.SITE_COORDINATOR || currentUser.role === ROLES.SMALL_GROUP_LEADER || currentUser.role === ROLES.NATIONAL_COORDINATOR;
+    const displayName = currentUser.name || currentUser.email || 'User';
+  const displayEmail = currentUser.email || 'No email provided';
+  const displayRole = currentUser.role ? currentUser.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'No role assigned';
+
 
 
   return (
@@ -50,31 +54,31 @@ export function UserNav() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0">
           <Avatar className="h-10 w-10 border-2 border-primary">
-            <AvatarImage src={`https://avatar.vercel.sh/${currentUser.email}.png`} alt={currentUser.name} data-ai-hint="user avatar"/>
-            <AvatarFallback>{getInitials(currentUser.name)}</AvatarFallback>
+                        <AvatarImage src={`https://avatar.vercel.sh/${displayEmail}.png`} alt={displayName} data-ai-hint="user avatar"/>
+            <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-64" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1 py-1">
-            <p className="text-sm font-semibold leading-none">{currentUser.name}</p>
+                        <p className="text-sm font-semibold leading-none">{displayName}</p>
             <p className="text-xs leading-none text-muted-foreground">
-              {currentUser.email}
+              {displayEmail}
             </p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem className="cursor-pointer" asChild>
-            <Link href="/dashboard/settings/profile" legacyBehavior>
-              <UserCircle className="mr-2 h-4 w-4 text-muted-foreground" />
-              <span>My Profile</span>
-            </Link>
-          </DropdownMenuItem>
+          <Link href="/dashboard/settings/profile" passHref>
+            <DropdownMenuItem className="cursor-pointer">
+                <UserCircle className="mr-2 h-4 w-4 text-muted-foreground" />
+                <span>My Profile</span>
+            </DropdownMenuItem>
+          </Link>
           <DropdownMenuItem className="cursor-default"> {/* Made non-interactive as it's just info */}
              <ShieldCheck className="mr-2 h-4 w-4 text-muted-foreground" />
-            <span>{currentUser.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
+                        <span>{displayRole}</span>
           </DropdownMenuItem>
           {/* Future settings link can be added here if needed */}
         </DropdownMenuGroup>
