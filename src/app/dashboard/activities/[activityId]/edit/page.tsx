@@ -41,7 +41,7 @@ export default function EditActivityPage() {
         if (result.success && result.data) {
           setActivityToEdit(result.data);
         } else {
-          setError(result.error || "Activity not found.");
+          setError(result.error?.message || "Activity not found.");
         }
       } catch (err) {
         console.error("Fetch activity error:", err);
@@ -66,7 +66,7 @@ export default function EditActivityPage() {
     } else {
       toast({
         title: "Error Updating Activity",
-        description: result.error || "An unknown error occurred.",
+        description: result.error?.message || "An unknown error occurred.",
         variant: "destructive",
       });
     }
