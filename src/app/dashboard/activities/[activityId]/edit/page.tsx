@@ -54,22 +54,16 @@ export default function EditActivityPage() {
     fetchActivity();
   }, [activityId]);
 
-  const handleUpdateActivity = async (data: ActivityFormData) => {
-    const result = await activityService.updateActivity(activityId, data);
+  const handleSuccessfulUpdate = (updatedActivity: Activity) => {
+    toast({
+      title: "Activity Updated!",
+      description: `Activity "${updatedActivity.name}" has been successfully updated.`,
+    });
+    router.push(`/dashboard/activities/${activityId}`);
+  };
 
-    if (result.success && result.data) {
-      toast({
-        title: "Activity Updated!",
-        description: `Activity "${result.data.name}" has been successfully updated.`,
-      });
-      router.push(`/dashboard/activities/${activityId}`);
-    } else {
-      toast({
-        title: "Error Updating Activity",
-        description: result.error?.message || "An unknown error occurred.",
-        variant: "destructive",
-      });
-    }
+  const handleCancel = () => {
+    router.push(`/dashboard/activities/${activityId}`);
   };
 
   if (authIsLoading || isLoading) {
@@ -151,7 +145,7 @@ export default function EditActivityPage() {
         description="Modify the details of the existing activity."
         icon={Edit}
       />
-      <ActivityForm activity={activityToEdit} onSubmitForm={handleUpdateActivity} />
+      <ActivityForm initialActivity={activityToEdit} onSave={handleSuccessfulUpdate} onCancel={handleCancel} />
     </RoleBasedGuard>
   );
 }
