@@ -20,6 +20,9 @@ const toSmallGroupModel = (dbSmallGroup: any): SmallGroup => {
     siteName: dbSmallGroup.sites?.name,
     leaderName: dbSmallGroup.leader?.name,
     memberCount: Array.isArray(dbSmallGroup.members) ? dbSmallGroup.members[0]?.count : 0,
+    leader: dbSmallGroup.leader,
+    logisticsAssistant: dbSmallGroup.logisticsAssistant,
+    financeAssistant: dbSmallGroup.financeAssistant,
   };
 };
 

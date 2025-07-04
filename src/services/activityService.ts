@@ -1,10 +1,23 @@
 // src/services/activityService.ts
-'use client';
-
-import { mockActivities, mockSites, mockSmallGroups } from '@/lib/mockData';
+import { supabase } from '@/lib/supabaseClient';
 import type { Activity, ActivityFormData, ServiceResponse, User } from '@/lib/types';
-import { applyDateFilter, type DateFilterValue } from '@/components/shared/DateRangeFilter';
+import { getDateRangeFromFilterValue, type DateFilterValue } from '@/components/shared/DateRangeFilter';
 import { ROLES } from '@/lib/constants';
+
+// Helper to convert DB snake_case to frontend camelCase
+const toActivityModel = (dbActivity: any): Activity => ({
+  id: dbActivity.id,
+  name: dbActivity.name,
+  description: dbActivity.description,
+  date: dbActivity.date,
+  status: dbActivity.status,
+  level: dbActivity.level,
+  siteId: dbActivity.site_id,
+  smallGroupId: dbActivity.small_group_id,
+  participantsCount: dbActivity.participants_count,
+  imageUrl: dbActivity.image_url,
+  activityTypeId: dbActivity.activity_type_id,
+});
 
 export interface ActivityFilters {
   user: User | null;
@@ -16,45 +29,49 @@ export interface ActivityFilters {
 
 const activityService = {
   getFilteredActivities: async (filters: ActivityFilters): Promise<ServiceResponse<Activity[]>> => {
-    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
-
     const { user, searchTerm, dateFilter, statusFilter, levelFilter } = filters;
+    if (!user) return { success: false, error: { message: 'User not authenticated' } };
 
-    if (!user) {
-      return { success: false, error: "User not authenticated" };
-    }
+    let query = supabase.from('activities').select('*');
 
     // 1. Filter by user role
-    let userAllowedActivities: Activity[];
     switch (user.role) {
-      case ROLES.NATIONAL_COORDINATOR:
-        userAllowedActivities = mockActivities;
-        break;
       case ROLES.SITE_COORDINATOR:
-        userAllowedActivities = mockActivities.filter(
-          act => act.siteId === user.siteId || 
-                 (act.level === 'small_group' && mockSmallGroups.find(sg => sg.id === act.smallGroupId)?.siteId === user.siteId)
-        );
+        if (user.siteId) {
+          query = query.or(`level.eq.national,site_id.eq.${user.siteId}`);
+        } else {
+          query = query.eq('level', 'national');
+        }
         break;
       case ROLES.SMALL_GROUP_LEADER:
-        userAllowedActivities = mockActivities.filter(act => act.smallGroupId === user.smallGroupId);
+        if (user.smallGroupId && user.siteId) {
+          query = query.or(`level.eq.national,site_id.eq.${user.siteId},small_group_id.eq.${user.smallGroupId}`);
+        } else if (user.siteId) {
+          query = query.or(`level.eq.national,site_id.eq.${user.siteId}`);
+        } else {
+          query = query.eq('level', 'national');
+        }
         break;
+      // National coordinator can see all, so no initial filter needed.
+      case ROLES.NATIONAL_COORDINATOR:
       default:
-        userAllowedActivities = [];
+        break;
     }
-
-    // Apply additional filters
-    let filtered = userAllowedActivities;
 
     // 2. Date filter
     if (dateFilter) {
-      filtered = applyDateFilter(filtered, dateFilter);
+      const { startDate, endDate } = getDateRangeFromFilterValue(dateFilter);
+      if (startDate) {
+        query = query.gte('date', startDate.toISOString());
+      }
+      if (endDate) {
+        query = query.lte('date', endDate.toISOString());
+      }
     }
 
     // 3. Search term filter
     if (searchTerm) {
-      const lowercasedTerm = searchTerm.toLowerCase();
-      filtered = filtered.filter(act => act.name.toLowerCase().includes(lowercasedTerm));
+      query = query.ilike('name', `%${searchTerm}%`);
     }
 
     // 4. Status filter
@@ -63,7 +80,7 @@ const activityService = {
         .filter(([, isActive]) => isActive)
         .map(([status]) => status);
       if (activeStatuses.length > 0) {
-        filtered = filtered.filter(act => activeStatuses.includes(act.status));
+        query = query.in('status', activeStatuses);
       }
     }
 
@@ -73,60 +90,82 @@ const activityService = {
         .filter(([, isActive]) => isActive)
         .map(([level]) => level);
       if (activeLevels.length > 0) {
-        filtered = filtered.filter(act => activeLevels.includes(act.level));
+        query = query.in('level', activeLevels);
       }
     }
 
-    return { success: true, data: filtered };
+    const { data, error } = await query.order('date', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching activities:', error);
+      return { success: false, error: { message: error.message } };
+    }
+
+    const activities = data.map(toActivityModel);
+    return { success: true, data: activities };
   },
 
   getActivityById: async (id: string): Promise<ServiceResponse<Activity>> => {
-    await new Promise(resolve => setTimeout(resolve, 50));
-    const activity = mockActivities.find(act => act.id === id);
-    if (activity) {
-      return Promise.resolve({ success: true, data: activity });
-    } else {
-      return Promise.resolve({ success: false, error: "Activity not found." });
-    }
+    const { data, error } = await supabase.from('activities').select('*').eq('id', id).single();
+    if (error) return { success: false, error: { message: 'Activity not found.' } };
+    return { success: true, data: toActivityModel(data) };
   },
 
   createActivity: async (activityData: ActivityFormData): Promise<ServiceResponse<Activity>> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    if (!activityData.name || activityData.name.trim().length < 3) {
-      return Promise.resolve({ success: false, error: "Activity name must be at least 3 characters long." });
+    const { data, error } = await supabase
+      .from('activities')
+      .insert({
+        name: activityData.name,
+        description: activityData.description,
+        date: activityData.date,
+        status: activityData.status,
+        level: activityData.level,
+        site_id: activityData.siteId,
+        small_group_id: activityData.smallGroupId,
+        participants_count: activityData.participantsCount,
+        image_url: activityData.imageUrl,
+        activity_type_id: activityData.activityTypeId,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating activity:', error);
+      return { success: false, error: { message: error.message } };
     }
-    const newActivity: Activity = {
-      id: `activity-${Date.now()}`,
-      ...activityData,
-      date: activityData.date.toISOString(),
-    };
-    mockActivities.push(newActivity);
-    return Promise.resolve({ success: true, data: newActivity });
+    return { success: true, data: toActivityModel(data) };
   },
 
   updateActivity: async (activityId: string, updatedData: Partial<ActivityFormData>): Promise<ServiceResponse<Activity>> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const activityIndex = mockActivities.findIndex(a => a.id === activityId);
-    if (activityIndex === -1) {
-      return Promise.resolve({ success: false, error: "Activity not found." });
+    const { data, error } = await supabase
+      .from('activities')
+      .update({
+        name: updatedData.name,
+        description: updatedData.description,
+        date: updatedData.date,
+        status: updatedData.status,
+        level: updatedData.level,
+        site_id: updatedData.siteId,
+        small_group_id: updatedData.smallGroupId,
+        participants_count: updatedData.participantsCount,
+        image_url: updatedData.imageUrl,
+        activity_type_id: updatedData.activityTypeId,
+      })
+      .eq('id', activityId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating activity:', error);
+      return { success: false, error: { message: error.message } };
     }
-    const { date, ...restOfUpdatedData } = updatedData;
-    const updatedFields: Partial<Activity> = { ...restOfUpdatedData };
-    if (date) {
-      updatedFields.date = date.toISOString();
-    }
-    mockActivities[activityIndex] = { ...mockActivities[activityIndex], ...updatedFields };
-    return Promise.resolve({ success: true, data: mockActivities[activityIndex] });
+    return { success: true, data: toActivityModel(data) };
   },
 
   deleteActivity: async (id: string): Promise<ServiceResponse<{ id: string }>> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const index = mockActivities.findIndex(act => act.id === id);
-    if (index !== -1) {
-      mockActivities.splice(index, 1);
-      return Promise.resolve({ success: true, data: { id } });
-    }
-    return Promise.resolve({ success: false, error: "Activity not found." });
+    const { error } = await supabase.from('activities').delete().eq('id', id);
+    if (error) return { success: false, error: { message: error.message } };
+    return { success: true, data: { id } };
   },
 };
 
