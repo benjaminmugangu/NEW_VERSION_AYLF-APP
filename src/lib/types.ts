@@ -98,6 +98,10 @@ export interface Activity extends BaseEntity {
   participantsCount?: number;
   imageUrl?: string;
   activityTypeId?: string; // Foreign key to activity_types table
+  // Enriched data for UI
+  siteName?: string;
+  smallGroupName?: string;
+  activityTypeName?: string;
 }
 
 export interface ActivityType {

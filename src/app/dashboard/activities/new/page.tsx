@@ -6,31 +6,24 @@ import { ActivityForm } from "../components/ActivityForm";
 import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
 import { ROLES } from "@/lib/constants";
 import { Activity as ActivityIcon, PlusCircle } from "lucide-react";
-import type { ActivityFormData } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import activityService from "@/services/activityService";
+import type { Activity } from "@/lib/types";
 
 export default function NewActivityPage() {
   const { toast } = useToast();
   const router = useRouter();
 
-  const handleCreateActivity = async (data: ActivityFormData) => {
-    const result = await activityService.createActivity(data);
+  const handleSuccessfulCreate = (newActivity: Activity) => {
+    toast({
+      title: "Activity Created!",
+      description: `Activity "${newActivity.name}" has been successfully created.`,
+    });
+    router.push("/dashboard/activities");
+  };
 
-    if (result.success && result.data) {
-      toast({
-        title: "Activity Created!",
-        description: `Activity "${result.data.name}" has been successfully created.`,
-      });
-      router.push("/dashboard/activities");
-    } else {
-      toast({
-        title: "Error Creating Activity",
-        description: result.error || "An unknown error occurred.",
-        variant: "destructive",
-      });
-    }
+  const handleCancel = () => {
+    router.push("/dashboard/activities");
   };
 
   return (
@@ -40,7 +33,7 @@ export default function NewActivityPage() {
         description="Define the details for a new activity at the appropriate level."
         icon={PlusCircle}
       />
-      <ActivityForm onSubmitForm={handleCreateActivity} />
+      <ActivityForm onSave={handleSuccessfulCreate} onCancel={handleCancel} />
     </RoleBasedGuard>
   );
 }

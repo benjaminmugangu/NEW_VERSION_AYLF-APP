@@ -5,19 +5,25 @@ import { getDateRangeFromFilterValue, type DateFilterValue } from '@/components/
 import { ROLES } from '@/lib/constants';
 
 // Helper to convert DB snake_case to frontend camelCase
-const toActivityModel = (dbActivity: any): Activity => ({
-  id: dbActivity.id,
-  name: dbActivity.name,
-  description: dbActivity.description,
-  date: dbActivity.date,
-  status: dbActivity.status,
-  level: dbActivity.level,
-  siteId: dbActivity.site_id,
-  smallGroupId: dbActivity.small_group_id,
-  participantsCount: dbActivity.participants_count,
-  imageUrl: dbActivity.image_url,
-  activityTypeId: dbActivity.activity_type_id,
-});
+const toActivityModel = (dbActivity: any): Activity => {
+  return {
+    id: dbActivity.id,
+    name: dbActivity.name,
+    description: dbActivity.description,
+    date: dbActivity.date,
+    status: dbActivity.status,
+    level: dbActivity.level,
+    siteId: dbActivity.site_id,
+    smallGroupId: dbActivity.small_group_id,
+    participantsCount: dbActivity.participants_count,
+    imageUrl: dbActivity.image_url,
+    activityTypeId: dbActivity.activity_type_id,
+    // Enriched data from joins
+    siteName: dbActivity.sites?.name,
+    smallGroupName: dbActivity.small_groups?.name,
+    activityTypeName: dbActivity.activity_types?.name,
+  };
+};
 
 export interface ActivityFilters {
   user: User | null;
@@ -32,7 +38,12 @@ const activityService = {
     const { user, searchTerm, dateFilter, statusFilter, levelFilter } = filters;
     if (!user) return { success: false, error: { message: 'User not authenticated' } };
 
-    let query = supabase.from('activities').select('*');
+    let query = supabase.from('activities').select(`
+      *,
+      sites:site_id(name),
+      small_groups:small_group_id(name),
+      activity_types:activity_type_id(name)
+    `);
 
     // 1. Filter by user role
     switch (user.role) {
@@ -106,8 +117,21 @@ const activityService = {
   },
 
   getActivityById: async (id: string): Promise<ServiceResponse<Activity>> => {
-    const { data, error } = await supabase.from('activities').select('*').eq('id', id).single();
-    if (error) return { success: false, error: { message: 'Activity not found.' } };
+    const { data, error } = await supabase
+      .from('activities')
+      .select(`
+        *,
+        sites:site_id(name),
+        small_groups:small_group_id(name),
+        activity_types:activity_type_id(name)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      console.error(`Error fetching activity by id ${id}:`, error);
+      return { success: false, error: { message: 'Activity not found.' } };
+    }
     return { success: true, data: toActivityModel(data) };
   },
 
