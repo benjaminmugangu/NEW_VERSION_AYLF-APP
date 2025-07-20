@@ -4,8 +4,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import smallGroupService from '@/services/smallGroupService';
 import siteService from '@/services/siteService';
-import userService from '@/services/userService';
-import memberService from '@/services/memberService';
+import { profileService } from '@/services/profileService';
+import { memberService } from '@/services/memberService';
 import { SmallGroup, Site, User, MemberWithDetails } from '@/lib/types';
 import { useAuth } from './useAuth';
 
@@ -35,7 +35,7 @@ export const useSmallGroupDetails = (groupId: string | null) => {
     try {
       const sgResponse = await smallGroupService.getSmallGroupById(groupId);
       if (!sgResponse.success || !sgResponse.data) {
-        throw new Error(sgResponse.error || 'Failed to fetch small group.');
+        throw new Error(sgResponse.error?.message || 'Failed to fetch small group.');
       }
       const baseGroup = sgResponse.data;
 
@@ -47,12 +47,12 @@ export const useSmallGroupDetails = (groupId: string | null) => {
 
       const [siteResponse, usersResponse, membersResponse] = await Promise.all([
         baseGroup.siteId ? siteService.getSiteById(baseGroup.siteId) : Promise.resolve({ success: true, data: undefined }),
-        userService.getUsersByIds(userIds),
+        profileService.getUsersByIds(userIds),
         memberService.getFilteredMembers({ user: currentUser, smallGroupId: groupId, searchTerm: '' }),
       ]);
 
       const usersMap = (usersResponse.success && usersResponse.data) 
-        ? new Map(usersResponse.data.map(u => [u.id, u])) 
+        ? new Map(usersResponse.data.map((u: User) => [u.id, u])) 
         : new Map();
       
       const groupMembers = (membersResponse.success && membersResponse.data) ? membersResponse.data : [];

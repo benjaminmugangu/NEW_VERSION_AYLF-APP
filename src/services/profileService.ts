@@ -37,7 +37,7 @@ const profileService = {
   },
 
   // Met à jour le profil d'un utilisateur
-  async updateProfile(userId: string, updates: Partial<User>): Promise<ServiceResponse<User>> {
+      async updateProfile(userId: string, updates: Partial<User>): Promise<ServiceResponse<User>> {
      try {
       const { data, error } = await supabase
         .from('profiles')

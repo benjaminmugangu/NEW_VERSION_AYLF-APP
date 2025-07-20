@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import fundAllocationService from '@/services/fundAllocationService';
+import { allocationService } from '@/services/allocations.service';
 import { useRouter } from 'next/navigation';
 import type { FundAllocationFormData } from '@/lib/types';
 
@@ -46,7 +46,7 @@ const NewAllocationPage = () => {
       return;
     }
 
-    const result = await fundAllocationService.createAllocation(fullData);
+    const result = await allocationService.createAllocation(fullData);
 
     setIsSaving(false);
 
