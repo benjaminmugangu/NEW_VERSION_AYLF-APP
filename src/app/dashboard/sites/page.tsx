@@ -31,7 +31,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getInitials } from "@/lib/utils";
 
 export default function ManageSitesPage() {
-  const { sites, allSites, isLoading, error, deleteSite, searchTerm, setSearchTerm } = useSites();
+  const { sites, allSites, isLoading, error, deleteSite, searchTerm, setSearchTerm, canCreateSite, canEditSite, canDeleteSite } = useSites();
   const { toast } = useToast();
   const [siteToDelete, setSiteToDelete] = useState<SiteWithDetails | null>(null);
 
@@ -48,7 +48,7 @@ export default function ManageSitesPage() {
     } else {
       toast({
         title: "Error Deleting Site",
-        description: result.error || "An unknown error occurred.",
+        description: result.error?.message || "An unknown error occurred.",
         variant: "destructive",
       });
     }
@@ -66,22 +66,25 @@ export default function ManageSitesPage() {
     };
   }, [allSites, isLoading, error]);
 
-  if (error) {
-    toast({ title: "Error", description: error, variant: "destructive" });
+    if (error) {
+    const description = typeof error === 'string' ? error : (error as { message: string }).message;
+    toast({ title: "Error", description: description, variant: "destructive" });
   }
 
   return (
-    <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR]}>
+    <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER]}>
       <PageHeader 
         title="Manage Sites"
         description="Oversee all AYLF operational sites, their coordinators, and performance."
         icon={Building}
         actions={
-          <Link href="/dashboard/sites/new">
-            <Button>
-              <PlusCircle className="mr-2 h-4 w-4" /> Add New Site
-            </Button>
-          </Link>
+          canCreateSite && (
+            <Link href="/dashboard/sites/new">
+              <Button>
+                <PlusCircle className="mr-2 h-4 w-4" /> Add New Site
+              </Button>
+            </Link>
+          )
         }
       />
       <Card className="shadow-lg">
@@ -141,18 +144,22 @@ export default function ManageSitesPage() {
                           <Link href={`/dashboard/sites/${site.id}`}>
                             <Button variant="ghost" size="icon" title="View Details"><Eye className="h-4 w-4" /></Button>
                           </Link>
-                          <Link href={`/dashboard/sites/${site.id}/edit`}>
-                            <Button variant="ghost" size="icon" title="Edit Site"><Edit className="h-4 w-4" /></Button>
-                          </Link>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            title="Delete Site" 
-                            className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
-                            onClick={() => setSiteToDelete(site)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {canEditSite && (
+                            <Link href={`/dashboard/sites/${site.id}/edit`}>
+                              <Button variant="ghost" size="icon" title="Edit Site"><Edit className="h-4 w-4" /></Button>
+                            </Link>
+                          )}
+                          {canDeleteSite && (
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              title="Delete Site" 
+                              className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
+                              onClick={() => setSiteToDelete(site)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     );

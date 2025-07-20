@@ -44,11 +44,11 @@ export default function DashboardPage() {
   const fetchStats = React.useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    const response = await dashboardService.getDashboardStats(dateFilter);
+        const response = await dashboardService.getDashboardStats(currentUser, dateFilter);
     if (response.success && response.data) {
       setStats(response.data);
     } else {
-      setError(response.error || 'An unknown error occurred.');
+            setError(response.error?.message || 'An unknown error occurred.');
       setStats(null);
     }
     setIsLoading(false);

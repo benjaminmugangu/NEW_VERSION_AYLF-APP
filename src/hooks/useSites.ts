@@ -2,9 +2,11 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 import siteService from '@/services/siteService';
-import userService from '@/services/userService';
+import { profileService } from '@/services/profileService';
 import type { Site, User } from '@/lib/types';
+import { ROLES } from '@/lib/constants';
 
 export interface SiteWithDetails extends Site {
   membersCount: number;
@@ -13,18 +15,21 @@ export interface SiteWithDetails extends Site {
 }
 
 export const useSites = () => {
+  const { currentUser } = useAuth();
   const [allSites, setAllSites] = useState<SiteWithDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   const fetchSites = useCallback(async () => {
+    if (!currentUser) return;
+
     setIsLoading(true);
     setError(null);
-    const sitesResponse = await siteService.getAllSites();
+    const sitesResponse = await siteService.getFilteredSites({ user: currentUser });
 
     if (!sitesResponse.success || !sitesResponse.data) {
-      setError(sitesResponse.error || 'Failed to fetch sites.');
+      setError(sitesResponse.error?.message || 'Failed to fetch sites.');
       setAllSites([]);
       setIsLoading(false);
       return;
@@ -35,8 +40,8 @@ export const useSites = () => {
       .map(site => site.coordinatorId)
       .filter((id): id is string => !!id);
 
-    const usersResponse = await userService.getUsersByIds(coordinatorIds);
-    const coordinatorsMap = usersResponse.success
+    const usersResponse = await profileService.getUsersByIds(coordinatorIds);
+    const coordinatorsMap = (usersResponse.success && usersResponse.data)
       ? new Map(usersResponse.data.map(user => [user.id, user]))
       : new Map();
 
@@ -45,8 +50,8 @@ export const useSites = () => {
         const detailsResponse = await siteService.getSiteDetails(site.id);
         return {
           ...site,
-          membersCount: detailsResponse.success ? detailsResponse.data.membersCount : 0,
-          smallGroupsCount: detailsResponse.success ? detailsResponse.data.smallGroupsCount : 0,
+          membersCount: (detailsResponse.success && detailsResponse.data) ? detailsResponse.data.membersCount : 0,
+          smallGroupsCount: (detailsResponse.success && detailsResponse.data) ? detailsResponse.data.smallGroupsCount : 0,
           coordinator: site.coordinatorId ? coordinatorsMap.get(site.coordinatorId) : undefined,
         };
       })
@@ -54,11 +59,13 @@ export const useSites = () => {
 
     setAllSites(sitesWithDetails);
     setIsLoading(false);
-  }, []);
+  }, [currentUser]);
 
   useEffect(() => {
-    fetchSites();
-  }, [fetchSites]);
+    if (currentUser) {
+      fetchSites();
+    }
+  }, [fetchSites, currentUser]);
 
   const deleteSite = async (siteId: string) => {
     const result = await siteService.deleteSite(siteId);
@@ -79,5 +86,21 @@ export const useSites = () => {
     );
   }, [allSites, searchTerm]);
 
-  return { sites: filteredSites, allSites, isLoading, error, refetch: fetchSites, deleteSite, searchTerm, setSearchTerm };
+  const canCreateSite = useMemo(() => currentUser?.role === ROLES.NATIONAL_COORDINATOR, [currentUser]);
+  const canEditSite = useMemo(() => currentUser?.role === ROLES.NATIONAL_COORDINATOR, [currentUser]);
+  const canDeleteSite = useMemo(() => currentUser?.role === ROLES.NATIONAL_COORDINATOR, [currentUser]);
+
+  return { 
+    sites: filteredSites, 
+    allSites, 
+    isLoading, 
+    error, 
+    refetch: fetchSites, 
+    deleteSite, 
+    searchTerm, 
+    setSearchTerm, 
+    canCreateSite, 
+    canEditSite, 
+    canDeleteSite 
+  };
 };

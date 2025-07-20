@@ -3,15 +3,14 @@
 
 import React from "react";
 import { useParams, useRouter } from "next/navigation";
-import Image from "next/image"; // Import next/image
 import { PageHeader } from "@/components/shared/PageHeader";
 import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
 import { ROLES } from "@/lib/constants";
-import { mockActivities, mockSites, mockSmallGroups, mockReports } from "@/lib/mockData";
+import { activityService } from "@/services/activityService";
 import type { Activity } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CalendarDays, Users, Layers, Tag, CheckCircle, XCircle, Loader2, Info, FileText, Link as LinkIcon, Image as ImageIcon, Edit } from "lucide-react";
+import { CalendarDays, Users, Layers, Tag, CheckCircle, XCircle, Loader2, Info, FileText, Edit } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
@@ -20,17 +19,53 @@ export default function ActivityDetailPage() {
   const router = useRouter();
   const activityId = params.activityId as string;
 
-  const activity = mockActivities.find(act => act.id === activityId);
+  const [activity, setActivity] = React.useState<Activity | null>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
-  const getSiteName = (siteId?: string) => siteId ? mockSites.find(s => s.id === siteId)?.name || "N/A" : "N/A";
-  const getSmallGroupName = (smallGroupId?: string) => smallGroupId ? mockSmallGroups.find(sg => sg.id === smallGroupId)?.name || "N/A" : "N/A";
+  React.useEffect(() => {
+    const fetchActivity = async () => {
+      if (!activityId) return;
+      setLoading(true);
+      try {
+        const result = await activityService.getActivityById(activityId);
+        if (result.success && result.data) {
+          setActivity(result.data);
+        } else {
+          setError(result.error?.message || "Failed to fetch activity details.");
+        }
+      } catch (err) {
+        setError("An unexpected error occurred.");
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const relatedReports = mockReports.filter(report =>
-    (activity?.level === "national" && report.level === "national" && report.title.toLowerCase().includes(activity.name.toLowerCase().substring(0,10))) || 
-    (activity?.level === "site" && report.siteId === activity.siteId && report.title.toLowerCase().includes(activity.name.toLowerCase().substring(0,10))) ||
-    (activity?.level === "small_group" && report.smallGroupId === activity.smallGroupId && report.title.toLowerCase().includes(activity.name.toLowerCase().substring(0,10)))
-  );
+    fetchActivity();
+  }, [activityId]);
 
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER]}>
+        <PageHeader title="Error" icon={Info} />
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-red-500">{error}</p>
+            <Button onClick={() => router.back()} className="mt-4">Go Back</Button>
+          </CardContent>
+        </Card>
+      </RoleBasedGuard>
+    );
+  }
 
   if (!activity) {
     return (
@@ -69,50 +104,36 @@ export default function ActivityDetailPage() {
       case "national": return "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300";
       case "site": return "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300";
       case "small_group": return "bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300";
-      default: return "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300";
+      default: return "bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-300";
     }
-  }
+  };
 
   return (
-    <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER]}>
+    <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR]}>
       <PageHeader 
-        title={activity.name} 
-        description={`Details for activity: ${activity.name}`} 
+        title={activity.name}
+        description={`Details for activity: ${activity.name}`}
         icon={Tag}
         actions={
           <Link href={`/dashboard/activities/${activity.id}/edit`}>
-            <Button variant="outline">
-              <Edit className="mr-2 h-4 w-4" /> Edit Activity
-            </Button>
+            <Button variant="outline"><Edit className="mr-2 h-4 w-4"/> Edit Activity</Button>
           </Link>
         }
       />
-      {activity.imageUrl && (
-        <Card className="mb-6 shadow-lg overflow-hidden">
-          <div className="relative w-full aspect-[16/9] sm:aspect-[2/1] md:aspect-[2.5/1] lg:aspect-[3/1]">
-            <Image 
-              src={activity.imageUrl} 
-              alt={activity.name} 
-              layout="fill" 
-              objectFit="cover"
-              data-ai-hint="activity banner image" 
-            />
-          </div>
-        </Card>
-      )}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 space-y-6">
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle>Activity Information</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
               <div>
                 <h3 className="text-sm font-medium text-muted-foreground">Description</h3>
-                <p className="text-foreground">{activity.description}</p>
+                <p className="text-foreground whitespace-pre-wrap">{activity.description}</p>
               </div>
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 text-sm">
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground flex items-center"><CalendarDays className="mr-2 h-4 w-4" /> Date</h3>
                   <p className="text-foreground">{new Date(activity.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
@@ -130,24 +151,24 @@ export default function ActivityDetailPage() {
                     {activity.status.charAt(0).toUpperCase() + activity.status.slice(1)}
                   </Badge>
                 </div>
-                 {activity.participantsCount !== undefined && (
+                {activity.participantsCount !== undefined && (
                   <div>
                     <h3 className="text-sm font-medium text-muted-foreground flex items-center"><Users className="mr-2 h-4 w-4" /> Participants</h3>
                     <p className="text-foreground">{activity.participantsCount}</p>
                   </div>
-                 )}
+                )}
               </div>
 
               {activity.level === 'site' && activity.siteId && (
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground">Site</h3>
-                  <p className="text-foreground">{getSiteName(activity.siteId)}</p>
+                  <p className="text-foreground">{activity.siteName || 'N/A'}</p>
                 </div>
               )}
               {activity.level === 'small_group' && activity.smallGroupId && (
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground">Small Group</h3>
-                  <p className="text-foreground">{getSmallGroupName(activity.smallGroupId)} (Site: {getSiteName(mockSmallGroups.find(sg => sg.id === activity.smallGroupId)?.siteId)})</p>
+                  <p className="text-foreground">{activity.smallGroupName || 'N/A'} (Site: {activity.siteName || 'N/A'})</p>
                 </div>
               )}
             </CardContent>
@@ -173,29 +194,15 @@ export default function ActivityDetailPage() {
           </Card>
         </div>
 
-        <div className="md:col-span-1 space-y-6">
+        <div className="lg:col-span-1 space-y-6">
+           {/* TODO: Implement a proper way to fetch and display related reports */}
            <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="flex items-center"><FileText className="mr-2 h-5 w-5 text-primary" /> Related Reports</CardTitle>
               <CardDescription>Reports associated with this activity.</CardDescription>
             </CardHeader>
             <CardContent>
-              {relatedReports.length > 0 ? (
-                <ul className="space-y-3">
-                  {relatedReports.map(report => (
-                    <li key={report.id} className="text-sm border-b pb-2 last:border-b-0 last:pb-0">
-                      <Link href={`/dashboard/reports/view#${report.id}`}>
-                        <Button variant="link" className="p-0 h-auto font-medium text-primary hover:underline flex items-center">
-                           {report.title} <LinkIcon className="ml-1 h-3 w-3"/>
-                        </Button>
-                      </Link>
-                      <p className="text-xs text-muted-foreground mt-0.5">Submitted: {new Date(report.submissionDate).toLocaleDateString()}</p>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-muted-foreground">No specific reports found for this activity.</p>
-              )}
+                <p className="text-sm text-muted-foreground">Feature to link reports is coming soon.</p>
             </CardContent>
           </Card>
         </div>

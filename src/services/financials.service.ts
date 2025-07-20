@@ -1,120 +1,106 @@
 // src/services/financials.service.ts
-
 /**
  * @file This file centralizes all logic for fetching and processing financial data.
- * In the future, this is where calls to the Supabase API will be made.
- * Components and hooks will only consume the functions exported by this service,
- * without worrying about the data source (mock, API, etc.).
+ * It will be replaced by a single RPC call to Supabase in the future.
  */
 
-import allocationsService from './allocations.service';
-import type { FundAllocation, Report, ReportWithDetails, Role, ServiceResponse } from '@/lib/types';
-import reportService from './report.service';
+import { allocationService as fundAllocationService } from './allocations.service';
+import { reportService } from './report.service';
+import { transactionService } from './transactionService';
 import { applyDateFilter, type DateFilterValue } from '@/components/shared/DateRangeFilter';
+import type { 
+  Financials, 
+  FundAllocation, 
+  Report, 
+  ReportWithDetails, 
+  ServiceResponse, 
+  FinancialTransaction, 
+  UserContext 
+} from '@/lib/types';
 
-export interface FinancialStats {
-  fundsReceived: number;
-  expensesDeclared: number;
-  fundsReallocated: number;
-  balance: number;
-  allocationsReceived: FundAllocation[];
-  allocationsSent: FundAllocation[];
-  relevantReports: ReportWithDetails[];
-}
-
-export interface FinancialsOptions {
-    dateFilter?: DateFilterValue;
-    context: {
-        type: Role | 'site' | 'smallGroup';
-        id?: string;
-    };
-}
-
-// Simulates an asynchronous API call
-export const getFinancialStats = async (options: FinancialsOptions): Promise<ServiceResponse<FinancialStats>> => {
-    const { dateFilter, context } = options;
-
-    await new Promise(resolve => setTimeout(resolve, 300)); // Simulate network latency
-
+export const getFinancialStats = async (
+  userContext: UserContext,
+  dateFilter?: DateFilterValue
+): Promise<ServiceResponse<Financials>> => {
     try {
-        const allocationsResponse = await allocationsService.getAllAllocations();
-        if (!allocationsResponse.success) {
-            return { success: false, error: `Failed to fetch allocations: ${allocationsResponse.error}` };
-        }
-        
-        const allAllocations = allocationsResponse.data;
-        const filteredAllocations = dateFilter ? applyDateFilter(allAllocations.map(a => ({...a, date: a.allocationDate})), dateFilter) : allAllocations;
-        
-        let allocationsReceived: FundAllocation[] = [];
-        let allocationsSent: FundAllocation[] = [];
-        let relevantReports: ReportWithDetails[] = [];
+      const { user, role } = userContext;
+      if (!user || !role) {
+        return { success: false, error: { message: 'User context is incomplete' } };
+      }
 
-        const reportFilters = {
-            status: 'approved' as const,
-            dateRange: dateFilter,
+      const roleFilters = {
+        siteId: role === 'site_coordinator' ? user.siteId : undefined,
+        smallGroupId: role === 'small_group_leader' ? user.smallGroupId : undefined,
+      };
+
+      const transactionFilters = { user, dateFilter };
+
+      const [allocationsResponse, reportsResponse, transactionsResponse] = await Promise.all([
+        fundAllocationService.getAllocations(), // Fetches all, will be filtered locally
+        reportService.getReportsWithDetails({ ...roleFilters, dateRange: dateFilter }),
+        transactionService.getFilteredTransactions(transactionFilters),
+      ]);
+
+      if (!allocationsResponse.success || !reportsResponse.success || !transactionsResponse.success) {
+        const errorDetails = {
+          allocationsError: allocationsResponse.error,
+          reportsError: reportsResponse.error,
+          transactionsError: transactionsResponse.error,
         };
-
-        switch (context.type) {
-            case 'national_coordinator': {
-                allocationsSent = filteredAllocations
-                    .filter((a) => a.senderType === 'national')
-                    .sort((a, b) => new Date(b.allocationDate).getTime() - new Date(a.allocationDate).getTime());
-                
-                const response = await reportService.getReportsWithDetails(reportFilters);
-                if (response.success) relevantReports = response.data;
-                break;
-            }
-            
-            case 'site':
-            case 'site_coordinator': {
-                if (context.id) {
-                    allocationsReceived = filteredAllocations
-                        .filter((a) => a.recipientType === 'site' && a.recipientId === context.id)
-                        .sort((a, b) => new Date(b.allocationDate).getTime() - new Date(a.allocationDate).getTime());
-                    allocationsSent = filteredAllocations
-                        .filter((a) => a.senderType === 'site' && a.senderId === context.id)
-                        .sort((a, b) => new Date(b.allocationDate).getTime() - new Date(a.allocationDate).getTime());
-                    
-                    const response = await reportService.getReportsWithDetails({ ...reportFilters, siteId: context.id });
-                    if (response.success) relevantReports = response.data;
-                }
-                break;
-            }
-            
-            case 'smallGroup':
-            case 'small_group_leader': {
-                if (context.id) {
-                    allocationsReceived = filteredAllocations
-                        .filter((a) => a.recipientType === 'smallGroup' && a.recipientId === context.id)
-                        .sort((a, b) => new Date(b.allocationDate).getTime() - new Date(a.allocationDate).getTime());
-                    
-                    const response = await reportService.getReportsWithDetails({ ...reportFilters, smallGroupId: context.id });
-                    if (response.success) relevantReports = response.data;
-                }
-                break;
-            }
-        }
-
-        const fundsReceived = allocationsReceived.reduce((sum, a) => sum + a.amount, 0);
-        const fundsReallocated = allocationsSent.reduce((sum, a) => sum + a.amount, 0);
-        const expensesDeclared = relevantReports.reduce((sum, r) => sum + (r.expenses || 0), 0);
-        const balance = fundsReceived - expensesDeclared - fundsReallocated;
-
-        const stats: FinancialStats = {
-            fundsReceived,
-            expensesDeclared,
-            fundsReallocated,
-            balance,
-            allocationsReceived,
-            allocationsSent,
-            relevantReports,
+        console.error('Financial data retrieval failed. Details:', JSON.stringify(errorDetails, null, 2));
+        return {
+          success: false,
+          error: { message: 'Failed to retrieve one or more financial details.' },
+          details: errorDetails,
         };
-        
-        return { success: true, data: stats };
+      }
 
+      let allAllocations = allocationsResponse.data || [];
+      let reports: ReportWithDetails[] = reportsResponse.data || [];
+      let transactions: FinancialTransaction[] = transactionsResponse.data || [];
+
+      if (dateFilter) {
+        allAllocations = applyDateFilter(allAllocations, 'allocationDate', dateFilter);
+      }
+
+      const allocations = allAllocations.filter((alloc: FundAllocation) => {
+        if (role === 'national_coordinator') return true;
+        if (role === 'site_coordinator') return alloc.siteId === user.siteId;
+        if (role === 'small_group_leader') return alloc.smallGroupId === user.smallGroupId;
+        return false;
+      });
+
+      // Perform calculations
+      const totalRevenue = transactions
+        .filter(t => t.type === 'income')
+        .reduce((sum: number, t: FinancialTransaction) => sum + t.amount, 0);
+
+      const totalExpensesFromTransactions = transactions
+        .filter(t => t.type === 'expense')
+        .reduce((sum: number, t: FinancialTransaction) => sum + t.amount, 0);
+
+      const totalExpensesFromReports = reports.reduce((sum: number, report: Report) => sum + (report.totalExpenses || 0), 0);
+
+      const totalExpenses = totalExpensesFromTransactions + totalExpensesFromReports;
+
+      const totalAllocated = allocations.reduce((sum: number, alloc: FundAllocation) => sum + alloc.amount, 0);
+
+      const netBalance = totalRevenue - totalExpenses;
+
+      // Construct the final object according to the Financials type
+      const financials: Financials = {
+        totalRevenue,
+        totalExpenses,
+        totalAllocated,
+        netBalance,
+        allocations,
+        reports: reports as Report[], // Cast is acceptable here
+        transactions,
+      };
+
+      return { success: true, data: financials };
     } catch (error) {
-        console.error('Error calculating financial stats:', error);
-        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-        return { success: false, error: `Failed to get financial stats: ${errorMessage}` };
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      return { success: false, error: { message: `Could not calculate financials: ${errorMessage}` } };
     }
 };

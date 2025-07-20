@@ -27,33 +27,85 @@ const toSmallGroupModel = (dbSmallGroup: any): SmallGroup => {
 };
 
 const smallGroupService = {
-  // Combined function to get small groups with filters
-  getSmallGroups: async (filters: { siteId?: string; search?: string } = {}): Promise<ServiceResponse<SmallGroup[]>> => {
+  getSmallGroupsBySite: async (siteId: string): Promise<ServiceResponse<SmallGroup[]>> => {
+    const { data, error } = await supabase
+      .from('small_groups')
+      .select('*')
+      .eq('site_id', siteId)
+      .order('name', { ascending: true });
+
+    if (error) {
+      return { success: false, error: { message: error.message } };
+    }
+
+    return { success: true, data: data.map(toSmallGroupModel) };
+  },
+    getFilteredSmallGroups: async ({ user, search, siteId }: { user: User; search?: string, siteId?: string }): Promise<ServiceResponse<SmallGroup[]>> => {
+    if (!user) {
+      return { success: false, error: { message: 'User not authenticated.' } };
+    }
+
     let query = supabase
       .from('small_groups')
       .select(`
         *,
         sites (name),
-        leader:leader_id (name),
-        members (count)
+        leader:leader_id (name)
       `);
 
-    if (filters.siteId) {
-      query = query.eq('site_id', filters.siteId);
+    // Apply role-based filtering
+    switch (user.role) {
+      case ROLES.NATIONAL_COORDINATOR:
+        // If a specific siteId is provided for filtering, use it.
+        if (siteId) {
+          query = query.eq('site_id', siteId);
+        }
+        // Otherwise, a national coordinator can see all groups, so no filter is applied.
+        break;
+      case ROLES.SITE_COORDINATOR:
+        if (!user.siteId) {
+          return { success: true, data: [] }; // No site assigned, return empty
+        }
+        query = query.eq('site_id', user.siteId);
+        break;
+      case ROLES.SMALL_GROUP_LEADER:
+        if (!user.smallGroupId) {
+          return { success: true, data: [] }; // No group assigned, return empty
+        }
+        query = query.eq('id', user.smallGroupId);
+        break;
+      default:
+        // Other roles should not see any small groups by default
+        return { success: true, data: [] };
     }
-    if (filters.search) {
-      query = query.ilike('name', `%${filters.search}%`);
+
+    // Apply search filter if provided
+    if (search) {
+      query = query.ilike('name', `%${search}%`);
     }
 
     const { data, error } = await query;
 
     if (error) {
-      console.error('Error fetching small groups:', error);
-      return { success: false, error: { message: error.message } };
+      return { success: false, error: { message: `Failed to fetch small groups: ${error.message}` } };
     }
 
     const smallGroups = data.map(toSmallGroupModel);
     return { success: true, data: smallGroups };
+  },
+
+  getSmallGroupById: async (groupId: string): Promise<ServiceResponse<SmallGroup>> => {
+    const { data, error } = await supabase
+      .from('small_groups')
+      .select('*')
+      .eq('id', groupId)
+      .single();
+
+    if (error) {
+      return { success: false, error: { message: 'Small group not found.' } };
+    }
+
+    return { success: true, data: toSmallGroupModel(data) };
   },
 
   getSmallGroupDetails: async (groupId: string): Promise<ServiceResponse<SmallGroup>> => {
@@ -71,7 +123,6 @@ const smallGroupService = {
       .single();
 
     if (error) {
-      console.error(`Error fetching details for small group ${groupId}:`, error);
       return { success: false, error: { message: 'Small group not found.' } };
     }
 
@@ -95,7 +146,6 @@ const smallGroupService = {
       .single();
 
     if (createError) {
-      console.error('Error creating small group:', createError);
       return { success: false, error: { message: createError.message } };
     }
 
@@ -171,28 +221,36 @@ const smallGroupService = {
     return { success: true, data: toSmallGroupModel(updatedGroup) };
   },
 
-  deleteSmallGroup: async (groupId: string): Promise<ServiceResponse<{ id: string }>> => {
-    // 1. Check for members
-    const { count, error: memberError } = await supabase.from('members').select('*', { count: 'exact', head: true }).eq('small_group_id', groupId);
-    if (memberError) return { success: false, error: { message: memberError.message } };
-    if (count && count > 0) {
-      return { success: false, error: { message: 'Cannot delete small group with members. Please reassign them first.' } };
+  deleteSmallGroup: async (groupId: string): Promise<ServiceResponse<null>> => {
+    try {
+      // 1. Unassign all users (leaders, assistants, members) from the small group.
+      const { error: unassignError } = await supabase
+        .from('profiles')
+        .update({ small_group_id: null })
+        .eq('small_group_id', groupId);
+
+      if (unassignError) {
+        console.error('Error unassigning members:', unassignError);
+        return { success: false, error: { message: `Failed to unassign members: ${unassignError.message}` } };
+      }
+
+      // 2. Perform a hard delete on the small group itself.
+      const { error: deleteError } = await supabase
+        .from('small_groups')
+        .delete()
+        .eq('id', groupId);
+
+      if (deleteError) {
+        console.error('Error deleting small group:', deleteError);
+        return { success: false, error: { message: `Failed to delete small group: ${deleteError.message}` } };
+      }
+
+      return { success: true, data: null };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      console.error(`Unexpected error in deleteSmallGroup: ${errorMessage}`);
+      return { success: false, error: { message: `An unexpected error occurred: ${errorMessage}` } };
     }
-
-    // 2. Unassign leaders/assistants
-    const { data: group, error: fetchError } = await supabase.from('small_groups').select('*').eq('id', groupId).single();
-    if (fetchError || !group) return { success: false, error: { message: 'Small group not found.' } };
-    
-    const userIds = [group.leader_id, group.logistics_assistant_id, group.finance_assistant_id].filter(Boolean);
-    if (userIds.length > 0) {
-      await supabase.from('profiles').update({ small_group_id: null }).in('id', userIds);
-    }
-
-    // 3. Delete the group
-    const { error: deleteError } = await supabase.from('small_groups').delete().eq('id', groupId);
-    if (deleteError) return { success: false, error: { message: deleteError.message } };
-
-    return { success: true, data: { id: groupId } };
   },
 };
 

@@ -4,17 +4,17 @@ import type { ActivityType, ServiceResponse } from '@/lib/types';
 
 // To simulate a database, we'll use a simple in-memory array.
 let mockActivityTypes: ActivityType[] = [
-    { id: 'at-1', name: 'Réunion de planification' },
-    { id: 'at-2', name: 'Workshop' },
-    { id: 'at-3', name: 'Service Communautaire' },
-    { id: 'at-4', name: 'Réunion de Petit Groupe' },
-    { id: 'at-5', name: 'Événement Sportif' },
-    { id: 'at-6', name: 'Conférence' },
-    { id: 'at-7', name: 'Réunion en Ligne' },
-    { id: 'at-8', name: 'Programme de Mentorat' },
-    { id: 'at-9', name: 'Séminaire' },
-    { id: 'at-10', name: 'Levée de Fonds' },
-    { id: 'at-11', name: 'Autre' },
+    { id: 'at-1', name: 'Réunion de planification', category: 'training' },
+    { id: 'at-2', name: 'Workshop', category: 'training' },
+    { id: 'at-3', name: 'Service Communautaire', category: 'community' },
+    { id: 'at-4', name: 'Réunion de Petit Groupe', category: 'spiritual' },
+    { id: 'at-5', name: 'Événement Sportif', category: 'community' },
+    { id: 'at-6', name: 'Conférence', category: 'training' },
+    { id: 'at-7', name: 'Réunion en Ligne', category: 'training' },
+    { id: 'at-8', name: 'Programme de Mentorat', category: 'training' },
+    { id: 'at-9', name: 'Séminaire', category: 'training' },
+    { id: 'at-10', name: 'Levée de Fonds', category: 'outreach' },
+    { id: 'at-11', name: 'Autre', category: 'community' },
 ];
 
 // Simulate API latency
@@ -31,8 +31,8 @@ export const getAllActivityTypes = async (): Promise<ServiceResponse<ActivityTyp
         // e.g., const response = await fetch('/api/activity-types');
         return { success: true, data: [...mockActivityTypes] };
     } catch (error) {
-        console.error('Error fetching activity types:', error);
-        return { success: false, error: 'An error occurred while fetching activity types.' };
+
+        return { success: false, error: { message: 'An error occurred while fetching activity types.' } };
     }
 };
 
@@ -48,9 +48,9 @@ export const getActivityTypeById = async (id: string): Promise<ServiceResponse<A
         if (activityType) {
             return { success: true, data: activityType };
         }
-        return { success: false, error: 'Activity type not found.' };
+        return { success: false, error: { message: 'Activity type not found.' } };
     } catch (error) {
-        console.error(`Error fetching activity type with id ${id}:`, error);
-        return { success: false, error: 'An error occurred while fetching the activity type.' };
+
+        return { success: false, error: { message: 'An error occurred while fetching the activity type.' } };
     }
 };

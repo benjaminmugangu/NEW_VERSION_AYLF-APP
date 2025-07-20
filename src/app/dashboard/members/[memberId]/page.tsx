@@ -1,49 +1,74 @@
 // src/app/dashboard/members/[memberId]/page.tsx
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
 import { ROLES } from "@/lib/constants";
-import { mockMembers, mockSites, mockSmallGroups, mockActivities } from "@/lib/mockData"; 
-import type { Member } from "@/lib/types";
+import { memberService } from "@/services/memberService";
+import { activityService } from "@/services/activityService";
+import type { MemberWithDetails, Activity } from "@/lib/types";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { User, CalendarDays, Users as UsersIcon, University, Mail, Phone, Activity as ActivityIcon, Link as LinkIcon, Info, Edit } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { MemberDetailSkeleton } from '@/components/shared/skeletons/MemberDetailSkeleton'; 
 
 export default function MemberDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { toast } = useToast();
   const memberId = params.memberId as string;
 
-  const member = mockMembers.find(mem => mem.id === memberId);
+  const [member, setMember] = useState<MemberWithDetails | null>(null);
+  const [relatedActivities, setRelatedActivities] = useState<Activity[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const getSiteName = (siteId?: string) : string => siteId ? mockSites.find(s => s.id === siteId)?.name || "N/A" : "N/A";
-  const getSmallGroupName = (smallGroupId?: string): string => {
-    if (!smallGroupId) return "N/A";
-    const sg = mockSmallGroups.find(s => s.id === smallGroupId);
-    return sg ? sg.name : "N/A";
-  };
-  
+  useEffect(() => {
+    if (!memberId) return;
+
+    const fetchData = async () => {
+      setIsLoading(true);
+      const memberResponse = await memberService.getMemberById(memberId);
+
+      if (memberResponse.success && memberResponse.data) {
+        setMember(memberResponse.data);
+        const activityResponse = await activityService.getRelatedActivities(memberResponse.data);
+        if (activityResponse.success && activityResponse.data) {
+          setRelatedActivities(activityResponse.data);
+        } else {
+          toast({ title: "Error", description: "Could not load related activities.", variant: 'destructive' });
+        }
+      } else {
+        setMember(null);
+        toast({ title: "Error", description: memberResponse.error?.message || "Could not load member data.", variant: 'destructive' });
+      }
+      setIsLoading(false);
+    };
+
+    fetchData();
+  }, [memberId, toast]);
+
   const getInitials = (name: string = "") => {
     const names = name.split(' ');
-    if (names.length > 1 && names[0] && names[names.length -1]) { // Check if names[0] and names[names.length -1] exist
+    if (names.length > 1 && names[0] && names[names.length - 1]) {
       return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
     }
     return name.substring(0, 2).toUpperCase();
   };
 
-  // Mock related data - for illustration
-  const relatedActivities = mockActivities.filter(activity => 
-    (activity.level === "small_group" && activity.smallGroupId === member?.smallGroupId) ||
-    (activity.level === "site" && activity.siteId === member?.siteId) ||
-    activity.level === "national" // All members can potentially attend national activities
-  ).slice(0, 3); // Show a few
-
+  if (isLoading) {
+    return (
+      <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER]}>
+        <PageHeader title="Loading Member..." icon={User} />
+        <MemberDetailSkeleton />
+      </RoleBasedGuard>
+    );
+  }
 
   if (!member) {
     return (
@@ -114,7 +139,7 @@ export default function MemberDetailPage() {
                   <University className="mr-3 h-5 w-5 text-muted-foreground mt-0.5" />
                   <div>
                     <span className="text-sm font-medium text-muted-foreground">Site</span>
-                    <p className="text-foreground">{getSiteName(member.siteId)}</p>
+                    <p className="text-foreground">{member.siteName}</p>
                   </div>
                 </div>
               )}
@@ -123,7 +148,7 @@ export default function MemberDetailPage() {
                   <UsersIcon className="mr-3 h-5 w-5 text-muted-foreground mt-0.5" />
                   <div>
                     <span className="text-sm font-medium text-muted-foreground">Small Group</span>
-                    <p className="text-foreground">{getSmallGroupName(member.smallGroupId)}</p>
+                    <p className="text-foreground">{member.smallGroupName}</p>
                   </div>
                 </div>
               )}

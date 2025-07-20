@@ -11,10 +11,14 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Activity as ActivityIcon, ListFilter, Search, Eye, Edit, PlusCircle } from "lucide-react";
+import { Activity as ActivityIcon, ListFilter, Search, Eye, Edit, PlusCircle, Trash2 } from "lucide-react";
 import { DateRangeFilter, type DateFilterValue } from "@/components/shared/DateRangeFilter";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import activityService from "@/services/activityService";
+import { useToast } from "@/components/ui/use-toast";
 import { ActivityChart } from "./components/ActivityChart";
 import { useActivities } from "@/hooks/useActivities";
+import { useRouter } from "next/navigation";
 import { ActivitiesPageSkeleton } from "@/components/shared/skeletons/ActivitiesPageSkeleton";
 import { ROLES } from "@/lib/constants";
 import type { Activity } from "@/lib/types";
@@ -32,7 +36,37 @@ export default function ActivitiesPage() {
     refetch,
     availableLevelFilters,
     canEditActivity,
+    handleDeleteActivity,
   } = useActivities();
+
+  const router = useRouter();
+  const { toast } = useToast();
+  const [isConfirmOpen, setConfirmOpen] = React.useState(false);
+  const [activityToDelete, setActivityToDelete] = React.useState<string | null>(null);
+
+  const handleDeleteClick = (activityId: string) => {
+    setActivityToDelete(activityId);
+    setConfirmOpen(true);
+  };
+
+  const handleRowClick = (activityId: string) => {
+    router.push(`/dashboard/activities/${activityId}`);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!activityToDelete) return;
+
+    const result = await handleDeleteActivity(activityToDelete);
+
+    if (result.success) {
+      toast({ title: "Success", description: "Activity has been deleted." });
+    } else {
+      toast({ title: "Error", description: result.error?.message || "Could not delete activity.", variant: "destructive" });
+    }
+
+    setConfirmOpen(false);
+    setActivityToDelete(null);
+  };
 
   // Helper functions for UI rendering
   const getStatusBadgeVariant = (status: Activity["status"]) => {
@@ -63,7 +97,7 @@ export default function ActivitiesPage() {
         <PageHeader title="Activities" description="Error" icon={ActivityIcon} />
         <Card className="mt-6">
           <CardContent className="pt-6">
-            <p className="text-center text-red-500">{error}</p>
+            <p className="text-center text-red-500">{error.message}</p>
             <div className="text-center mt-4">
               <Button onClick={() => refetch()}>Try Again</Button>
             </div>
@@ -133,20 +167,21 @@ export default function ActivitiesPage() {
                   </DropdownMenuCheckboxItem>
                 ))}
                 {availableLevelFilters.length > 0 && (
-                  <>
-                    <DropdownMenuSeparator />
+                  <DropdownMenuContent>
                     <DropdownMenuLabel>Filter by Level</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    {availableLevelFilters.map(level => (
+                    {availableLevelFilters.map((level) => (
                       <DropdownMenuCheckboxItem
                         key={level}
                         checked={filters.levelFilter[level as keyof typeof filters.levelFilter]}
-                        onCheckedChange={(checked) => setLevelFilter(prev => ({...prev, [level]: !!checked}))}
+                        onCheckedChange={(checked) => {
+                          setLevelFilter(prev => ({ ...prev, [level]: checked }));
+                        }}
                       >
                         {level.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                       </DropdownMenuCheckboxItem>
                     ))}
-                  </>
+                  </DropdownMenuContent>
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
@@ -167,7 +202,7 @@ export default function ActivitiesPage() {
               <TableBody>
                 {activities.length > 0 ? (
                   activities.map(activity => (
-                    <TableRow key={activity.id}>
+                    <TableRow key={activity.id} onClick={() => handleRowClick(activity.id)} className="cursor-pointer hover:bg-muted/50">
                       <TableCell className="font-medium">{activity.name}</TableCell>
                       <TableCell>{new Date(activity.date).toLocaleDateString()}</TableCell>
                       <TableCell>
@@ -181,14 +216,19 @@ export default function ActivitiesPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">{activity.participantsCount ?? "N/A"}</TableCell>
-                      <TableCell className="text-right space-x-1">
+                      <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
                         <Button asChild variant="ghost" size="icon" title="View Details">
                           <Link href={`/dashboard/activities/${activity.id}`}><Eye className="h-4 w-4" /></Link>
                         </Button>
                         {canEditActivity(activity) && (
-                          <Button asChild variant="ghost" size="icon" title="Edit Activity">
-                            <Link href={`/dashboard/activities/${activity.id}/edit`}><Edit className="h-4 w-4" /></Link>
-                          </Button>
+                          <>
+                            <Button asChild variant="ghost" size="icon" title="Edit Activity">
+                              <Link href={`/dashboard/activities/${activity.id}/edit`}><Edit className="h-4 w-4" /></Link>
+                            </Button>
+                            <Button variant="ghost" size="icon" title="Delete Activity" onClick={() => handleDeleteClick(activity.id)} className="text-red-500 hover:text-red-700">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
                         )}
                       </TableCell>
                     </TableRow>
@@ -205,6 +245,25 @@ export default function ActivitiesPage() {
           </div>
         </CardContent>
       </Card>
+
+      <AlertDialog open={isConfirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action will mark the activity as deleted. It won't be permanently removed
+              and can be recovered by an administrator if needed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setActivityToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700">
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </RoleBasedGuard>
   );
 }

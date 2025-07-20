@@ -3,97 +3,64 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './useAuth';
-import { ROLES } from '@/lib/constants';
-import { getFinancialStats, type FinancialStats, type FinancialsOptions } from '@/services/financials.service';
-
-export type { FinancialStats };
+import financialsService from '@/services/financialsService';
+import type { Financials } from '@/lib/types';
 import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
 
-const ALL_TIME_FILTER: DateFilterValue = { rangeKey: 'all_time', display: 'All Time' };
+const defaultFinancials: Financials = {
+  totalRevenue: 0,
+  totalExpenses: 0,
+  totalAllocated: 0,
+  netBalance: 0,
+  allocations: [],
+  reports: [],
+  transactions: [],
+};
 
-export interface UseFinancialsOptions {
-    entity?: {
-        type: 'site' | 'smallGroup';
-        id: string;
-    };
-}
+const defaultDateFilter: DateFilterValue = {
+  rangeKey: 'this_year',
+  display: 'This Year (Current)',
+};
 
-export const useFinancials = (options: UseFinancialsOptions = {}) => {
-  const { entity } = options;
-  const { currentUser } = useAuth();
+export const useFinancials = (initialDateFilter?: DateFilterValue) => {
+  const { currentUser: user } = useAuth();
 
-  const defaultStats: FinancialStats = {
-    fundsReceived: 0,
-    expensesDeclared: 0,
-    fundsReallocated: 0,
-    balance: 0,
-    allocationsReceived: [],
-    allocationsSent: [],
-    relevantReports: [],
-  };
-
-  const [stats, setStats] = useState<FinancialStats>(defaultStats);
+  const [financials, setFinancials] = useState<Financials>(defaultFinancials);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [dateFilter, setDateFilter] = useState<DateFilterValue>(ALL_TIME_FILTER);
+  const [dateFilter, setDateFilter] = useState<DateFilterValue>(initialDateFilter || defaultDateFilter);
 
-  const fetchStats = useCallback(async () => {
-    if (!currentUser) {
+  const fetchFinancials = useCallback(async (filter: DateFilterValue) => {
+    if (!user) {
       setIsLoading(false);
-      return;
-    }
-
-    const getContext = (): { type: FinancialsOptions['context']['type'], id?: string } | null => {
-      if (entity) return { type: entity.type, id: entity.id };
-
-      switch (currentUser.role) {
-        case ROLES.NATIONAL_COORDINATOR:
-          return { type: ROLES.NATIONAL_COORDINATOR, id: undefined };
-        case ROLES.SITE_COORDINATOR:
-          return { type: 'site', id: currentUser.siteId };
-        case ROLES.SMALL_GROUP_LEADER:
-          return { type: 'smallGroup', id: currentUser.smallGroupId };
-        default:
-          return null;
-      }
-    };
-
-    const context = getContext();
-
-    if (!context) {
-      setIsLoading(false);
-      setStats(defaultStats);
       return;
     }
 
     setIsLoading(true);
     setError(null);
 
-    const response = await getFinancialStats({
-      dateFilter,
-      context: { type: context.type, id: context.id },
-    });
+    const response = await financialsService.getDashboardData(user, filter);
 
     if (response.success && response.data) {
-      setStats(response.data);
+      setFinancials(response.data);
     } else {
-      setError(response.error || 'An unknown error occurred while fetching financial stats.');
-      setStats(defaultStats);
+      setError(response.error?.message || 'An unknown error occurred while fetching financial data.');
+      setFinancials(defaultFinancials);
     }
     setIsLoading(false);
-  }, [currentUser, dateFilter, entity]);
+  }, [user]);
 
   useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
+    fetchFinancials(dateFilter);
+  }, [fetchFinancials, dateFilter]);
 
   return {
-    stats,
+    stats: financials,
     isLoading,
     error,
-    currentUser,
+    refetch: () => fetchFinancials(dateFilter),
     dateFilter,
     setDateFilter,
-    refetch: fetchStats,
+    currentUser: user,
   };
 };

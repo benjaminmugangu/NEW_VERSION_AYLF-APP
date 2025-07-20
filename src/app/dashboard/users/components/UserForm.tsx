@@ -13,7 +13,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import type { User, UserRole, Site, SmallGroup } from "@/lib/types";
 import { ROLES } from "@/lib/constants";
-import { mockSites, mockSmallGroups } from "@/lib/mockData";
+import siteService from '@/services/siteService';
+import smallGroupService from '@/services/smallGroupService';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, Save, UserPlus, UsersRound } from "lucide-react";
@@ -55,6 +56,7 @@ interface UserFormProps {
 
 export function UserForm({ user, onSubmitForm }: UserFormProps) {
   const { toast } = useToast();
+  const [availableSites, setAvailableSites] = useState<Site[]>([]);
   const [availableSmallGroups, setAvailableSmallGroups] = useState<SmallGroup[]>([]);
   
   const defaultValues = user ? {
@@ -77,38 +79,43 @@ export function UserForm({ user, onSubmitForm }: UserFormProps) {
   const watchedSiteId = watch("siteId");
 
   useEffect(() => {
+    const fetchSites = async () => {
+      const response = await siteService.getAllSites();
+      if (response.success && response.data) {
+        setAvailableSites(response.data);
+      }
+    };
+    fetchSites();
+  }, []);
+
+  useEffect(() => {
     if (watchedRole === ROLES.NATIONAL_COORDINATOR) {
-      setValue("siteId", undefined);
-      setValue("smallGroupId", undefined);
-      setAvailableSmallGroups([]);
-    } else if (watchedRole === ROLES.SITE_COORDINATOR) {
-      setValue("smallGroupId", undefined);
-      setAvailableSmallGroups([]);
+      setValue("siteId", null);
+      setValue("smallGroupId", null);
+    }
+    if (watchedRole === ROLES.SITE_COORDINATOR) {
+      setValue("smallGroupId", null);
     }
   }, [watchedRole, setValue]);
 
   useEffect(() => {
-    if (watchedSiteId && (watchedRole === ROLES.SMALL_GROUP_LEADER || watchedRole === ROLES.SITE_COORDINATOR)) {
-      setAvailableSmallGroups(mockSmallGroups.filter(sg => sg.siteId === watchedSiteId));
-      // Don't reset smallGroupId if editing and siteId hasn't changed from original
-      if (!user || (user && user.siteId !== watchedSiteId)) {
-         setValue("smallGroupId", undefined);
+    const fetchSmallGroups = async () => {
+      if (watchedSiteId && watchedRole === ROLES.SMALL_GROUP_LEADER) {
+        const response = await smallGroupService.getSmallGroupsBySite(watchedSiteId);
+        if (response.success && response.data) {
+          setAvailableSmallGroups(response.data);
+        } else {
+          setAvailableSmallGroups([]);
+        }
+        if (!user || watchedSiteId !== user.siteId) {
+          setValue("smallGroupId", null);
+        }
+      } else {
+        setAvailableSmallGroups([]);
       }
-    } else {
-      setAvailableSmallGroups([]);
-       if (watchedRole !== ROLES.SMALL_GROUP_LEADER) {
-         setValue("smallGroupId", undefined);
-      }
-    }
-  }, [watchedSiteId, watchedRole, setValue, user]);
-  
-  // Initial population of small groups if editing a user
-  useEffect(() => {
-    if (user?.siteId && user.role === ROLES.SMALL_GROUP_LEADER) {
-      setAvailableSmallGroups(mockSmallGroups.filter(sg => sg.siteId === user.siteId));
-    }
-  }, [user]);
-
+    };
+    fetchSmallGroups();
+  }, [watchedSiteId, watchedRole, user, setValue]);
 
   const processSubmit = async (data: UserFormData) => {
     await onSubmitForm(data);
@@ -196,7 +203,7 @@ export function UserForm({ user, onSubmitForm }: UserFormProps) {
                       <SelectValue placeholder="Select site" />
                     </SelectTrigger>
                     <SelectContent>
-                      {mockSites.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                      {availableSites.map((s: Site) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 )}
@@ -217,7 +224,7 @@ export function UserForm({ user, onSubmitForm }: UserFormProps) {
                       <SelectValue placeholder="Select small group" />
                     </SelectTrigger>
                     <SelectContent>
-                      {availableSmallGroups.map(sg => <SelectItem key={sg.id} value={sg.id}>{sg.name}</SelectItem>)}
+                      {availableSmallGroups.map((sg: SmallGroup) => <SelectItem key={sg.id} value={sg.id}>{sg.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 )}

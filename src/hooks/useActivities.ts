@@ -3,8 +3,8 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { mockSmallGroups } from '@/lib/mockData';
-import activityService from '@/services/activityService';
+
+import { activityService } from '@/services/activityService';
 import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
 import type { Activity, SmallGroup } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
@@ -13,7 +13,7 @@ export const useActivities = () => {
   const { currentUser } = useAuth();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string } | null>(null);
 
   // Filters state
   const [searchTerm, setSearchTerm] = useState("");
@@ -46,7 +46,7 @@ export const useActivities = () => {
     if (response.success && response.data) {
       setActivities(response.data);
     } else {
-      setError(response.error || "An unknown error occurred.");
+      setError(response.error || { message: "An unknown error occurred." });
       setActivities([]);
     }
     setIsLoading(false);
@@ -65,17 +65,29 @@ export const useActivities = () => {
       case ROLES.NATIONAL_COORDINATOR:
         return true;
       case ROLES.SITE_COORDINATOR:
-        // A site coordinator can edit activities for their site or any small group within their site.
-        const activitySiteId = activity.level === 'small_group' 
-            ? mockSmallGroups.find((sg: SmallGroup) => sg.id === activity.smallGroupId)?.siteId 
-            : activity.siteId;
-        return activitySiteId === currentUser.siteId;
+        // A site coordinator can edit activities linked to their site.
+        // This covers both 'site' level and 'small_group' level activities within their site.
+        return activity.siteId === currentUser.siteId;
       case ROLES.SMALL_GROUP_LEADER:
+        // A small group leader can only edit activities for their own group.
         return activity.smallGroupId === currentUser.smallGroupId;
       default:
         return false;
     }
   }, [currentUser]);
+
+  const handleDeleteActivity = useCallback(async (activityId: string) => {
+    const response = await activityService.deleteActivity(activityId);
+    if (response.success) {
+      // Re-fetch the data from the server to ensure consistency
+      // instead of just optimistically updating the local state.
+      fetchActivities();
+      return { success: true };
+    } else {
+      setError(response.error || { message: 'Failed to delete activity.' });
+      return { success: false, error: response.error };
+    }
+  }, [fetchActivities]);
 
   return {
     activities,
@@ -94,5 +106,6 @@ export const useActivities = () => {
     refetch: fetchActivities,
     availableLevelFilters,
     canEditActivity,
+    handleDeleteActivity,
   };
 };

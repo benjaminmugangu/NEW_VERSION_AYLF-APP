@@ -1,45 +1,62 @@
-"use client";
+'use client';
 
-import React, { useState, useMemo } from "react";
-import { useParams } from "next/navigation";
-import { PageHeader } from "@/components/shared/PageHeader";
-import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
-import { ROLES } from "@/lib/constants";
-import { mockSites } from "@/lib/mockData";
-import { AllocationList } from "@/app/dashboard/finances/components/AllocationList";
-import { ReportList } from "@/app/dashboard/finances/components/ReportList";
-import { Building, Users, Receipt, Banknote, TrendingDown } from "lucide-react";
+import { useEffect, useMemo, useState } from 'react';
+import { useParams } from 'next/navigation';
+import { Banknote, Building, Receipt, TrendingDown } from 'lucide-react';
+import { PageHeader } from '@/components/shared/PageHeader';
+import { RoleBasedGuard } from '@/components/shared/RoleBasedGuard';
+import { ROLES } from '@/lib/constants';
+import { siteService } from '@/services/siteService';
+import type { Site } from '@/lib/types';
 import { StatCard } from "@/components/shared/StatCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DateRangeFilter, type DateFilterValue } from "@/components/shared/DateRangeFilter";
-import { useFinancials } from "@/hooks/useFinancials";
+import { useEntityFinancials } from "@/hooks/useEntityFinancials";
 import { FinancialPageSkeleton } from "@/components/shared/FinancialPageSkeleton";
+import { AllocationList } from '@/app/dashboard/finances/components/AllocationList';
+import { ReportList } from '@/app/dashboard/finances/components/ReportList';
 
 export default function SiteFinancialDashboardPage() {
   const params = useParams();
   const siteId = params.siteId as string;
   const [dateFilter, setDateFilter] = useState<DateFilterValue>({ rangeKey: 'all_time', display: "All Time" });
+  const [site, setSite] = useState<Site | null>(null);
+  const [isSiteLoading, setIsSiteLoading] = useState(true);
 
   const financialOptions = useMemo(() => ({
     dateFilter,
     entity: { type: 'site' as const, id: siteId }
   }), [dateFilter, siteId]);
-  const { stats, isLoading } = useFinancials(financialOptions);
-  
-  const site = useMemo(() => mockSites.find(s => s.id === siteId), [siteId]);
+
+  const { stats, isLoading: areFinancialsLoading } = useEntityFinancials(financialOptions);
+
+  useEffect(() => {
+    const fetchSite = async () => {
+      if (!siteId) return;
+      setIsSiteLoading(true);
+      const response = await siteService.getSiteById(siteId);
+      if (response.success && response.data) {
+        setSite(response.data);
+      } else {
+        setSite(null);
+      }
+      setIsSiteLoading(false);
+    };
+    fetchSite();
+  }, [siteId]);
 
   const formatCurrency = (amount: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
 
-  if (isLoading) {
-      return <FinancialPageSkeleton statCardCount={4} />;
+  if (areFinancialsLoading || isSiteLoading) {
+    return <FinancialPageSkeleton statCardCount={4} />;
   }
 
   if (!site) {
     return (
       <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR]}>
         <div className="p-4 md:p-8 pt-6">
-            <PageHeader title="Site Not Found" icon={Building} />
-            <p className="mt-4">The requested site could not be found.</p>
+          <PageHeader title="Site Not Found" icon={Building} />
+          <p className="mt-4">The requested site could not be found.</p>
         </div>
       </RoleBasedGuard>
     );
@@ -47,72 +64,38 @@ export default function SiteFinancialDashboardPage() {
 
   return (
     <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR]}>
-      <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-        <PageHeader
-            title={`Financial Overview for ${site.name}`}
-            description={`Manage finances for ${site.name}. Filter: ${dateFilter.display}`}
-            icon={Building}
-        />
-
-        <div className="my-4">
-            <DateRangeFilter onFilterChange={setDateFilter} initialRangeKey={dateFilter.rangeKey}/>
+      <PageHeader 
+        title={`${site?.name || 'Site'} Finances`}
+        description={`An overview of the finances for ${site?.name || 'this site'}.`}
+      />
+      <div className="p-4">
+        <div className="mb-4">
+          <DateRangeFilter onFilterChange={setDateFilter} initialRangeKey={dateFilter.rangeKey} />
         </div>
-
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-             <StatCard 
-                title="Total Funds Received"
-                value={formatCurrency(stats.fundsReceived)}
-                icon={Receipt}
-             />
-             <StatCard 
-                title="Transferred to Groups"
-                value={formatCurrency(stats.fundsReallocated)}
-                icon={Users}
-             />
-             <StatCard 
-                title="Dépenses Déclarées"
-                value={formatCurrency(stats.expensesDeclared)}
-                icon={TrendingDown}
-             />
-             <StatCard 
-                title="Available Balance"
-                value={formatCurrency(stats.balance)}
-                icon={Building}
-             />
+          <StatCard icon={Banknote} title="Total Revenue" value={formatCurrency(stats?.totalRevenue || 0)} />
+          <StatCard icon={TrendingDown} title="Total Allocated" value={formatCurrency(stats?.totalAllocated || 0)} />
+          <StatCard icon={Receipt} title="Total Expenses" value={formatCurrency(stats?.totalExpenses || 0)} />
+          <StatCard icon={Building} title="Net Balance" value={formatCurrency(stats?.netBalance || 0)} />
         </div>
-        
-        <Tabs defaultValue="transfers_to_sg" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-4">
-                <TabsTrigger value="funds_received"><Receipt className="mr-2 h-4 w-4" />Funds Received</TabsTrigger>
-                <TabsTrigger value="transfers_to_sg"><Users className="mr-2 h-4 w-4" />Transfers to Groups</TabsTrigger>
-                <TabsTrigger value="site_expenses"><Banknote className="mr-2 h-4 w-4" />Site Expenses</TabsTrigger>
+        <div className="mt-8">
+          <Tabs defaultValue="allocations">
+            <TabsList>
+              <TabsTrigger value="allocations">Allocations</TabsTrigger>
+              <TabsTrigger value="reports">Financial Reports</TabsTrigger>
             </TabsList>
-
-            <TabsContent value="funds_received">
-                <AllocationList 
-                    allocations={stats.allocationsReceived}
-                    title={`Funds Received by ${site.name}`}
-                    emptyStateMessage="This site has not received any funds in the selected period."
-                />
+            <TabsContent value="allocations">
+              <AllocationList 
+                allocations={stats?.allocations || []} 
+                title="Allocations" 
+                emptyStateMessage="No allocations found for the selected period." 
+              />
             </TabsContent>
-
-            <TabsContent value="transfers_to_sg">
-                <AllocationList 
-                    allocations={stats.allocationsSent}
-                    title="Transfers to Small Groups"
-                    emptyStateMessage="This site has not transferred any funds in the selected period."
-                    linkGenerator={(type, id) => `/dashboard/finances/small-group/${id}`}
-                />
+            <TabsContent value="reports">
+              <ReportList reports={stats?.reports || []} title="Financial Reports" emptyStateMessage="No reports found for the selected period." />
             </TabsContent>
-
-                        <TabsContent value="site_expenses">
-                <ReportList 
-                    reports={stats.relevantReports}
-                    title={`Dépenses déclarées pour ${site.name}`}
-                    emptyStateMessage="Aucune dépense n'a été déclarée pour ce site dans la période sélectionnée."
-                />
-            </TabsContent>
-        </Tabs>
+          </Tabs>
+        </div>
       </div>
     </RoleBasedGuard>
   );

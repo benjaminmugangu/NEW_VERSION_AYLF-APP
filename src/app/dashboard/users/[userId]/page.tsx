@@ -1,10 +1,12 @@
 // src/app/dashboard/users/[userId]/page.tsx
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { mockUsers, mockSites, mockSmallGroups } from '@/lib/mockData';
+import { profileService } from '@/services/profileService';
+import { useToast } from '@/hooks/use-toast';
+import type { User } from '@/lib/types';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { RoleBasedGuard } from '@/components/shared/RoleBasedGuard';
 import { ROLES } from '@/lib/constants';
@@ -12,16 +14,43 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { User as UserIcon, Mail, Briefcase, Building, Users, Calendar, CheckCircle, XCircle, Info } from 'lucide-react';
+import { UserDetailSkeleton } from '@/components/shared/skeletons/UserDetailSkeleton';
 
 export default function UserDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { toast } = useToast();
   const userId = params.userId as string;
 
-  const user = mockUsers.find(u => u.id === userId);
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const getSiteName = (siteId?: string) => siteId ? mockSites.find(s => s.id === siteId)?.name || 'N/A' : 'N/A';
-  const getSmallGroupName = (smallGroupId?: string) => smallGroupId ? mockSmallGroups.find(sg => sg.id === smallGroupId)?.name || 'N/A' : 'N/A';
+  useEffect(() => {
+    if (!userId) return;
+
+    const fetchUser = async () => {
+      setIsLoading(true);
+      const response = await profileService.getProfile(userId);
+      if (response.success && response.data) {
+        setUser(response.data);
+      } else {
+        setUser(null);
+        toast({ title: "Error", description: response.error?.message || "Failed to fetch user details.", variant: 'destructive' });
+      }
+      setIsLoading(false);
+    };
+
+    fetchUser();
+  }, [userId, toast]);
+
+  if (isLoading) {
+    return (
+      <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR]}>
+        <PageHeader title="Loading User..." icon={UserIcon} />
+        <UserDetailSkeleton />
+      </RoleBasedGuard>
+    );
+  }
 
   if (!user) {
     return (
@@ -82,7 +111,7 @@ export default function UserDetailPage() {
               <div className="flex items-center">
                 <Building className="h-5 w-5 mr-3 text-muted-foreground" />
                 <Link href={`/dashboard/sites/${user.siteId}`} className="text-primary hover:underline">
-                  Site: {getSiteName(user.siteId)}
+                  Site: {user.siteName}
                 </Link>
               </div>
             )}
@@ -90,7 +119,7 @@ export default function UserDetailPage() {
               <div className="flex items-center">
                 <Users className="h-5 w-5 mr-3 text-muted-foreground" />
                 <Link href={`/dashboard/small-groups/${user.smallGroupId}`} className="text-primary hover:underline">
-                  Small Group: {getSmallGroupName(user.smallGroupId)}
+                  Small Group: {user.smallGroupName}
                 </Link>
               </div>
             )}

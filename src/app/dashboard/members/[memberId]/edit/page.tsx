@@ -1,47 +1,63 @@
 // src/app/dashboard/members/[memberId]/edit/page.tsx
 "use client";
 
-import React from "react";
-import { useParams, useRouter } from "next/navigation";
-import { PageHeader } from "@/components/shared/PageHeader";
-import { MemberForm } from "../../components/MemberForm";
-import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
-import { ROLES } from "@/lib/constants";
-import { mockMembers } from "@/lib/mockData";
-import type { Member, MemberFormData } from "@/lib/types";
-import { Edit, Info } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { PageHeader } from '@/components/shared/PageHeader';
+import { MemberForm } from '../../components/MemberForm';
+import { RoleBasedGuard } from '@/components/shared/RoleBasedGuard';
+import { ROLES } from '@/lib/constants';
+import { memberService } from '@/services/memberService';
+import type { Member, MemberFormData } from '@/lib/types';
+import { Edit, Info } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { PageSpinner } from '@/components/shared/PageSpinner';
 
 export default function EditMemberPage() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
   const memberId = params.memberId as string;
+  const [memberToEdit, setMemberToEdit] = useState<Member | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const memberToEdit = mockMembers.find(mem => mem.id === memberId);
+  useEffect(() => {
+    const fetchMember = async () => {
+      if (!memberId) return;
+      setIsLoading(true);
+      const response = await memberService.getMemberById(memberId);
+      if (response.success && response.data) {
+        setMemberToEdit(response.data);
+      } else {
+        setMemberToEdit(null);
+      }
+      setIsLoading(false);
+    };
+    fetchMember();
+  }, [memberId]);
 
   const handleUpdateMember = async (data: MemberFormData) => {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const updatedMember = {
-      id: memberId,
-      ...data,
-      joinDate: data.joinDate.toISOString(),
-    };
-
-    // Mock update
-    // const index = mockMembers.findIndex(mem => mem.id === memberId);
-    // if (index !== -1) mockMembers[index] = updatedMember;
-    console.log("Member Updated (mock):", updatedMember);
-
-    toast({
-      title: "Member Updated!",
-      description: `Member "${updatedMember.name}" has been successfully updated.`,
-    });
-    router.push(`/dashboard/members/${memberId}`);
+    const response = await memberService.updateMember(memberId, data);
+    if (response.success && response.data) {
+      toast({
+        title: 'Member Updated!',
+        description: `Member "${response.data.name}" has been successfully updated.`,
+      });
+      router.push(`/dashboard/members/${memberId}`);
+    } else if (response.error) {
+      toast({
+        title: 'Error',
+        description: response.error.message,
+        variant: 'destructive',
+      });
+    }
   };
+
+  if (isLoading) {
+    return <PageSpinner />;
+  }
 
   if (!memberToEdit) {
     return (

@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { ROLES } from '@/lib/constants';
 import type { Activity, ActivityFormData, ServiceResponse, Site, SmallGroup } from '@/lib/types';
-import activityService from '@/services/activityService';
+import { activityService } from "@/services/activityService";
 import siteService from '@/services/siteService';
 import smallGroupService from '@/services/smallGroupService';
 
@@ -56,6 +56,18 @@ export function ActivityForm({ initialActivity, onSave, onCancel }: ActivityForm
   const { currentUser } = useAuth();
   const [sites, setSites] = useState<Site[]>([]);
   const [smallGroups, setSmallGroups] = useState<SmallGroup[]>([]);
+
+  const availableLevels = useMemo(() => {
+    if (!currentUser) return [];
+    const levels = [{ value: 'small_group', label: 'Small Group' }];
+    if ([ROLES.SITE_COORDINATOR, ROLES.NATIONAL_COORDINATOR].includes(currentUser.role)) {
+      levels.unshift({ value: 'site', label: 'Site' });
+    }
+    if (currentUser.role === ROLES.NATIONAL_COORDINATOR) {
+      levels.unshift({ value: 'national', label: 'National' });
+    }
+    return levels;
+  }, [currentUser]);
 
   const defaultValues = useMemo((): ActivityFormValues => {
     if (initialActivity) {
@@ -114,29 +126,36 @@ export function ActivityForm({ initialActivity, onSave, onCancel }: ActivityForm
 
   useEffect(() => {
     const fetchDropdownData = async () => {
-      if (!currentUser) return;
+      if (currentUser) {
+        const sitesResponse = await siteService.getFilteredSites({ user: currentUser });
+        if (sitesResponse.success) {
+          setSites(sitesResponse.data || []);
+        }
 
-      const sitesResponse = await siteService.getAllSites();
-      if (sitesResponse.success && sitesResponse.data) {
-        setSites(sitesResponse.data);
-      }
-
-      if (watchedLevel === 'small_group' && watchedSiteId) {
-        const smallGroupsResponse = await smallGroupService.getSmallGroups({ siteId: watchedSiteId });
-        if (smallGroupsResponse.success && smallGroupsResponse.data) {
-          setSmallGroups(smallGroupsResponse.data);
+        if (watchedSiteId) {
+          const smallGroupsResponse = await smallGroupService.getFilteredSmallGroups({ user: currentUser, siteId: watchedSiteId });
+          if (smallGroupsResponse.success) {
+            setSmallGroups(smallGroupsResponse.data || []);
+          } else {
+            setSmallGroups([]);
+          }
         } else {
+          // If no site is selected (e.g., for a national coordinator creating a national activity),
+          // clear the small groups to avoid showing a stale list.
           setSmallGroups([]);
         }
-      } else {
-        setSmallGroups([]);
-      }
+      }  
     };
     fetchDropdownData();
   }, [currentUser, watchedLevel, watchedSiteId]);
 
   const onSubmit = async (values: ActivityFormValues) => {
-    const activityData: ActivityFormData = {
+    if (!currentUser) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Authentication error. Please log in again.' });
+      return;
+    }
+
+    const baseData = {
       ...values,
       date: values.date.toISOString(),
       description: values.description ?? '',
@@ -145,9 +164,9 @@ export function ActivityForm({ initialActivity, onSave, onCancel }: ActivityForm
 
     let response: ServiceResponse<Activity>;
     if (initialActivity?.id) {
-      response = await activityService.updateActivity(initialActivity.id, activityData);
+      response = await activityService.updateActivity(initialActivity.id, baseData);
     } else {
-      response = await activityService.createActivity(activityData);
+      response = await activityService.createActivity(baseData, currentUser.id);
     }
 
     if (response.success && response.data) {
@@ -236,9 +255,9 @@ export function ActivityForm({ initialActivity, onSave, onCancel }: ActivityForm
                         <Select onValueChange={(value) => { field.onChange(value); form.setValue('siteId', undefined); form.setValue('smallGroupId', undefined); }} defaultValue={field.value} disabled={!canChangeLevel}>
                             <SelectTrigger id="level" className="mt-1"><SelectValue placeholder="Select level" /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="national">National</SelectItem>
-                                <SelectItem value="site">Site</SelectItem>
-                                <SelectItem value="small_group">Small Group</SelectItem>
+                                {availableLevels.map(level => (
+                                    <SelectItem key={level.value} value={level.value}>{level.label}</SelectItem>
+                                ))}
                             </SelectContent>
                         </Select>
                     )} />

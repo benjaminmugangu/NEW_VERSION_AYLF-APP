@@ -1,17 +1,14 @@
 // src/services/dashboardService.ts
 'use client';
 
-import {
-  mockActivities,
-  mockMembers,
-  mockReports,
-  mockSites,
-  mockSmallGroups,
-  mockFundAllocations,
-} from '@/lib/mockData';
-import type { ServiceResponse, Activity, Member, Report, Site, SmallGroup, FundAllocation } from '@/lib/types';
-import { applyDateFilter, type DateFilterValue } from '@/components/shared/DateRangeFilter';
-import reportService from './report.service';
+import type { ServiceResponse, Activity, Member, Report, Site, SmallGroup, User, Financials } from '@/lib/types';
+import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
+import { activityService } from './activityService';
+import { memberService } from './memberService';
+import siteService from './siteService';
+import smallGroupService from './smallGroupService';
+import reportService from './reportService';
+import { getFinancialStats } from './financials.service';
 
 export interface DashboardStats {
   totalActivities: number;
@@ -32,68 +29,69 @@ export interface DashboardStats {
   memberTypeData: { type: string; count: number; fill: string }[];
 }
 
-const emptyDashboardStats: DashboardStats = {
-  totalActivities: 0,
-  plannedActivities: 0,
-  executedActivities: 0,
-  cancelledActivities: 0,
-  totalMembers: 0,
-  studentMembers: 0,
-  nonStudentMembers: 0,
-  totalReports: 0,
-  totalSites: 0,
-  totalSmallGroups: 0,
-  netBalance: 0,
-  totalIncome: 0,
-  totalExpenses: 0,
-  recentActivities: [],
-  activityStatusData: [],
-  memberTypeData: [],
-};
-
 const dashboardService = {
-  getDashboardStats: async (dateFilter: DateFilterValue): Promise<ServiceResponse<DashboardStats>> => {
-    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
+  getDashboardStats: async (user: User | null, dateFilter: DateFilterValue): Promise<ServiceResponse<DashboardStats>> => {
+    if (!user) {
+      return { success: false, error: { message: 'User not authenticated.' } };
+    }
 
     try {
-      // Apply date filters
-      const filteredActivities = applyDateFilter(mockActivities, dateFilter);
-      const filteredMembers = applyDateFilter(mockMembers.map(m => ({ ...m, date: m.joinDate })), dateFilter);
-      const reportServiceResponse = await reportService.getReportsWithDetails({ dateRange: dateFilter, status: 'approved' });
-      const approvedReports = reportServiceResponse.success ? reportServiceResponse.data : [];
-      const filteredReports = approvedReports || []; // Already filtered by date in service
-      const filteredFundAllocations = applyDateFilter(mockFundAllocations.map(a => ({ ...a, date: a.allocationDate })), dateFilter);
+      // Fetch all data in parallel for efficiency
+      const results = await Promise.allSettled([
+        activityService.getFilteredActivities({ user, dateFilter }),
+        memberService.getFilteredMembers({ user, dateFilter }),
+                reportService.getFilteredReports({ user, dateFilter, statusFilter: { approved: true, pending: false, rejected: false, submitted: false } }),
+        siteService.getFilteredSites({ user }), // Not date filtered
+        smallGroupService.getFilteredSmallGroups({ user }), // Not date filtered
+                getFinancialStats({ user, role: user.role }, dateFilter), // Financials are date filtered
+      ]);
 
-      // Calculate stats
-      const totalActivities = filteredActivities.length;
-      const plannedActivities = filteredActivities.filter(a => a.status === 'planned').length;
-      const executedActivities = filteredActivities.filter(a => a.status === 'executed').length;
-      const cancelledActivities = filteredActivities.filter(a => a.status === 'cancelled').length;
+      // Helper to safely extract data from settled promises
+      const getResultData = <T>(result: PromiseSettledResult<ServiceResponse<T>>): T | null => {
+        if (result.status === 'fulfilled' && result.value.success) {
+          return result.value.data || null;
+        }
+        if (result.status === 'rejected' || (result.status === 'fulfilled' && !result.value.success)) {
+          // Log the error for debugging, but don't crash the dashboard
 
-      const totalMembers = filteredMembers.length;
-      const studentMembers = filteredMembers.filter(m => m.type === 'student').length;
-      const nonStudentMembers = filteredMembers.filter(m => m.type === 'non-student').length;
+        }
+        return null;
+      };
 
-      const totalReports = filteredReports.length;
-      const totalSites = mockSites.length; // Not date filtered
-      const totalSmallGroups = mockSmallGroups.length; // Not date filtered
+      const activities = getResultData<Activity[]>(results[0]) || [];
+      const members = getResultData<Member[]>(results[1]) || [];
+      const approvedReports = getResultData<Report[]>(results[2]) || [];
+      const sites = getResultData<Site[]>(results[3]) || [];
+      const smallGroups = getResultData<SmallGroup[]>(results[4]) || [];
+      const financials = getResultData<Financials>(results[5]);
 
-      // Financial calculations
-      const totalIncome = 0; // Placeholder: Income source is not defined in allocations
+      // --- Calculate Statistics ---
 
-      const fundsDistributedToSites = filteredFundAllocations
-        .filter(a => a.senderType === 'national' && a.recipientType === 'site')
-        .reduce((sum, a) => sum + a.amount, 0);
-
-      const reportExpenses = filteredReports.reduce((sum, r) => sum + (r.expenses || 0), 0);
-
-      const totalExpenses = fundsDistributedToSites + reportExpenses;
-      const netBalance = totalIncome - totalExpenses;
-
-      const recentActivities = [...filteredActivities]
+      // Activities
+      const totalActivities = activities.length;
+      const plannedActivities = activities.filter(a => a.status === 'planned').length;
+      const executedActivities = activities.filter(a => a.status === 'executed').length;
+      const cancelledActivities = activities.filter(a => a.status === 'cancelled').length;
+      const recentActivities = [...activities]
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         .slice(0, 5);
 
+      // Members
+      const totalMembers = members.length;
+      const studentMembers = members.filter(m => m.type === 'student').length;
+      const nonStudentMembers = members.filter(m => m.type === 'non-student').length;
+
+      // Other totals
+      const totalReports = approvedReports.length;
+      const totalSites = sites.length;
+      const totalSmallGroups = smallGroups.length;
+
+      // Financials
+      const netBalance = financials?.netBalance ?? 0;
+      const totalIncome = financials?.totalRevenue ?? 0;
+      const totalExpenses = financials?.totalExpenses ?? 0;
+
+      // Data for charts
       const activityStatusData = [
         { status: 'Planned', count: plannedActivities, fill: 'hsl(var(--chart-2))' },
         { status: 'Executed', count: executedActivities, fill: 'hsl(var(--chart-1))' },
@@ -126,8 +124,7 @@ const dashboardService = {
 
       return { success: true, data: stats };
     } catch (error) {
-      console.error('Failed to fetch dashboard stats:', error);
-      // Return empty stats on error to prevent UI from breaking
+
       return { success: false, error: { message: 'Failed to fetch dashboard stats' } };
     }
   },

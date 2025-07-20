@@ -9,7 +9,6 @@ import { UserPlus } from "lucide-react";
 import type { MemberFormData } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import { mockMembers } from "@/lib/mockData"; // For mock "saving"
 
 export default function NewMemberPage() {
   const { toast } = useToast();
@@ -26,7 +25,7 @@ export default function NewMemberPage() {
     };
     
     // mockMembers.unshift(newMember); 
-    console.log("New Member Created (mock):", newMember);
+
 
     toast({
       title: "Member Added!",

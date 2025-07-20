@@ -372,8 +372,9 @@ export function getDateRangeFromFilterValue(filterValue: DateFilterValue): { sta
 }
 
 
-export function applyDateFilter<T extends { date?: string; submissionDate?: string; joinDate?: string; allocationDate?: string }>(
+export function applyDateFilter<T>( 
   items: T[],
+  dateKey: keyof T,
   filterValue: DateFilterValue | undefined
 ): T[] {
   if (!items) return [];
@@ -389,8 +390,8 @@ export function applyDateFilter<T extends { date?: string; submissionDate?: stri
   }
   
   return items.filter(item => {
-    const itemDateStr = item.date || item.submissionDate || item.joinDate || item.allocationDate;
-    if (!itemDateStr) return false; 
+    const itemDateStr = item[dateKey];
+    if (typeof itemDateStr !== 'string') return false; 
     
     try {
       const itemDate = new Date(itemDateStr);
@@ -400,7 +401,7 @@ export function applyDateFilter<T extends { date?: string; submissionDate?: stri
       }
       return itemDate >= startDate && itemDate <= endDate;
     } catch (e) {
-      console.error(`Error parsing date during filtering: ${itemDateStr}`, e);
+
       return false;
     }
   });

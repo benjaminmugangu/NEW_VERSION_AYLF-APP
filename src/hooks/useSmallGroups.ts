@@ -2,67 +2,39 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import smallGroupService from '@/services/smallGroupService';
-import siteService from '@/services/siteService';
-import userService from '@/services/userService';
-import { mockMembers } from '@/lib/mockData'; // Using mock data directly for counts
-import type { SmallGroup, Site, User } from '@/lib/types';
+import { smallGroupService } from '@/services/smallGroupService';
+import type { SmallGroup, User } from '@/lib/types';
+import { useAuth } from './useAuth';
+import { ROLES } from '@/lib/constants';
 
-export interface SmallGroupWithDetails extends SmallGroup {
-  siteName: string;
-  leader?: User;
-  memberCount: number;
-}
+// The SmallGroup type from the service now includes enriched data like siteName, leaderName, and memberCount.
+// We can use the SmallGroup type directly.
+export type SmallGroupWithDetails = SmallGroup;
 
 export const useSmallGroups = () => {
-  const [allSmallGroups, setAllSmallGroups] = useState<SmallGroupWithDetails[]>([]);
+  const { currentUser } = useAuth();
+  const [smallGroups, setSmallGroups] = useState<SmallGroupWithDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   const fetchSmallGroups = useCallback(async () => {
+    if (!currentUser) return;
+
     setIsLoading(true);
     setError(null);
 
-    try {
-      const [sgResponse, sitesResponse] = await Promise.all([
-        smallGroupService.getAllSmallGroups(),
-        siteService.getAllSites(),
-      ]);
+    const response = await smallGroupService.getFilteredSmallGroups({ user: currentUser, search: searchTerm });
 
-      if (!sgResponse.success || !sitesResponse.success) {
-        throw new Error(sgResponse.error || sitesResponse.error || 'Failed to fetch initial data.');
-      }
-
-      const smallGroups = sgResponse.data;
-      const sites = sitesResponse.data;
-      const sitesMap = new Map(sites.map(s => [s.id, s.name]));
-
-      const leaderIds = smallGroups
-        .map(sg => sg.leaderId)
-        .filter((id): id is string => !!id);
-
-      const usersResponse = await userService.getUsersByIds(leaderIds);
-      const leadersMap = usersResponse.success
-        ? new Map(usersResponse.data.map(u => [u.id, u]))
-        : new Map();
-
-      const smallGroupsWithDetails = smallGroups.map(sg => ({
-        ...sg,
-        siteName: sitesMap.get(sg.siteId) || 'N/A',
-        leader: sg.leaderId ? leadersMap.get(sg.leaderId) : undefined,
-        memberCount: mockMembers.filter(m => m.smallGroupId === sg.id).length,
-      }));
-
-      setAllSmallGroups(smallGroupsWithDetails);
-    } catch (e) {
-      const error = e instanceof Error ? e.message : 'An unknown error occurred.';
-      setError(error);
-      setAllSmallGroups([]);
+    if (response.success && response.data) {
+      setSmallGroups(response.data);
+    } else {
+      setError(response.error?.message || 'Failed to fetch small groups.');
+      setSmallGroups([]);
     }
 
     setIsLoading(false);
-  }, []);
+  }, [currentUser, searchTerm]);
 
   useEffect(() => {
     fetchSmallGroups();
@@ -71,35 +43,43 @@ export const useSmallGroups = () => {
   const deleteSmallGroup = async (groupId: string) => {
     const result = await smallGroupService.deleteSmallGroup(groupId);
     if (result.success) {
-      setAllSmallGroups(prev => prev.filter(sg => sg.id !== groupId));
+      setSmallGroups(prev => prev.filter(sg => sg.id !== groupId));
       return { success: true };
     }
     return { success: false, error: result.error };
   };
 
-  const filteredSmallGroups = useMemo(() => {
-    if (!searchTerm) {
-      return allSmallGroups;
+  const canCreateSmallGroup = useMemo(() => {
+    if (!currentUser) return false;
+    return [
+      ROLES.NATIONAL_COORDINATOR,
+      ROLES.SITE_COORDINATOR
+    ].includes(currentUser.role);
+  }, [currentUser]);
+
+  const canEditOrDeleteSmallGroup = useCallback((group: SmallGroupWithDetails): boolean => {
+    if (!currentUser) return false;
+    switch (currentUser.role) {
+      case ROLES.NATIONAL_COORDINATOR:
+        return true;
+      case ROLES.SITE_COORDINATOR:
+        return group.siteId === currentUser.siteId;
+      case ROLES.SMALL_GROUP_LEADER:
+        return group.id === currentUser.smallGroupId;
+      default:
+        return false;
     }
-    const lowerCaseSearchTerm = searchTerm.toLowerCase();
-    return allSmallGroups.filter(sg => {
-      const leaderName = sg.leader?.name?.toLowerCase() || '';
-      return (
-        sg.name.toLowerCase().includes(lowerCaseSearchTerm) ||
-        sg.siteName.toLowerCase().includes(lowerCaseSearchTerm) ||
-        leaderName.includes(lowerCaseSearchTerm)
-      );
-    });
-  }, [allSmallGroups, searchTerm]);
+  }, [currentUser]);
 
   return {
-    smallGroups: filteredSmallGroups,
-    allSmallGroups,
+    smallGroups,
     isLoading,
     error,
     refetch: fetchSmallGroups,
     deleteSmallGroup,
     searchTerm,
     setSearchTerm,
+    canCreateSmallGroup,
+    canEditOrDeleteSmallGroup,
   };
 };

@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import certificateService, { type RosterMember } from '@/services/certificateService';
+import { certificateService, type RosterMember } from '@/services/certificateService';
 import type { ServiceResponse } from '@/lib/types';
 import { getDateRangeFromFilterValue, type DateFilterValue } from '@/components/shared/DateRangeFilter';
 
@@ -28,7 +28,7 @@ export const useCertificates = () => {
     if (response.success && response.data) {
       setRoster(response.data);
     } else {
-      setError(response.error || 'An unknown error occurred while fetching the roster.');
+      setError(response.error?.message || 'An unknown error occurred while fetching the roster.');
       setRoster([]);
     }
     setIsLoading(false);

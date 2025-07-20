@@ -1,83 +1,76 @@
 // src/services/auth.service.ts
 'use client';
 
-import { mockUsers, mockSites, mockSmallGroups } from '@/lib/mockData';
-import type { User, Site, SmallGroup, LoginCredentials, ServiceResponse } from '@/lib/types';
-
-// This service simulates an authentication API.
-// In the future, this will be replaced with actual calls to Supabase.
+import { supabase } from '@/lib/supabaseClient';
+import type { User, LoginCredentials, ServiceResponse } from '@/lib/types';
+import { profileService } from './profileService';
 
 const authService = {
   login: async (credentials: LoginCredentials): Promise<ServiceResponse<User>> => {
-    console.log('Attempting login with:', credentials);
-    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
-
-    const user = mockUsers.find((u: User) => u.email === credentials.email);
-
-    if (user) {
-      console.log('Login successful for:', user.name);
-      // In a real app, you might also store a token here
-      localStorage.setItem("currentUser", JSON.stringify(user));
-      return { success: true, data: user };
-    } else {
-      console.log('Login failed: user not found');
-      return { success: false, error: 'Invalid credentials. Please try again.' };
+    if (!credentials.password) {
+      return { success: false, error: { message: 'Password is required.' } };
     }
+
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email: credentials.email,
+      password: credentials.password,
+    });
+
+    if (authError) {
+      return { success: false, error: { message: authError.message } };
+    }
+
+    if (!authData.user) {
+      return { success: false, error: { message: 'Authentication failed, user not found.' } };
+    }
+
+    // After successful login, fetch the user's profile to get role and other details
+    const profileResponse = await profileService.getProfile(authData.user.id);
+
+    if (!profileResponse.success) {
+      // If profile doesn't exist, it's a critical issue. Log out to be safe.
+      await supabase.auth.signOut();
+      return { success: false, error: { message: 'User profile not found after login.' } };
+    }
+
+    return { success: true, data: profileResponse.data! };
   },
 
   logout: async (): Promise<ServiceResponse<{}>> => {
-    // In a real app, you might invalidate a token on the server.
-    console.log('User logged out');
-    localStorage.removeItem("currentUser");
-    return Promise.resolve({ success: true, data: {} });
-  },
-
-  // Simulate fetching associated data for a user
-  getSiteData: (siteId: string | null): Site | undefined => {
-    if (!siteId) return undefined;
-    return mockSites.find((s: Site) => s.id === siteId);
-  },
-
-  getSmallGroupData: (smallGroupId: string | null): SmallGroup | undefined => {
-    if (!smallGroupId) return undefined;
-    return mockSmallGroups.find((sg: SmallGroup) => sg.id === smallGroupId);
-  },
-
-  updateUserProfile: async (currentUser: User, updatedData: Partial<User>): Promise<ServiceResponse<User>> => {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    try {
-      const newUser = { ...currentUser, ...updatedData };
-      localStorage.setItem("currentUser", JSON.stringify(newUser));
-
-      const userIndex = mockUsers.findIndex(u => u.id === currentUser.id);
-      if (userIndex !== -1) {
-        mockUsers[userIndex] = { ...mockUsers[userIndex], ...newUser };
-      }
-      
-      console.log('User profile updated:', newUser);
-      return { success: true, data: newUser };
-    } catch (error) {
-      console.error('Error updating user profile:', error);
-      return { success: false, error: 'Failed to update user profile.' };
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      return { success: false, error: { message: error.message } };
     }
+    return { success: true, data: {} };
   },
 
-  getInitialUser: (): User | null => {
+  getCurrentUser: async (): Promise<User | null> => {
     try {
-      const storedUser = localStorage.getItem("currentUser");
-      if (storedUser) {
-        const parsedUser: User = JSON.parse(storedUser);
-        // Basic validation
-        if (parsedUser && parsedUser.id && parsedUser.role) {
-          return parsedUser;
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError) {
+
+        return null;
+      }
+
+      if (session?.user) {
+        const profileResponse = await profileService.getProfile(session.user.id);
+        if (profileResponse.success) {
+          return profileResponse.data || null;
         }
+        // If profile fetch fails, the user is authenticated but their app data is missing.
+        // This is a problematic state. For now, we return null.
+
+        return null;
       }
+
+      return null;
     } catch (error) {
-      console.error("Failed to parse user from localStorage", error);
-      localStorage.removeItem("currentUser");
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+
+      return null;
     }
-    return null;
-  }
+  },
 };
 
 export default authService;

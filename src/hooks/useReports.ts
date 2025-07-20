@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useToast } from '@/hooks/use-toast';
-import reportService from '@/services/report.service';
+import { reportService } from '@/services/report.service';
 import { ROLES } from '@/lib/constants';
 import type { ReportStatus, ReportWithDetails } from '@/lib/types';
 import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
@@ -46,7 +46,7 @@ export const useReports = () => {
     if (response.success && response.data) {
       setReports(response.data);
     } else {
-      setError(response.error || 'An unknown error occurred while fetching reports.');
+      setError(response.error?.message || 'An unknown error occurred while fetching reports.');
       setReports([]);
     }
     setIsLoading(false);
@@ -88,7 +88,7 @@ export const useReports = () => {
 
   // TODO: Replace with actual backend API call to update report status
   const handleReportStatusUpdate = async (reportId: string, newStatus: ReportStatus, notes?: string) => {
-    console.log(`MOCK UPDATE: Updating report ${reportId} to ${newStatus} with notes: ${notes}`);
+
     toast({ title: 'Success (Mock)', description: `Report has been ${newStatus}.` });
     
     setIsModalOpen(false);

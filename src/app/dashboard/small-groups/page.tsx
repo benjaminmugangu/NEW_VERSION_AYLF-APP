@@ -31,12 +31,13 @@ import {
 export default function SmallGroupsPage() {
   const {
     smallGroups,
-    allSmallGroups,
     isLoading,
     error,
     deleteSmallGroup,
     searchTerm,
     setSearchTerm,
+    canCreateSmallGroup,
+    canEditOrDeleteSmallGroup,
   } = useSmallGroups();
   const { toast } = useToast();
   const [groupToDelete, setGroupToDelete] = useState<SmallGroupWithDetails | null>(null);
@@ -47,40 +48,45 @@ export default function SmallGroupsPage() {
     if (result.success) {
       toast({ title: 'Success', description: `Small group "${groupToDelete.name}" deleted.` });
     } else {
-      toast({ title: 'Error', description: result.error, variant: 'destructive' });
+      const error = result.error as { message: string } | undefined;
+      const description = error?.message || 'An unknown error occurred.';
+      toast({ title: 'Error', description, variant: 'destructive' });
     }
     setGroupToDelete(null);
   };
 
   const analytics = useMemo(() => {
-    if (isLoading) {
-      return { totalGroups: 0, totalMembers: 0, avgMembers: 0 };
+    if (isLoading || smallGroups.length === 0) {
+      return { totalGroups: 0, totalMembers: 0, avgMembers: '0.0' };
     }
-    const totalGroups = allSmallGroups.length;
-    const totalMembers = allSmallGroups.reduce((acc, sg) => acc + sg.memberCount, 0);
+    const totalGroups = smallGroups.length;
+    const totalMembers = smallGroups.reduce((acc, sg) => acc + (sg.memberCount || 0), 0);
     return {
       totalGroups,
       totalMembers,
-      avgMembers: totalGroups > 0 ? (totalMembers / totalGroups).toFixed(1) : 0,
+      avgMembers: totalGroups > 0 ? (totalMembers / totalGroups).toFixed(1) : '0.0',
     };
-  }, [allSmallGroups, isLoading]);
+  }, [smallGroups, isLoading]);
 
-  if (error) {
-    toast({ title: 'Error', description: error, variant: 'destructive' });
+    if (error) {
+    const description = typeof error === 'string' ? error : (error as { message: string }).message;
+    toast({ title: 'Error', description: description, variant: 'destructive' });
   }
 
   return (
-    <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR]}>
+    <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER]}>
       <PageHeader
         title="Small Groups Management"
         description="View and manage all small groups across different sites."
         icon={UsersRound}
         actions={
-          <Link href="/dashboard/small-groups/new">
-            <Button>
-              <PlusCircle className="mr-2 h-4 w-4" /> Add New Group
-            </Button>
-          </Link>
+          canCreateSmallGroup && (
+            <Link href="/dashboard/small-groups/new">
+              <Button>
+                <PlusCircle className="mr-2 h-4 w-4" /> Add New Group
+              </Button>
+            </Link>
+          )
         }
       />
       <div className="grid gap-4 md:grid-cols-3 my-6">
@@ -157,20 +163,24 @@ export default function SmallGroupsPage() {
                               <Eye className="h-4 w-4" />
                             </Button>
                           </Link>
-                          <Link href={`/dashboard/small-groups/${sg.id}/edit`}>
-                            <Button variant="ghost" size="icon" title="Edit Group">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </Link>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title="Delete Group"
-                            className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
-                            onClick={() => setGroupToDelete(sg)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {canEditOrDeleteSmallGroup(sg) && (
+                            <>
+                              <Link href={`/dashboard/small-groups/${sg.id}/edit`}>
+                                <Button variant="ghost" size="icon" title="Edit Group">
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </Link>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                title="Delete Group"
+                                className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
+                                onClick={() => setGroupToDelete(sg)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
                         </TableCell>
                       </TableRow>
                     );
@@ -193,13 +203,12 @@ export default function SmallGroupsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the small group
-              <strong> {groupToDelete?.name}</strong>.
+              This action will archive the small group <strong>{groupToDelete?.name}</strong>. It will be hidden from the list but can be recovered later by an administrator.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Archive</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

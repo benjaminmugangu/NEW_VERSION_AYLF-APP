@@ -4,14 +4,13 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DollarSign, TrendingDown, TrendingUp, Banknote } from "lucide-react";
-import { FinancialStats } from '@/hooks/useFinancials';
-import { User } from '@/lib/types';
+import type { Financials, User } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
 import { AllocationList } from './AllocationList';
 import { ReportList } from './ReportList'; // Import the new component
 
 interface FinancialDashboardProps {
-  stats: FinancialStats;
+  stats: Financials;
   currentUser: User | null;
   linkGenerator?: (type: 'site' | 'smallGroup', id: string) => string;
 }
@@ -32,9 +31,9 @@ const StatCard = ({ title, value, icon: Icon, description, currency = 'USD' }: {
 const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ stats, currentUser, linkGenerator }) => {
   if (!currentUser) return null;
 
-  const { fundsReceived, expensesDeclared, fundsReallocated, balance, allocationsReceived, allocationsSent } = stats;
+  const { totalRevenue, totalExpenses, totalAllocated, netBalance, allocations, reports } = stats;
 
-  const allRelevantAllocations = [...allocationsReceived, ...allocationsSent].sort(
+  const allRelevantAllocations = [...allocations].sort(
     (a, b) => new Date(b.allocationDate).getTime() - new Date(a.allocationDate).getTime()
   );
 
@@ -43,25 +42,25 @@ const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ stats, currentU
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard 
           title="Solde Actuel" 
-          value={balance} 
+          value={netBalance} 
           icon={Banknote} 
           description="Fonds reçus - (Dépenses + Réallocations)"
         />
         <StatCard 
           title="Fonds Reçus" 
-          value={fundsReceived} 
+          value={totalRevenue} 
           icon={TrendingUp} 
           description="Total des fonds alloués à cette entité"
         />
         <StatCard 
           title="Dépenses Déclarées" 
-          value={expensesDeclared} 
+          value={totalExpenses} 
           icon={TrendingDown} 
           description="Total des dépenses enregistrées"
         />
         <StatCard 
           title="Fonds Réalloués" 
-          value={fundsReallocated} 
+          value={totalAllocated} 
           icon={DollarSign} 
           description="Total des fonds transférés à d'autres entités"
         />
@@ -74,7 +73,7 @@ const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ stats, currentU
           linkGenerator={linkGenerator}
         />
                 <ReportList 
-          reports={stats.relevantReports}
+          reports={reports}
         />
       </div>
     </div>

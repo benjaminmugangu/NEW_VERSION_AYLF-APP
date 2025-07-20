@@ -8,7 +8,8 @@ import { UserForm } from "../../components/UserForm";
 import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
 import { ROLES } from "@/lib/constants";
 import userService from "@/services/userService";
-import type { User, UserFormData } from "@/lib/types";
+import type { User } from "@/lib/types";
+import type { UserFormData } from "../../components/UserForm";
 import { Edit, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,11 +37,11 @@ export default function EditUserPage() {
         if (response.success && response.data) {
           setUserToEdit(response.data);
         } else {
-          console.error("Failed to fetch user:", response.error);
+
           setUserToEdit(null);
         }
       } catch (error) {
-        console.error("Failed to fetch user:", error);
+
         setUserToEdit(null);
       } finally {
         setIsLoading(false);
@@ -60,12 +61,13 @@ export default function EditUserPage() {
         title: "User Updated!",
         description: `User "${result.data.name}" has been successfully updated.`,
       });
+      router.refresh();
       router.push("/dashboard/users");
     } else {
-      console.error("Failed to update user:", result.error);
+
       toast({
         title: "Error Updating User",
-        description: result.error || "An unknown error occurred. Please try again.",
+        description: result.error?.message || "An unknown error occurred. Please try again.",
         variant: "destructive",
       });
     }

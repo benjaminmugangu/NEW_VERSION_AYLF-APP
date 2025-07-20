@@ -11,7 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Member, MemberFormData, Site, SmallGroup } from "@/lib/types";
-import { mockSites, mockSmallGroups } from "@/lib/mockData";
+import siteService from '@/services/siteService';
+import smallGroupService from '@/services/smallGroupService';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, Save, UserPlus } from "lucide-react";
@@ -41,7 +42,11 @@ interface MemberFormProps {
 
 export function MemberForm({ member, onSubmitForm }: MemberFormProps) {
   const { currentUser } = useAuth();
-  const [availableSites, setAvailableSites] = useState<Site[]>(mockSites);
+
+  if (!currentUser) {
+    return <div>Loading...</div>; // Or some other loading state
+  }
+  const [availableSites, setAvailableSites] = useState<Site[]>([]);
   const [availableSmallGroups, setAvailableSmallGroups] = useState<SmallGroup[]>([]);
 
   const defaultValues = member ? {
@@ -62,39 +67,51 @@ export function MemberForm({ member, onSubmitForm }: MemberFormProps) {
   const watchedSiteId = watch("siteId");
 
   useEffect(() => {
-    if (currentUser?.role === ROLES.SITE_COORDINATOR) {
-      setAvailableSites(mockSites.filter(s => s.id === currentUser.siteId));
-      setValue("siteId", currentUser.siteId);
-    } else if (currentUser?.role === ROLES.SMALL_GROUP_LEADER) {
-      setAvailableSites(mockSites.filter(s => s.id === currentUser.siteId));
-      setValue("siteId", currentUser.siteId);
-      setValue("smallGroupId", currentUser.smallGroupId);
-    } else {
-      setAvailableSites(mockSites);
-    }
+    const fetchSites = async () => {
+      const response = await siteService.getAllSites();
+      if (response.success && response.data) {
+        if (currentUser?.role === ROLES.SITE_COORDINATOR) {
+          setAvailableSites(response.data.filter(s => s.id === currentUser.siteId));
+          setValue("siteId", currentUser.siteId);
+        } else if (currentUser?.role === ROLES.SMALL_GROUP_LEADER) {
+          setAvailableSites(response.data.filter(s => s.id === currentUser.siteId));
+          setValue("siteId", currentUser.siteId);
+          setValue("smallGroupId", currentUser.smallGroupId);
+        } else {
+          setAvailableSites(response.data);
+        }
+      }
+    };
+    fetchSites();
   }, [currentUser, setValue]);
 
   useEffect(() => {
-    if (watchedSiteId) {
-      setAvailableSmallGroups(mockSmallGroups.filter(sg => sg.siteId === watchedSiteId));
-      if (currentUser?.role !== ROLES.SMALL_GROUP_LEADER || watchedSiteId !== currentUser?.siteId) {
-         setValue("smallGroupId", undefined); // Reset small group if site changes unless it's the leader's own site/sg
+    const fetchSmallGroups = async () => {
+      if (watchedSiteId) {
+        const response = await smallGroupService.getSmallGroupsBySite(watchedSiteId);
+        if (response.success && response.data) {
+          setAvailableSmallGroups(response.data);
+          if (currentUser?.role !== ROLES.SMALL_GROUP_LEADER || watchedSiteId !== currentUser?.siteId) {
+            setValue("smallGroupId", undefined); // Reset small group if site changes unless it's the leader's own site/sg
+          }
+        } else {
+          setAvailableSmallGroups([]);
+          setValue("smallGroupId", undefined);
+        }
+      } else {
+        setAvailableSmallGroups([]);
+        setValue("smallGroupId", undefined);
       }
-    } else {
+    };
+    fetchSmallGroups();
+  }, [watchedSiteId, setValue, currentUser]);
+
+  useEffect(() => {
+    if (member?.siteId && currentUser) {
       setAvailableSmallGroups([]);
       setValue("smallGroupId", undefined);
     }
-  }, [watchedSiteId, setValue, currentUser]);
-
-  // Set initial small groups if editing or SG leader
-   useEffect(() => {
-    if (member?.siteId) {
-      setAvailableSmallGroups(mockSmallGroups.filter(sg => sg.siteId === member.siteId));
-    } else if (currentUser?.role === ROLES.SMALL_GROUP_LEADER && currentUser.siteId) {
-      setAvailableSmallGroups(mockSmallGroups.filter(sg => sg.siteId === currentUser.siteId));
-    }
   }, [member, currentUser]);
-
 
   const processSubmit = async (data: MemberFormData) => {
     await onSubmitForm(data);

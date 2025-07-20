@@ -1,7 +1,7 @@
 // src/app/dashboard/settings/profile/components/ProfileForm.tsx
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -10,9 +10,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import type { User } from "@/lib/types";
+import type { User, Site, SmallGroup } from "@/lib/types";
+import siteService from "@/services/siteService";
+import smallGroupService from "@/services/smallGroupService";
 import { ROLES } from "@/lib/constants";
-import { mockSites, mockSmallGroups } from "@/lib/mockData";
+
 import { Save, CalendarIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -38,7 +40,38 @@ interface ProfileFormProps {
 }
 
 export function ProfileForm({ currentUser, onUpdateProfile, canEdit }: ProfileFormProps) {
-  const { toast } = useToast();
+  const [sites, setSites] = useState<Site[]>([]);
+  const [smallGroups, setSmallGroups] = useState<SmallGroup[]>([]);
+  const [isLoadingAssignment, setIsLoadingAssignment] = useState(true);
+    const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchAssignments = async () => {
+      if (!currentUser.siteId && !currentUser.smallGroupId) {
+        setIsLoadingAssignment(false);
+        return;
+      }
+
+      setIsLoadingAssignment(true);
+      try {
+        const sitesRes = await siteService.getAllSites();
+        if (sitesRes.data) setSites(sitesRes.data);
+
+        if (currentUser.role === ROLES.SMALL_GROUP_LEADER) {
+          const smallGroupsRes = await smallGroupService.getAllSmallGroups();
+          if (smallGroupsRes.data) setSmallGroups(smallGroupsRes.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch assignments", error);
+        toast({ title: "Error", description: "Could not load assignment data.", variant: "destructive" });
+      } finally {
+        setIsLoadingAssignment(false);
+      }
+    };
+
+    fetchAssignments();
+  }, [currentUser.role, currentUser.siteId, currentUser.smallGroupId, toast]);
+
   const { control, register, handleSubmit, formState: { errors, isSubmitting, isDirty } } = useForm<ProfileFormData>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
@@ -76,13 +109,15 @@ export function ProfileForm({ currentUser, onUpdateProfile, canEdit }: ProfileFo
   };
   
   const getAssignmentName = () => {
+    if (isLoadingAssignment) return "Loading assignment...";
+
     if (currentUser.role === ROLES.SITE_COORDINATOR && currentUser.siteId) {
-      return mockSites.find(s => s.id === currentUser.siteId)?.name || "Unknown Site";
+      return sites.find(s => s.id === currentUser.siteId)?.name || "Unknown Site";
     }
     if (currentUser.role === ROLES.SMALL_GROUP_LEADER && currentUser.smallGroupId) {
-      const sg = mockSmallGroups.find(sg => sg.id === currentUser.smallGroupId);
+      const sg = smallGroups.find(sg => sg.id === currentUser.smallGroupId);
       if (sg) {
-        const site = mockSites.find(s => s.id === sg.siteId);
+        const site = sites.find(s => s.id === sg.siteId);
         return `${sg.name} (Site: ${site?.name || 'Unknown'})`;
       }
       return "Unknown Small Group";

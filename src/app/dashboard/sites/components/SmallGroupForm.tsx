@@ -1,7 +1,7 @@
 // src/app/dashboard/sites/components/SmallGroupForm.tsx
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -11,7 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { SmallGroup, User } from "@/lib/types";
-import { mockUsers } from "@/lib/mockData";
+import { useToast } from "@/hooks/use-toast";
+import { profileService } from "@/services/profileService";
 import { ROLES } from "@/lib/constants";
 import { Users, Save } from "lucide-react";
 
@@ -39,6 +40,9 @@ interface SmallGroupFormProps {
 }
 
 export function SmallGroupForm({ smallGroup, siteId, onSubmitForm }: SmallGroupFormProps) {
+  const { toast } = useToast();
+  const [availablePersonnel, setAvailablePersonnel] = useState<User[]>([]);
+  const [isLoadingPersonnel, setIsLoadingPersonnel] = useState(true);
   const { control, handleSubmit, register, formState: { errors, isSubmitting }, reset } = useForm<SmallGroupFormData>({
     resolver: zodResolver(smallGroupFormSchema),
     defaultValues: smallGroup ? { 
@@ -54,19 +58,20 @@ export function SmallGroupForm({ smallGroup, siteId, onSubmitForm }: SmallGroupF
     },
   });
 
-  // Available users for leadership roles (main leader, assistants)
-  // Could be refined based on specific role eligibility if needed
-  const availablePersonnel = useMemo(() => {
-    return mockUsers.filter(user => 
-      user.status !== 'inactive' && (
-        // User is a Small Group Leader and either unassigned or assigned to this specific small group
-        ((user.role === ROLES.SMALL_GROUP_LEADER && (!user.smallGroupId || user.smallGroupId === smallGroup?.id)) ||
-        // User is the Site Coordinator of the current site (can also lead/assist an SG)
-        (user.role === ROLES.SITE_COORDINATOR && user.siteId === siteId) || // User is a National Coordinator (can also lead/assist an SG)
-        user.role === ROLES.NATIONAL_COORDINATOR)
-      )
-    );
-  }, [smallGroup, siteId]);
+  useEffect(() => {
+    const fetchPersonnel = async () => {
+      setIsLoadingPersonnel(true);
+      const response = await profileService.getEligiblePersonnel(siteId, smallGroup?.id);
+      if (response.success && response.data) {
+        setAvailablePersonnel(response.data);
+      } else {
+        toast({ title: "Error", description: `Failed to load personnel: ${response.error?.message}`, variant: 'destructive' });
+      }
+      setIsLoadingPersonnel(false);
+    };
+
+    fetchPersonnel();
+  }, [siteId, smallGroup?.id]);
 
   const processSubmit = async (data: SmallGroupFormData) => {
     await onSubmitForm(data);
@@ -108,7 +113,7 @@ export function SmallGroupForm({ smallGroup, siteId, onSubmitForm }: SmallGroupF
                   value={field.value || NO_LEADER_VALUE}
                 >
                   <SelectTrigger id="leaderId" className="mt-1">
-                    <SelectValue placeholder="Select a leader" />
+                    <SelectValue placeholder={isLoadingPersonnel ? "Loading..." : "Select Leader"} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={NO_LEADER_VALUE}>None (Unassigned)</SelectItem>
@@ -137,7 +142,7 @@ export function SmallGroupForm({ smallGroup, siteId, onSubmitForm }: SmallGroupF
                   }} 
                   value={field.value || NO_LEADER_VALUE}
                 >
-                  <SelectTrigger id="logisticsAssistantId" className="mt-1">
+                  <SelectTrigger id="logisticsAssistantId" className="mt-1" disabled={isLoadingPersonnel}>
                     <SelectValue placeholder="Select Logistics Assistant" />
                   </SelectTrigger>
                   <SelectContent>
@@ -167,7 +172,7 @@ export function SmallGroupForm({ smallGroup, siteId, onSubmitForm }: SmallGroupF
                   }} 
                   value={field.value || NO_LEADER_VALUE}
                 >
-                  <SelectTrigger id="financeAssistantId" className="mt-1">
+                  <SelectTrigger id="financeAssistantId" className="mt-1" disabled={isLoadingPersonnel}>
                     <SelectValue placeholder="Select Finance Assistant" />
                   </SelectTrigger>
                   <SelectContent>

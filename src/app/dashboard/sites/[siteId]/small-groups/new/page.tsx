@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { SmallGroupForm, type SmallGroupFormData } from '@/app/dashboard/sites/components/SmallGroupForm';
 import { RoleBasedGuard } from '@/components/shared/RoleBasedGuard';
 import { ROLES } from '@/lib/constants';
-import smallGroupService from '@/services/smallGroupService';
+import { smallGroupService } from '@/services/smallGroupService';
 import { useToast } from '@/hooks/use-toast';
 import { Users as UsersIcon, PlusCircle } from 'lucide-react';
 
@@ -27,10 +27,10 @@ export default function NewSmallGroupPage() {
         });
         router.push(`/dashboard/sites/${siteId}`);
       } else {
-        throw new Error(result.error || 'Failed to create small group');
+        throw new Error(result.error?.message || 'Failed to create small group');
       }
     } catch (error) {
-      console.error('Failed to create small group:', error);
+
       toast({
         title: 'Error',
         description: 'Could not create the small group. Please try again.',

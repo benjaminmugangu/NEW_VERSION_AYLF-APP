@@ -7,8 +7,8 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { SmallGroupForm, type SmallGroupFormData } from "@/app/dashboard/sites/components/SmallGroupForm";
 import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
 import { ROLES } from "@/lib/constants";
-import siteService from "@/services/siteService";
-import smallGroupService from "@/services/smallGroupService";
+import siteService from '@/services/siteService';
+import smallGroupService from '@/services/smallGroupService';
 import type { Site, SmallGroup as SmallGroupType } from "@/lib/types";
 import { Edit, Info, Users as UsersIcon } from "lucide-react"; 
 import { useToast } from "@/hooks/use-toast";
@@ -39,7 +39,7 @@ export default function EditSmallGroupPage() {
       setIsLoading(true);
       try {
         const siteResponse = await siteService.getSiteById(siteId);
-        const sgResponse = await smallGroupService.getSmallGroupById(smallGroupId);
+        const sgResponse = await smallGroupService.getSmallGroupDetails(smallGroupId);
 
         if (siteResponse.success && siteResponse.data && sgResponse.success && sgResponse.data && sgResponse.data.siteId === siteId) {
           setSite(siteResponse.data);
@@ -50,7 +50,7 @@ export default function EditSmallGroupPage() {
           toast({ title: "Error", description: "Could not load data for editing.", variant: 'destructive' });
         }
       } catch (error) {
-        console.error("Failed to fetch data:", error);
+
         toast({ title: "Error", description: "Could not load data for editing.", variant: 'destructive' });
       } finally {
         setIsLoading(false);
@@ -70,10 +70,9 @@ export default function EditSmallGroupPage() {
         });
         router.push(`/dashboard/sites/${siteId}`);
       } else {
-        throw new Error(result.error || "Update failed");
+        throw new Error(result.error?.message || "Update failed");
       }
     } catch (error) {
-      console.error("Failed to update small group:", error);
       toast({
         title: "Error",
         description: "Could not update the small group. Please try again.",

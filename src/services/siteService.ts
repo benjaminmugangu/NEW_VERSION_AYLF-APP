@@ -3,6 +3,7 @@
 
 import { supabase } from '@/lib/supabaseClient';
 import type { Site, User, ServiceResponse } from '@/lib/types';
+import { ROLES } from '@/lib/constants';
 
 // Helper to convert DB snake_case to frontend camelCase
 const toSiteModel = (dbSite: any): Site => ({
@@ -16,9 +17,41 @@ const toSiteModel = (dbSite: any): Site => ({
 
 const siteService = {
   getAllSites: async (): Promise<ServiceResponse<Site[]>> => {
-    const { data, error } = await supabase.from('sites').select('*');
+    const { data, error } = await supabase.from('sites').select('*').order('name', { ascending: true });
     if (error) {
-      console.error('Error fetching sites:', error);
+      return { success: false, error: { message: error.message } };
+    }
+    return { success: true, data: data.map(toSiteModel) };
+  },
+
+  getFilteredSites: async (filters: { user: User | null }): Promise<ServiceResponse<Site[]>> => {
+    const { user } = filters;
+    if (!user) {
+      return { success: false, error: { message: 'User not authenticated' } };
+    }
+
+    let query = supabase.from('sites').select('*');
+
+    switch (user.role) {
+      case ROLES.NATIONAL_COORDINATOR:
+        // National coordinator sees all sites, no filter needed.
+        break;
+      case ROLES.SITE_COORDINATOR:
+      case ROLES.SMALL_GROUP_LEADER:
+        if (user.siteId) {
+          query = query.eq('id', user.siteId);
+        } else {
+          // If user should have a siteId but doesn't, they see nothing.
+          return { success: true, data: [] };
+        }
+        break;
+      default:
+        // Other roles like 'member' see no sites by default.
+        return { success: true, data: [] };
+    }
+
+    const { data, error } = await query.order('name', { ascending: true });
+    if (error) {
       return { success: false, error: { message: error.message } };
     }
     return { success: true, data: data.map(toSiteModel) };
@@ -27,7 +60,6 @@ const siteService = {
   getSiteById: async (siteId: string): Promise<ServiceResponse<Site>> => {
     const { data, error } = await supabase.from('sites').select('*').eq('id', siteId).single();
     if (error) {
-      console.error(`Error fetching site ${siteId}:`, error);
       return { success: false, error: { message: `Site with id ${siteId} not found.` } };
     }
     return { success: true, data: toSiteModel(data) };
@@ -41,7 +73,6 @@ const siteService = {
       .single();
 
     if (error || !data?.coordinator) {
-      console.error(`Error fetching coordinator for site ${siteId}:`, error);
       return { success: false, error: { message: 'Coordinator not found for this site.' } };
     }
     // The 'profiles' table columns should match the 'User' type
@@ -65,7 +96,6 @@ const siteService = {
       .single();
 
     if (error) {
-      console.error('Error creating site:', error);
       return { success: false, error: { message: error.message } };
     }
     return { success: true, data: toSiteModel(data) };
@@ -92,7 +122,6 @@ const siteService = {
       .single();
 
     if (error) {
-      console.error(`Error updating site ${siteId}:`, error);
       return { success: false, error: { message: error.message } };
     }
     return { success: true, data: toSiteModel(data) };
@@ -102,7 +131,6 @@ const siteService = {
     const { error } = await supabase.from('sites').delete().eq('id', siteId);
 
     if (error) {
-      console.error(`Error deleting site ${siteId}:`, error);
       // Foreign key constraint violation
       if (error.code === '23503') {
         return { success: false, error: { message: 'Cannot delete site with active small groups or members. Please reassign them first.' } };
@@ -120,7 +148,6 @@ const siteService = {
       .single();
 
     if (error) {
-      console.error(`Error fetching site details for ${siteId}:`, error);
       return { success: false, error: { message: error.message } };
     }
 

@@ -8,7 +8,9 @@ import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
 import { ROLES } from "@/lib/constants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { UsersRound, UserPlus, Edit, Trash2, ShieldCheck, ShieldX } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button';
+import { getInitials } from '@/lib/utils';
+import { MoreHorizontal } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -17,16 +19,22 @@ import { TableRowSkeleton } from "@/components/shared/skeletons/TableRowSkeleton
 import { useToast } from "@/hooks/use-toast";
 
 import { useUsers } from "@/hooks/useUsers";
-import type { User, Role } from "@/lib/types";
+import type { User, UserRole } from "@/lib/types";
 
 export default function ManageUsersPage() {
   const { toast } = useToast();
   const { users, isLoading, error, deleteUser } = useUsers();
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
-  if (error) {
-    toast({ title: "Error", description: error, variant: "destructive" });
-  }
+  React.useEffect(() => {
+    if (error) {
+      toast({ 
+        title: "Error loading user data", 
+        description: error,
+        variant: "destructive" 
+      });
+    }
+  }, [error, toast]);
 
   const handleDeleteClick = (user: User) => {
     setUserToDelete(user);
@@ -40,28 +48,21 @@ export default function ManageUsersPage() {
     if (result.success) {
       toast({ title: "Success", description: `User '${userToDelete.name}' has been deleted.` });
     } else {
-      toast({ title: "Error", description: result.error || "Failed to delete user.", variant: "destructive" });
+      toast({ title: "Error", description: result.error?.message || "Failed to delete user.", variant: "destructive" });
     }
 
     setUserToDelete(null);
   };
 
-  const getRoleDisplayName = (role: Role) => role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  const getRoleDisplayName = (role: UserRole) => role.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
 
-  const getRoleBadgeVariant = (role: Role) => {
+  const getRoleBadgeVariant = (role: UserRole) => {
     switch(role) {
       case ROLES.NATIONAL_COORDINATOR: return "default";
       case ROLES.SITE_COORDINATOR: return "secondary";
       case ROLES.SMALL_GROUP_LEADER: return "outline";
       default: return "outline";
     }
-  };
-
-
-
-  const getInitials = (name: string) => {
-    const names = name.split(' ');
-    return names.length > 1 ? `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase() : name.substring(0, 2).toUpperCase();
   };
 
   const getUserStatusIcon = (status?: "active" | "inactive") => {
@@ -157,12 +158,12 @@ export default function ManageUsersPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the user account for <span className="font-semibold">{userToDelete?.name}</span> and remove their data from our servers.
+              This will archive the user <span className="font-semibold">{userToDelete?.name}</span>. Their account will be disabled, and they won't be able to log in. Their data will be preserved for historical records.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive hover:bg-destructive/90">Archive User</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

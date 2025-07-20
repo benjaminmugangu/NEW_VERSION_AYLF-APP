@@ -1,6 +1,6 @@
 // src/services/activityService.ts
 import { supabase } from '@/lib/supabaseClient';
-import type { Activity, ActivityFormData, ServiceResponse, User } from '@/lib/types';
+import type { Activity, ActivityFormData, ActivityType, ServiceResponse, User } from '@/lib/types';
 import { getDateRangeFromFilterValue, type DateFilterValue } from '@/components/shared/DateRangeFilter';
 import { ROLES } from '@/lib/constants';
 
@@ -18,6 +18,7 @@ const toActivityModel = (dbActivity: any): Activity => {
     participantsCount: dbActivity.participants_count,
     imageUrl: dbActivity.image_url,
     activityTypeId: dbActivity.activity_type_id,
+    deleted_at: dbActivity.deleted_at,
     // Enriched data from joins
     siteName: dbActivity.sites?.name,
     smallGroupName: dbActivity.small_groups?.name,
@@ -25,172 +26,143 @@ const toActivityModel = (dbActivity: any): Activity => {
   };
 };
 
-export interface ActivityFilters {
-  user: User | null;
-  searchTerm?: string;
-  dateFilter?: DateFilterValue;
-  statusFilter?: Record<Activity['status'], boolean>;
-  levelFilter?: Record<Activity['level'], boolean>;
-}
+const getFilteredActivities = async (filters: { user: User; searchTerm?: string; dateFilter?: DateFilterValue; statusFilter?: { [key: string]: boolean }; levelFilter?: { [key: string]: boolean } }): Promise<ServiceResponse<Activity[]>> => {
+  const { user, searchTerm, dateFilter, statusFilter, levelFilter } = filters;
+  if (!user) return { success: false, error: { message: 'User not authenticated' } };
 
-const activityService = {
-  getFilteredActivities: async (filters: ActivityFilters): Promise<ServiceResponse<Activity[]>> => {
-    const { user, searchTerm, dateFilter, statusFilter, levelFilter } = filters;
-    if (!user) return { success: false, error: { message: 'User not authenticated' } };
+  let query = supabase
+    .from('activities')
+    .select('*, sites:site_id(name), small_groups:small_group_id(name), activity_types:activity_type_id(name)');
 
-    let query = supabase.from('activities').select(`
-      *,
-      sites:site_id(name),
-      small_groups:small_group_id(name),
-      activity_types:activity_type_id(name)
-    `);
-
-    // 1. Filter by user role
-    switch (user.role) {
-      case ROLES.SITE_COORDINATOR:
-        if (user.siteId) {
-          query = query.or(`level.eq.national,site_id.eq.${user.siteId}`);
-        } else {
-          query = query.eq('level', 'national');
-        }
-        break;
-      case ROLES.SMALL_GROUP_LEADER:
-        if (user.smallGroupId && user.siteId) {
-          query = query.or(`level.eq.national,site_id.eq.${user.siteId},small_group_id.eq.${user.smallGroupId}`);
-        } else if (user.siteId) {
-          query = query.or(`level.eq.national,site_id.eq.${user.siteId}`);
-        } else {
-          query = query.eq('level', 'national');
-        }
-        break;
-      // National coordinator can see all, so no initial filter needed.
-      case ROLES.NATIONAL_COORDINATOR:
-      default:
-        break;
-    }
-
-    // 2. Date filter
-    if (dateFilter) {
-      const { startDate, endDate } = getDateRangeFromFilterValue(dateFilter);
-      if (startDate) {
-        query = query.gte('date', startDate.toISOString());
+  // Role-based filtering
+  switch (user.role) {
+    case ROLES.SITE_COORDINATOR:
+      if (user.siteId) query = query.or(`level.eq.national,site_id.eq.${user.siteId}`);
+      else query = query.eq('level', 'national');
+      break;
+    case ROLES.SMALL_GROUP_LEADER:
+      if (user.smallGroupId && user.siteId) {
+        const siteFilter = `and(level.eq.site,site_id.eq.${user.siteId})`;
+        const smallGroupFilter = `and(level.eq.small_group,small_group_id.eq.${user.smallGroupId})`;
+        query = query.or(`level.eq.national,${siteFilter},${smallGroupFilter}`);
+      } else if (user.siteId) {
+        query = query.or(`level.eq.national,and(level.eq.site,site_id.eq.${user.siteId})`);
+      } else {
+        query = query.eq('level', 'national');
       }
-      if (endDate) {
-        query = query.lte('date', endDate.toISOString());
-      }
-    }
+      break;
+  }
 
-    // 3. Search term filter
-    if (searchTerm) {
-      query = query.ilike('name', `%${searchTerm}%`);
-    }
+  if (dateFilter) {
+    const { startDate, endDate } = getDateRangeFromFilterValue(dateFilter);
+    if (startDate) query = query.gte('date', startDate.toISOString());
+    if (endDate) query = query.lte('date', endDate.toISOString());
+  }
 
-    // 4. Status filter
-    if (statusFilter) {
-      const activeStatuses = Object.entries(statusFilter)
-        .filter(([, isActive]) => isActive)
-        .map(([status]) => status);
-      if (activeStatuses.length > 0) {
-        query = query.in('status', activeStatuses);
-      }
-    }
+  if (searchTerm) {
+    query = query.ilike('name', `%${searchTerm}%`);
+  }
 
-    // 5. Level filter
-    if (levelFilter) {
-      const activeLevels = Object.entries(levelFilter)
-        .filter(([, isActive]) => isActive)
-        .map(([level]) => level);
-      if (activeLevels.length > 0) {
-        query = query.in('level', activeLevels);
-      }
-    }
+  if (statusFilter) {
+    const active = Object.keys(statusFilter).filter(k => statusFilter[k as keyof typeof statusFilter]);
+    if (active.length > 0) query = query.in('status', active);
+  }
 
-    const { data, error } = await query.order('date', { ascending: false });
+  if (levelFilter) {
+    const active = Object.keys(levelFilter).filter(k => levelFilter[k as keyof typeof levelFilter]);
+    if (active.length > 0) query = query.in('level', active);
+  }
 
-    if (error) {
-      console.error('Error fetching activities:', error);
-      return { success: false, error: { message: error.message } };
-    }
-
-    const activities = data.map(toActivityModel);
-    return { success: true, data: activities };
-  },
-
-  getActivityById: async (id: string): Promise<ServiceResponse<Activity>> => {
-    const { data, error } = await supabase
-      .from('activities')
-      .select(`
-        *,
-        sites:site_id(name),
-        small_groups:small_group_id(name),
-        activity_types:activity_type_id(name)
-      `)
-      .eq('id', id)
-      .single();
-
-    if (error) {
-      console.error(`Error fetching activity by id ${id}:`, error);
-      return { success: false, error: { message: 'Activity not found.' } };
-    }
-    return { success: true, data: toActivityModel(data) };
-  },
-
-  createActivity: async (activityData: ActivityFormData): Promise<ServiceResponse<Activity>> => {
-    const { data, error } = await supabase
-      .from('activities')
-      .insert({
-        name: activityData.name,
-        description: activityData.description,
-        date: activityData.date,
-        status: activityData.status,
-        level: activityData.level,
-        site_id: activityData.siteId,
-        small_group_id: activityData.smallGroupId,
-        participants_count: activityData.participantsCount,
-        image_url: activityData.imageUrl,
-        activity_type_id: activityData.activityTypeId,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error creating activity:', error);
-      return { success: false, error: { message: error.message } };
-    }
-    return { success: true, data: toActivityModel(data) };
-  },
-
-  updateActivity: async (activityId: string, updatedData: Partial<ActivityFormData>): Promise<ServiceResponse<Activity>> => {
-    const { data, error } = await supabase
-      .from('activities')
-      .update({
-        name: updatedData.name,
-        description: updatedData.description,
-        date: updatedData.date,
-        status: updatedData.status,
-        level: updatedData.level,
-        site_id: updatedData.siteId,
-        small_group_id: updatedData.smallGroupId,
-        participants_count: updatedData.participantsCount,
-        image_url: updatedData.imageUrl,
-        activity_type_id: updatedData.activityTypeId,
-      })
-      .eq('id', activityId)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error updating activity:', error);
-      return { success: false, error: { message: error.message } };
-    }
-    return { success: true, data: toActivityModel(data) };
-  },
-
-  deleteActivity: async (id: string): Promise<ServiceResponse<{ id: string }>> => {
-    const { error } = await supabase.from('activities').delete().eq('id', id);
-    if (error) return { success: false, error: { message: error.message } };
-    return { success: true, data: { id } };
-  },
+  const { data, error } = await query.order('date', { ascending: false });
+  if (error) return { success: false, error: { message: error.message } };
+  return { success: true, data: data.map(toActivityModel) };
 };
 
-export default activityService;
+const getActivityById = async (id: string): Promise<ServiceResponse<Activity>> => {
+  const { data, error } = await supabase
+    .from('activities')
+    .select('*, sites:site_id(name), small_groups:small_group_id(name), activity_types:activity_type_id(name)')
+    .eq('id', id)
+    .single();
+  if (error) return { success: false, error: { message: 'Activity not found.' } };
+  return { success: true, data: toActivityModel(data) };
+};
+
+const createActivity = async (activityData: Omit<ActivityFormData, 'createdBy'>, userId: string): Promise<ServiceResponse<Activity>> => {
+  const { data, error } = await supabase
+    .from('activities')
+    .insert({ ...activityData, created_by: userId })
+    .select('id')
+    .single();
+  if (error) return { success: false, error: { message: error.message } };
+  return getActivityById(data.id);
+};
+
+const updateActivity = async (id: string, updatedData: Partial<ActivityFormData>): Promise<ServiceResponse<Activity>> => {
+  const { createdBy, ...rest } = updatedData;
+  const { error } = await supabase
+    .from('activities')
+    .update({ ...rest })
+    .eq('id', id);
+  if (error) return { success: false, error: { message: error.message } };
+  return getActivityById(id);
+};
+
+const deleteActivity = async (id: string): Promise<ServiceResponse<null>> => {
+  const { error } = await supabase
+    .from('activities')
+    .delete()
+    .eq('id', id);
+  if (error) return { success: false, error: { message: error.message } };
+  return { success: true, data: null };
+};
+
+const getRelatedActivities = async (member: { siteId?: string; smallGroupId?: string }): Promise<ServiceResponse<Activity[]>> => {
+  if (!member.siteId && !member.smallGroupId) {
+    // Only national activities if member has no affiliations
+    return getFilteredActivities({ user: { role: ROLES.NATIONAL_COORDINATOR } as User });
+  }
+
+  let filterConditions = ['level.eq.national'];
+  if (member.siteId) {
+    filterConditions.push(`and(level.eq.site,site_id.eq.${member.siteId})`);
+  }
+  if (member.smallGroupId) {
+    filterConditions.push(`and(level.eq.small_group,small_group_id.eq.${member.smallGroupId})`);
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('activities')
+      .select('*, sites:site_id(name), small_groups:small_group_id(name), activity_types:activity_type_id(name)')
+      .or(filterConditions.join(','))
+      .order('date', { ascending: false })
+      .limit(5); // Limit to a reasonable number for a details page
+
+    if (error) {
+      return { success: false, error: { message: error.message } };
+    }
+    return { success: true, data: data.map(toActivityModel) };
+  } catch (e) {
+    const error = e instanceof Error ? e.message : 'An unknown error occurred.';
+    return { success: false, error: { message: error } };
+  }
+};
+
+const getActivityTypes = async (): Promise<ServiceResponse<ActivityType[]>> => {
+  const { data, error } = await supabase.from('activity_types').select('*');
+  if (error) return { success: false, error: { message: error.message } };
+  return { success: true, data: data || [] };
+};
+
+export const activityService = {
+  getFilteredActivities,
+  getActivityById,
+  createActivity,
+  updateActivity,
+  deleteActivity,
+  getActivityTypes,
+  getRelatedActivities,
+};
+
+

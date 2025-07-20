@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { SiteForm } from "../../components/SiteForm";
 import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
 import { ROLES } from "@/lib/constants";
-import siteService from "@/services/siteService";
+import siteService from '@/services/siteService';
 import type { Site, SiteFormData } from "@/lib/types";
 import { Edit, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -37,11 +37,10 @@ export default function EditSitePage() {
         if (response.success && response.data) {
           setSiteToEdit(response.data);
         } else {
-          console.error("Failed to fetch site:", response.error);
           setSiteToEdit(null);
         }
       } catch (error) {
-        console.error("Failed to fetch site:", error);
+        toast({ title: "Error", description: "Could not load site data for editing.", variant: 'destructive' });
         setSiteToEdit(null);
       } finally {
         setIsLoading(false);
@@ -63,10 +62,9 @@ export default function EditSitePage() {
       });
       router.push(`/dashboard/sites/${siteId}`);
     } else {
-      console.error("Failed to update site:", result.error);
       toast({
         title: "Error Updating Site",
-        description: result.error || "An unknown error occurred. Please try again.",
+        description: result.error?.message || "An unknown error occurred. Please try again.",
         variant: "destructive",
       });
     }

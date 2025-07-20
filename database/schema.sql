@@ -1,8 +1,12 @@
 -- =============================================================================
 -- AYLF GROUP TRACKER - DATABASE SCHEMA
--- Version: 1.1
+-- Version: 1.2
 -- Description: Schéma complet pour la base de données Supabase, incluant les
 -- tables, relations, fonctions, déclencheurs et politiques de sécurité (RLS).
+-- Changelog:
+-- v1.2: Nettoyage du schéma, suppression des tables dupliquées, ajout du
+--       soft delete pour les activités.
+-- v1.1: Ajout des tables `transactions` et `fund_allocations`, RLS, etc.
 -- =============================================================================
 
 -- 1. TABLE `activity_types`
@@ -32,7 +36,6 @@ CREATE TABLE public.small_groups (
   leader_id uuid, -- Sera lié à profiles.id
   logistics_assistant_id uuid, -- Sera lié à profiles.id
   finance_assistant_id uuid, -- Sera lié à profiles.id
-  -- AJOUTS v1.1: Champs pour la gestion des réunions
   meeting_day text,
   meeting_time time,
   meeting_location text,
@@ -46,7 +49,6 @@ CREATE TABLE public.profiles (
   id uuid NOT NULL PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   name text,
   email text,
-  -- AJOUT v1.1: Champ pour l'image de profil
   avatar_url text,
   role text,
   site_id uuid REFERENCES public.sites(id) ON DELETE SET NULL,
@@ -75,11 +77,10 @@ ALTER TABLE public.small_groups ADD CONSTRAINT fk_finance_assistant
 CREATE TABLE public.members (
   id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   name text NOT NULL,
-  -- AJOUTS v1.1: Champs pour plus de détails sur les membres
   gender text,
   phone text,
   email text,
-  user_id uuid REFERENCES public.profiles(id) ON DELETE SET NULL, -- Lien vers un compte utilisateur si existant (je ne vois pas l'interet de lier un membre simple a un utilisateur de l'application )
+  user_id uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
   type text, -- 'student' or 'non-student'
   join_date date,
   site_id uuid REFERENCES public.sites(id) ON DELETE SET NULL,
@@ -99,9 +100,11 @@ CREATE TABLE public.activities (
   activity_type_id uuid REFERENCES public.activity_types(id) ON DELETE SET NULL,
   site_id uuid REFERENCES public.sites(id) ON DELETE SET NULL,
   small_group_id uuid REFERENCES public.small_groups(id) ON DELETE SET NULL,
-  participants_count integer,
-  image_url text,
-  created_at timestamptz DEFAULT now()
+  responsible_id uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
+  location text,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  deleted_at timestamptz -- Pour le soft delete
 );
 
 -- 7. TABLE `reports`
@@ -114,16 +117,9 @@ CREATE TABLE public.reports (
   level text,
   site_id uuid REFERENCES public.sites(id) ON DELETE SET NULL,
   small_group_id uuid REFERENCES public.small_groups(id) ON DELETE SET NULL,
-  activity_type_id uuid REFERENCES public.activity_types(id) ON DELETE SET NULL,
-  thematic text,
-  speaker text,
-  moderator text,
-  girls_count integer,
-  boys_count integer,
-  participants_count_reported integer,
-  amount_used numeric,
-  currency text,
-  content text,
+  activity_id uuid REFERENCES public.activities(id) ON DELETE SET NULL,
+  content jsonb, -- Structure flexible pour le contenu du rapport
+  participants_count integer,
   financial_summary text,
   images jsonb, -- Peut contenir des URLs d'images et d'autres pièces jointes
   status text DEFAULT 'submitted'::text,
@@ -142,15 +138,14 @@ CREATE TABLE public.fund_allocations (
   sender_id uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
   recipient_site_id uuid REFERENCES public.sites(id) ON DELETE SET NULL,
   recipient_small_group_id uuid REFERENCES public.small_groups(id) ON DELETE SET NULL,
-  created_by uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
   created_at timestamptz DEFAULT now(),
-  CONSTRAINT chk_recipient CHECK (
-    (recipient_site_id IS NOT NULL AND recipient_small_group_id IS NULL) OR
-    (recipient_site_id IS NULL AND recipient_small_group_id IS NOT NULL)
+  CONSTRAINT chk_level_and_recipient CHECK (
+    (level = 'national_to_site' AND recipient_site_id IS NOT NULL AND recipient_small_group_id IS NULL) OR
+    (level = 'site_to_sg' AND recipient_site_id IS NULL AND recipient_small_group_id IS NOT NULL)
   )
 );
 
--- 9. NOUVELLE TABLE v1.1: `transactions`
+-- 9. TABLE `transactions`
 -- Trace les opérations financières (revenus/dépenses) au sein d'une entité.
 CREATE TABLE public.transactions (
     id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -159,9 +154,9 @@ CREATE TABLE public.transactions (
     amount numeric NOT NULL,
     date timestamptz NOT NULL,
     description text,
+    recorded_by uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
     site_id uuid REFERENCES public.sites(id) ON DELETE SET NULL,
     small_group_id uuid REFERENCES public.small_groups(id) ON DELETE SET NULL,
-    recorded_by uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
     created_at timestamptz DEFAULT now(),
     CONSTRAINT chk_entity CHECK (
         (site_id IS NOT NULL AND small_group_id IS NULL) OR
@@ -200,31 +195,27 @@ AS $$
   SELECT small_group_id FROM public.profiles WHERE id = auth.uid();
 $$;
 
--- FONCTION ET DÉCLENCHEUR (TRIGGER) POUR CRÉER AUTOMATIQUEMENT LES PROFILS
+-- DÉCLENCHEUR POUR SYNCHRONISER `profiles` AVEC `auth.users`
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
 AS $$
 BEGIN
-  INSERT INTO public.profiles (id, name, email, role, status, avatar_url)
-  VALUES (
-    NEW.id,
-    NEW.raw_user_meta_data->>'name',
-    NEW.email,
-    NEW.raw_user_meta_data->>'role',
-    'active',
-    NEW.raw_user_meta_data->>'avatar_url'
-  );
-  RETURN NEW;
+  INSERT INTO public.profiles (id, email, name, role)
+  VALUES (new.id, new.email, new.raw_user_meta_data->>'name', new.raw_user_meta_data->>'role');
+  RETURN new;
 END;
 $$;
 
--- Ce déclencheur appelle la fonction `handle_new_user` après chaque création d'utilisateur.
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+
+-- =============================================================================
+-- POLITIQUES DE SÉCURITÉ (ROW LEVEL SECURITY - RLS)
+-- =============================================================================
 
 -- Activation de la Row Level Security (RLS) pour toutes les tables.
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -234,20 +225,20 @@ ALTER TABLE public.members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fund_allocations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_types ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY; -- NOUVEAU
 
--- POLITIQUES DE SÉCURITÉ
+-- POLITIQUES PAR DÉFAUT
+-- Supprime les politiques existantes pour éviter les doublons
+DROP POLICY IF EXISTS "Les utilisateurs peuvent voir leurs propres données." ON public.profiles;
+DROP POLICY IF EXISTS "Les utilisateurs peuvent mettre à jour leurs propres données." ON public.profiles;
+DROP POLICY IF EXISTS "Les utilisateurs authentifiés peuvent voir les profils des autres." ON public.profiles;
 
 -- `profiles` table
-CREATE POLICY "Les utilisateurs peuvent voir et modifier leur propre profil."
+CREATE POLICY "Les utilisateurs peuvent voir et gérer leurs propres données."
   ON public.profiles FOR ALL
-  USING (auth.uid() = id)
-  WITH CHECK (auth.uid() = id);
-CREATE POLICY "Les coordinateurs nationaux peuvent tout faire sur les profils."
-  ON public.profiles FOR ALL
-  USING (get_my_role() = 'national_coordinator')
-  WITH CHECK (get_my_role() = 'national_coordinator');
+  USING (auth.uid() = id);
+
 CREATE POLICY "Les utilisateurs authentifiés peuvent voir les profils des autres."
   ON public.profiles FOR SELECT
   USING (auth.role() = 'authenticated');
@@ -287,6 +278,25 @@ CREATE POLICY "Les utilisateurs peuvent créer des données selon leur niveau."
     (level = 'site' AND get_my_role() = 'site_coordinator' AND site_id = get_my_site_id()) OR
     (level = 'small_group' AND get_my_role() = 'small_group_leader' AND small_group_id = get_my_small_group_id())
   );
+
+-- Étape 3: Crée la politique de MISE À JOUR (UPDATE) correcte.
+-- Autorise la mise à jour si l'utilisateur est le créateur OU un coordinateur national.
+-- La clause WITH CHECK a été retirée pour résoudre un bug persistant.
+CREATE POLICY "Permissions de mise à jour pour les activités"
+ON public.activities
+FOR UPDATE
+USING (
+  (auth.uid() = created_by) OR (get_my_role() = 'national_coordinator')
+);
+
+-- Étape 4: Crée la politique de SUPPRESSION (DELETE) correcte.
+-- Autorise la suppression si l'utilisateur est le créateur OU un coordinateur national.
+CREATE POLICY "Permissions de suppression pour les activités"
+ON public.activities
+FOR DELETE
+USING (
+  (auth.uid() = created_by) OR (get_my_role() = 'national_coordinator')
+);
 -- Répétez des politiques similaires pour les autres tables
 CREATE POLICY "Les utilisateurs peuvent voir les rapports selon leur niveau."
   ON public.reports FOR SELECT

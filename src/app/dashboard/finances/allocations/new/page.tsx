@@ -6,13 +6,13 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { AllocationForm } from '@/app/dashboard/finances/components/AllocationForm';
 import { useAuth } from '@/hooks/useAuth';
 import { ROLES } from '@/lib/constants';
-import type { AllocationFormData, Site, SmallGroup } from '@/lib/types';
+import type { FundAllocationFormData, Site, SmallGroup } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import allocationService from '@/services/allocations.service';
-import siteService from '@/services/siteService';
-import smallGroupService from '@/services/smallGroupService';
+import { allocationService } from '@/services/allocations.service';
+import { siteService } from '@/services/siteService';
+import { smallGroupService } from '@/services/smallGroupService';
 
 export default function NewAllocationPage() {
   const { currentUser: user } = useAuth();
@@ -30,22 +30,22 @@ export default function NewAllocationPage() {
       setIsDataLoading(true);
       try {
         if (user.role === ROLES.NATIONAL_COORDINATOR) {
-          const sitesResponse = await siteService.getAllSites();
+          const sitesResponse = await siteService.getFilteredSites({ user });
           if (sitesResponse.success && sitesResponse.data) {
             setRecipients(sitesResponse.data);
           } else {
-            toast({ title: "Error", description: sitesResponse.error || "Could not load site data.", variant: 'destructive' });
+            toast({ title: "Error", description: sitesResponse.error?.message || "Could not load site data.", variant: 'destructive' });
           }
         } else if (user.role === ROLES.SITE_COORDINATOR && user.siteId) {
-          const smallGroupsResponse = await smallGroupService.getSmallGroupsBySiteId(user.siteId);
+          const smallGroupsResponse = await smallGroupService.getFilteredSmallGroups({ user, siteId: user.siteId });
           if (smallGroupsResponse.success && smallGroupsResponse.data) {
             setRecipients(smallGroupsResponse.data);
           } else {
-            toast({ title: "Error", description: smallGroupsResponse.error || "Could not load small group data.", variant: 'destructive' });
+            toast({ title: "Error", description: smallGroupsResponse.error?.message || "Could not load small group data.", variant: 'destructive' });
           }
         }
       } catch (error) {
-        console.error("Failed to fetch recipients:", error);
+
         toast({ title: "Error", description: "Could not load recipient data.", variant: 'destructive' });
       } finally {
         setIsDataLoading(false);
@@ -54,18 +54,22 @@ export default function NewAllocationPage() {
     fetchRecipients();
   }, [user, toast]);
 
-  const handleCreateAllocation = async (data: AllocationFormData) => {
+  const handleCreateAllocation = async (data: FundAllocationFormData) => {
     if (!user) return;
     setIsLoading(true);
     try {
-      const newAllocation = await allocationService.createAllocation(data, { role: user.role, id: user.siteId });
-      toast({
-        title: "Allocation Saved",
-        description: `The allocation of ${newAllocation.amount} USD has been successfully recorded.`,
-      });
-      router.push('/dashboard/finances');
+      const newAllocation = await allocationService.createAllocation(data);
+      if (newAllocation.success && newAllocation.data) {
+        toast({
+          title: "Allocation Saved",
+          description: `The allocation of ${newAllocation.data.amount} USD has been successfully recorded.`,
+        });
+        router.push('/dashboard/finances');
+      } else {
+        throw new Error(newAllocation.error?.message || 'Failed to create allocation');
+      }
     } catch (error) {
-      console.error("Failed to create allocation:", error);
+
       toast({ title: "Error", description: "Could not save the allocation.", variant: 'destructive' });
     } finally {
       setIsLoading(false);

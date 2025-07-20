@@ -6,7 +6,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from '@/components/ui/badge';
 import type { FundAllocation } from '@/lib/types';
-import { mockSites, mockSmallGroups } from '@/lib/mockData'; // For name lookups
 
 interface AllocationListProps {
   allocations: FundAllocation[];
@@ -59,22 +58,35 @@ export const AllocationList: React.FC<AllocationListProps> = ({ allocations, tit
           </TableHeader>
           <TableBody>
             {allocations.map((allocation) => {
-              const senderName = allocation.senderType === 'national' 
-                ? 'National Coordination' 
-                : mockSites.find(s => s.id === allocation.senderId)?.name || 'Unknown Site';
-              
-              const recipientName = allocation.recipientType === 'site' 
-                ? mockSites.find(s => s.id === allocation.recipientId)?.name || 'Unknown Site' 
-                : mockSmallGroups.find(sg => sg.id === allocation.recipientId)?.name || 'Unknown Group';
+              // New logic using correct properties from FundAllocation type
+              const senderName = allocation.allocatedByName || 'Unknown User';
+
+              let recipientName: string;
+              let recipientType: 'site' | 'smallGroup' | 'national' = 'national';
+              let recipientId: string | undefined;
+
+              if (allocation.siteId && !allocation.smallGroupId) {
+                recipientName = allocation.siteName || 'Unknown Site';
+                recipientType = 'site';
+                recipientId = allocation.siteId;
+              } else if (allocation.smallGroupId) {
+                recipientName = allocation.smallGroupName || 'Unknown Group';
+                recipientType = 'smallGroup';
+                recipientId = allocation.smallGroupId;
+              } else {
+                recipientName = 'National Coordination'; // Or other appropriate fallback
+              }
 
               return (
                 <TableRow key={allocation.id}>
                   <TableCell>{isClient ? new Date(allocation.allocationDate).toLocaleDateString() : allocation.allocationDate}</TableCell>
                   <TableCell className="font-medium">
-                    {renderEntity(allocation.senderType, allocation.senderId, senderName)}
+                    {/* Sender is always a user, not a linkable entity here */}
+                    {senderName}
                   </TableCell>
                   <TableCell>
-                    {renderEntity(allocation.recipientType, allocation.recipientId, recipientName)}
+                    {/* Recipient can be a site or small group */}
+                    {recipientId ? renderEntity(recipientType, recipientId, recipientName) : recipientName}
                   </TableCell>
                   <TableCell className="text-right">
                     <Badge variant={allocation.amount > 0 ? 'success' : 'destructive'}>

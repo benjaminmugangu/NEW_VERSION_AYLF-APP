@@ -1,7 +1,7 @@
 // src/app/dashboard/members/page.tsx
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
@@ -11,7 +11,18 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Users, UserPlus, ListFilter, Search, Eye, Edit } from "lucide-react";
+import { Users, UserPlus, ListFilter, Search, Eye, Edit, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
 import { DateRangeFilter, type DateFilterValue } from "@/components/shared/DateRangeFilter";
 import { MemberStatsChart } from "./components/MemberStatsChart";
 import { useMembers } from "@/hooks/useMembers";
@@ -28,7 +39,12 @@ export default function MembersPage() {
     setDateFilter,
     setTypeFilter,
     refetch,
+    deleteMember,
+    canCreateMember,
+    canEditOrDeleteMember,
   } = useMembers();
+  const { toast } = useToast();
+  const [memberToDelete, setMemberToDelete] = useState<any | null>(null);
 
   if (isLoading) {
     return <MembersPageSkeleton />;
@@ -57,12 +73,14 @@ export default function MembersPage() {
         description="Track, manage, and analyze all members across the organization."
         icon={Users}
         actions={
-          <Button asChild>
-            <Link href="/dashboard/members/new">
-              <UserPlus className="mr-2 h-4 w-4" />
-              Add New Member
-            </Link>
-          </Button>
+          canCreateMember && (
+            <Button asChild>
+              <Link href="/dashboard/members/new">
+                <UserPlus className="mr-2 h-4 w-4" />
+                Add New Member
+              </Link>
+            </Button>
+          )
         }
       />
 
@@ -142,9 +160,22 @@ export default function MembersPage() {
                         <Button asChild variant="ghost" size="icon" title="View Details">
                           <Link href={`/dashboard/members/${member.id}`}><Eye className="h-4 w-4" /></Link>
                         </Button>
-                        <Button asChild variant="ghost" size="icon" title="Edit Member">
-                          <Link href={`/dashboard/members/${member.id}/edit`}><Edit className="h-4 w-4" /></Link>
-                        </Button>
+                        {canEditOrDeleteMember(member) && (
+                          <>
+                            <Button asChild variant="ghost" size="icon" title="Edit Member">
+                              <Link href={`/dashboard/members/${member.id}/edit`}><Edit className="h-4 w-4" /></Link>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Delete Member"
+                              className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
+                              onClick={() => setMemberToDelete(member)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))
@@ -160,6 +191,35 @@ export default function MembersPage() {
           </div>
         </CardContent>
       </Card>
+
+      <AlertDialog open={!!memberToDelete} onOpenChange={() => setMemberToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action will archive the member <strong>{memberToDelete?.name}</strong>. They will be hidden from the list but can be recovered later by an administrator.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={async () => {
+                if (!memberToDelete) return;
+                const result = await deleteMember(memberToDelete.id);
+                if (result.success) {
+                  toast({ title: 'Success', description: `Member "${memberToDelete.name}" has been archived.` });
+                } else {
+                  toast({ title: 'Error', description: result.error?.message || 'Failed to archive member.', variant: 'destructive' });
+                }
+                setMemberToDelete(null);
+              }}
+            >
+              Archive
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </RoleBasedGuard>
   );
 }

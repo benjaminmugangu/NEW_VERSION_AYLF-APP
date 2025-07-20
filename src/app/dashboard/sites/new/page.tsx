@@ -9,7 +9,7 @@ import { Building, PlusCircle } from "lucide-react";
 import type { SiteFormData } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import siteService from "@/services/siteService"; 
+import siteService from '@/services/siteService'; 
 
 export default function NewSitePage() {
   const { toast } = useToast();
@@ -25,10 +25,9 @@ export default function NewSitePage() {
       });
       router.push("/dashboard/sites");
     } else {
-      console.error("Failed to create site:", result.error);
       toast({
         title: "Error Creating Site",
-        description: result.error || "An unknown error occurred. Please try again.",
+        description: result.error?.message || "An unknown error occurred. Please try again.",
         variant: "destructive",
       });
     }

@@ -2,9 +2,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import userService from '@/services/userService';
+import { profileService } from '@/services/profileService';
 import siteService from '@/services/siteService';
 import smallGroupService from '@/services/smallGroupService';
+import { useAuth } from '@/contexts/AuthContext';
 import type { User, Site, SmallGroup } from '@/lib/types';
 
 export interface UserWithDetails extends User {
@@ -12,17 +13,20 @@ export interface UserWithDetails extends User {
 }
 
 export const useUsers = () => {
+  const { currentUser } = useAuth();
   const [users, setUsers] = useState<UserWithDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
+    if (!currentUser) return;
+
     setIsLoading(true);
     setError(null);
     const [usersRes, sitesRes, smallGroupsRes] = await Promise.all([
-      userService.getAllUsers(),
-      siteService.getAllSites(),
-      smallGroupService.getSmallGroups(),
+      profileService.getUsers(),
+      siteService.getFilteredSites({ user: currentUser }),
+      smallGroupService.getFilteredSmallGroups({ user: currentUser }),
     ]);
 
     if (usersRes.success && sitesRes.success && smallGroupsRes.success) {
@@ -36,28 +40,36 @@ export const useUsers = () => {
       setUsers(usersWithDetails);
     } else {
       const errorDetails = usersRes.error || sitesRes.error || smallGroupsRes.error;
-      const errorMessage = errorDetails ? errorDetails.message : 'Failed to fetch data.';
+      const errorMessage = errorDetails?.message || 'Failed to fetch data.';
       setError(errorMessage);
       setUsers([]);
-      console.error('Data fetching errors:', { usersRes, sitesRes, smallGroupsRes });
+
     }
 
     setIsLoading(false);
   }, []);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (currentUser) {
+      fetchData();
+    }
+  }, [fetchData, currentUser]);
 
   const refetch = () => fetchData();
 
   const deleteUser = async (userId: string) => {
-    const response = await userService.deleteUser(userId);
+        // Note: Deleting a user profile might require special handling, e.g., deleting the auth user as well.
+    // For now, we assume deleting the profile is what's intended.
+    // This functionality might need to be moved to a more robust, backend-driven process.
+        const response = await profileService.updateProfile(userId, { status: 'inactive' });
     if (response.success) {
-      setUsers(prev => prev.filter(u => u.id !== userId));
+      // Refetch data to ensure consistency after update
+      fetchData();
       return { success: true };
     } else {
-      return { success: false, error: response.error };
+      const errorMessage = response.error?.message || 'An unknown error occurred during deletion.';
+      setError(errorMessage);
+      return { success: false, error: { message: errorMessage } };
     }
   };
 

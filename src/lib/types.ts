@@ -10,20 +10,6 @@ export interface BaseEntity {
 
 export type UserRole = 'national_coordinator' | 'site_coordinator' | 'small_group_leader' | 'member';
 
-// Used for create/update forms
-export interface UserFormData {
-  name: string;
-  email: string;
-  role: UserRole;
-  status: "active" | "inactive";
-  siteId?: string;
-  smallGroupId?: string;
-  mandateStartDate?: Date;
-  mandateEndDate?: Date;
-  phone?: string;
-  profilePicture?: string;
-}
-
 export interface User extends BaseEntity {
   name: string;
   email: string;
@@ -34,6 +20,9 @@ export interface User extends BaseEntity {
   mandateStartDate?: string; 
   mandateEndDate?: string;   
   status?: "active" | "inactive";
+  // Enriched data from services
+  siteName?: string;
+  smallGroupName?: string;
 }
 
 export interface Site extends BaseEntity {
@@ -98,6 +87,8 @@ export interface Activity extends BaseEntity {
   participantsCount?: number;
   imageUrl?: string;
   activityTypeId?: string; // Foreign key to activity_types table
+  createdBy?: string; // UUID of the user who created the activity
+  deleted_at?: string; // For soft delete
   // Enriched data for UI
   siteName?: string;
   smallGroupName?: string;
@@ -128,7 +119,7 @@ export interface Report extends BaseEntity {
   girlsCount?: number;
   boysCount?: number;
   participantsCountReported?: number;
-  expenses?: number;
+  totalExpenses?: number; // Corrected from 'expenses'
   currency?: string;
   content: string;
   images?: Array<{ name: string; url: string }>;
@@ -136,33 +127,73 @@ export interface Report extends BaseEntity {
   status: ReportStatus;
   reviewNotes?: string;
   attachments?: string[];
+  // Enriched data for UI
+  submittedByName?: string;
+  siteName?: string;
+  smallGroupName?: string;
+  activityTypeName?: string;
 }
 
+export type ReportWithDetails = Report & {
+  site?: Site;
+  smallGroup?: SmallGroup;
+  submittedByUser?: User;
+  activityType?: ActivityType;
+};
+
 export interface FinancialTransaction extends BaseEntity {
-  type: 'income' | 'expense';
-  category: 'offering' | 'donation' | 'project' | 'operations' | 'other';
-  amount: number;
   date: string; // ISO date string
   description: string;
+  amount: number;
+  type: 'income' | 'expense';
+  category: string;
   siteId?: string;
+  siteName?: string;
   smallGroupId?: string;
-  recordedBy: string; // User ID
+  smallGroupName?: string;
+  recordedById: string;
+  recordedByName?: string;
+  recordedByRole?: UserRole;
+  relatedReportId?: string;
+  relatedReportTitle?: string;
+  attachments?: string[];
 }
 
 export interface FundAllocation extends BaseEntity {
   amount: number;
   allocationDate: string; // ISO date string
-  description?: string;
-  senderId: string;
-  senderType: 'national' | 'site';
-  recipientId: string;
-  recipientType: 'site' | 'smallGroup';
-  createdById?: string; // User ID of the creator
+  goal: string;
+  source: string;
+  status: 'planned' | 'completed' | 'cancelled';
+  allocatedById: string;
+  siteId?: string;
+  smallGroupId?: string;
+  notes?: string;
+  // Enriched data for UI
+  allocatedByName?: string;
+  siteName?: string;
+  smallGroupName?: string;
+}
+
+export interface Financials {
+  totalRevenue: number;
+  totalExpenses: number;
+  totalAllocated: number;
+  netBalance: number;
+  allocations: FundAllocation[];
+  reports: Report[];
+  transactions: FinancialTransaction[];
 }
 
 // =============================================================================
 // UI & NAVIGATION TYPES
 // =============================================================================
+
+export interface DateFilter {
+  from: Date;
+  to: Date;
+  rangeKey?: string;
+}
 
 export interface NavItem {
   label: string;
@@ -178,6 +209,57 @@ export interface NavItem {
 // FORM DATA & SERVICE TYPES
 // =============================================================================
 
+export interface ReportFormData {
+  title: string;
+  activityDate: string;
+  level: "national" | "site" | "small_group";
+  siteId?: string;
+  smallGroupId?: string;
+  activityTypeId: string;
+  thematic: string;
+  speaker?: string;
+  moderator?: string;
+  girlsCount?: number;
+  boysCount?: number;
+  participantsCountReported?: number;
+  totalExpenses?: number;
+  currency?: string;
+  content: string;
+  images?: Array<{ name: string; url: string }>;
+  financialSummary?: string;
+  status: ReportStatus;
+  reviewNotes?: string;
+  attachments?: string[];
+  submittedBy: string; // Should be set to the current user's ID
+}
+
+export interface TransactionFormData {
+  date: string;
+  description: string;
+  amount: number;
+  type: 'income' | 'expense';
+  category: string;
+  siteId?: string;
+  smallGroupId?: string;
+  relatedReportId?: string;
+  attachments?: string[];
+  recordedById: string; // Set to current user's ID
+}
+
+export interface FundAllocationFormData {
+  amount: number;
+  allocationDate: string; // ISO date string
+  goal: string;
+  source: string;
+  status: 'planned' | 'completed' | 'cancelled';
+  allocatedById: string; // Set to current user's ID
+  siteId?: string;
+  smallGroupId?: string;
+  notes?: string;
+}
+
+export type SiteFormData = Omit<Site, 'id' | 'coordinator' | 'memberCount' | 'smallGroupCount'>;
+
 export interface ActivityFormData {
   name: string;
   description: string;
@@ -189,6 +271,7 @@ export interface ActivityFormData {
   participantsCount?: number;
   imageUrl?: string;
   activityTypeId?: string;
+  createdBy: string; // Must be set to the current user's ID
 }
 
 export interface SmallGroupFormData {
@@ -201,28 +284,37 @@ export interface SmallGroupFormData {
   meetingLocation?: string;
 }
 
-export interface FundAllocationFormData {
-  amount: number;
-  description?: string;
-  recipientId: string;
-  recipientType: 'site' | 'smallGroup';
-}
+export type MemberFormData = {
+  name: string;
+  type: 'student' | 'non-student';
+  joinDate: Date;
+  siteId?: string;
+  smallGroupId?: string;
+};
 
 export type LoginCredentials = {
   email: string;
   password?: string;
 };
 
+export interface UserContext {
+  user: User | null;
+  role: UserRole | null;
+}
+
 export interface AuthContextType {
-  session: { user: User | null; loading: boolean };
-  login: (credentials: LoginCredentials) => Promise<void>;
-  logout: () => void;
+  currentUser: User | null;
+  session: import('@supabase/supabase-js').Session | null;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<{ success: boolean; error: string | null }>;
+  logout: () => Promise<void>;
 }
 
 export interface ServiceResponse<T> {
   success: boolean;
   data?: T;
   error?: { message: string };
+  details?: any;
 }
 
 
