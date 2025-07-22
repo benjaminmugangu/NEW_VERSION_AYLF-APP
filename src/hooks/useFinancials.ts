@@ -3,18 +3,20 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './useAuth';
-import financialsService from '@/services/financialsService';
+import { financialsService } from '@/services/financialsService';
 import type { Financials } from '@/lib/types';
 import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
 
 const defaultFinancials: Financials = {
-  totalRevenue: 0,
-  totalExpenses: 0,
-  totalAllocated: 0,
+  income: 0,
+  expenses: 0,
   netBalance: 0,
+  totalAllocated: 0,
+  totalSpent: 0,
+  allocationBalance: 0,
+  transactions: [],
   allocations: [],
   reports: [],
-  transactions: [],
 };
 
 const defaultDateFilter: DateFilterValue = {
@@ -39,7 +41,7 @@ export const useFinancials = (initialDateFilter?: DateFilterValue) => {
     setIsLoading(true);
     setError(null);
 
-    const response = await financialsService.getDashboardData(user, filter);
+    const response = await financialsService.getFinancials(user, filter);
 
     if (response.success && response.data) {
       setFinancials(response.data);

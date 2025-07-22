@@ -43,11 +43,13 @@ const FinancialsPage = () => {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Total Revenue" value={formatCurrency(financials.totalRevenue)} />
-        <StatCard title="Total Expenses" value={formatCurrency(financials.totalExpenses)} />
-        <StatCard title="Total Allocated" value={formatCurrency(financials.totalAllocated)} />
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <StatCard title="Total Income" value={formatCurrency(financials.income)} />
+        <StatCard title="Total Expenses" value={formatCurrency(financials.expenses)} />
         <StatCard title="Net Balance" value={formatCurrency(financials.netBalance)} />
+        <StatCard title="Total Allocated" value={formatCurrency(financials.totalAllocated)} />
+        <StatCard title="Total Spent (Reports)" value={formatCurrency(financials.totalSpent)} />
+        <StatCard title="Allocation Balance" value={formatCurrency(financials.allocationBalance)} />
       </div>
 
       <div>

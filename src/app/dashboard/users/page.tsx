@@ -158,12 +158,12 @@ export default function ManageUsersPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will archive the user <span className="font-semibold">{userToDelete?.name}</span>. Their account will be disabled, and they won't be able to log in. Their data will be preserved for historical records.
+              This action will <span className="font-semibold">permanently delete</span> the user <span className="font-semibold">{userToDelete?.name}</span>. This action cannot be undone. All data associated with this user, including their authentication account, will be permanently removed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive hover:bg-destructive/90">Archive User</AlertDialogAction>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive hover:bg-destructive/90">Delete User</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

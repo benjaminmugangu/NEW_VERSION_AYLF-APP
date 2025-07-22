@@ -39,9 +39,28 @@ const profileService = {
   // Met à jour le profil d'un utilisateur
       async updateProfile(userId: string, updates: Partial<User>): Promise<ServiceResponse<User>> {
      try {
+      const { role } = updates;
+
+      // Enforce business logic for assignments based on role
+      if (role === 'national_coordinator') {
+        updates.siteId = null;
+        updates.smallGroupId = null;
+      } else if (role === 'site_coordinator') {
+        updates.smallGroupId = null;
+      }
+
+      // Map camelCase to snake_case for DB
+      const { mandateStartDate, mandateEndDate, siteId, smallGroupId, ...rest } = updates;
+      const dbUpdates: { [key: string]: any } = { ...rest };
+
+      if (mandateStartDate !== undefined) dbUpdates.mandate_start_date = mandateStartDate;
+      if (mandateEndDate !== undefined) dbUpdates.mandate_end_date = mandateEndDate;
+      if (siteId !== undefined) dbUpdates.site_id = siteId;
+      if (smallGroupId !== undefined) dbUpdates.small_group_id = smallGroupId;
+
       const { data, error } = await supabase
         .from('profiles')
-        .update(updates)
+        .update(dbUpdates)
         .eq('id', userId)
         .select()
         .single();
@@ -58,10 +77,10 @@ const profileService = {
     }
   },
 
-  // Récupère tous les profils utilisateurs
+  // Récupère tous les profils utilisateurs avec les détails d'affectation
   async getUsers(): Promise<ServiceResponse<User[]>> {
     try {
-      const { data, error } = await supabase.from('profiles').select('*');
+      const { data, error } = await supabase.rpc('get_users_with_details');
 
       if (error) {
         return { success: false, error: { message: error.message } };
@@ -96,6 +115,21 @@ const profileService = {
       }
 
       return { success: true, data: data as User[] };
+    } catch (e: any) {
+      return { success: false, error: { message: e.message || 'An unexpected error occurred.' } };
+    }
+  },
+
+  // Supprime définitivement un utilisateur
+  async deleteUser(userId: string): Promise<ServiceResponse<null>> {
+    try {
+      const { error } = await supabase.rpc('delete_user_permanently', { user_id: userId });
+
+      if (error) {
+        return { success: false, error: { message: error.message } };
+      }
+
+      return { success: true, data: null };
     } catch (e: any) {
       return { success: false, error: { message: e.message || 'An unexpected error occurred.' } };
     }

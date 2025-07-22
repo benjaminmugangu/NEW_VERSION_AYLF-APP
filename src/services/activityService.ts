@@ -5,6 +5,26 @@ import { getDateRangeFromFilterValue, type DateFilterValue } from '@/components/
 import { ROLES } from '@/lib/constants';
 
 // Helper to convert DB snake_case to frontend camelCase
+// Helper to convert frontend camelCase to DB snake_case for writing
+const toActivityDbData = (activityData: Partial<ActivityFormData>): any => {
+  const dbData: { [key: string]: any } = {};
+
+  // Manual mapping
+  if (activityData.name !== undefined) dbData.name = activityData.name;
+  if (activityData.description !== undefined) dbData.description = activityData.description;
+  if (activityData.date !== undefined) dbData.date = activityData.date;
+  if (activityData.status !== undefined) dbData.status = activityData.status;
+  if (activityData.level !== undefined) dbData.level = activityData.level;
+  if (activityData.siteId !== undefined) dbData.site_id = activityData.siteId;
+  if (activityData.smallGroupId !== undefined) dbData.small_group_id = activityData.smallGroupId;
+  if (activityData.participantsCount !== undefined) dbData.participants_count = activityData.participantsCount;
+  if (activityData.imageUrl !== undefined) dbData.image_url = activityData.imageUrl;
+  if (activityData.activityTypeId !== undefined) dbData.activity_type_id = activityData.activityTypeId;
+  if (activityData.createdBy !== undefined) dbData.created_by = activityData.createdBy;
+
+  return dbData;
+};
+
 const toActivityModel = (dbActivity: any): Activity => {
   return {
     id: dbActivity.id,
@@ -89,21 +109,26 @@ const getActivityById = async (id: string): Promise<ServiceResponse<Activity>> =
 };
 
 const createActivity = async (activityData: Omit<ActivityFormData, 'createdBy'>, userId: string): Promise<ServiceResponse<Activity>> => {
+  const dbData = toActivityDbData({ ...activityData, createdBy: userId });
+
   const { data, error } = await supabase
     .from('activities')
-    .insert({ ...activityData, created_by: userId })
+    .insert(dbData)
     .select('id')
     .single();
+
   if (error) return { success: false, error: { message: error.message } };
   return getActivityById(data.id);
 };
 
 const updateActivity = async (id: string, updatedData: Partial<ActivityFormData>): Promise<ServiceResponse<Activity>> => {
-  const { createdBy, ...rest } = updatedData;
+  const dbData = toActivityDbData(updatedData);
+
   const { error } = await supabase
     .from('activities')
-    .update({ ...rest })
+    .update(dbData)
     .eq('id', id);
+
   if (error) return { success: false, error: { message: error.message } };
   return getActivityById(id);
 };

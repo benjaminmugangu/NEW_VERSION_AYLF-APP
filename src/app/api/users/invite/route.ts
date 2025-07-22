@@ -19,10 +19,18 @@ const generateRandomPassword = (length = 12) => {
 };
 
 export const POST = async (request: Request) => {
-  const { email, name: fullName, role } = await request.json();
+  let { email, name: fullName, role, siteId, smallGroupId } = await request.json();
 
   if (!email || !fullName || !role) {
     return NextResponse.json({ error: 'Email, full name, and role are required.' }, { status: 400 });
+  }
+
+  // Enforce business logic for assignments based on role
+  if (role === 'national_coordinator') {
+    siteId = null;
+    smallGroupId = null;
+  } else if (role === 'site_coordinator') {
+    smallGroupId = null;
   }
 
   const supabaseAdmin = createClient(
@@ -32,26 +40,48 @@ export const POST = async (request: Request) => {
 
   const password = generateRandomPassword();
 
-  // Create user directly instead of sending an invitation
-  const { data, error } = await supabaseAdmin.auth.admin.createUser({
+  // 1. Create the user in the auth schema
+  const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
     email: email,
     password: password,
-    email_confirm: true, // Auto-confirm the email, as we are not sending a confirmation link
+    email_confirm: true, // Auto-confirm the email
     user_metadata: {
       full_name: fullName,
-      role: role,
+      role: role, // Store role in metadata as a fallback
     },
   });
 
-  if (error) {
-    console.error('Error creating user:', error);
-    return NextResponse.json({ error: error.message }, { status: 400 });
+  if (authError) {
+    console.error('Error creating auth user:', authError);
+    return NextResponse.json({ error: authError.message }, { status: 400 });
+  }
+
+  if (!authData.user) {
+    return NextResponse.json({ error: 'Could not create user.' }, { status: 500 });
+  }
+
+  // 2. The trigger on `auth.users` should have created a profile. Now, update it.
+  const { error: profileError } = await supabaseAdmin
+    .from('profiles')
+    .update({
+      role: role,
+      site_id: siteId,
+      small_group_id: smallGroupId,
+      name: fullName, // Ensure name is also set here
+    })
+    .eq('id', authData.user.id);
+
+  if (profileError) {
+    console.error('Error updating profile:', profileError);
+    // This is problematic, the auth user exists but the profile is incomplete.
+    // For now, we'll return an error but a more robust solution might be needed.
+    return NextResponse.json({ error: `User created, but failed to set profile: ${profileError.message}` }, { status: 500 });
   }
 
   // Return the generated password so the admin can share it manually
   return NextResponse.json({ 
     message: 'User created successfully. Please share the generated password with them.', 
-    user: data.user,
+    user: authData.user,
     password: password, // IMPORTANT: This is sent back to the admin frontend
   });
 };

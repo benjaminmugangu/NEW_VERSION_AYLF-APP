@@ -7,8 +7,8 @@ import { activityService } from './activityService';
 import { memberService } from './memberService';
 import siteService from './siteService';
 import smallGroupService from './smallGroupService';
-import reportService from './reportService';
-import { getFinancialStats } from './financials.service';
+import { reportService } from './reportService';
+import { financialsService } from './financialsService';
 
 export interface DashboardStats {
   totalActivities: number;
@@ -43,7 +43,7 @@ const dashboardService = {
                 reportService.getFilteredReports({ user, dateFilter, statusFilter: { approved: true, pending: false, rejected: false, submitted: false } }),
         siteService.getFilteredSites({ user }), // Not date filtered
         smallGroupService.getFilteredSmallGroups({ user }), // Not date filtered
-                getFinancialStats({ user, role: user.role }, dateFilter), // Financials are date filtered
+        financialsService.getFinancials(user, dateFilter), // Financials are date filtered
       ]);
 
       // Helper to safely extract data from settled promises
@@ -88,8 +88,8 @@ const dashboardService = {
 
       // Financials
       const netBalance = financials?.netBalance ?? 0;
-      const totalIncome = financials?.totalRevenue ?? 0;
-      const totalExpenses = financials?.totalExpenses ?? 0;
+      const totalIncome = financials?.income ?? 0;
+      const totalExpenses = financials?.expenses ?? 0;
 
       // Data for charts
       const activityStatusData = [

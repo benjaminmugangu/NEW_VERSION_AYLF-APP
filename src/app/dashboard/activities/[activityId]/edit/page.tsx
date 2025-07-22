@@ -59,11 +59,11 @@ export default function EditActivityPage() {
       title: "Activity Updated!",
       description: `Activity "${updatedActivity.name}" has been successfully updated.`,
     });
-    router.push(`/dashboard/activities/${activityId}`);
+    router.push('/dashboard/activities');
   };
 
   const handleCancel = () => {
-    router.push(`/dashboard/activities/${activityId}`);
+    router.push('/dashboard/activities');
   };
 
   if (authIsLoading || isLoading) {

@@ -78,6 +78,10 @@ export function UserForm({ user, onSubmitForm }: UserFormProps) {
   const watchedRole = watch("role");
   const watchedSiteId = watch("siteId");
 
+  // Define visibility based on the selected role
+  const showSiteField = watchedRole === ROLES.SITE_COORDINATOR || watchedRole === ROLES.SMALL_GROUP_LEADER;
+  const showSmallGroupField = watchedRole === ROLES.SMALL_GROUP_LEADER;
+
   useEffect(() => {
     const fetchSites = async () => {
       const response = await siteService.getAllSites();
@@ -89,14 +93,14 @@ export function UserForm({ user, onSubmitForm }: UserFormProps) {
   }, []);
 
   useEffect(() => {
-    if (watchedRole === ROLES.NATIONAL_COORDINATOR) {
+    // When role changes, reset fields that should no longer be visible or are dependent.
+    if (!showSiteField) {
       setValue("siteId", null);
+    }
+    if (!showSmallGroupField) {
       setValue("smallGroupId", null);
     }
-    if (watchedRole === ROLES.SITE_COORDINATOR) {
-      setValue("smallGroupId", null);
-    }
-  }, [watchedRole, setValue]);
+  }, [watchedRole, showSiteField, showSmallGroupField, setValue]);
 
   useEffect(() => {
     const fetchSmallGroups = async () => {
@@ -191,19 +195,19 @@ export function UserForm({ user, onSubmitForm }: UserFormProps) {
             </div>
           </div>
 
-          {(watchedRole === ROLES.SITE_COORDINATOR || watchedRole === ROLES.SMALL_GROUP_LEADER) && (
+          {[ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER].includes(watchedRole) && (
             <div>
               <Label htmlFor="siteId">Assigned Site</Label>
               <Controller
                 name="siteId"
                 control={control}
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} defaultValue={field.value ?? undefined} disabled={availableSites.length === 0}>
                     <SelectTrigger id="siteId" className="mt-1">
-                      <SelectValue placeholder="Select site" />
+                      <SelectValue placeholder="Select a site" />
                     </SelectTrigger>
                     <SelectContent>
-                      {availableSites.map((s: Site) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                      {availableSites.map((site: Site) => <SelectItem key={site.id} value={site.id}>{site.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 )}
@@ -212,16 +216,16 @@ export function UserForm({ user, onSubmitForm }: UserFormProps) {
             </div>
           )}
 
-          {watchedRole === ROLES.SMALL_GROUP_LEADER && watchedSiteId && (
+          {showSmallGroupField && (
             <div>
               <Label htmlFor="smallGroupId">Assigned Small Group</Label>
               <Controller
                 name="smallGroupId"
                 control={control}
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} defaultValue={field.value} disabled={availableSmallGroups.length === 0}>
+                  <Select onValueChange={field.onChange} defaultValue={field.value ?? undefined} disabled={!watchedSiteId || availableSmallGroups.length === 0}>
                     <SelectTrigger id="smallGroupId" className="mt-1">
-                      <SelectValue placeholder="Select small group" />
+                      <SelectValue placeholder={watchedSiteId ? "Select small group" : "Select a site first"} />
                     </SelectTrigger>
                     <SelectContent>
                       {availableSmallGroups.map((sg: SmallGroup) => <SelectItem key={sg.id} value={sg.id}>{sg.name}</SelectItem>)}

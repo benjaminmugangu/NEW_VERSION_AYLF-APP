@@ -2,141 +2,91 @@
 'use client';
 
 import { allocationService } from './allocations.service';
-import { transactionService } from './transactionService';
-import reportService from './reportService';
+import { transactionService, type TransactionFilters } from './transactionService';
+import { reportService } from './reportService';
 import type {
   User,
   Financials,
   ServiceResponse,
   FinancialTransaction,
-  Report,
   FundAllocation,
+  Report
 } from '@/lib/types';
-import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
 import { ROLES } from '@/lib/constants';
+import { applyDateFilter, type DateFilterValue } from '@/components/shared/DateRangeFilter';
 
-const financialsService = {
-  async getDashboardData(user: User, dateFilter: DateFilterValue): Promise<ServiceResponse<Financials>> {
-    if (!user) {
-      return { success: false, error: { message: 'User not authenticated' } };
+/**
+ * A centralized function to fetch and calculate financial statistics based on user context and date filters.
+ */
+const getFinancials = async (user: User, dateFilter: DateFilterValue): Promise<ServiceResponse<Financials>> => {
+  const roleBasedFilter = {
+    siteId: user.role === ROLES.SITE_COORDINATOR ? user.siteId : undefined,
+    smallGroupId: user.role === ROLES.SMALL_GROUP_LEADER ? user.smallGroupId : undefined,
+  };
+
+  const transactionFilters: TransactionFilters = {
+    user: user,
+    dateFilter: dateFilter
+  };
+
+  try {
+    // Note: Transactions are filtered by date in the service, others are filtered here.
+    const [transactionsRes, allocationsRes, reportsRes] = await Promise.all([
+      transactionService.getFilteredTransactions(transactionFilters),
+      allocationService.getAllocations(roleBasedFilter),
+      reportService.getFilteredReports({ user }),
+    ]);
+
+    if (!transactionsRes.success || !allocationsRes.success || !reportsRes.success) {
+      console.error('Failed to fetch one or more financial resources:', {
+        transactionsError: transactionsRes.error,
+        allocationsError: allocationsRes.error,
+        reportsError: reportsRes.error,
+      });
+      return { success: false, error: { message: 'Could not fetch all financial data.' } };
     }
 
-    try {
-      const allocationFilters: { siteId?: string; smallGroupId?: string } = {};
-      if (user.role === ROLES.SITE_COORDINATOR && user.siteId) {
-        allocationFilters.siteId = user.siteId;
-      }
-      if (user.role === ROLES.SMALL_GROUP_LEADER && user.smallGroupId) {
-        allocationFilters.smallGroupId = user.smallGroupId;
-      }
+    // Filter allocations and reports by date locally
+    const filteredAllocations = applyDateFilter(allocationsRes.data || [], 'allocationDate', dateFilter);
+    const filteredReports = applyDateFilter(reportsRes.data || [], 'submissionDate', dateFilter);
+    const transactions = transactionsRes.data || [];
 
-      const [allocationsRes, reportsRes, transactionsRes] = await Promise.all([
-        allocationService.getAllocations(allocationFilters),
-        reportService.getFilteredReports({ user, statusFilter: { submitted: false, approved: true, pending: false, rejected: false }, dateFilter }),
-        transactionService.getFilteredTransactions({ user, dateFilter }),
-      ]);
+    const income = transactions
+      .filter(t => t.type === 'income')
+      .reduce((acc, t) => acc + t.amount, 0);
 
-      if (!allocationsRes.success || !reportsRes.success || !transactionsRes.success) {
-        return { success: false, error: { message: 'Failed to retrieve one or more financial details.' } };
-      }
+    const expenses = transactions
+      .filter(t => t.type === 'expense')
+      .reduce((acc, t) => acc + t.amount, 0);
 
-      const transactions = transactionsRes.data || [];
-      const reports = reportsRes.data || [];
-      const allocations = allocationsRes.data || [];
+    const netBalance = income - expenses;
 
-      const totalRevenue = transactions
-        .filter((t: FinancialTransaction) => t.type === 'income')
-        .reduce((sum: number, t: FinancialTransaction) => sum + t.amount, 0);
+    const totalAllocated = filteredAllocations.reduce((acc, a) => acc + a.amount, 0);
+    const totalSpent = filteredReports.reduce((acc, r) => acc + (r.totalExpenses || 0), 0);
+    const allocationBalance = totalAllocated - totalSpent;
 
-      const totalExpensesFromTransactions = transactions
-        .filter((t: FinancialTransaction) => t.type === 'expense')
-        .reduce((sum: number, t: FinancialTransaction) => sum + t.amount, 0);
+    const data: Financials = {
+      income,
+      expenses,
+      netBalance,
+      totalAllocated,
+      totalSpent,
+      allocationBalance,
+      transactions: transactions,
+      allocations: filteredAllocations,
+      reports: filteredReports,
+    };
 
-      const totalExpensesFromReports = reports.reduce((sum: number, r: Report) => sum + (r.totalExpenses || 0), 0);
+    return { success: true, data };
 
-      const totalExpenses = totalExpensesFromTransactions + totalExpensesFromReports;
-
-      const totalAllocated = allocations.reduce((sum: number, a: FundAllocation) => sum + a.amount, 0);
-
-      const netBalance = totalRevenue - totalExpenses;
-
-      const dashboardData: Financials = {
-        totalRevenue,
-        totalExpenses,
-        totalAllocated,
-        netBalance,
-        allocations,
-        reports,
-        transactions: transactions.slice(0, 10),
-      };
-
-      return { success: true, data: dashboardData };
-
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'An unexpected error occurred.';
-      return { success: false, error: { message } };
-    }
-  },
-
-  async getEntityFinancials(
-    entity: { type: 'site' | 'smallGroup'; id: string },
-    dateFilter: DateFilterValue
-  ): Promise<ServiceResponse<Financials>> {
-    try {
-      const allocationFilters: { siteId?: string; smallGroupId?: string } = {};
-      if (entity.type === 'site') {
-        allocationFilters.siteId = entity.id;
-      } else {
-        allocationFilters.smallGroupId = entity.id;
-      }
-
-      const [allocationsRes, reportsRes, transactionsRes] = await Promise.all([
-        allocationService.getAllocations(allocationFilters),
-        reportService.getFilteredReports({ entity, statusFilter: { submitted: false, approved: true, pending: false, rejected: false }, dateFilter }),
-        transactionService.getFilteredTransactions({ entity, dateFilter }),
-      ]);
-
-      if (!allocationsRes.success || !reportsRes.success || !transactionsRes.success) {
-        return { success: false, error: { message: 'Failed to retrieve one or more financial details.' } };
-      }
-
-      const transactions = transactionsRes.data || [];
-      const reports = reportsRes.data || [];
-      const allocations = allocationsRes.data || [];
-
-      const totalRevenue = transactions
-        .filter((t: FinancialTransaction) => t.type === 'income')
-        .reduce((sum: number, t: FinancialTransaction) => sum + t.amount, 0);
-
-      const totalExpensesFromTransactions = transactions
-        .filter((t: FinancialTransaction) => t.type === 'expense')
-        .reduce((sum: number, t: FinancialTransaction) => sum + t.amount, 0);
-
-      const totalExpensesFromReports = reports.reduce((sum: number, r: Report) => sum + (r.totalExpenses || 0), 0);
-
-      const totalExpenses = totalExpensesFromTransactions + totalExpensesFromReports;
-
-      const totalAllocated = allocations.reduce((sum: number, a: FundAllocation) => sum + a.amount, 0);
-
-      const netBalance = totalRevenue - totalExpenses;
-
-      const dashboardData: Financials = {
-        totalRevenue,
-        totalExpenses,
-        totalAllocated,
-        netBalance,
-        allocations,
-        reports,
-        transactions: transactions.slice(0, 10),
-      };
-
-      return { success: true, data: dashboardData };
-
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'An unexpected error occurred.';
-      return { success: false, error: { message } };
-    }
-  },
+  } catch (error: any) {
+    console.error('Error in getFinancials:', error);
+    return { success: false, error: { message: error.message || 'An unexpected error occurred.' } };
+  }
 };
 
-export default financialsService;
+const financialsService = {
+  getFinancials,
+};
+
+export { financialsService };

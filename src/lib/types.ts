@@ -14,8 +14,8 @@ export interface User extends BaseEntity {
   name: string;
   email: string;
   role: UserRole;
-  siteId?: string;
-  smallGroupId?: string;
+  siteId?: string | null;
+  smallGroupId?: string | null;
   profilePicture?: string;
   mandateStartDate?: string; 
   mandateEndDate?: string;   
@@ -176,13 +176,15 @@ export interface FundAllocation extends BaseEntity {
 }
 
 export interface Financials {
-  totalRevenue: number;
-  totalExpenses: number;
-  totalAllocated: number;
+  income: number;
+  expenses: number;
   netBalance: number;
+  totalAllocated: number;
+  totalSpent: number;
+  allocationBalance: number;
+  transactions: FinancialTransaction[];
   allocations: FundAllocation[];
   reports: Report[];
-  transactions: FinancialTransaction[];
 }
 
 // =============================================================================

@@ -192,4 +192,4 @@ const reportService = {
   },
 };
 
-export default reportService;
+export { reportService };
