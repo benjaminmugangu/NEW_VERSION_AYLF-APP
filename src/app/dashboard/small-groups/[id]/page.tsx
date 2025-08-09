@@ -65,8 +65,8 @@ export default function SmallGroupDetailsPage() {
 
   const stats = {
     total: smallGroup.members.length,
-    male: smallGroup.members.filter(m => m.gender === 'Male').length,
-    female: smallGroup.members.filter(m => m.gender === 'Female').length,
+    male: smallGroup.members.filter(m => m.gender === 'male').length,
+    female: smallGroup.members.filter(m => m.gender === 'female').length,
     student: smallGroup.members.filter(m => m.type === 'student').length,
     nonStudent: smallGroup.members.filter(m => m.type === 'non-student').length,
   };

@@ -276,8 +276,8 @@ export default function DashboardPage() {
                   <p className="text-sm text-muted-foreground">{activity.level.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} level - {new Date(activity.date).toLocaleDateString()}</p>
                 </div>
                 <span className={`px-2 py-1 text-xs rounded-full font-medium ${
-                  activity.status === 'executed' ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' :
-                  activity.status === 'planned' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' :
+                  activity.status === 'EXECUTED' ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' :
+                  activity.status === 'PLANNED' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' :
                   'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
                 }`}>
                   {activity.status.charAt(0).toUpperCase() + activity.status.slice(1)}

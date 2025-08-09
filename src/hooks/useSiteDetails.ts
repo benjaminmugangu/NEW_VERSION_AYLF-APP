@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { siteService } from '@/services/siteService';
+import siteService from '@/services/siteService';
 import smallGroupService from '@/services/smallGroupService';
 import { useAuth } from '@/contexts/AuthContext';
 import { ROLES } from '@/lib/constants';

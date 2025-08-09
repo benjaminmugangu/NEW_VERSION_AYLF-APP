@@ -4,7 +4,7 @@ import React from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTransactions } from '@/hooks/useTransactions'; // Assuming this hook exists or will be created
 import { columns } from '@/components/financials/transactions/columns'; // Assuming this will be created
-import { DataTable } from '@/components/shared/DataTable';
+import { DataTable } from '../../../../components/shared/DataTable';
 import { Button } from '@/components/ui/button';
 import { PlusCircle } from 'lucide-react';
 import Link from 'next/link';
@@ -14,7 +14,7 @@ const TransactionsListPage = () => {
   const type = searchParams.get('type');
 
   const { transactions, isLoading, error } = useTransactions({
-    type: type === 'income' ? 'income' : type === 'expense' ? 'expense' : undefined,
+    typeFilter: type === 'income' ? 'income' : type === 'expense' ? 'expense' : undefined,
   });
 
   const pageTitle = type === 'income' ? 'Income Transactions' : type === 'expense' ? 'Expense Transactions' : 'All Transactions';

@@ -62,7 +62,7 @@ const dashboardService = {
           user,
           dateFilter,
           searchTerm: '',
-          statusFilter: { planned: true, in_progress: true, delayed: true, executed: true },
+          statusFilter: { PLANNED: true, EXECUTED: true, CANCELED: true },
           levelFilter: { national: true, site: true, small_group: true },
         }),
         memberService.getFilteredMembers({ user, dateFilter, searchTerm: '' }),
@@ -83,8 +83,8 @@ const dashboardService = {
 
       // Activities
       const totalActivities = activities.length;
-      const plannedActivities = activities.filter(a => a.status === 'planned').length;
-      const executedActivities = activities.filter(a => a.status === 'executed').length;
+      const plannedActivities = activities.filter(a => a.status === 'PLANNED').length;
+      const executedActivities = activities.filter(a => a.status === 'EXECUTED').length;
       const recentActivities = [...activities]
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         .slice(0, 5);
@@ -106,10 +106,9 @@ const dashboardService = {
 
       // Data for charts
       const activityStatusData = [
-        { status: 'Planned', count: activities.filter(a => a.status === 'planned').length, fill: 'hsl(var(--chart-2))' },
-        { status: 'In Progress', count: activities.filter(a => a.status === 'in_progress').length, fill: 'hsl(var(--chart-3))' },
-        { status: 'Executed', count: activities.filter(a => a.status === 'executed').length, fill: 'hsl(var(--chart-1))' },
-        { status: 'Delayed', count: activities.filter(a => a.status === 'delayed').length, fill: 'hsl(var(--chart-4))' },
+        { status: 'Planned', count: activities.filter(a => a.status === 'PLANNED').length, fill: 'hsl(var(--chart-2))' },
+        { status: 'Executed', count: activities.filter(a => a.status === 'EXECUTED').length, fill: 'hsl(var(--chart-1))' },
+        { status: 'Canceled', count: activities.filter(a => a.status === 'CANCELED').length, fill: 'hsl(var(--chart-4))' },
       ];
 
       const memberTypeData = [

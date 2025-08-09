@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { TableRowSkeleton } from "@/components/shared/skeletons/TableRowSkeleton";
 import { useSites } from "@/hooks/useSites";
-import type { SiteWithDetails } from "@/hooks/useSites";
+import type { SiteWithDetails } from "@/lib/types";
 import { StatCard } from "@/components/shared/StatCard";
 import { StatCardSkeleton } from "@/components/shared/skeletons/StatCardSkeleton";
 import {

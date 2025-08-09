@@ -3,6 +3,7 @@
 
 import React, { useState } from 'react';
 import { useFinancials } from "@/hooks/useFinancials";
+import { Landmark, TrendingUp, TrendingDown, ArrowRightLeft, DollarSign, PlusCircle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { StatCard, StatCardProps } from "@/components/shared/StatCard";
@@ -15,8 +16,6 @@ import { DashboardSkeleton } from '@/components/shared/skeletons/DashboardSkelet
 import { transactionService } from '@/services/transactionService';
 import { useToast } from '@/hooks/use-toast';
 import { ROLES } from '@/lib/constants';
-import { PlusCircle } from 'lucide-react';
-import { DollarSign, TrendingUp, TrendingDown, Landmark } from 'lucide-react';
 import { RecentTransactionsTable } from '@/components/financials/RecentTransactionsTable';
 
 const FinancialsPage = () => {
@@ -42,10 +41,10 @@ const FinancialsPage = () => {
       />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Solde Actuel" value={formatCurrency(actualBalance)} type="balance" />
-        <StatCard title="Fonds Reçus" value={formatCurrency(financials.income)} type="income" href="/dashboard/financials/transactions?type=income" />
-        <StatCard title="Dépenses via Rapports" value={formatCurrency(financials.totalSpent)} type="expense" href="/dashboard/financials/reports" />
-        <StatCard title="Fonds Réalloués" value={formatCurrency(financials.totalAllocated)} type="neutral" href="/dashboard/financials/allocations" />
+        <StatCard title="Solde Actuel" value={formatCurrency(actualBalance)} icon={Landmark} />
+        <StatCard title="Fonds Reçus" value={formatCurrency(financials.income)} icon={TrendingUp} href="/dashboard/financials/transactions?type=income" />
+        <StatCard title="Dépenses via Rapports" value={formatCurrency(financials.totalSpent)} icon={TrendingDown} href="/dashboard/financials/reports" />
+        <StatCard title="Fonds Réalloués" value={formatCurrency(financials.totalAllocated)} icon={ArrowRightLeft} href="/dashboard/financials/allocations" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

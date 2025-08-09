@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { transactionService } from '@/services/transactionService';
-import { siteService } from '@/services/siteService';
+import siteService from '@/services/siteService';
 import smallGroupService from '@/services/smallGroupService';
 import { TransactionForm } from '@/components/financials/TransactionForm';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -46,8 +46,8 @@ const EditTransactionPage = () => {
           router.push('/dashboard/financials');
         }
 
-        if (sitesResponse.success) setSites(sitesResponse.data || []);
-        if (smallGroupsResponse.success) setSmallGroups(smallGroupsResponse.data || []);
+        setSites(sitesResponse);
+        setSmallGroups(smallGroupsResponse);
 
       } catch (error) {
         toast({ title: 'Error', description: 'Failed to load transaction data.', variant: 'destructive' });

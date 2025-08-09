@@ -69,7 +69,7 @@ export default function ViewReportsPage() {
     }
 
     if (error) {
-      return <p className="text-center text-destructive py-8">Error: {error}</p>;
+      return <p className="text-center text-destructive py-8">Error: {error.message}</p>;
     }
 
     if (reports.length === 0) {

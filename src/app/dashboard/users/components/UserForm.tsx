@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import type { User, UserRole, Site, SmallGroup } from "@/lib/types";
 import { ROLES } from "@/lib/constants";
-import { siteService } from '@/services/siteService';
+import siteService from '@/services/siteService';
 import smallGroupService from '@/services/smallGroupService';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -84,19 +84,23 @@ export function UserForm({ user, onSubmitForm }: UserFormProps) {
   const showSiteField = watchedRole === ROLES.SITE_COORDINATOR || watchedRole === ROLES.SMALL_GROUP_LEADER;
   const showSmallGroupField = watchedRole === ROLES.SMALL_GROUP_LEADER;
 
-    useEffect(() => {
+  // Fetch sites when component mounts or user changes
+  useEffect(() => {
     const fetchSites = async () => {
       if (!currentUser) return;
-      const response = await siteService.getSitesWithDetails(currentUser);
-      if (response.success && response.data) {
-        setAvailableSites(response.data);
+      try {
+        const sites = await siteService.getSitesWithDetails(currentUser);
+        setAvailableSites(sites);
+      } catch (error) {
+        console.error('Failed to fetch sites:', error);
+        toast({ title: 'Error', description: 'Could not load sites.', variant: 'destructive' });
       }
     };
     fetchSites();
-  }, [currentUser]);
+  }, [currentUser, toast]);
 
+  // Reset dependent fields when role changes
   useEffect(() => {
-    // When role changes, reset fields that should no longer be visible or are dependent.
     if (!showSiteField) {
       setValue("siteId", null);
     }
@@ -105,15 +109,20 @@ export function UserForm({ user, onSubmitForm }: UserFormProps) {
     }
   }, [watchedRole, showSiteField, showSmallGroupField, setValue]);
 
+  // Fetch small groups when site selection changes
   useEffect(() => {
     const fetchSmallGroups = async () => {
       if (watchedSiteId && watchedRole === ROLES.SMALL_GROUP_LEADER) {
-        const response = await smallGroupService.getSmallGroupsBySite(watchedSiteId);
-        if (response.success && response.data) {
-          setAvailableSmallGroups(response.data);
-        } else {
+        try {
+          const smallGroups = await smallGroupService.getSmallGroupsBySite(watchedSiteId);
+          setAvailableSmallGroups(smallGroups);
+        } catch (error) {
+          console.error('Failed to fetch small groups:', error);
+          toast({ title: 'Error', description: 'Could not load small groups for the selected site.', variant: 'destructive' });
           setAvailableSmallGroups([]);
         }
+
+        // Reset small group selection if the site changes
         if (!user || watchedSiteId !== user.siteId) {
           setValue("smallGroupId", null);
         }
@@ -122,12 +131,12 @@ export function UserForm({ user, onSubmitForm }: UserFormProps) {
       }
     };
     fetchSmallGroups();
-  }, [watchedSiteId, watchedRole, user, setValue]);
+  }, [watchedSiteId, watchedRole, user, setValue, toast]);
 
   const processSubmit = async (data: UserFormData) => {
     await onSubmitForm(data);
     if (!user) {
-      reset(defaultValues); 
+      reset(defaultValues);
     }
   };
 
@@ -198,7 +207,7 @@ export function UserForm({ user, onSubmitForm }: UserFormProps) {
             </div>
           </div>
 
-          {[ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER].includes(watchedRole) && (
+          {showSiteField && (
             <div>
               <Label htmlFor="siteId">Assigned Site</Label>
               <Controller
@@ -258,7 +267,7 @@ export function UserForm({ user, onSubmitForm }: UserFormProps) {
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
-                      <Calendar mode="single" selected={field.value} onSelect={field.onChange} />
+                      <Calendar mode="single" selected={field.value ?? undefined} onSelect={field.onChange} />
                     </PopoverContent>
                   </Popover>
                 )}
@@ -282,7 +291,7 @@ export function UserForm({ user, onSubmitForm }: UserFormProps) {
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
-                      <Calendar mode="single" selected={field.value} onSelect={field.onChange} />
+                      <Calendar mode="single" selected={field.value ?? undefined} onSelect={field.onChange} />
                     </PopoverContent>
                   </Popover>
                 )}

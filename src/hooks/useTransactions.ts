@@ -66,7 +66,7 @@ export const useTransactions = (initialFilters: Partial<TransactionFilters> = {}
   return {
     transactions: transactions ?? [],
     isLoading,
-    error: error instanceof Error ? error.message : null,
+    error: error instanceof Error ? error : null,
     refetch,
     filters: { searchTerm, dateFilter, typeFilter },
     setSearchTerm,

@@ -3,14 +3,14 @@
 import React from 'react';
 import { useReports } from '@/hooks/useReports';
 import { columns } from '@/components/financials/reports/columns'; // Assuming this will be created
-import { DataTable } from '@/components/shared/DataTable';
+import { DataTable } from '../../../../components/shared/DataTable';
 
 const FinancialReportsPage = () => {
   const { reports, isLoading, error } = useReports();
 
   // Filter for reports that have expenses
   const reportsWithExpenses = React.useMemo(() => {
-    return reports?.filter(report => report.totalExpenses > 0) || [];
+    return reports?.filter(report => (report.totalExpenses ?? 0) > 0) || [];
   }, [reports]);
 
   return (

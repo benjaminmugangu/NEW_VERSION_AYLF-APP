@@ -6,7 +6,7 @@ import type { ServiceResponse, User, Site, SmallGroup } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
 import { startOfDay, endOfDay, parseISO, isValid } from 'date-fns';
 import { profileService } from "@/services/profileService";
-import { siteService } from './siteService';
+import siteService from './siteService';
 import smallGroupService from './smallGroupService';
 
 export interface CertificateRosterFilters {

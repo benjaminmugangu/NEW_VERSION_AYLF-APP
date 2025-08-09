@@ -250,7 +250,7 @@ export interface TransactionFormData {
   date: string;
   description: string;
   amount: number;
-  type: 'income' | 'expense';
+  type: 'income' | 'expense' | 'transfer';
   category: string;
   siteId?: string;
   smallGroupId?: string;

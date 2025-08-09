@@ -6,9 +6,10 @@ import { TransactionForm } from '@/components/financials/TransactionForm';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { transactionService } from '@/services/transactionService';
-import { siteService } from '@/services/siteService';
+import siteService from '@/services/siteService';
 import smallGroupService from '@/services/smallGroupService';
 import { useRouter } from 'next/navigation';
 
@@ -18,6 +19,7 @@ import type { TransactionFormData, Site, SmallGroup } from '@/lib/types';
 const NewTransactionPage = () => {
   const { currentUser } = useAuth();
   const router = useRouter();
+  const { toast } = useToast();
   
   const [isSaving, setIsSaving] = useState(false);
   const [sites, setSites] = useState<Site[]>([]);
@@ -27,19 +29,13 @@ const NewTransactionPage = () => {
     const fetchData = async () => {
       if (currentUser) {
         try {
-          const sitesRes = await siteService.getSitesWithDetails(currentUser);
-          const smallGroupsRes = await smallGroupService.getFilteredSmallGroups({ user: currentUser });
-
-          if (sitesRes.success) {
-            setSites(sitesRes.data || []);
-          }
-          if (smallGroupsRes.success) {
-            setSmallGroups(smallGroupsRes.data || []);
-          }
-
+          const sites = await siteService.getSitesWithDetails(currentUser);
+          setSites(sites);
+          const smallGroups = await smallGroupService.getFilteredSmallGroups({ user: currentUser });
+          setSmallGroups(smallGroups);
         } catch (error) {
-          alert('Failed to load sites and small groups.');
-          console.error(error);
+          toast({ title: 'Error', description: 'Failed to load initial data.', variant: 'destructive' });
+          console.error('Data fetching error:', error);
         }
       }
     };

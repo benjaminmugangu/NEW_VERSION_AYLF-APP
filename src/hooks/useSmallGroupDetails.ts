@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import smallGroupService from '@/services/smallGroupService';
-import { siteService } from '@/services/siteService';
+import siteService from '@/services/siteService';
 import { profileService } from '@/services/profileService';
 import { memberService } from '@/services/memberService';
 import { SmallGroup, Site, User, MemberWithDetails } from '@/lib/types';
@@ -51,7 +51,7 @@ export const useSmallGroupDetails = (groupId: string | null) => {
         ? new Map(usersResponse.data.map((u: User) => [u.id, u])) 
         : new Map();
       
-      const groupMembers = (membersResponse.success && membersResponse.data) ? membersResponse.data : [];
+      const groupMembers = membersResponse || [];
 
       const details: SmallGroupDetails = {
         ...baseGroup,

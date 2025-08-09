@@ -132,7 +132,7 @@ export const useReports = () => {
   return {
     reports,
     isLoading,
-    error: error ? error.message : null,
+    error,
     filters: {
       searchTerm,
       dateFilter,

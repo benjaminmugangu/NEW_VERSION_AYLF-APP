@@ -14,7 +14,7 @@ import { CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import type { AllocationFormData, Site } from "@/lib/types";
+import type { FundAllocationFormData, Site } from "@/lib/types";
 
 const allocationFormSchema = z.object({
   recipientId: z.string().min(1, { message: "Vous devez sélectionner un bénéficiaire." }),
@@ -28,7 +28,7 @@ interface AllocationFormProps {
   recipients: Array<{ id: string; name: string; }>;
   recipientType: 'site' | 'smallGroup';
   recipientLabel: string;
-  onSubmit: (data: AllocationFormData) => Promise<void>;
+  onSubmit: (data: z.infer<typeof allocationFormSchema>) => Promise<void>;
   isLoading: boolean;
 }
 

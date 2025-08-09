@@ -69,11 +69,10 @@ export default function ActivitiesPage() {
 
   // Helper functions for UI rendering
   const getStatusBadgeVariant = (status: Activity["status"]) => {
-    const variants: Partial<Record<Activity["status"], "success" | "default" | "secondary" | "outline">> = {
-      executed: "success",
-      planned: "default",
-      in_progress: "secondary",
-      delayed: "outline",
+    const variants: Partial<Record<Activity['status'], 'success' | 'default' | 'destructive'>> = {
+      PLANNED: 'default',
+      EXECUTED: 'success',
+      CANCELED: 'destructive',
     };
     return variants[status] || "default";
   };

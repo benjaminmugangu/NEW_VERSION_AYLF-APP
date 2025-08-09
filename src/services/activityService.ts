@@ -181,7 +181,7 @@ const getPlannedActivitiesForUser = async (user: User): Promise<Activity[]> => {
   if (!user) throw new Error('User not authenticated.');
 
   const allActivities = await getActivitiesByRole(user);
-  return allActivities.filter(activity => activity.status === 'planned');
+  return allActivities.filter(activity => activity.status === 'PLANNED');
 };
 
 const getActivityById = async (id: string): Promise<Activity> => {

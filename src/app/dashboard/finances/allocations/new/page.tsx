@@ -46,23 +46,31 @@ export default function NewAllocationPage() {
     fetchRecipients();
   }, [user, toast]);
 
-  const handleCreateAllocation = async (data: FundAllocationFormData) => {
+  const handleCreateAllocation = async (data: any) => {
     if (!user) return;
     setIsLoading(true);
-    try {
-      const newAllocation = await allocationService.createAllocation(data);
-      if (newAllocation.success && newAllocation.data) {
-        toast({
-          title: "Allocation Saved",
-          description: `The allocation of ${newAllocation.data.amount} USD has been successfully recorded.`,
-        });
-        router.push('/dashboard/finances');
-      } else {
-        throw new Error(newAllocation.error?.message || 'Failed to create allocation');
-      }
-    } catch (error) {
 
-      toast({ title: "Error", description: "Could not save the allocation.", variant: 'destructive' });
+    const allocationData: FundAllocationFormData = {
+      amount: data.amount,
+      allocationDate: data.allocationDate.toISOString(),
+      goal: data.description || 'General Allocation',
+      source: user.role === ROLES.NATIONAL_COORDINATOR ? 'national_funds' : `site_funds_${user.siteId}`,
+      status: 'completed',
+      allocatedById: user.id,
+      notes: data.description,
+      ...(data.recipientType === 'site' && { siteId: data.recipientId }),
+      ...(data.recipientType === 'smallGroup' && { smallGroupId: data.recipientId }),
+    };
+
+    try {
+      const newAllocation = await allocationService.createAllocation(allocationData);
+      toast({
+        title: "Allocation Saved",
+        description: `The allocation has been successfully recorded.`,
+      });
+      router.push('/dashboard/finances');
+    } catch (error) {
+      toast({ title: "Error", description: (error as Error).message || "Could not save the allocation.", variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }

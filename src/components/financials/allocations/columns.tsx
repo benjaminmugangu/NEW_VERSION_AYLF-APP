@@ -1,13 +1,13 @@
 'use client';
 
 import { ColumnDef } from '@tanstack/react-table';
-import { Allocation } from '@/lib/types';
+import { FundAllocation } from '@/lib/types';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { ArrowUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DataTableRowActions } from './data-table-row-actions';
 
-export const columns: ColumnDef<Allocation>[] = [
+export const columns: ColumnDef<FundAllocation>[] = [
   {
     accessorKey: 'siteName',
     header: 'Entity',

@@ -11,16 +11,16 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal } from 'lucide-react';
 import Link from 'next/link';
-import { Allocation } from '@/lib/types';
+import { FundAllocation } from '@/lib/types';
 import { allocationService } from "@/services/allocations.service";
 import { useToast } from '@/hooks/use-toast';
 
-interface DataTableRowActionsProps<TData> {
-  row: Row<TData>;
+interface DataTableRowActionsProps {
+  row: Row<FundAllocation>;
 }
 
-export function DataTableRowActions<TData>({ row }: DataTableRowActionsProps<TData>) {
-  const allocation = row.original as Allocation;
+export function DataTableRowActions({ row }: DataTableRowActionsProps) {
+  const allocation = row.original as FundAllocation;
   const { toast } = useToast();
 
   const handleDelete = async () => {

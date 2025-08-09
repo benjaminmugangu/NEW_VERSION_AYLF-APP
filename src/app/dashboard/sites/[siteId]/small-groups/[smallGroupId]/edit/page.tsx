@@ -8,7 +8,7 @@ import { SmallGroupForm } from "@/app/dashboard/sites/components/SmallGroupForm"
 import type { SmallGroupFormData } from '@/lib/types';
 import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
 import { ROLES } from "@/lib/constants";
-import { siteService } from '@/services/siteService';
+import siteService from '@/services/siteService';
 import smallGroupService from '@/services/smallGroupService';
 import type { Site, SmallGroup as SmallGroupType } from "@/lib/types";
 import { Edit, Info, Users as UsersIcon } from "lucide-react"; 
@@ -38,40 +38,20 @@ export default function EditSmallGroupPage() {
 
     const fetchData = async () => {
       setIsLoading(true);
-      console.log(`[DEBUG] Fetching data for siteId: ${siteId}, smallGroupId: ${smallGroupId}`);
       try {
-        const siteResponse: { success: boolean; data?: Site; error?: any } = await siteService.getSiteById(siteId);
-        console.log('[DEBUG] Site Response:', JSON.stringify(siteResponse, null, 2));
+        const siteData = await siteService.getSiteById(siteId);
+        const sgData = await smallGroupService.getSmallGroupDetails(smallGroupId);
 
-        const sgResponse: { success: boolean; data?: SmallGroupType; error?: any } = await smallGroupService.getSmallGroupDetails(smallGroupId);
-        console.log('[DEBUG] Small Group Response:', JSON.stringify(sgResponse, null, 2));
-
-        const siteIdFromUrl = siteId;
-        const siteIdFromSg = sgResponse.data?.siteId;
-
-        const check = {
-          siteSuccess: siteResponse.success,
-          siteHasData: !!siteResponse.data,
-          sgSuccess: sgResponse.success,
-          sgHasData: !!sgResponse.data,
-          idsMatch: siteIdFromSg === siteIdFromUrl
-        };
-        console.log('[DEBUG] Validation Check:', check);
-        console.log(`[DEBUG] Comparing URL siteId '${siteIdFromUrl}' with DB siteId '${siteIdFromSg}'`);
-
-        if (check.siteSuccess && check.siteHasData && check.sgSuccess && check.sgHasData && check.idsMatch) {
-          console.log('[DEBUG] Validation SUCCESS. Setting state.');
-          setSite(siteResponse.data || null);
-          setSmallGroupToEdit(sgResponse.data || null);
+        if (siteData && sgData && sgData.siteId === siteId) {
+          setSite(siteData);
+          setSmallGroupToEdit(sgData);
         } else {
-          console.error('[DEBUG] Validation FAILED. Displaying error.');
           setSite(null);
           setSmallGroupToEdit(null);
-          toast({ title: "Error", description: "Could not load data for editing.", variant: 'destructive' });
+          toast({ title: "Error", description: "Could not load data for editing or data is mismatched.", variant: 'destructive' });
         }
       } catch (error) {
-        console.error("Erreur détaillée lors de la récupération des données du groupe:", error);
-        console.error('[DEBUG] An exception occurred during fetch:', error);
+        console.error("Error fetching data for edit page:", error);
         toast({ title: "Error", description: "Could not load data for editing.", variant: 'destructive' });
       } finally {
         setIsLoading(false);
@@ -83,21 +63,17 @@ export default function EditSmallGroupPage() {
 
   const handleUpdateSmallGroup = async (data: SmallGroupFormData) => {
     try {
-      const result = await smallGroupService.updateSmallGroup(smallGroupId, data);
-      if (result.success && result.data) {
-        toast({
-          title: "Small Group Updated!",
-          description: `Small Group "${result.data.name}" has been successfully updated.`,
-        });
-        router.push(`/dashboard/sites/${siteId}`);
-      } else {
-        throw new Error(result.error?.message || "Update failed");
-      }
+      const updatedSmallGroup = await smallGroupService.updateSmallGroup(smallGroupId, data);
+      toast({
+        title: "Small Group Updated!",
+        description: `Small Group "${updatedSmallGroup.name}" has been successfully updated.`,
+      });
+      router.push(`/dashboard/sites/${siteId}`);
     } catch (error) {
-      console.error("Erreur détaillée lors de la mise à jour du groupe:", error);
+      console.error("Error updating small group:", error);
       toast({
         title: "Error",
-        description: "Could not update the small group. Please try again.",
+        description: error instanceof Error ? error.message : "Could not update the small group. Please try again.",
         variant: "destructive",
       });
     }

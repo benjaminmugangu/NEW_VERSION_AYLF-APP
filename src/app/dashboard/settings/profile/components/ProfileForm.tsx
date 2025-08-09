@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import type { User, Site, SmallGroup } from "@/lib/types";
-import { siteService } from "@/services/siteService";
+import siteService from '@/services/siteService';
 import smallGroupService from "@/services/smallGroupService";
 import { ROLES } from "@/lib/constants";
 
@@ -35,7 +35,7 @@ type ProfileFormData = z.infer<typeof profileFormSchema>;
 
 interface ProfileFormProps {
   currentUser: User;
-  onUpdateProfile: (updatedData: Partial<User>) => void;
+  onUpdateProfile?: (updatedData: Partial<User>) => void;
   canEdit: boolean;
 }
 
@@ -54,12 +54,12 @@ export function ProfileForm({ currentUser, onUpdateProfile, canEdit }: ProfileFo
 
       setIsLoadingAssignment(true);
       try {
-        const sitesRes = await siteService.getAllSites();
-        if (sitesRes.data) setSites(sitesRes.data);
+        const sitesData = await siteService.getSitesWithDetails(currentUser);
+        setSites(sitesData);
 
         if (currentUser.role === ROLES.SMALL_GROUP_LEADER) {
-          const smallGroupsResponse = await smallGroupService.getFilteredSmallGroups({ user: currentUser });
-          if (smallGroupsResponse.data) setSmallGroups(smallGroupsResponse.data);
+          const smallGroupsData = await smallGroupService.getFilteredSmallGroups({ user: currentUser });
+          setSmallGroups(smallGroupsData);
         }
       } catch (error) {
         console.error("Failed to fetch assignments", error);
@@ -90,7 +90,9 @@ export function ProfileForm({ currentUser, onUpdateProfile, canEdit }: ProfileFo
         mandateStartDate: data.mandateStartDate ? data.mandateStartDate.toISOString() : undefined,
         mandateEndDate: data.mandateEndDate ? data.mandateEndDate.toISOString() : undefined,
       };
-      onUpdateProfile(profileUpdateData);
+      if (onUpdateProfile) {
+        onUpdateProfile(profileUpdateData);
+      }
       toast({
         title: "Profile Updated",
         description: "Your profile information has been successfully updated.",

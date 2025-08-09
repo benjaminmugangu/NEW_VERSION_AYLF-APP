@@ -36,7 +36,7 @@ export const ReportList: React.FC<ReportListProps> = ({
                     </p>
                   </div>
                   <div className="text-right">
-                    <div className="font-medium">{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(report.expenses || 0)}</div>
+                    <div className="font-medium">{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(report.totalExpenses || 0)}</div>
                     <p className="text-xs text-muted-foreground">Dépensé</p>
                   </div>
                 </div>

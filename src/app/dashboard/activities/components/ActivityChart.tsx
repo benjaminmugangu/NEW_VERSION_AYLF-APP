@@ -13,10 +13,9 @@ interface ActivityChartProps {
 }
 
 const chartConfigBase: ChartConfig = {
-  planned: { label: "Planned", color: "hsl(var(--chart-2))" },
-  in_progress: { label: "In Progress", color: "hsl(var(--chart-3))" },
-  delayed: { label: "Delayed", color: "hsl(var(--chart-4))" },
-  executed: { label: "Executed", color: "hsl(var(--chart-1))" },
+  PLANNED: { label: "Planned", color: "hsl(var(--chart-2))" },
+  EXECUTED: { label: "Executed", color: "hsl(var(--chart-1))" },
+  CANCELED: { label: "Canceled", color: "hsl(var(--chart-5))" },
 };
 
 export function ActivityChart({ activities, title, description }: ActivityChartProps) {
@@ -30,10 +29,9 @@ export function ActivityChart({ activities, title, description }: ActivityChartP
     );
 
     return [
-      { name: "Planned", count: statusCounts.planned || 0, fill: chartConfigBase.planned.color },
-      { name: "In Progress", count: statusCounts.in_progress || 0, fill: chartConfigBase.in_progress.color },
-      { name: "Delayed", count: statusCounts.delayed || 0, fill: chartConfigBase.delayed.color },
-      { name: "Executed", count: statusCounts.executed || 0, fill: chartConfigBase.executed.color },
+      { name: "Planned", count: statusCounts.PLANNED || 0, fill: chartConfigBase.PLANNED.color },
+      { name: "Executed", count: statusCounts.EXECUTED || 0, fill: chartConfigBase.EXECUTED.color },
+      { name: "Canceled", count: statusCounts.CANCELED || 0, fill: chartConfigBase.CANCELED.color },
     ];
   };
 

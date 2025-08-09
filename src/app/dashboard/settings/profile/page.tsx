@@ -12,7 +12,7 @@ import { UserCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ProfileSettingsPage() {
-  const { currentUser, updateUserProfile, isLoading } = useAuth();
+  const { currentUser, isLoading } = useAuth();
 
   if (isLoading || !currentUser) {
     return (
@@ -44,7 +44,6 @@ export default function ProfileSettingsPage() {
       />
       <ProfileForm 
         currentUser={currentUser} 
-        onUpdateProfile={updateUserProfile}
         canEdit={canEdit}
       />
     </RoleBasedGuard>

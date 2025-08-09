@@ -63,7 +63,7 @@ export default function TransactionsPage() {
   }
 
   if (error) {
-    return <div className="text-destructive">Error: {error}</div>;
+    return <div className="text-destructive">Error: {error.message}</div>;
   }
 
   return (

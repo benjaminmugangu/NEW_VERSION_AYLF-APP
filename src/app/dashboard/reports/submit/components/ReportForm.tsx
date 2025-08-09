@@ -20,7 +20,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getAllActivityTypes } from "@/services/activityTypeService";
-import { siteService } from '@/services/siteService';
+import siteService from '@/services/siteService';
 import { reportService } from '@/services/reportService';
 import smallGroupService from '@/services/smallGroupService';
 import { activityService } from '@/services/activityService'; // Import activity service

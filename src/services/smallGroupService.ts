@@ -128,7 +128,7 @@ const smallGroupService = {
     return toSmallGroupModel(data);
   },
 
-  createSmallGroup: async (siteId: string, formData: SmallGroupFormData): Promise<SmallGroup> => {
+  createSmallGroup: async (siteId: string, formData: SmallGroupFormData): Promise<ServiceResponse<SmallGroup>> => {
     const { data: newGroup, error: createError } = await supabase
       .from('small_groups')
       .insert({
@@ -145,7 +145,7 @@ const smallGroupService = {
       .single();
 
     if (createError) {
-      throw new Error(createError.message);
+      return { success: false, error: { message: createError.message } };
     }
 
     // Update user assignments
@@ -168,7 +168,7 @@ const smallGroupService = {
       }
     }
 
-    return toSmallGroupModel(newGroup);
+    return { success: true, data: toSmallGroupModel(newGroup) };
   },
 
   updateSmallGroup: async (groupId: string, formData: SmallGroupFormData): Promise<SmallGroup> => {

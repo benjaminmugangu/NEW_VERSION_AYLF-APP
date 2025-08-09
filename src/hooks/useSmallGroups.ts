@@ -19,13 +19,9 @@ export const useSmallGroups = () => {
 
   const { data: smallGroups = [], isLoading, isError, error, refetch } = useQuery<SmallGroup[], Error>({
     queryKey,
-    queryFn: async () => {
+    queryFn: () => {
       if (!currentUser) throw new Error('User not authenticated');
-      const response = await smallGroupService.getFilteredSmallGroups({ user: currentUser, search: searchTerm });
-      if (response.success && response.data) {
-        return response.data;
-      }
-      throw new Error(response.error?.message || 'Failed to fetch small groups.');
+      return smallGroupService.getFilteredSmallGroups({ user: currentUser, search: searchTerm });
     },
     enabled: !!currentUser, // Only run the query if the user is loaded
   });

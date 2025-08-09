@@ -21,5 +21,5 @@ export const useAllocations = () => {
     enabled: !!user, // Only run the query if the user is loaded
   });
 
-  return { allocations: data, isLoading, error: error?.message, refetch };
+  return { allocations: data, isLoading, error, refetch };
 };

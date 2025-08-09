@@ -171,7 +171,7 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
 
   const canChangeLevel = currentUser?.role === ROLES.NATIONAL_COORDINATOR;
   const canChangeSite = currentUser?.role === ROLES.NATIONAL_COORDINATOR;
-  const canChangeSmallGroup = [ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR].includes(currentUser?.role || '');
+  const canChangeSmallGroup = !!currentUser?.role && [ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR].includes(currentUser.role);
 
   return (
     <Card>

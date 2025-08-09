@@ -42,17 +42,17 @@ interface AllocationFormProps {
   onSave: (data: FundAllocationFormData) => void;
   initialData?: Partial<FundAllocationFormData>;
   isSaving?: boolean;
-  sites?: { id: string; name: string }[];
-  smallGroups?: { id: string; name: string }[];
 }
 
-export const AllocationForm: React.FC<AllocationFormProps> = ({ onSave, initialData, isSaving = false, sites = [], smallGroups = [] }) => {
+export const AllocationForm: React.FC<AllocationFormProps> = ({ onSave, initialData, isSaving = false }) => {
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
-  const { currentUser } = useAuth();
+    const { currentUser } = useAuth();
+  const { allSites: sites, isLoading: isLoadingSites } = useSites();
+  const { smallGroups, isLoading: isLoadingSmallGroups, error: errorSmallGroups, isError: isErrorSmallGroups } = useSmallGroups();
 
 
     const getInitialDestinationType = React.useCallback(() => {

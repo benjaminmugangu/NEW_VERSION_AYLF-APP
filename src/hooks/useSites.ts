@@ -3,7 +3,7 @@
 
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { siteService } from '@/services/siteService';
+import siteService from '@/services/siteService';
 import type { SiteFormData, SiteWithDetails } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { ROLES } from '@/lib/constants';
@@ -17,13 +17,7 @@ export const useSites = () => {
 
   const { data: sites = [], isLoading, isError, error } = useQuery<SiteWithDetails[], Error>({
     queryKey: [SITES_QUERY_KEY, user?.id], // Depend on user ID to refetch on user change
-    queryFn: async () => {
-      const response = await siteService.getSitesWithDetails(user);
-      if (response.success && response.data) {
-        return response.data;
-      }
-      throw new Error(response.error?.message || 'Failed to fetch sites.');
-    },
+    queryFn: () => siteService.getSitesWithDetails(user),
     enabled: !!user, // Only run the query if the user is logged in
   });
 
