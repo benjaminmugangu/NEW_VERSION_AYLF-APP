@@ -1,53 +1,74 @@
 // src/hooks/useSmallGroups.ts
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { smallGroupService } from '@/services/smallGroupService';
-import type { SmallGroup, User } from '@/lib/types';
-import { useAuth } from './useAuth';
+import { useState, useCallback, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import smallGroupService from '@/services/smallGroupService';
+import type { SmallGroup, SmallGroupFormData, User } from '@/lib/types';
+import { useAuth } from '@/contexts/AuthContext';
 import { ROLES } from '@/lib/constants';
 
-// The SmallGroup type from the service now includes enriched data like siteName, leaderName, and memberCount.
-// We can use the SmallGroup type directly.
 export type SmallGroupWithDetails = SmallGroup;
 
 export const useSmallGroups = () => {
   const { currentUser } = useAuth();
-  const [smallGroups, setSmallGroups] = useState<SmallGroupWithDetails[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
 
-  const fetchSmallGroups = useCallback(async () => {
-    if (!currentUser) return;
+  const queryKey = useMemo(() => ['smallGroups', { userId: currentUser?.id, role: currentUser?.role, siteId: currentUser?.siteId, searchTerm }], [currentUser, searchTerm]);
 
-    setIsLoading(true);
-    setError(null);
+  const { data: smallGroups = [], isLoading, isError, error, refetch } = useQuery<SmallGroup[], Error>({
+    queryKey,
+    queryFn: async () => {
+      if (!currentUser) throw new Error('User not authenticated');
+      const response = await smallGroupService.getFilteredSmallGroups({ user: currentUser, search: searchTerm });
+      if (response.success && response.data) {
+        return response.data;
+      }
+      throw new Error(response.error?.message || 'Failed to fetch small groups.');
+    },
+    enabled: !!currentUser, // Only run the query if the user is loaded
+  });
 
-    const response = await smallGroupService.getFilteredSmallGroups({ user: currentUser, search: searchTerm });
+  const createSmallGroupMutation = useMutation<
+    any,
+    Error,
+    { siteId: string; formData: SmallGroupFormData }
+  >({
+    mutationFn: ({ siteId, formData }) =>
+      smallGroupService.createSmallGroup(siteId, formData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+    },
+    onError: (error) => {
+      throw new Error(`Failed to create small group: ${(error as Error).message}`);
+    },
+  });
 
-    if (response.success && response.data) {
-      setSmallGroups(response.data);
-    } else {
-      setError(response.error?.message || 'Failed to fetch small groups.');
-      setSmallGroups([]);
-    }
+  const updateSmallGroupMutation = useMutation<
+    any,
+    Error,
+    { groupId: string; formData: SmallGroupFormData }
+  >({
+    mutationFn: ({ groupId, formData }) =>
+      smallGroupService.updateSmallGroup(groupId, formData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+    },
+    onError: (error) => {
+      throw new Error(`Failed to update small group: ${(error as Error).message}`);
+    },
+  });
 
-    setIsLoading(false);
-  }, [currentUser, searchTerm]);
-
-  useEffect(() => {
-    fetchSmallGroups();
-  }, [fetchSmallGroups]);
-
-  const deleteSmallGroup = async (groupId: string) => {
-    const result = await smallGroupService.deleteSmallGroup(groupId);
-    if (result.success) {
-      setSmallGroups(prev => prev.filter(sg => sg.id !== groupId));
-      return { success: true };
-    }
-    return { success: false, error: result.error };
-  };
+  const deleteSmallGroupMutation = useMutation<any, Error, string>({
+    mutationFn: (groupId: string) => smallGroupService.deleteSmallGroup(groupId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+    },
+    onError: (error) => {
+      throw new Error(`Failed to delete small group: ${(error as Error).message}`);
+    },
+  });
 
   const canCreateSmallGroup = useMemo(() => {
     if (!currentUser) return false;
@@ -74,11 +95,17 @@ export const useSmallGroups = () => {
   return {
     smallGroups,
     isLoading,
+    isError,
     error,
-    refetch: fetchSmallGroups,
-    deleteSmallGroup,
+    refetch,
     searchTerm,
     setSearchTerm,
+    createSmallGroup: createSmallGroupMutation.mutate,
+    updateSmallGroup: updateSmallGroupMutation.mutate,
+    deleteSmallGroup: deleteSmallGroupMutation.mutate,
+    isCreating: createSmallGroupMutation.isPending,
+    isUpdating: updateSmallGroupMutation.isPending,
+    isDeleting: deleteSmallGroupMutation.isPending,
     canCreateSmallGroup,
     canEditOrDeleteSmallGroup,
   };

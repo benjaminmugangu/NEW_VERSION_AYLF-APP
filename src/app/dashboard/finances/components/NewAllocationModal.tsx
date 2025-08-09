@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { ROLES } from '@/lib/constants';
 
 export const NewAllocationModal = () => {

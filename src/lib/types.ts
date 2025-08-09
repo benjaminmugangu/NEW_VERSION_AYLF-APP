@@ -23,6 +23,7 @@ export interface User extends BaseEntity {
   // Enriched data from services
   siteName?: string;
   smallGroupName?: string;
+  assignment?: string;
 }
 
 export interface Site extends BaseEntity {
@@ -30,10 +31,16 @@ export interface Site extends BaseEntity {
   city: string;
   country: string;
   creationDate: string; // ISO 8601 date string
-  coordinatorId: string;
+  coordinatorId?: string;
   coordinator?: User; // Enriched data
   memberCount?: number; // Enriched data
   smallGroupCount?: number; // Enriched data
+}
+
+export interface SiteWithDetails extends Site {
+  coordinatorName: string | null;
+  smallGroupsCount: number;
+  membersCount: number;
 }
 
 export interface SmallGroup extends BaseEntity {
@@ -57,11 +64,12 @@ export interface SmallGroup extends BaseEntity {
 export interface Member extends BaseEntity {
   userId?: string; // Optional link to a User account
   name: string;
-  gender: 'Male' | 'Female';
+  gender: 'male' | 'female';
   type: 'student' | 'non-student';
   joinDate: string; // ISO 8601 date string
   phone?: string;
   email?: string;
+  level: "national" | "site" | "small_group";
   siteId: string;
   smallGroupId?: string;
 }
@@ -76,23 +84,25 @@ export type MemberWithDetails = Member & {
 // FEATURE-SPECIFIC TYPES
 // =============================================================================
 
+export type ActivityStatus = 'planned' | 'in_progress' | 'delayed' | 'executed';
+
 export interface Activity extends BaseEntity {
-  name: string;
-  description: string;
+  title: string;
+  thematic: string;
   date: string; // ISO date string
-  status: "planned" | "executed" | "cancelled";
+  status: ActivityStatus;
   level: "national" | "site" | "small_group";
-  siteId?: string;
-  smallGroupId?: string;
-  participantsCount?: number;
-  imageUrl?: string;
-  activityTypeId?: string; // Foreign key to activity_types table
-  createdBy?: string; // UUID of the user who created the activity
-  deleted_at?: string; // For soft delete
+  site_id?: string;
+  small_group_id?: string;
+  activity_type_id: string;
+  participants_count_planned?: number;
+  created_by: string; // UUID of the user who created the activity
+  created_at: string; // ISO date string
   // Enriched data for UI
   siteName?: string;
   smallGroupName?: string;
   activityTypeName?: string;
+  participantsCount?: number;
 }
 
 export interface ActivityType {
@@ -164,7 +174,7 @@ export interface FundAllocation extends BaseEntity {
   allocationDate: string; // ISO date string
   goal: string;
   source: string;
-  status: 'planned' | 'completed' | 'cancelled';
+  status: 'planned' | 'completed';
   allocatedById: string;
   siteId?: string;
   smallGroupId?: string;
@@ -212,6 +222,7 @@ export interface NavItem {
 // =============================================================================
 
 export interface ReportFormData {
+  activityId: string; // The ID of the planned activity this report is for
   title: string;
   activityDate: string;
   level: "national" | "site" | "small_group";
@@ -253,7 +264,7 @@ export interface FundAllocationFormData {
   allocationDate: string; // ISO date string
   goal: string;
   source: string;
-  status: 'planned' | 'completed' | 'cancelled';
+  status: 'planned' | 'completed';
   allocatedById: string; // Set to current user's ID
   siteId?: string;
   smallGroupId?: string;
@@ -261,20 +272,6 @@ export interface FundAllocationFormData {
 }
 
 export type SiteFormData = Omit<Site, 'id' | 'coordinator' | 'memberCount' | 'smallGroupCount'>;
-
-export interface ActivityFormData {
-  name: string;
-  description: string;
-  date: string; // ISO date string
-  status: "planned" | "executed" | "cancelled";
-  level: "national" | "site" | "small_group";
-  siteId?: string;
-  smallGroupId?: string;
-  participantsCount?: number;
-  imageUrl?: string;
-  activityTypeId?: string;
-  createdBy: string; // Must be set to the current user's ID
-}
 
 export interface SmallGroupFormData {
   name: string;
@@ -288,8 +285,12 @@ export interface SmallGroupFormData {
 
 export type MemberFormData = {
   name: string;
+  gender: 'male' | 'female';
+  phone?: string;
+  email?: string;
   type: 'student' | 'non-student';
   joinDate: Date;
+  level: "national" | "site" | "small_group";
   siteId?: string;
   smallGroupId?: string;
 };

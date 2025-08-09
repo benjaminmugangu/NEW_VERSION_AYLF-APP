@@ -10,28 +10,25 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import type { SmallGroup, User } from "@/lib/types";
+import type { SmallGroup, User, SmallGroupFormData } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { profileService } from "@/services/profileService";
 import { ROLES } from "@/lib/constants";
 import { Users, Save } from "lucide-react";
 
-// Define a type for form data specifically for SmallGroup
-export interface SmallGroupFormData {
-  name: string;
-  leaderId?: string;
-  logisticsAssistantId?: string;
-  financeAssistantId?: string;
-}
+
 
 const smallGroupFormSchema = z.object({
   name: z.string().min(3, "Small group name must be at least 3 characters."),
   leaderId: z.string().optional(),
   logisticsAssistantId: z.string().optional(),
   financeAssistantId: z.string().optional(),
+  meetingDay: z.enum(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']).optional(),
+  meetingTime: z.string().optional(), // You might want to add a regex for time format
+  meetingLocation: z.string().optional(),
 });
 
-const NO_LEADER_VALUE = "__NO_LEADER_VALUE__"; // Used for clearing selection
+const UNASSIGNED_VALUE = "__UNASSIGNED__"; // Represents no selection
 
 interface SmallGroupFormProps {
   smallGroup?: SmallGroup; // For editing
@@ -47,14 +44,20 @@ export function SmallGroupForm({ smallGroup, siteId, onSubmitForm }: SmallGroupF
     resolver: zodResolver(smallGroupFormSchema),
     defaultValues: smallGroup ? { 
       name: smallGroup.name, 
-      leaderId: smallGroup.leaderId,
-      logisticsAssistantId: smallGroup.logisticsAssistantId,
-      financeAssistantId: smallGroup.financeAssistantId,
+      leaderId: smallGroup.leaderId || undefined,
+      logisticsAssistantId: smallGroup.logisticsAssistantId || undefined,
+      financeAssistantId: smallGroup.financeAssistantId || undefined,
+      meetingDay: smallGroup.meetingDay,
+      meetingTime: smallGroup.meetingTime,
+      meetingLocation: smallGroup.meetingLocation,
     } : {
       name: "",
       leaderId: undefined,
       logisticsAssistantId: undefined,
       financeAssistantId: undefined,
+      meetingDay: undefined,
+      meetingTime: "",
+      meetingLocation: "",
     },
   });
 
@@ -99,6 +102,25 @@ export function SmallGroupForm({ smallGroup, siteId, onSubmitForm }: SmallGroupF
             {errors.name && <p className="text-sm text-destructive mt-1">{errors.name.message}</p>}
           </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="meetingDay">Meeting Day (Optional)</Label>
+              <Input id="meetingDay" {...register("meetingDay")} placeholder="e.g., Wednesday" className="mt-1" />
+              {errors.meetingDay && <p className="text-sm text-destructive mt-1">{errors.meetingDay.message}</p>}
+            </div>
+            <div>
+              <Label htmlFor="meetingTime">Meeting Time (Optional)</Label>
+              <Input id="meetingTime" {...register("meetingTime")} placeholder="e.g., 7:00 PM" className="mt-1" />
+              {errors.meetingTime && <p className="text-sm text-destructive mt-1">{errors.meetingTime.message}</p>}
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="meetingLocation">Meeting Location (Optional)</Label>
+            <Input id="meetingLocation" {...register("meetingLocation")} placeholder="e.g., Room 101, Main Hall" className="mt-1" />
+            {errors.meetingLocation && <p className="text-sm text-destructive mt-1">{errors.meetingLocation.message}</p>}
+          </div>
+
           <div>
             <Label htmlFor="leaderId">Small Group Leader (Optional)</Label>
             <Controller
@@ -106,17 +128,14 @@ export function SmallGroupForm({ smallGroup, siteId, onSubmitForm }: SmallGroupF
               control={control}
               render={({ field }) => (
                 <Select 
-                  onValueChange={(valueFromSelect) => {
-                    const actualValueToSet = valueFromSelect === NO_LEADER_VALUE ? undefined : valueFromSelect;
-                    field.onChange(actualValueToSet);
-                  }} 
-                  value={field.value || NO_LEADER_VALUE}
+                  onValueChange={(value) => field.onChange(value === UNASSIGNED_VALUE ? undefined : value)} 
+                  value={field.value || UNASSIGNED_VALUE}
                 >
-                  <SelectTrigger id="leaderId" className="mt-1">
+                  <SelectTrigger id="leaderId" className="mt-1" disabled={isLoadingPersonnel}>
                     <SelectValue placeholder={isLoadingPersonnel ? "Loading..." : "Select Leader"} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NO_LEADER_VALUE}>None (Unassigned)</SelectItem>
+                    <SelectItem value={UNASSIGNED_VALUE}>None (Unassigned)</SelectItem>
                     {availablePersonnel.map((user: User) => (
                       <SelectItem key={user.id} value={user.id}>
                         {user.name} ({user.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())})
@@ -136,17 +155,14 @@ export function SmallGroupForm({ smallGroup, siteId, onSubmitForm }: SmallGroupF
               control={control}
               render={({ field }) => (
                 <Select 
-                  onValueChange={(valueFromSelect) => {
-                    const actualValueToSet = valueFromSelect === NO_LEADER_VALUE ? undefined : valueFromSelect;
-                    field.onChange(actualValueToSet);
-                  }} 
-                  value={field.value || NO_LEADER_VALUE}
+                  onValueChange={(value) => field.onChange(value === UNASSIGNED_VALUE ? undefined : value)} 
+                  value={field.value || UNASSIGNED_VALUE}
                 >
                   <SelectTrigger id="logisticsAssistantId" className="mt-1" disabled={isLoadingPersonnel}>
                     <SelectValue placeholder="Select Logistics Assistant" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NO_LEADER_VALUE}>None (Unassigned)</SelectItem>
+                    <SelectItem value={UNASSIGNED_VALUE}>None (Unassigned)</SelectItem>
                     {availablePersonnel.map((user: User) => (
                       <SelectItem key={user.id} value={user.id}>
                         {user.name} ({user.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())})
@@ -166,17 +182,14 @@ export function SmallGroupForm({ smallGroup, siteId, onSubmitForm }: SmallGroupF
               control={control}
               render={({ field }) => (
                 <Select 
-                  onValueChange={(valueFromSelect) => {
-                    const actualValueToSet = valueFromSelect === NO_LEADER_VALUE ? undefined : valueFromSelect;
-                    field.onChange(actualValueToSet);
-                  }} 
-                  value={field.value || NO_LEADER_VALUE}
+                  onValueChange={(value) => field.onChange(value === UNASSIGNED_VALUE ? undefined : value)} 
+                  value={field.value || UNASSIGNED_VALUE}
                 >
                   <SelectTrigger id="financeAssistantId" className="mt-1" disabled={isLoadingPersonnel}>
                     <SelectValue placeholder="Select Finance Assistant" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NO_LEADER_VALUE}>None (Unassigned)</SelectItem>
+                    <SelectItem value={UNASSIGNED_VALUE}>None (Unassigned)</SelectItem>
                     {availablePersonnel.map((user: User) => (
                       <SelectItem key={user.id} value={user.id}>
                         {user.name} ({user.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())})

@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import type { User, Site, SmallGroup } from "@/lib/types";
-import siteService from "@/services/siteService";
+import { siteService } from "@/services/siteService";
 import smallGroupService from "@/services/smallGroupService";
 import { ROLES } from "@/lib/constants";
 
@@ -58,8 +58,8 @@ export function ProfileForm({ currentUser, onUpdateProfile, canEdit }: ProfileFo
         if (sitesRes.data) setSites(sitesRes.data);
 
         if (currentUser.role === ROLES.SMALL_GROUP_LEADER) {
-          const smallGroupsRes = await smallGroupService.getAllSmallGroups();
-          if (smallGroupsRes.data) setSmallGroups(smallGroupsRes.data);
+          const smallGroupsResponse = await smallGroupService.getFilteredSmallGroups({ user: currentUser });
+          if (smallGroupsResponse.data) setSmallGroups(smallGroupsResponse.data);
         }
       } catch (error) {
         console.error("Failed to fetch assignments", error);

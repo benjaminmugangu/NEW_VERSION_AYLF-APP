@@ -58,7 +58,7 @@ export default function MembersPage() {
           <CardContent className="pt-6">
             <p className="text-center text-red-500">{error}</p>
             <div className="text-center mt-4">
-              <Button onClick={refetch}>Try Again</Button>
+              <Button onClick={() => refetch()}>Try Again</Button>
             </div>
           </CardContent>
         </Card>
@@ -206,13 +206,18 @@ export default function MembersPage() {
               className="bg-destructive hover:bg-destructive/90"
               onClick={async () => {
                 if (!memberToDelete) return;
-                const result = await deleteMember(memberToDelete.id);
-                if (result.success) {
+                try {
+                  await deleteMember(memberToDelete.id);
                   toast({ title: 'Success', description: `Member "${memberToDelete.name}" has been archived.` });
-                } else {
-                  toast({ title: 'Error', description: result.error?.message || 'Failed to archive member.', variant: 'destructive' });
+                } catch (error) {
+                  toast({ 
+                    title: 'Error', 
+                    description: (error as Error).message || 'Failed to archive member.', 
+                    variant: 'destructive' 
+                  });
+                } finally {
+                  setMemberToDelete(null);
                 }
-                setMemberToDelete(null);
               }}
             >
               Archive

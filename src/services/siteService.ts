@@ -1,161 +1,160 @@
-// src/services/site.service.ts
-'use client';
-
+// src/services/siteService.ts
 import { supabase } from '@/lib/supabaseClient';
-import type { Site, User, ServiceResponse } from '@/lib/types';
+import type { ServiceResponse, Site, SiteFormData, SiteWithDetails, User } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
 
-// Helper to convert DB snake_case to frontend camelCase
-const toSiteModel = (dbSite: any): Site => ({
-  id: dbSite.id,
-  name: dbSite.name,
-  city: dbSite.city,
-  country: dbSite.country,
-  coordinatorId: dbSite.coordinator_id,
-  creationDate: dbSite.creation_date,
-});
+// Helper to convert frontend camelCase to DB snake_case for writing
+const toSiteDbData = (siteData: Partial<SiteFormData>): any => {
+  const dbData: { [key: string]: any } = {};
+  if (siteData.name !== undefined) dbData.name = siteData.name;
+  if (siteData.city !== undefined) dbData.city = siteData.city;
+  if (siteData.country !== undefined) dbData.country = siteData.country;
+  if (siteData.coordinatorId !== undefined) dbData.coordinator_id = siteData.coordinatorId;
 
-const siteService = {
-  getAllSites: async (): Promise<ServiceResponse<Site[]>> => {
-    const { data, error } = await supabase.from('sites').select('*').order('name', { ascending: true });
-    if (error) {
-      return { success: false, error: { message: error.message } };
-    }
-    return { success: true, data: data.map(toSiteModel) };
-  },
-
-  getFilteredSites: async (filters: { user: User | null }): Promise<ServiceResponse<Site[]>> => {
-    const { user } = filters;
-    if (!user) {
-      return { success: false, error: { message: 'User not authenticated' } };
-    }
-
-    let query = supabase.from('sites').select('*');
-
-    switch (user.role) {
-      case ROLES.NATIONAL_COORDINATOR:
-        // National coordinator sees all sites, no filter needed.
-        break;
-      case ROLES.SITE_COORDINATOR:
-      case ROLES.SMALL_GROUP_LEADER:
-        if (user.siteId) {
-          query = query.eq('id', user.siteId);
-        } else {
-          // If user should have a siteId but doesn't, they see nothing.
-          return { success: true, data: [] };
-        }
-        break;
-      default:
-        // Other roles like 'member' see no sites by default.
-        return { success: true, data: [] };
-    }
-
-    const { data, error } = await query.order('name', { ascending: true });
-    if (error) {
-      return { success: false, error: { message: error.message } };
-    }
-    return { success: true, data: data.map(toSiteModel) };
-  },
-
-  getSiteById: async (siteId: string): Promise<ServiceResponse<Site>> => {
-    const { data, error } = await supabase.from('sites').select('*').eq('id', siteId).single();
-    if (error) {
-      return { success: false, error: { message: `Site with id ${siteId} not found.` } };
-    }
-    return { success: true, data: toSiteModel(data) };
-  },
-
-  getCoordinatorForSite: async (siteId: string): Promise<ServiceResponse<User>> => {
-    const { data, error } = await supabase
-      .from('sites')
-      .select('coordinator:profiles(*)')
-      .eq('id', siteId)
-      .single();
-
-    if (error || !data?.coordinator) {
-      return { success: false, error: { message: 'Coordinator not found for this site.' } };
-    }
-    // The 'profiles' table columns should match the 'User' type
-    return { success: true, data: data.coordinator as unknown as User };
-  },
-
-  createSite: async (siteData: Omit<Site, 'id' | 'smallGroups' | 'memberCount'>): Promise<ServiceResponse<Site>> => {
-    if (!siteData.name || siteData.name.trim().length < 3) {
-      return { success: false, error: { message: 'Site name must be at least 3 characters long.' } };
-    }
-    const { data, error } = await supabase
-      .from('sites')
-      .insert({
-        name: siteData.name,
-        city: siteData.city,
-        country: siteData.country,
-        coordinator_id: siteData.coordinatorId,
-        creation_date: siteData.creationDate,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      return { success: false, error: { message: error.message } };
-    }
-    return { success: true, data: toSiteModel(data) };
-  },
-
-  updateSite: async (siteId: string, updatedData: Partial<Omit<Site, 'id' | 'smallGroups' | 'memberCount'>>): Promise<ServiceResponse<Site>> => {
-    if (updatedData.name && updatedData.name.trim().length < 3) {
-      return { success: false, error: { message: 'Site name must be at least 3 characters long.' } };
-    }
-    
-    const dbUpdateData = {
-      ...(updatedData.name && { name: updatedData.name }),
-      ...(updatedData.city && { city: updatedData.city }),
-      ...(updatedData.country && { country: updatedData.country }),
-      ...(updatedData.coordinatorId && { coordinator_id: updatedData.coordinatorId }),
-      ...(updatedData.creationDate && { creation_date: updatedData.creationDate }),
-    };
-
-    const { data, error } = await supabase
-      .from('sites')
-      .update(dbUpdateData)
-      .eq('id', siteId)
-      .select()
-      .single();
-
-    if (error) {
-      return { success: false, error: { message: error.message } };
-    }
-    return { success: true, data: toSiteModel(data) };
-  },
-
-  deleteSite: async (siteId: string): Promise<ServiceResponse<{ id: string }>> => {
-    const { error } = await supabase.from('sites').delete().eq('id', siteId);
-
-    if (error) {
-      // Foreign key constraint violation
-      if (error.code === '23503') {
-        return { success: false, error: { message: 'Cannot delete site with active small groups or members. Please reassign them first.' } };
-      }
-      return { success: false, error: { message: error.message } };
-    }
-    return { success: true, data: { id: siteId } };
-  },
-
-  getSiteDetails: async (siteId: string): Promise<ServiceResponse<{ membersCount: number; smallGroupsCount: number }>> => {
-    const { data, error } = await supabase
-      .from('sites')
-      .select('members(count), small_groups(count)')
-      .eq('id', siteId)
-      .single();
-
-    if (error) {
-      return { success: false, error: { message: error.message } };
-    }
-
-    const membersCount = data.members[0]?.count || 0;
-    const smallGroupsCount = data.small_groups[0]?.count || 0;
-
-    return { success: true, data: { membersCount, smallGroupsCount } };
-  },
+  return dbData;
 };
 
-export default siteService;
+// Define the shape of the data returned by the RPC function
+interface SiteDetailsRPCResponse {
+  id: string;
+  name: string;
+  city: string;
+  country: string;
+  coordinator_id: string;
+  creation_date: string;
+  coordinator_name: string | null;
+  small_groups_count: number;
+  members_count: number;
+}
+
+// Fetches all sites with enriched details using the RPC function.
+const getSitesWithDetails = async (user: User | null): Promise<SiteWithDetails[]> => {
+  if (!user) {
+    throw new Error('User not authenticated.');
+  }
+
+  const { data, error } = await supabase.rpc('get_sites_with_details', {});
+
+  if (error) {
+    console.error('[SiteService] Error in getSitesWithDetails (RPC):', error.message);
+    throw new Error(error.message);
+  }
+
+  const allSites: SiteWithDetails[] = (data as SiteDetailsRPCResponse[]).map((site: SiteDetailsRPCResponse) => ({
+    id: site.id,
+    name: site.name,
+    city: site.city,
+    country: site.country,
+    coordinatorId: site.coordinator_id,
+    creationDate: site.creation_date,
+    coordinatorName: site.coordinator_name,
+    smallGroupsCount: site.small_groups_count || 0,
+    membersCount: site.members_count || 0,
+  }));
+
+  switch (user.role) {
+    case ROLES.NATIONAL_COORDINATOR:
+      return allSites;
+    case ROLES.SITE_COORDINATOR:
+    case ROLES.SMALL_GROUP_LEADER:
+      return user.siteId ? allSites.filter(s => s.id === user.siteId) : [];
+    default:
+      return [];
+  }
+};
+
+const getSiteDetails = async (siteId: string): Promise<{ site: Site; smallGroups: any[]; totalMembers: number }> => {
+  // Step 1: Fetch site details including the coordinator's name via a join.
+  const { data: siteData, error: siteError } = await supabase
+    .from('sites')
+    .select('*, coordinator:coordinator_id (id, name, email)')
+    .eq('id', siteId)
+    .single();
+
+  if (siteError) {
+    console.error(`[SiteService] Error fetching site details for ${siteId}:`, siteError.message);
+    throw new Error(siteError.message);
+  }
+
+  // Step 2: Fetch small groups with their member counts using an RPC call.
+  // This is more efficient than fetching all groups and then counting members on the client.
+  const { data: smallGroupsData, error: rpcError } = await supabase.rpc('get_small_groups_with_member_count_by_site', {
+    p_site_id: siteId,
+  });
+
+  if (rpcError) {
+    console.error(`[SiteService] Error fetching small groups for site ${siteId} via RPC:`, rpcError.message);
+    throw new Error(rpcError.message);
+  }
+
+  // Step 3: Calculate total members from the RPC call result.
+  const totalMembers = smallGroupsData.reduce((acc: number, group: any) => acc + (group.members_count || 0), 0);
+
+  return {
+    site: siteData as Site,
+    smallGroups: smallGroupsData,
+    totalMembers,
+  };
+};
+
+const getSiteById = async (id: string): Promise<Site> => {
+  const { data, error } = await supabase.from('sites').select('*').eq('id', id).single();
+  if (error) {
+    console.error(`[SiteService] Error in getSiteById for id ${id}:`, error.message);
+    throw new Error('Site not found.');
+  }
+  return data;
+};
+
+const createSite = async (siteData: SiteFormData): Promise<Site> => {
+  if (!siteData.name || siteData.name.trim().length < 3) {
+    throw new Error('Site name must be at least 3 characters long.');
+  }
+  const dbData = toSiteDbData(siteData);
+
+  const { data, error } = await supabase.from('sites').insert(dbData).select().single();
+
+  if (error) {
+    console.error('[SiteService] Error in createSite:', error.message);
+    throw new Error(error.message);
+  }
+  return data;
+};
+
+const updateSite = async (id: string, updatedData: Partial<SiteFormData>): Promise<Site> => {
+  if (updatedData.name && updatedData.name.trim().length < 3) {
+    throw new Error('Site name must be at least 3 characters long.');
+  }
+  const dbData = toSiteDbData(updatedData);
+
+  const { data, error } = await supabase.from('sites').update(dbData).eq('id', id).select().single();
+
+  if (error) {
+    console.error(`[SiteService] Error in updateSite for id ${id}:`, error.message);
+    throw new Error(error.message);
+  }
+  return data;
+};
+
+const deleteSite = async (id: string): Promise<{ id: string }> => {
+  const { error } = await supabase.from('sites').delete().eq('id', id);
+
+  if (error) {
+    console.error(`[SiteService] Error in deleteSite for id ${id}:`, error.message);
+    // Provide a more user-friendly message for foreign key violations
+    if (error.code === '23503') {
+      throw new Error('Cannot delete site with active small groups or members. Please reassign them first.');
+    }
+    throw new Error(error.message);
+  }
+  return { id };
+};
+
+export const siteService = {
+  getSitesWithDetails,
+  getSiteDetails, // Add this new function
+  getSiteById,
+  createSite,
+  updateSite,
+  deleteSite,
+};

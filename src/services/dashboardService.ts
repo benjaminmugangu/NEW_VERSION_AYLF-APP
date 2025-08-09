@@ -1,11 +1,11 @@
 // src/services/dashboardService.ts
 'use client';
 
-import type { ServiceResponse, Activity, Member, Report, Site, SmallGroup, User, Financials } from '@/lib/types';
+import type { ServiceResponse, Activity, Member, Report, Site, SiteWithDetails, SmallGroup, User, Financials } from '@/lib/types';
 import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
 import { activityService } from './activityService';
 import { memberService } from './memberService';
-import siteService from './siteService';
+import { siteService } from './siteService';
 import smallGroupService from './smallGroupService';
 import { reportService } from './reportService';
 import { financialsService } from './financialsService';
@@ -14,7 +14,6 @@ export interface DashboardStats {
   totalActivities: number;
   plannedActivities: number;
   executedActivities: number;
-  cancelledActivities: number;
   totalMembers: number;
   studentMembers: number;
   nonStudentMembers: number;
@@ -37,31 +36,46 @@ const dashboardService = {
 
     try {
       // Fetch all data in parallel for efficiency
-      const results = await Promise.allSettled([
-        activityService.getFilteredActivities({ user, dateFilter }),
-        memberService.getFilteredMembers({ user, dateFilter }),
-                reportService.getFilteredReports({ user, dateFilter, statusFilter: { approved: true, pending: false, rejected: false, submitted: false } }),
-        siteService.getFilteredSites({ user }), // Not date filtered
-        smallGroupService.getFilteredSmallGroups({ user }), // Not date filtered
-        financialsService.getFinancials(user, dateFilter), // Financials are date filtered
-      ]);
-
-      // Helper to safely extract data from settled promises
-      const getResultData = <T>(result: PromiseSettledResult<ServiceResponse<T>>): T | null => {
-        if (result.status === 'fulfilled' && result.value.success) {
-          return result.value.data || null;
+      // Helper to safely extract data from settled promises. Handles both direct data and ServiceResponse wrappers.
+      const getResultData = <T>(result: PromiseSettledResult<T | ServiceResponse<T>>): T | null => {
+        if (result.status === 'rejected') {
+          console.error('[DashboardService] A promise was rejected:', result.reason);
+          return null;
         }
-        if (result.status === 'rejected' || (result.status === 'fulfilled' && !result.value.success)) {
-          // Log the error for debugging, but don't crash the dashboard
 
+        const value = result.value as any;
+        // Handle ServiceResponse wrapper for legacy services
+        if (typeof value === 'object' && value !== null && 'success' in value) {
+          if (value.success) {
+            return value.data || null;
+          }
+          console.error('[DashboardService] A service call failed:', value.error?.message);
+          return null;
         }
-        return null;
+
+        // Handle direct data for refactored services
+        return value as T;
       };
+
+      const results = await Promise.allSettled([
+        activityService.getFilteredActivities({
+          user,
+          dateFilter,
+          searchTerm: '',
+          statusFilter: { planned: true, in_progress: true, delayed: true, executed: true },
+          levelFilter: { national: true, site: true, small_group: true },
+        }),
+        memberService.getFilteredMembers({ user, dateFilter, searchTerm: '' }),
+        reportService.getFilteredReports({ user, dateFilter, statusFilter: { approved: true, pending: true, rejected: true, submitted: true } }),
+        siteService.getSitesWithDetails(user),
+        smallGroupService.getFilteredSmallGroups({ user }),
+        financialsService.getFinancials(user, dateFilter),
+      ]);
 
       const activities = getResultData<Activity[]>(results[0]) || [];
       const members = getResultData<Member[]>(results[1]) || [];
       const approvedReports = getResultData<Report[]>(results[2]) || [];
-      const sites = getResultData<Site[]>(results[3]) || [];
+      const sites = getResultData<SiteWithDetails[]>(results[3]) || [];
       const smallGroups = getResultData<SmallGroup[]>(results[4]) || [];
       const financials = getResultData<Financials>(results[5]);
 
@@ -71,7 +85,6 @@ const dashboardService = {
       const totalActivities = activities.length;
       const plannedActivities = activities.filter(a => a.status === 'planned').length;
       const executedActivities = activities.filter(a => a.status === 'executed').length;
-      const cancelledActivities = activities.filter(a => a.status === 'cancelled').length;
       const recentActivities = [...activities]
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         .slice(0, 5);
@@ -93,9 +106,10 @@ const dashboardService = {
 
       // Data for charts
       const activityStatusData = [
-        { status: 'Planned', count: plannedActivities, fill: 'hsl(var(--chart-2))' },
-        { status: 'Executed', count: executedActivities, fill: 'hsl(var(--chart-1))' },
-        { status: 'Cancelled', count: cancelledActivities, fill: 'hsl(var(--chart-5))' },
+        { status: 'Planned', count: activities.filter(a => a.status === 'planned').length, fill: 'hsl(var(--chart-2))' },
+        { status: 'In Progress', count: activities.filter(a => a.status === 'in_progress').length, fill: 'hsl(var(--chart-3))' },
+        { status: 'Executed', count: activities.filter(a => a.status === 'executed').length, fill: 'hsl(var(--chart-1))' },
+        { status: 'Delayed', count: activities.filter(a => a.status === 'delayed').length, fill: 'hsl(var(--chart-4))' },
       ];
 
       const memberTypeData = [
@@ -107,7 +121,6 @@ const dashboardService = {
         totalActivities,
         plannedActivities,
         executedActivities,
-        cancelledActivities,
         totalMembers,
         studentMembers,
         nonStudentMembers,
@@ -124,7 +137,8 @@ const dashboardService = {
 
       return { success: true, data: stats };
     } catch (error) {
-
+      const e = error instanceof Error ? error : new Error('An unknown error occurred');
+      console.error('[DashboardService] Unexpected error in getDashboardStats:', e.message);
       return { success: false, error: { message: 'Failed to fetch dashboard stats' } };
     }
   },

@@ -4,10 +4,11 @@
 import React from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/shared/PageHeader';
-import { SmallGroupForm, type SmallGroupFormData } from '@/app/dashboard/sites/components/SmallGroupForm';
+import { SmallGroupForm } from '@/app/dashboard/sites/components/SmallGroupForm';
+import type { SmallGroupFormData, SmallGroup } from '@/lib/types';
 import { RoleBasedGuard } from '@/components/shared/RoleBasedGuard';
 import { ROLES } from '@/lib/constants';
-import { smallGroupService } from '@/services/smallGroupService';
+import smallGroupService from '@/services/smallGroupService';
 import { useToast } from '@/hooks/use-toast';
 import { Users as UsersIcon, PlusCircle } from 'lucide-react';
 
@@ -19,7 +20,7 @@ export default function NewSmallGroupPage() {
 
   const handleCreateSmallGroup = async (data: SmallGroupFormData) => {
     try {
-      const result = await smallGroupService.createSmallGroup(siteId, data);
+      const result: { success: boolean; data?: SmallGroup; error?: any } = await smallGroupService.createSmallGroup(siteId, data);
       if (result.success && result.data) {
         toast({
           title: 'Small Group Created!',
@@ -30,6 +31,7 @@ export default function NewSmallGroupPage() {
         throw new Error(result.error?.message || 'Failed to create small group');
       }
     } catch (error) {
+      console.error("Erreur détaillée lors de la création du groupe:", error);
 
       toast({
         title: 'Error',

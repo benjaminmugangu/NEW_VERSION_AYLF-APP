@@ -56,6 +56,7 @@ export default function SignUpPage() {
         setConfirmPassword('');
       }
     } catch (error) {
+      console.error("Erreur détaillée lors de l'inscription:", error);
       setError('Failed to connect to the server. Please try again later.');
     }
 

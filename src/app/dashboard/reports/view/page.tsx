@@ -10,10 +10,9 @@ import { ROLES } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileSearch, Search, LayoutGrid, List, Building, Users as UsersIconLucide, Globe, ThumbsUp, ThumbsDown, MessageSquare, AlertTriangle, UserCheck } from "lucide-react";
+import { FileSearch, Search, LayoutGrid, List, Building, Users as UsersIconLucide, Globe, ThumbsUp, ThumbsDown, MessageSquare, AlertTriangle, UserCheck, Calendar, Send, User, Bookmark, DollarSign, Users } from "lucide-react";
 import type { ReportStatus, ReportWithDetails } from "@/lib/types";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,14 +21,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { DateRangeFilter } from "@/components/shared/DateRangeFilter";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { ReportsPageSkeleton } from "@/components/shared/skeletons/ReportsPageSkeleton";
 import { useReports } from "@/hooks/useReports";
 
-
-
 export default function ViewReportsPage() {
-  const { currentUser } = useAuth(); // Retained for role-based action visibility
+  const { currentUser } = useAuth();
   const {
     reports,
     isLoading,
@@ -62,11 +58,10 @@ export default function ViewReportsPage() {
       case "approved": return { variant: "success", icon: UserCheck, label: "Approved" } as const;
       case "rejected": return { variant: "destructive", icon: ThumbsDown, label: "Rejected" } as const;
       case "pending":
+      case "submitted":
       default: return { variant: "secondary", icon: MessageSquare, label: "Pending" } as const;
     }
   };
-
-  
 
   const renderContent = () => {
     if (isLoading) {
@@ -101,14 +96,27 @@ export default function ViewReportsPage() {
         description={pageDescription}
         icon={FileSearch}
       />
-      <Card className="shadow-lg">
+
+      <Card>
         <CardHeader>
-          <CardTitle>Report Explorer</CardTitle>
-          <CardDescription>Filter and search for reports. Toggle between table and grid view.</CardDescription>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <CardTitle>Reports</CardTitle>
+              <CardDescription>Browse and manage all submitted reports.</CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant={view.viewMode === 'grid' ? 'default' : 'outline'} size="icon" onClick={() => actions.setViewMode('grid')}>
+                <LayoutGrid className="h-4 w-4"/>
+              </Button>
+              <Button variant={view.viewMode === 'table' ? 'default' : 'outline'} size="icon" onClick={() => actions.setViewMode('table')} className="hidden sm:flex">
+                <List className="h-4 w-4"/>
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
-            <div className="relative w-full md:flex-grow">
+          <div className="space-y-4">
+            <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input
                 placeholder="Search by title, author, context..."
@@ -117,90 +125,110 @@ export default function ViewReportsPage() {
                 className="pl-10 w-full"
               />
             </div>
-            <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
-              <DateRangeFilter onFilterChange={actions.setDateFilter} initialRangeKey={filters.dateFilter.rangeKey} />
-              <Select value={filters.statusFilter} onValueChange={(value) => actions.setStatusFilter(value as ReportStatus | "all")}>
-                <SelectTrigger className="w-full sm:w-[150px]">
-                  <SelectValue placeholder="Filter by status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="approved">Approved</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
-                </SelectContent>
-              </Select>
-              {!view.isMobile && (
-                <div className="flex items-center gap-1 rounded-md bg-muted p-1">
-                  <Button variant={view.viewMode === 'table' ? 'secondary' : 'ghost'} size="icon" onClick={() => actions.setViewMode('table')} className="h-8 w-8">
-                    <List className="h-5 w-5" />
-                  </Button>
-                  <Button variant={view.viewMode === 'grid' ? 'secondary' : 'ghost'} size="icon" onClick={() => actions.setViewMode('grid')} className="h-8 w-8">
-                    <LayoutGrid className="h-5 w-5" />
-                  </Button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm font-medium mb-2">Status</p>
+                <div className="flex flex-wrap gap-2">
+                  {(['pending', 'submitted', 'approved', 'rejected'] as ReportStatus[]).map(status => (
+                    <Button
+                      key={status}
+                      variant={filters.statusFilter[status] ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => actions.setStatusFilter(prev => ({ ...prev, [status]: !prev[status] }))}
+                      className="capitalize text-xs h-8"
+                    >
+                      {status}
+                    </Button>
+                  ))}
                 </div>
-              )}
+              </div>
+              <div>
+                <p className="text-sm font-medium mb-2">Date Range</p>
+                <DateRangeFilter 
+                  onFilterChange={actions.setDateFilter} 
+                  initialRangeKey={filters.dateFilter.rangeKey}
+                />
+              </div>
             </div>
           </div>
-          {renderContent()}
         </CardContent>
       </Card>
+
+      <div className="mt-6">
+        {renderContent()}
+      </div>
 
       {modal.selectedReport && (
         <Dialog open={modal.isModalOpen} onOpenChange={(isOpen) => { if (!isOpen) actions.closeModal(); }}>
           <DialogContent className="max-w-4xl w-full h-[90vh] flex flex-col p-0">
-            <DialogHeader className="p-6 pb-0">
-              <DialogTitle className="text-2xl font-bold flex items-center gap-3">
-                {React.createElement(getLevelIcon(modal.selectedReport.level), { className: "h-6 w-6 text-primary" })}
-                {modal.selectedReport.title}
-              </DialogTitle>
-              <DialogDescription asChild>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground pt-2">
-                  <span>By: <span className="font-medium text-foreground">{modal.selectedReport.submittedByUser?.name || 'N/A'}</span></span>
-                  <Separator orientation="vertical" className="h-4"/>
-                  <span>On: <span className="font-medium text-foreground">{format(new Date(modal.selectedReport.submissionDate), "PPP")}</span></span>
-                  <Separator orientation="vertical" className="h-4"/>
-                  <Badge variant={getStatusBadgeInfo(modal.selectedReport.status).variant} className="flex items-center gap-1.5">
-                    {React.createElement(getStatusBadgeInfo(modal.selectedReport.status).icon, { className: "h-3.5 w-3.5" })}
-                    {getStatusBadgeInfo(modal.selectedReport.status).label}
-                  </Badge>
-                </div>
-              </DialogDescription>
-            </DialogHeader>
-            <ScrollArea className="flex-grow px-6">
-              <div className="space-y-6 py-6">
+            <ScrollArea className="flex-grow">
+              <div className="p-6 space-y-6">
+                <DialogHeader>
+                  <DialogTitle className="text-2xl font-bold">{modal.selectedReport.title}</DialogTitle>
+                  <DialogDescription>
+                    {getReportContextName(modal.selectedReport)}
+                  </DialogDescription>
+                </DialogHeader>
+
                 {modal.selectedReport.reviewNotes && (
-                  <div className="p-4 rounded-lg bg-yellow-50 border border-yellow-200 text-yellow-800">
-                    <h4 className="font-semibold flex items-center"><AlertTriangle className="h-4 w-4 mr-2"/> Rejection Notes</h4>
-                    <p className="mt-1 text-sm">{modal.selectedReport.reviewNotes}</p>
+                  <div className="p-3 rounded-md bg-destructive/10 border border-destructive/30">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5"/>
+                      <div>
+                        <h4 className="font-semibold text-destructive">Rejection Notes</h4>
+                        <p className="text-sm text-destructive/80 whitespace-pre-wrap">{modal.selectedReport.reviewNotes}</p>
+                      </div>
+                    </div>
                   </div>
                 )}
-                
-                <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                  <dt className="text-muted-foreground">Context</dt>
-                  <dd className="font-medium">{getReportContextName(modal.selectedReport)}</dd>
-                  <dt className="text-muted-foreground">Activity Date</dt>
-                  <dd className="font-medium">{format(new Date(modal.selectedReport.activityDate), "PPP")}</dd>
-                  <dt className="text-muted-foreground">Activity Type</dt>
-                  <dd className="font-medium">{modal.selectedReport.activityType?.name || 'N/A'}</dd>
-                  <dt className="text-muted-foreground">Thematic Area</dt>
-                  <dd className="font-medium">{modal.selectedReport.thematic}</dd>
-                  {modal.selectedReport.speaker && <><dt className="text-muted-foreground">Speaker</dt><dd className="font-medium">{modal.selectedReport.speaker}</dd></>}
-                  {modal.selectedReport.moderator && <><dt className="text-muted-foreground">Moderator</dt><dd className="font-medium">{modal.selectedReport.moderator}</dd></>}
-                </dl>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-semibold text-lg mb-2">Activity Details</h4>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between"><span className="font-medium text-muted-foreground">Type:</span> <span>{modal.selectedReport.activityTypeName || 'N/A'}</span></div>
+                        <div className="flex justify-between"><span className="font-medium text-muted-foreground">Date:</span> <span>{format(new Date(modal.selectedReport.activityDate), 'PPP')}</span></div>
+                        <div className="flex justify-between"><span className="font-medium text-muted-foreground">Status:</span> <Badge variant={getStatusBadgeInfo(modal.selectedReport.status).variant}>{getStatusBadgeInfo(modal.selectedReport.status).label}</Badge></div>
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-lg mb-2">Author</h4>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                          <User className="w-6 h-6 text-muted-foreground"/>
+                        </div>
+                        <div>
+                          <p className="font-semibold">{modal.selectedReport.submittedByUser?.name || modal.selectedReport.submittedByName || 'N/A'}</p>
+                          <p className="text-sm text-muted-foreground">{modal.selectedReport.submittedByUser?.email || 'N/A'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-semibold text-lg mb-2">Attendance</h4>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between"><span className="font-medium text-muted-foreground">Girls:</span> <span>{modal.selectedReport.girlsCount ?? 'N/A'}</span></div>
+                        <div className="flex justify-between"><span className="font-medium text-muted-foreground">Boys:</span> <span>{modal.selectedReport.boysCount ?? 'N/A'}</span></div>
+                        <div className="flex justify-between border-t pt-2 mt-2"><span className="font-bold">Total Reported:</span> <span className="font-bold">{modal.selectedReport.participantsCountReported ?? 'N/A'}</span></div>
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-lg mb-2">Financials</h4>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between"><span className="font-medium text-muted-foreground">Total Expenses:</span> <span>{(modal.selectedReport.totalExpenses ?? 0).toLocaleString()} {modal.selectedReport.currency || ''}</span></div>
+                        {modal.selectedReport.financialSummary && <div className="pt-2"><p className="text-sm text-muted-foreground whitespace-pre-wrap">{modal.selectedReport.financialSummary}</p></div>}
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
                 <div>
-                  <h4 className="font-semibold text-lg mb-2">Content</h4>
-                  <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: modal.selectedReport.content }} />
+                  <h4 className="font-semibold text-lg mb-2">Report Content</h4>
+                  <div className="prose prose-sm max-w-none p-3 border rounded-md bg-muted/50" dangerouslySetInnerHTML={{ __html: modal.selectedReport.content || "<p>No content provided.</p>" }} />
                 </div>
-
-                {modal.selectedReport.expenses !== undefined && modal.selectedReport.expenses > 0 && (
-                   <div>
-                    <h4 className="font-semibold text-lg mb-2">Financial Summary</h4>
-                    <p className="text-sm">Total expenses: <span className="font-bold text-base">{new Intl.NumberFormat('en-US', { style: 'currency', currency: modal.selectedReport.currency || 'USD' }).format(modal.selectedReport.expenses)}</span></p>
-                    {modal.selectedReport.financialSummary && <div className="prose prose-sm max-w-none mt-2" dangerouslySetInnerHTML={{ __html: modal.selectedReport.financialSummary }} />} 
-                  </div>
-                )}
 
                 {modal.selectedReport.images && modal.selectedReport.images.length > 0 && (
                   <div>
@@ -208,7 +236,7 @@ export default function ViewReportsPage() {
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                       {modal.selectedReport.images.map((image, index) => (
                         <div key={index} className="relative aspect-video rounded-lg overflow-hidden border group shadow-sm">
-                          <Image src={image.url} alt={image.name} layout="fill" objectFit="cover" className="group-hover:scale-105 transition-transform duration-300"/>
+                          <Image src={image.url} alt={image.name} fill style={{objectFit: 'cover'}} className="group-hover:scale-105 transition-transform duration-300"/>
                           <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                               <a href={image.url} target="_blank" rel="noopener noreferrer" className="text-white text-xs bg-black/70 px-2 py-1 rounded-sm hover:bg-black/90">View Full Image</a>
                           </div>

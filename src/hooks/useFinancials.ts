@@ -1,8 +1,9 @@
 // src/hooks/useFinancials.ts
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from './useAuth';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 import { financialsService } from '@/services/financialsService';
 import type { Financials } from '@/lib/types';
 import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
@@ -26,41 +27,38 @@ const defaultDateFilter: DateFilterValue = {
 
 export const useFinancials = (initialDateFilter?: DateFilterValue) => {
   const { currentUser: user } = useAuth();
-
-  const [financials, setFinancials] = useState<Financials>(defaultFinancials);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState<DateFilterValue>(initialDateFilter || defaultDateFilter);
 
-  const fetchFinancials = useCallback(async (filter: DateFilterValue) => {
-    if (!user) {
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    const response = await financialsService.getFinancials(user, filter);
-
-    if (response.success && response.data) {
-      setFinancials(response.data);
-    } else {
-      setError(response.error?.message || 'An unknown error occurred while fetching financial data.');
-      setFinancials(defaultFinancials);
-    }
-    setIsLoading(false);
-  }, [user]);
-
-  useEffect(() => {
-    fetchFinancials(dateFilter);
-  }, [fetchFinancials, dateFilter]);
+  const { 
+    data: financials,
+    isLoading,
+    isError,
+    error,
+    refetch 
+  } = useQuery<Financials, Error>({
+    queryKey: ['financials', user?.id, dateFilter],
+    queryFn: async () => {
+      if (!user) {
+        // This should not happen if `enabled` is set correctly, but as a safeguard:
+        return defaultFinancials;
+      }
+      const response = await financialsService.getFinancials(user, dateFilter);
+      if (response.success && response.data) {
+        return response.data;
+      }
+      // Throw an error that react-query will catch
+      throw new Error(response.error?.message || 'An unknown error occurred while fetching financial data.');
+    },
+    enabled: !!user, // Only run the query if the user is logged in
+    placeholderData: defaultFinancials, // Provide default data while loading
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
   return {
-    stats: financials,
+    stats: financials || defaultFinancials,
     isLoading,
-    error,
-    refetch: () => fetchFinancials(dateFilter),
+    error: isError ? error.message : null,
+    refetch,
     dateFilter,
     setDateFilter,
     currentUser: user,

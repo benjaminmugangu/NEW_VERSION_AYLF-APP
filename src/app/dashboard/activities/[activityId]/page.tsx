@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 export default function ActivityDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const activityId = params.activityId as string;
+  const id = params.id as string;
 
   const [activity, setActivity] = React.useState<Activity | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -25,17 +25,14 @@ export default function ActivityDetailPage() {
 
   React.useEffect(() => {
     const fetchActivity = async () => {
-      if (!activityId) return;
+      if (!id) return;
       setLoading(true);
+      setError(null);
       try {
-        const result = await activityService.getActivityById(activityId);
-        if (result.success && result.data) {
-          setActivity(result.data);
-        } else {
-          setError(result.error?.message || "Failed to fetch activity details.");
-        }
-      } catch (err) {
-        setError("An unexpected error occurred.");
+        const activityData = await activityService.getActivityById(id);
+        setActivity(activityData);
+      } catch (err: any) {
+        setError(err.message || "An unexpected error occurred.");
         console.error(err);
       } finally {
         setLoading(false);
@@ -43,7 +40,7 @@ export default function ActivityDetailPage() {
     };
 
     fetchActivity();
-  }, [activityId]);
+  }, [id]);
 
   if (loading) {
     return (
@@ -84,19 +81,21 @@ export default function ActivityDetailPage() {
   const getStatusIcon = (status: Activity["status"]) => {
     switch (status) {
       case "executed": return <CheckCircle className="h-5 w-5 text-green-500" />;
-      case "planned": return <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />;
-      case "cancelled": return <XCircle className="h-5 w-5 text-red-500" />;
+      case "planned": return <CalendarDays className="h-5 w-5 text-blue-500" />;
+      case "in_progress": return <Loader2 className="h-5 w-5 text-yellow-500 animate-spin" />;
+      case "delayed": return <Info className="h-5 w-5 text-orange-500" />;
       default: return <Info className="h-5 w-5 text-gray-500" />;
     }
   };
   
   const getStatusBadgeVariant = (status: Activity["status"]) => {
-    switch (status) {
-      case "executed": return "default"; 
-      case "planned": return "secondary"; 
-      case "cancelled": return "destructive"; 
-      default: return "outline";
-    }
+    const variants: Partial<Record<Activity["status"], "success" | "default" | "secondary" | "outline">> = {
+      executed: "success",
+      planned: "default",
+      in_progress: "secondary",
+      delayed: "outline",
+    };
+    return variants[status] || "default";
   };
 
   const getLevelBadgeColor = (level: Activity["level"]) => {
@@ -115,7 +114,7 @@ export default function ActivityDetailPage() {
         description={`Details for activity: ${activity.name}`}
         icon={Tag}
         actions={
-          <Link href={`/dashboard/activities/${activity.id}/edit`}>
+          <Link href={`/dashboard/activities/${id}/edit`}>
             <Button variant="outline"><Edit className="mr-2 h-4 w-4"/> Edit Activity</Button>
           </Link>
         }

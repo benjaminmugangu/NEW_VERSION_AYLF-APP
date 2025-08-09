@@ -5,7 +5,7 @@ import React from "react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
 import { ROLES } from "@/lib/constants";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/contexts/AuthContext";
 import { ProfileForm } from "./components/ProfileForm";
 import { Card, CardContent } from "@/components/ui/card";
 import { UserCircle } from "lucide-react";

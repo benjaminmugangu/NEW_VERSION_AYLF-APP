@@ -1,15 +1,15 @@
 // src/components/shared/RoleBasedGuard.tsx
 "use client";
 
-import { useAuth } from "@/hooks/useAuth";
-import type { Role } from "@/lib/types";
+import { useAuth } from "@/contexts/AuthContext";
+import type { UserRole } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import React, { useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button"; // Added import for Button
 
 interface RoleBasedGuardProps {
-  allowedRoles: Role[];
+  allowedRoles: UserRole[];
   children: React.ReactNode;
   fallbackPath?: string; // Path to redirect if role not allowed
   showForbiddenMessage?: boolean; // Whether to show a message or just redirect
@@ -18,7 +18,7 @@ interface RoleBasedGuardProps {
 export function RoleBasedGuard({
   allowedRoles,
   children,
-  fallbackPath = "/dashboard", // Default to dashboard, can be /login if preferred
+  fallbackPath = "/dashboard",
   showForbiddenMessage = true,
 }: RoleBasedGuardProps) {
   const { currentUser, isLoading } = useAuth();

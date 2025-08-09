@@ -19,29 +19,34 @@ import { applyDateFilter, type DateFilterValue } from '@/components/shared/DateR
  * A centralized function to fetch and calculate financial statistics based on user context and date filters.
  */
 const getFinancials = async (user: User, dateFilter: DateFilterValue): Promise<ServiceResponse<Financials>> => {
-  const roleBasedFilter = {
-    siteId: user.role === ROLES.SITE_COORDINATOR ? user.siteId : undefined,
-    smallGroupId: user.role === ROLES.SMALL_GROUP_LEADER ? user.smallGroupId : undefined,
-  };
-
-  const transactionFilters: TransactionFilters = {
-    user: user,
-    dateFilter: dateFilter
-  };
-
   try {
-    // Note: Transactions are filtered by date in the service, others are filtered here.
+    // 1. Define filters based on user role
+    const transactionFilters: TransactionFilters = { user, dateFilter };
+    const reportFilters = { user, dateFilter };
+    let allocationFilters: { siteId?: string; smallGroupId?: string } = {};
+
+    switch (user.role) {
+      case ROLES.SITE_COORDINATOR:
+        allocationFilters = { siteId: user.siteId ?? undefined };
+        break;
+      case ROLES.SMALL_GROUP_LEADER:
+        allocationFilters = { smallGroupId: user.smallGroupId ?? undefined };
+        break;
+      // NATIONAL_COORDINATOR sees all, so no specific filter needed
+    }
+
+    // 2. Fetch all data concurrently with the correct filters
     const [transactionsRes, allocationsRes, reportsRes] = await Promise.all([
       transactionService.getFilteredTransactions(transactionFilters),
-      allocationService.getAllocations(roleBasedFilter),
-      reportService.getFilteredReports({ user }),
+      allocationService.getAllocations(allocationFilters),
+      reportService.getFilteredReports(reportFilters),
     ]);
 
     if (!transactionsRes.success || !allocationsRes.success || !reportsRes.success) {
-      console.error('Failed to fetch one or more financial resources:', {
-        transactionsError: transactionsRes.error,
-        allocationsError: allocationsRes.error,
-        reportsError: reportsRes.error,
+      console.error('[FinancialsService] Failed to fetch one or more financial resources:', {
+        transactionsError: transactionsRes.error?.message,
+        allocationsError: allocationsRes.error?.message,
+        reportsError: reportsRes.error?.message,
       });
       return { success: false, error: { message: 'Could not fetch all financial data.' } };
     }
@@ -80,7 +85,7 @@ const getFinancials = async (user: User, dateFilter: DateFilterValue): Promise<S
     return { success: true, data };
 
   } catch (error: any) {
-    console.error('Error in getFinancials:', error);
+    console.error('[FinancialsService] Unexpected error in getFinancials:', error.message);
     return { success: false, error: { message: error.message || 'An unexpected error occurred.' } };
   }
 };

@@ -32,8 +32,10 @@ export default function SmallGroupsPage() {
   const {
     smallGroups,
     isLoading,
+    isError,
     error,
     deleteSmallGroup,
+    isDeleting,
     searchTerm,
     setSearchTerm,
     canCreateSmallGroup,
@@ -42,17 +44,19 @@ export default function SmallGroupsPage() {
   const { toast } = useToast();
   const [groupToDelete, setGroupToDelete] = useState<SmallGroupWithDetails | null>(null);
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!groupToDelete) return;
-    const result = await deleteSmallGroup(groupToDelete.id);
-    if (result.success) {
-      toast({ title: 'Success', description: `Small group "${groupToDelete.name}" deleted.` });
-    } else {
-      const error = result.error as { message: string } | undefined;
-      const description = error?.message || 'An unknown error occurred.';
-      toast({ title: 'Error', description, variant: 'destructive' });
-    }
-    setGroupToDelete(null);
+
+    deleteSmallGroup(groupToDelete.id, {
+      onSuccess: () => {
+        toast({ title: 'Success', description: `Small group "${groupToDelete.name}" has been permanently deleted.` });
+        setGroupToDelete(null);
+      },
+      onError: (error) => {
+        toast({ title: 'Error Deleting Group', description: error.message, variant: 'destructive' });
+        setGroupToDelete(null);
+      },
+    });
   };
 
   const analytics = useMemo(() => {
@@ -68,9 +72,13 @@ export default function SmallGroupsPage() {
     };
   }, [smallGroups, isLoading]);
 
-    if (error) {
-    const description = typeof error === 'string' ? error : (error as { message: string }).message;
-    toast({ title: 'Error', description: description, variant: 'destructive' });
+  if (isError) {
+    return (
+      <div className="text-red-500 p-4 border border-red-500 rounded-md bg-red-50">
+        <h2 className="text-lg font-bold">Failed to load small groups</h2>
+        <p>{error?.message || 'An unknown error occurred.'}</p>
+      </div>
+    );
   }
 
   return (
@@ -201,14 +209,16 @@ export default function SmallGroupsPage() {
       <AlertDialog open={!!groupToDelete} onOpenChange={() => setGroupToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action will archive the small group <strong>{groupToDelete?.name}</strong>. It will be hidden from the list but can be recovered later by an administrator.
+              This action is permanent and cannot be undone. This will permanently delete the small group <strong>{groupToDelete?.name}</strong> and unassign all its members.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Archive</AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
+              {isDeleting ? 'Deleting...' : 'Delete Permanently'}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

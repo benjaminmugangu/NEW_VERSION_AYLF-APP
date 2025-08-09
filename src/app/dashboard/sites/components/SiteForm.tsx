@@ -14,22 +14,32 @@ import { Building, Save } from "lucide-react";
 
 const siteFormSchema = z.object({
   name: z.string().min(3, "Site name must be at least 3 characters."),
-  coordinatorId: z.string().min(3, "Coordinator name must be at least 3 characters.").optional().or(z.literal("")), // Store name, optional or empty
+  city: z.string().min(2, "City must be at least 2 characters."),
+  country: z.string().min(2, "Country must be at least 2 characters."),
+  creationDate: z.string().refine((date) => !isNaN(Date.parse(date)), { message: "Invalid date format." }),
+  coordinatorId: z.string().optional().or(z.literal("")),
 });
 
 interface SiteFormProps {
   site?: Site; // For editing
   onSubmitForm: (data: SiteFormData) => Promise<void>;
+  isSubmitting?: boolean;
 }
 
-export function SiteForm({ site, onSubmitForm }: SiteFormProps) {
-  const { handleSubmit, register, formState: { errors, isSubmitting }, reset } = useForm<SiteFormData>({
+export function SiteForm({ site, onSubmitForm, isSubmitting: isParentSubmitting }: SiteFormProps) {
+    const { handleSubmit, register, formState: { errors, isSubmitting: isFormSubmitting }, reset } = useForm<SiteFormData>({
     resolver: zodResolver(siteFormSchema),
     defaultValues: site ? {
       name: site.name,
-      coordinatorId: site.coordinatorId || "", // site.coordinatorId is now a name
+      city: site.city,
+      country: site.country,
+      creationDate: site.creationDate.split('T')[0], // Format for date input
+      coordinatorId: site.coordinatorId || "",
     } : {
       name: "",
+      city: "",
+      country: "",
+      creationDate: new Date().toISOString().split('T')[0],
       coordinatorId: "",
     },
   });
@@ -42,7 +52,13 @@ export function SiteForm({ site, onSubmitForm }: SiteFormProps) {
     };
     await onSubmitForm(dataToSubmit);
     if (!site) {
-      reset({ name: "", coordinatorId: "" }); // Reset form only if creating
+      reset({
+        name: "",
+        city: "",
+        country: "",
+        creationDate: new Date().toISOString().split('T')[0],
+        coordinatorId: "",
+      }); // Reset form only if creating
     }
   };
 
@@ -59,10 +75,30 @@ export function SiteForm({ site, onSubmitForm }: SiteFormProps) {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(processSubmit)} className="space-y-6">
-          <div>
-            <Label htmlFor="name">Site Name</Label>
-            <Input id="name" {...register("name")} placeholder="e.g., Goma Site" className="mt-1" />
-            {errors.name && <p className="text-sm text-destructive mt-1">{errors.name.message}</p>}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <Label htmlFor="name">Site Name</Label>
+              <Input id="name" {...register("name")} placeholder="e.g., Goma Site" className="mt-1" />
+              {errors.name && <p className="text-sm text-destructive mt-1">{errors.name.message}</p>}
+            </div>
+            <div>
+              <Label htmlFor="creationDate">Creation Date</Label>
+              <Input id="creationDate" type="date" {...register("creationDate")} className="mt-1" />
+              {errors.creationDate && <p className="text-sm text-destructive mt-1">{errors.creationDate.message}</p>}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <Label htmlFor="city">City</Label>
+              <Input id="city" {...register("city")} placeholder="e.g., Goma" className="mt-1" />
+              {errors.city && <p className="text-sm text-destructive mt-1">{errors.city.message}</p>}
+            </div>
+            <div>
+              <Label htmlFor="country">Country</Label>
+              <Input id="country" {...register("country")} placeholder="e.g., DRC" className="mt-1" />
+              {errors.country && <p className="text-sm text-destructive mt-1">{errors.country.message}</p>}
+            </div>
           </div>
 
           <div>
@@ -79,9 +115,9 @@ export function SiteForm({ site, onSubmitForm }: SiteFormProps) {
             </p>
           </div>
 
-          <Button type="submit" className="w-full py-3 text-base" disabled={isSubmitting}>
+                    <Button type="submit" className="w-full py-3 text-base" disabled={isParentSubmitting || isFormSubmitting}>
             <Save className="mr-2 h-5 w-5" />
-            {isSubmitting ? "Saving..." : (site ? "Save Changes" : "Add Site")}
+                        {(isParentSubmitting || isFormSubmitting) ? "Saving..." : (site ? "Save Changes" : "Add Site")}
           </Button>
         </form>
       </CardContent>

@@ -1,60 +1,135 @@
 // src/app/dashboard/financials/page.tsx
 'use client';
 
-import React from 'react';
-import { useFinancials } from '@/hooks/useFinancials';
-import { StatCard } from '@/components/shared/StatCard';
-import { Button } from '@/components/ui/button';
+import React, { useState } from 'react';
+import { useFinancials } from "@/hooks/useFinancials";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { StatCard, StatCardProps } from "@/components/shared/StatCard";
+import { formatCurrency, formatDate } from '@/lib/utils';
+import { PageHeader } from '@/components/shared/PageHeader';
+import { DateRangeFilter, type DateFilterValue } from '@/components/shared/DateRangeFilter';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { DashboardSkeleton } from '@/components/shared/skeletons/DashboardSkeleton';
+import { transactionService } from '@/services/transactionService';
+import { useToast } from '@/hooks/use-toast';
+import { ROLES } from '@/lib/constants';
 import { PlusCircle } from 'lucide-react';
-import Link from 'next/link';
-import { formatCurrency } from '@/lib/utils';
+import { DollarSign, TrendingUp, TrendingDown, Landmark } from 'lucide-react';
 import { RecentTransactionsTable } from '@/components/financials/RecentTransactionsTable';
 
 const FinancialsPage = () => {
-  const { stats: financials, isLoading, error } = useFinancials();
+  const [dateFilter, setDateFilter] = useState<DateFilterValue>({ rangeKey: 'all_time', display: 'All Time' });
+  const { stats: financials, isLoading, error, currentUser } = useFinancials(dateFilter);
 
-  if (isLoading) {
-    return <div>Loading financial data...</div>;
-  }
+  if (isLoading) return <DashboardSkeleton />;
+  if (error) return <div className="text-red-500">Error: {error}</div>;
+  if (!financials) return <div>No financial data available.</div>;
 
-  if (error) {
-    return <div className="text-red-500">Error: {error}</div>;
-  }
+  const actualBalance = financials.income - (financials.expenses + financials.totalAllocated);
 
-  if (!financials) {
-    return <div>No financial data available.</div>;
-  }
+  const incomeVsExpenseData = [
+    { name: 'Financials', income: financials.income, expenses: financials.expenses },
+  ];
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Financials Dashboard</h1>
-        <div className="flex space-x-2">
-          <Link href="/dashboard/financials/transactions/new">
-            <Button>
-              <PlusCircle className="mr-2 h-4 w-4" /> Add Transaction
-            </Button>
-          </Link>
-          <Link href="/dashboard/financials/allocations/new">
-            <Button variant="secondary">
-              <PlusCircle className="mr-2 h-4 w-4" /> Add Allocation
-            </Button>
-          </Link>
-        </div>
+      <PageHeader 
+        title="Financials Dashboard"
+        description="An overview of your entity's financial health."
+        actions={<DateRangeFilter onFilterChange={setDateFilter} />}
+      />
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard title="Solde Actuel" value={formatCurrency(actualBalance)} type="balance" />
+        <StatCard title="Fonds Reçus" value={formatCurrency(financials.income)} type="income" href="/dashboard/financials/transactions?type=income" />
+        <StatCard title="Dépenses via Rapports" value={formatCurrency(financials.totalSpent)} type="expense" href="/dashboard/financials/reports" />
+        <StatCard title="Fonds Réalloués" value={formatCurrency(financials.totalAllocated)} type="neutral" href="/dashboard/financials/allocations" />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <StatCard title="Total Income" value={formatCurrency(financials.income)} />
-        <StatCard title="Total Expenses" value={formatCurrency(financials.expenses)} />
-        <StatCard title="Net Balance" value={formatCurrency(financials.netBalance)} />
-        <StatCard title="Total Allocated" value={formatCurrency(financials.totalAllocated)} />
-        <StatCard title="Total Spent (Reports)" value={formatCurrency(financials.totalSpent)} />
-        <StatCard title="Allocation Balance" value={formatCurrency(financials.allocationBalance)} />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Income vs. Expenses</CardTitle>
+            <CardDescription>A summary of total income and direct expenses for the selected period.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={incomeVsExpenseData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis tickFormatter={(value) => formatCurrency(value as number)} />
+                <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }} formatter={(value) => formatCurrency(value as number)} />
+                <Legend />
+                <Bar dataKey="income" fill="hsl(var(--chart-2))" name="Income" />
+                <Bar dataKey="expenses" fill="hsl(var(--chart-5))" name="Expenses" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Quick Actions</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col space-y-2">
+            <Button asChild>
+              <Link href="/dashboard/financials/transactions/new">Add Income/Expense</Link>
+            </Button>
+            <Button asChild variant="secondary">
+              <Link href="/dashboard/financials/allocations/new">Add Allocation</Link>
+            </Button>
+          </CardContent>
+        </Card>
       </div>
 
-      <div>
-        <h2 className="text-xl font-semibold mb-4">Recent Transactions</h2>
-        <RecentTransactionsTable transactions={financials.transactions} />
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Allocations</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {financials.allocations.length > 0 ? (
+              <ul className="space-y-3">
+                {financials.allocations.slice(0, 5).map(alloc => (
+                  <li key={alloc.id} className="flex justify-between items-center p-2 rounded-md hover:bg-muted">
+                    <div>
+                      <p className="font-medium">{alloc.siteName || alloc.smallGroupName}</p>
+                      <p className="text-sm text-muted-foreground">{formatDate(alloc.allocationDate)}</p>
+                    </div>
+                    <p className="font-bold text-lg">{formatCurrency(alloc.amount)}</p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-muted-foreground text-center py-4">No recent allocations.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Reports with Expenses</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {financials.reports.filter(r => (r.totalExpenses || 0) > 0).length > 0 ? (
+              <ul className="space-y-3">
+                {financials.reports.filter(r => (r.totalExpenses || 0) > 0).slice(0, 5).map(report => (
+                  <li key={report.id} className="flex justify-between items-center p-2 rounded-md hover:bg-muted">
+                    <div>
+                      <p className="font-medium truncate max-w-xs">{report.title}</p>
+                      <p className="text-sm text-muted-foreground">{formatDate(report.activityDate)}</p>
+                    </div>
+                    <p className="font-bold text-lg text-red-500">{formatCurrency(report.totalExpenses || 0)}</p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-muted-foreground text-center py-4">No recent reports with expenses.</p>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

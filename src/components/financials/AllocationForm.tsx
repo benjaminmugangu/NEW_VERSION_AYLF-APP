@@ -1,7 +1,7 @@
 // src/components/financials/AllocationForm.tsx (v2)
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -16,7 +16,7 @@ import { format } from 'date-fns';
 import type { FundAllocationFormData, Site, SmallGroup } from '@/lib/types';
 import { useSites } from '@/hooks/useSites';
 import { useSmallGroups } from '@/hooks/useSmallGroups';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { ROLES } from '@/lib/constants';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -42,14 +42,21 @@ interface AllocationFormProps {
   onSave: (data: FundAllocationFormData) => void;
   initialData?: Partial<FundAllocationFormData>;
   isSaving?: boolean;
+  sites?: { id: string; name: string }[];
+  smallGroups?: { id: string; name: string }[];
 }
 
-export const AllocationForm: React.FC<AllocationFormProps> = ({ onSave, initialData, isSaving = false }) => {
-  const { currentUser } = useAuth();
-  const { sites, isLoading: isLoadingSites } = useSites();
-  const { smallGroups, isLoading: isLoadingSmallGroups } = useSmallGroups();
+export const AllocationForm: React.FC<AllocationFormProps> = ({ onSave, initialData, isSaving = false, sites = [], smallGroups = [] }) => {
+  const [isClient, setIsClient] = useState(false);
 
-  const getInitialDestinationType = React.useCallback(() => {
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+  const { currentUser } = useAuth();
+
+
+    const getInitialDestinationType = React.useCallback(() => {
+    if (!isClient) return undefined; // Prevent server-side execution
     if (initialData?.siteId) return 'site';
     if (initialData?.smallGroupId) return 'small_group';
     if (currentUser?.role === ROLES.SITE_COORDINATOR) return 'small_group';
@@ -213,7 +220,7 @@ export const AllocationForm: React.FC<AllocationFormProps> = ({ onSave, initialD
             </div>
           )}
 
-          {destinationType === 'site' && currentUser?.role === ROLES.NATIONAL_COORDINATOR && (
+                    {isClient && destinationType === 'site' && currentUser?.role === ROLES.NATIONAL_COORDINATOR && (
              <FormField
                 control={form.control}
                 name="siteId"
@@ -238,7 +245,7 @@ export const AllocationForm: React.FC<AllocationFormProps> = ({ onSave, initialD
               />
           )}
 
-          {(destinationType === 'small_group' || currentUser?.role === ROLES.SITE_COORDINATOR) && (
+                    {isClient && (destinationType === 'small_group' || currentUser?.role === ROLES.SITE_COORDINATOR) && (
              <FormField
                 control={form.control}
                 name="smallGroupId"
@@ -252,6 +259,7 @@ export const AllocationForm: React.FC<AllocationFormProps> = ({ onSave, initialD
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
+                        {isErrorSmallGroups && <p className="p-2 text-sm text-red-500">Error: {errorSmallGroups?.message}</p>}
                         {smallGroups.map((group: SmallGroup) => (
                           <SelectItem key={group.id} value={group.id}>{group.name} ({group.siteName})</SelectItem>
                         ))}

@@ -9,25 +9,26 @@ import { Building, PlusCircle } from "lucide-react";
 import type { SiteFormData } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import siteService from '@/services/siteService'; 
+import { useSites } from '@/hooks/useSites';
 
 export default function NewSitePage() {
   const { toast } = useToast();
   const router = useRouter();
+  const { createSite, isCreating } = useSites();
 
   const handleCreateSite = async (data: SiteFormData) => {
-    const result = await siteService.createSite(data);
-
-    if (result.success && result.data) {
+    try {
+      await createSite(data);
       toast({
         title: "Site Created!",
-        description: `Site "${result.data.name}" has been successfully created.`,
+        description: `The site has been successfully created.`,
       });
       router.push("/dashboard/sites");
-    } else {
+    } catch (error) {
+      console.error("Erreur détaillée lors de la création du site:", error);
       toast({
         title: "Error Creating Site",
-        description: result.error?.message || "An unknown error occurred. Please try again.",
+        description: (error as Error).message || "An unknown error occurred. Please try again.",
         variant: "destructive",
       });
     }
@@ -40,7 +41,7 @@ export default function NewSitePage() {
         description="Establish a new operational site within AYLF."
         icon={PlusCircle}
       />
-      <SiteForm onSubmitForm={handleCreateSite} />
+      <SiteForm onSubmitForm={handleCreateSite} isSubmitting={isCreating} />
     </RoleBasedGuard>
   );
 }

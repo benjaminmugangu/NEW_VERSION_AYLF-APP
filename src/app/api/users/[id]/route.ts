@@ -49,6 +49,7 @@ export async function DELETE(
     return NextResponse.json({ message: 'User archived successfully' }, { status: 200 });
 
   } catch (error) {
+    console.error("Erreur détaillée dans l'API utilisateur (DELETE):", error);
     console.error('Internal server error:', error);
     return NextResponse.json({ error: 'An unexpected error occurred.' }, { status: 500 });
   }

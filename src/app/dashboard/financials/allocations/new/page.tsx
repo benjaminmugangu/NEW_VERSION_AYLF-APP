@@ -1,22 +1,51 @@
 // src/app/dashboard/financials/allocations/new/page.tsx
 'use client';
 
-import React, { useState } from 'react';
-import { AllocationForm } from '../../../../../components/financials/AllocationForm';
+// src/app/dashboard/financials/allocations/new/page.tsx
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { AllocationForm } from '@/components/financials/AllocationForm';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { allocationService } from '@/services/allocations.service';
+import { siteService } from '@/services/siteService';
+import smallGroupService from '@/services/smallGroupService';
 import { useRouter } from 'next/navigation';
-import type { FundAllocationFormData } from '@/lib/types';
+import type { FundAllocationFormData, Site, SmallGroup } from '@/lib/types';
 
 const NewAllocationPage = () => {
   const { currentUser } = useAuth();
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
+  const [sites, setSites] = useState<Site[]>([]);
+  const [smallGroups, setSmallGroups] = useState<SmallGroup[]>([]);
 
-    const handleSave = async (data: Partial<FundAllocationFormData>) => {
+  useEffect(() => {
+    const fetchData = async () => {
+      if (currentUser) {
+        try {
+          const sitesRes = await siteService.getSitesWithDetails(currentUser);
+          const smallGroupsRes = await smallGroupService.getFilteredSmallGroups({ user: currentUser });
+
+          if (sitesRes.success) {
+            setSites(sitesRes.data || []);
+          }
+          if (smallGroupsRes.success) {
+            setSmallGroups(smallGroupsRes.data || []);
+          }
+        } catch (error) {
+          alert('Failed to load sites and small groups.');
+          console.error(error);
+        }
+      }
+    };
+    fetchData();
+  }, [currentUser]);
+
+    const handleSave = async (data: FundAllocationFormData) => {
     if (!currentUser) {
       alert('You must be logged in to create an allocation.');
       return;
@@ -24,25 +53,17 @@ const NewAllocationPage = () => {
 
     setIsSaving(true);
 
-    if (typeof data.amount !== 'number' || !data.allocationDate || !data.goal || !data.source) {
-        alert('Please fill all required fields.');
-        setIsSaving(false);
-        return;
-    }
+
 
     const fullData: FundAllocationFormData = {
       ...data,
-      amount: data.amount,
-      allocationDate: data.allocationDate,
-      goal: data.goal,
-      source: data.source,
       allocatedById: currentUser?.id || '',
       status: 'planned',
     };
 
     if (!fullData.allocatedById) {
-      console.error('User not found, cannot create allocation');
-      // TODO: Show error toast
+      alert('User not found, cannot create allocation');
+      setIsSaving(false);
       return;
     }
 
@@ -54,7 +75,11 @@ const NewAllocationPage = () => {
       alert('Fund allocation created successfully!');
       router.push('/dashboard/financials');
     } else {
-      alert(`Failed to create allocation: ${result.error}`);
+      if (result.error) {
+        alert(`Failed to create allocation: ${result.error.message}`);
+      } else {
+        alert('An unknown error occurred while creating the allocation.');
+      }
     }
   };
 
@@ -68,7 +93,7 @@ const NewAllocationPage = () => {
         </Link>
         <h1 className="text-2xl font-bold">Add New Fund Allocation</h1>
       </div>
-      <AllocationForm onSave={handleSave} isSaving={isSaving} />
+      <AllocationForm onSave={handleSave} isSaving={isSaving} sites={sites} smallGroups={smallGroups} />
     </div>
   );
 };

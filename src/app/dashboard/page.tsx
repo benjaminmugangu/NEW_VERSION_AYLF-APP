@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from "react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatCard } from "@/components/shared/StatCard";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/contexts/AuthContext";
 import { ROLES } from "@/lib/constants";
 import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
 import dashboardService, { type DashboardStats } from "@/services/dashboardService";
@@ -26,7 +26,6 @@ import { DateRangeFilter, type DateFilterValue } from "@/components/shared/DateR
 const chartConfigActivities = {
   planned: { label: "Planned", color: "hsl(var(--chart-2))" },
   executed: { label: "Executed", color: "hsl(var(--chart-1))" },
-  cancelled: { label: "Cancelled", color: "hsl(var(--chart-5))" },
 };
 
 const chartConfigMembers = {
@@ -63,16 +62,12 @@ export default function DashboardPage() {
   };
 
   if (isLoading) {
-    return (
-      <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR]}>
-        <DashboardSkeleton />
-      </RoleBasedGuard>
-    );
+    return <DashboardSkeleton />;
   }
 
   if (error) {
     return (
-      <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR]}>
+      <>
         <PageHeader title="Dashboard" description="An error occurred" />
         <Card className="mt-6">
           <CardContent className="pt-6 text-center">
@@ -80,7 +75,7 @@ export default function DashboardPage() {
             <Button onClick={fetchStats} className="mt-4">Try Again</Button>
           </CardContent>
         </Card>
-      </RoleBasedGuard>
+      </>
     );
   }
 
@@ -88,14 +83,14 @@ export default function DashboardPage() {
     // This case handles when loading is finished but stats are still null without an error.
     // It's a fallback, ideally should not be reached if service layer is consistent.
     return (
-        <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR]}>
-            <PageHeader title="Dashboard" description="No data available." />
-            <Card className="mt-6">
-                <CardContent className="pt-6">
-                    <p className="text-center text-muted-foreground">No dashboard statistics could be loaded.</p>
-                </CardContent>
-            </Card>
-        </RoleBasedGuard>
+      <>
+        <PageHeader title="Dashboard" description="No data available." />
+        <Card className="mt-6">
+          <CardContent className="pt-6">
+            <p className="text-center text-muted-foreground">No dashboard statistics could be loaded.</p>
+          </CardContent>
+        </Card>
+      </>
     );
   }
 
@@ -159,7 +154,7 @@ export default function DashboardPage() {
         <Card className="shadow-lg lg:col-span-4">
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><BarChart3 className="text-primary" /> Activity Status Overview</CardTitle>
-            <CardDescription>Breakdown of planned, executed, and cancelled activities for the selected period.</CardDescription>
+            <CardDescription>Breakdown of planned and executed activities for the selected period.</CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer config={chartConfigActivities} className="min-h-[250px] w-full">
@@ -275,7 +270,7 @@ export default function DashboardPage() {
                 <div>
                   <Button asChild variant="link" className="p-0 h-auto text-left">
                     <Link href={`/dashboard/activities/${activity.id}`}>
-                       <h4 className="font-semibold text-md hover:underline">{activity.name}</h4>
+                       <h4 className="font-semibold text-md hover:underline">{activity.title}</h4>
                     </Link>
                   </Button>
                   <p className="text-sm text-muted-foreground">{activity.level.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} level - {new Date(activity.date).toLocaleDateString()}</p>
@@ -288,7 +283,7 @@ export default function DashboardPage() {
                   {activity.status.charAt(0).toUpperCase() + activity.status.slice(1)}
                 </span>
               </div>
-              <p className="text-sm mt-1">{activity.description}</p>
+              <p className="text-sm mt-1">{activity.thematic}</p>
             </div>
           )) : (
             <p className="text-muted-foreground text-center py-4">No recent activities found for the selected period.</p>

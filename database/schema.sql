@@ -23,6 +23,8 @@ CREATE TABLE public.activity_types (
 CREATE TABLE public.sites (
   id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   name text NOT NULL,
+  city text,
+  country text,
   coordinator_id uuid, -- Sera lié à profiles.id plus tard
   created_at timestamptz DEFAULT now()
 );

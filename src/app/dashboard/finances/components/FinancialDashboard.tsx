@@ -31,7 +31,7 @@ const StatCard = ({ title, value, icon: Icon, description, currency = 'USD' }: {
 const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ stats, currentUser, linkGenerator }) => {
   if (!currentUser) return null;
 
-  const { totalRevenue, totalExpenses, totalAllocated, netBalance, allocations, reports } = stats;
+  const { income, totalSpent, totalAllocated, netBalance, allocations, reports } = stats;
 
   const allRelevantAllocations = [...allocations].sort(
     (a, b) => new Date(b.allocationDate).getTime() - new Date(a.allocationDate).getTime()
@@ -48,13 +48,13 @@ const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ stats, currentU
         />
         <StatCard 
           title="Fonds Reçus" 
-          value={totalRevenue} 
+          value={income} 
           icon={TrendingUp} 
           description="Total des fonds alloués à cette entité"
         />
         <StatCard 
           title="Dépenses Déclarées" 
-          value={totalExpenses} 
+          value={totalSpent} 
           icon={TrendingDown} 
           description="Total des dépenses enregistrées"
         />

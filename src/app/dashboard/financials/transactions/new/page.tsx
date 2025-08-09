@@ -6,22 +6,49 @@ import { TransactionForm } from '@/components/financials/TransactionForm';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { transactionService } from '@/services/transactionService';
+import { siteService } from '@/services/siteService';
+import smallGroupService from '@/services/smallGroupService';
 import { useRouter } from 'next/navigation';
-import { useToast } from '@/hooks/use-toast';
-import { useState } from 'react';
-import type { TransactionFormData } from '@/lib/types';
+
+import { useState, useEffect } from 'react';
+import type { TransactionFormData, Site, SmallGroup } from '@/lib/types';
 
 const NewTransactionPage = () => {
   const { currentUser } = useAuth();
   const router = useRouter();
-  const { toast } = useToast();
+  
   const [isSaving, setIsSaving] = useState(false);
+  const [sites, setSites] = useState<Site[]>([]);
+  const [smallGroups, setSmallGroups] = useState<SmallGroup[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (currentUser) {
+        try {
+          const sitesRes = await siteService.getSitesWithDetails(currentUser);
+          const smallGroupsRes = await smallGroupService.getFilteredSmallGroups({ user: currentUser });
+
+          if (sitesRes.success) {
+            setSites(sitesRes.data || []);
+          }
+          if (smallGroupsRes.success) {
+            setSmallGroups(smallGroupsRes.data || []);
+          }
+
+        } catch (error) {
+          alert('Failed to load sites and small groups.');
+          console.error(error);
+        }
+      }
+    };
+    fetchData();
+  }, [currentUser]);
 
   const handleSave = async (data: TransactionFormData) => {
     if (!currentUser) {
-      toast({ title: 'Error', description: 'You must be logged in to create a transaction.', variant: 'destructive' });
+      alert('You must be logged in to create a transaction.');
       return;
     }
 
@@ -38,10 +65,14 @@ const NewTransactionPage = () => {
 
     if (result.success) {
 
-      toast({ title: 'Success', description: 'Transaction created successfully!' });
+      alert('Transaction created successfully!');
       router.push('/dashboard/financials');
     } else {
-      toast({ title: 'Error', description: `Failed to create transaction: ${result.error}`, variant: 'destructive' });
+      if (result.error) {
+        alert(`Failed to create transaction: ${result.error.message}`);
+      } else {
+        alert('An unknown error occurred while creating the transaction.');
+      }
     }
   };
 
@@ -55,7 +86,7 @@ const NewTransactionPage = () => {
         </Link>
         <h1 className="text-2xl font-bold">Add New Transaction</h1>
       </div>
-      <TransactionForm onSave={handleSave} isSaving={isSaving} />
+      <TransactionForm onSave={handleSave} isSaving={isSaving} sites={sites} smallGroups={smallGroups} />
     </div>
   );
 };

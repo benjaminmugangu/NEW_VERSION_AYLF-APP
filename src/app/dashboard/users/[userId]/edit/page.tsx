@@ -41,6 +41,7 @@ export default function EditUserPage() {
           setUserToEdit(null);
         }
       } catch (error) {
+        console.error("Erreur détaillée lors de la récupération de l'utilisateur:", error);
 
         setUserToEdit(null);
       } finally {

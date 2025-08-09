@@ -401,6 +401,7 @@ export function applyDateFilter<T>(
       }
       return itemDate >= startDate && itemDate <= endDate;
     } catch (e) {
+      console.error("Erreur détaillée dans DateRangeFilter:", e);
 
       return false;
     }

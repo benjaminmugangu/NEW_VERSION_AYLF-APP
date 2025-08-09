@@ -14,7 +14,7 @@ import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMe
 import { Activity as ActivityIcon, ListFilter, Search, Eye, Edit, PlusCircle, Trash2 } from "lucide-react";
 import { DateRangeFilter, type DateFilterValue } from "@/components/shared/DateRangeFilter";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import activityService from "@/services/activityService";
+import { activityService } from "@/services/activityService";
 import { useToast } from "@/components/ui/use-toast";
 import { ActivityChart } from "./components/ActivityChart";
 import { useActivities } from "@/hooks/useActivities";
@@ -36,7 +36,7 @@ export default function ActivitiesPage() {
     refetch,
     availableLevelFilters,
     canEditActivity,
-    handleDeleteActivity,
+    deleteActivity,
   } = useActivities();
 
   const router = useRouter();
@@ -56,26 +56,26 @@ export default function ActivitiesPage() {
   const handleConfirmDelete = async () => {
     if (!activityToDelete) return;
 
-    const result = await handleDeleteActivity(activityToDelete);
-
-    if (result.success) {
+    try {
+      await deleteActivity(activityToDelete);
       toast({ title: "Success", description: "Activity has been deleted." });
-    } else {
-      toast({ title: "Error", description: result.error?.message || "Could not delete activity.", variant: "destructive" });
+    } catch (error) {
+      toast({ title: "Error", description: (error as Error).message || "Could not delete activity.", variant: "destructive" });
+    } finally {
+      setConfirmOpen(false);
+      setActivityToDelete(null);
     }
-
-    setConfirmOpen(false);
-    setActivityToDelete(null);
   };
 
   // Helper functions for UI rendering
   const getStatusBadgeVariant = (status: Activity["status"]) => {
-    const variants: Record<Activity["status"], "success" | "default" | "destructive"> = {
+    const variants: Partial<Record<Activity["status"], "success" | "default" | "secondary" | "outline">> = {
       executed: "success",
       planned: "default",
-      cancelled: "destructive",
+      in_progress: "secondary",
+      delayed: "outline",
     };
-    return variants[status] || "secondary";
+    return variants[status] || "default";
   };
 
   const getLevelBadgeColor = (level: Activity["level"]) => {
@@ -203,7 +203,7 @@ export default function ActivitiesPage() {
                 {activities.length > 0 ? (
                   activities.map(activity => (
                     <TableRow key={activity.id} onClick={() => handleRowClick(activity.id)} className="cursor-pointer hover:bg-muted/50">
-                      <TableCell className="font-medium">{activity.name}</TableCell>
+                      <TableCell className="font-medium">{activity.title}</TableCell>
                       <TableCell>{new Date(activity.date).toLocaleDateString()}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={`${getLevelBadgeColor(activity.level)} border-none`}>
@@ -251,8 +251,7 @@ export default function ActivitiesPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action will mark the activity as deleted. It won't be permanently removed
-              and can be recovered by an administrator if needed.
+              This action cannot be undone. This will permanently delete the activity.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

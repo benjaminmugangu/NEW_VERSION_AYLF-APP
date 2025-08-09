@@ -3,11 +3,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import smallGroupService from '@/services/smallGroupService';
-import siteService from '@/services/siteService';
+import { siteService } from '@/services/siteService';
 import { profileService } from '@/services/profileService';
 import { memberService } from '@/services/memberService';
 import { SmallGroup, Site, User, MemberWithDetails } from '@/lib/types';
-import { useAuth } from './useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface SmallGroupDetails extends SmallGroup {
   site?: Site;
@@ -33,11 +33,7 @@ export const useSmallGroupDetails = (groupId: string | null) => {
     setError(null);
 
     try {
-      const sgResponse = await smallGroupService.getSmallGroupById(groupId);
-      if (!sgResponse.success || !sgResponse.data) {
-        throw new Error(sgResponse.error?.message || 'Failed to fetch small group.');
-      }
-      const baseGroup = sgResponse.data;
+      const baseGroup = await smallGroupService.getSmallGroupById(groupId);
 
       const userIds = [
         baseGroup.leaderId,
@@ -45,8 +41,8 @@ export const useSmallGroupDetails = (groupId: string | null) => {
         baseGroup.financeAssistantId,
       ].filter((id): id is string => !!id);
 
-      const [siteResponse, usersResponse, membersResponse] = await Promise.all([
-        baseGroup.siteId ? siteService.getSiteById(baseGroup.siteId) : Promise.resolve({ success: true, data: undefined }),
+      const [site, usersResponse, membersResponse] = await Promise.all([
+        baseGroup.siteId ? siteService.getSiteById(baseGroup.siteId) : Promise.resolve(undefined),
         profileService.getUsersByIds(userIds),
         memberService.getFilteredMembers({ user: currentUser, smallGroupId: groupId, searchTerm: '' }),
       ]);
@@ -59,7 +55,7 @@ export const useSmallGroupDetails = (groupId: string | null) => {
 
       const details: SmallGroupDetails = {
         ...baseGroup,
-        site: (siteResponse.success && siteResponse.data) ? siteResponse.data : undefined,
+        site,
         leader: baseGroup.leaderId ? usersMap.get(baseGroup.leaderId) : undefined,
         logisticsAssistant: baseGroup.logisticsAssistantId ? usersMap.get(baseGroup.logisticsAssistantId) : undefined,
         financeAssistant: baseGroup.financeAssistantId ? usersMap.get(baseGroup.financeAssistantId) : undefined,
@@ -69,6 +65,7 @@ export const useSmallGroupDetails = (groupId: string | null) => {
       setSmallGroup(details);
     } catch (e) {
       const errorMsg = e instanceof Error ? e.message : 'An unknown error occurred.';
+      console.error('[useSmallGroupDetails] Error fetching details:', errorMsg);
       setError(errorMsg);
     } finally {
       setIsLoading(false);

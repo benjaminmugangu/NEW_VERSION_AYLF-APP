@@ -1,106 +1,96 @@
 // src/hooks/useSites.ts
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import siteService from '@/services/siteService';
-import { profileService } from '@/services/profileService';
-import type { Site, User } from '@/lib/types';
+import { useMemo, useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { siteService } from '@/services/siteService';
+import type { SiteFormData, SiteWithDetails } from '@/lib/types';
+import { useAuth } from '@/contexts/AuthContext';
 import { ROLES } from '@/lib/constants';
 
-export interface SiteWithDetails extends Site {
-  membersCount: number;
-  smallGroupsCount: number;
-  coordinator?: User;
-}
+const SITES_QUERY_KEY = 'sites';
 
 export const useSites = () => {
-  const { currentUser } = useAuth();
-  const [allSites, setAllSites] = useState<SiteWithDetails[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { currentUser: user } = useAuth();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
 
-  const fetchSites = useCallback(async () => {
-    if (!currentUser) return;
+  const { data: sites = [], isLoading, isError, error } = useQuery<SiteWithDetails[], Error>({
+    queryKey: [SITES_QUERY_KEY, user?.id], // Depend on user ID to refetch on user change
+    queryFn: async () => {
+      const response = await siteService.getSitesWithDetails(user);
+      if (response.success && response.data) {
+        return response.data;
+      }
+      throw new Error(response.error?.message || 'Failed to fetch sites.');
+    },
+    enabled: !!user, // Only run the query if the user is logged in
+  });
 
-    setIsLoading(true);
-    setError(null);
-    const sitesResponse = await siteService.getFilteredSites({ user: currentUser });
+    const createSiteMutation = useMutation<any, Error, SiteFormData>({
+    mutationFn: (newSite: SiteFormData) => siteService.createSite(newSite),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [SITES_QUERY_KEY, user?.id] });
+    },
+    onError: (error) => {
+      // The error object from react-query is often not a direct Error instance
+      // Best practice is to re-throw a new error with a clear message
+      throw new Error(`Failed to create site: ${(error as Error).message}`);
+    },
+  });
 
-    if (!sitesResponse.success || !sitesResponse.data) {
-      setError(sitesResponse.error?.message || 'Failed to fetch sites.');
-      setAllSites([]);
-      setIsLoading(false);
-      return;
-    }
+    const updateSiteMutation = useMutation<any, Error, { id: string; siteData: Partial<SiteFormData> }>({
+    mutationFn: ({ id, siteData }) => siteService.updateSite(id, siteData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [SITES_QUERY_KEY, user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['siteDetails', user?.id] });
+    },
+    onError: (error) => {
+      throw new Error(`Failed to update site: ${(error as Error).message}`);
+    },
+  });
 
-    const sitesData = sitesResponse.data;
-    const coordinatorIds = sitesData
-      .map(site => site.coordinatorId)
-      .filter((id): id is string => !!id);
-
-    const usersResponse = await profileService.getUsersByIds(coordinatorIds);
-    const coordinatorsMap = (usersResponse.success && usersResponse.data)
-      ? new Map(usersResponse.data.map(user => [user.id, user]))
-      : new Map();
-
-    const sitesWithDetails = await Promise.all(
-      sitesData.map(async (site) => {
-        const detailsResponse = await siteService.getSiteDetails(site.id);
-        return {
-          ...site,
-          membersCount: (detailsResponse.success && detailsResponse.data) ? detailsResponse.data.membersCount : 0,
-          smallGroupsCount: (detailsResponse.success && detailsResponse.data) ? detailsResponse.data.smallGroupsCount : 0,
-          coordinator: site.coordinatorId ? coordinatorsMap.get(site.coordinatorId) : undefined,
-        };
-      })
-    );
-
-    setAllSites(sitesWithDetails);
-    setIsLoading(false);
-  }, [currentUser]);
-
-  useEffect(() => {
-    if (currentUser) {
-      fetchSites();
-    }
-  }, [fetchSites, currentUser]);
-
-  const deleteSite = async (siteId: string) => {
-    const result = await siteService.deleteSite(siteId);
-    if (result.success) {
-      setAllSites(prev => prev.filter(s => s.id !== siteId));
-      return { success: true };
-    } else {
-      return { success: false, error: result.error };
-    }
-  };
+    const deleteSiteMutation = useMutation<any, Error, string>({
+    mutationFn: (id: string) => siteService.deleteSite(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [SITES_QUERY_KEY, user?.id] });
+    },
+    onError: (error) => {
+      throw new Error(`Failed to delete site: ${(error as Error).message}`);
+    },
+  });
 
   const filteredSites = useMemo(() => {
     if (!searchTerm) {
-      return allSites;
+      return sites;
     }
-    return allSites.filter(site =>
+    return sites.filter(site =>
       site.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [allSites, searchTerm]);
+  }, [sites, searchTerm]);
 
-  const canCreateSite = useMemo(() => currentUser?.role === ROLES.NATIONAL_COORDINATOR, [currentUser]);
-  const canEditSite = useMemo(() => currentUser?.role === ROLES.NATIONAL_COORDINATOR, [currentUser]);
-  const canDeleteSite = useMemo(() => currentUser?.role === ROLES.NATIONAL_COORDINATOR, [currentUser]);
 
-  return { 
-    sites: filteredSites, 
-    allSites, 
-    isLoading, 
-    error, 
-    refetch: fetchSites, 
-    deleteSite, 
-    searchTerm, 
-    setSearchTerm, 
-    canCreateSite, 
-    canEditSite, 
-    canDeleteSite 
+  const canCreateSite = useMemo(() => user?.role === ROLES.NATIONAL_COORDINATOR, [user]);
+  const canEditSite = useMemo(() => user?.role === ROLES.NATIONAL_COORDINATOR, [user]);
+  const canDeleteSite = useMemo(() => user?.role === ROLES.NATIONAL_COORDINATOR, [user]);
+
+  return {
+    sites: filteredSites,
+    allSites: sites, // For cases where the unfiltered list is needed
+    isLoading,
+    isError,
+    error,
+    createSite: createSiteMutation.mutateAsync,
+    isCreating: createSiteMutation.isPending,
+    updateSite: updateSiteMutation.mutateAsync,
+    isUpdating: updateSiteMutation.isPending,
+    deleteSite: deleteSiteMutation.mutateAsync,
+    isDeleting: deleteSiteMutation.isPending,
+    refetch: () => queryClient.invalidateQueries({ queryKey: [SITES_QUERY_KEY] }),
+    searchTerm,
+    setSearchTerm,
+    canCreateSite,
+    canEditSite,
+    canDeleteSite,
   };
 };

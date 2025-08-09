@@ -17,6 +17,7 @@ const authService = {
     });
 
     if (authError) {
+      console.error('[AuthService] Error in login (auth):', authError.message);
       return { success: false, error: { message: authError.message } };
     }
 
@@ -28,6 +29,7 @@ const authService = {
     const profileResponse = await profileService.getProfile(authData.user.id);
 
     if (!profileResponse.success) {
+      console.error('[AuthService] Error in login (profile fetch):', profileResponse.error?.message);
       // If profile doesn't exist, it's a critical issue. Log out to be safe.
       await supabase.auth.signOut();
       return { success: false, error: { message: 'User profile not found after login.' } };
@@ -39,6 +41,7 @@ const authService = {
   logout: async (): Promise<ServiceResponse<{}>> => {
     const { error } = await supabase.auth.signOut();
     if (error) {
+      console.error('[AuthService] Error in logout:', error.message);
       return { success: false, error: { message: error.message } };
     }
     return { success: true, data: {} };
@@ -49,7 +52,7 @@ const authService = {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
       if (sessionError) {
-
+        console.error('[AuthService] Error fetching session:', sessionError.message);
         return null;
       }
 
@@ -60,14 +63,14 @@ const authService = {
         }
         // If profile fetch fails, the user is authenticated but their app data is missing.
         // This is a problematic state. For now, we return null.
-
+        console.error('[AuthService] Failed to fetch profile for current user:', profileResponse.error?.message);
         return null;
       }
 
       return null;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-
+      console.error('[AuthService] Unexpected error in getCurrentUser:', errorMessage);
       return null;
     }
   },

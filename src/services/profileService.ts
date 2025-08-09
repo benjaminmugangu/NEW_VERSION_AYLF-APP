@@ -17,6 +17,7 @@ const profileService = {
         .single();
 
       if (error) {
+        console.error('[ProfileService] Error in getProfile:', error.message);
         return { success: false, error: { message: error.message } };
       }
 
@@ -32,6 +33,7 @@ const profileService = {
 
       return { success: true, data: userProfile };
     } catch (e: any) {
+      console.error('[ProfileService] Unexpected error in getProfile:', e.message);
       return { success: false, error: { message: e.message || 'An unexpected error occurred.' } };
     }
   },
@@ -66,13 +68,13 @@ const profileService = {
         .single();
 
       if (error) {
-
+        console.error('[ProfileService] Error in updateProfile:', error.message);
         return { success: false, error: { message: error.message } };
       }
 
       return { success: true, data: data as User };
     } catch (e: any) {
-
+      console.error('[ProfileService] Unexpected error in updateProfile:', e.message);
       return { success: false, error: { message: e.message || 'An unexpected error occurred.' } };
     }
   },
@@ -83,11 +85,13 @@ const profileService = {
       const { data, error } = await supabase.rpc('get_users_with_details');
 
       if (error) {
+        console.error('[ProfileService] Error in getUsers:', error.message);
         return { success: false, error: { message: error.message } };
       }
 
       return { success: true, data: data as User[] };
     } catch (e: any) {
+      console.error('[ProfileService] Unexpected error in getUsers:', e.message);
       return { success: false, error: { message: e.message || 'An unexpected error occurred.' } };
     }
   },
@@ -100,10 +104,15 @@ const profileService = {
         .select('*')
         .neq('status', 'inactive');
 
+      const leaderFilterParts = ['small_group_id.is.null'];
+      if (smallGroupId) {
+        leaderFilterParts.push(`small_group_id.eq.${smallGroupId}`);
+      }
+
       const roleFilter = [
-        `role.eq.${'NATIONAL_COORDINATOR'}`,
-        `and(role.eq.${'SITE_COORDINATOR'},site_id.eq.${siteId})`,
-        `and(role.eq.${'SMALL_GROUP_LEADER'},or(small_group_id.is.null,small_group_id.eq.${smallGroupId || ''}))`
+        `role.eq.NATIONAL_COORDINATOR`,
+        `and(role.eq.SITE_COORDINATOR,site_id.eq.${siteId})`,
+        `and(role.eq.SMALL_GROUP_LEADER,or(${leaderFilterParts.join(',')}))`
       ].join(',');
 
       query = query.or(roleFilter);
@@ -111,11 +120,13 @@ const profileService = {
       const { data, error } = await query;
 
       if (error) {
+        console.error('[ProfileService] Error in getEligiblePersonnel:', error.message);
         return { success: false, error: { message: error.message } };
       }
 
       return { success: true, data: data as User[] };
     } catch (e: any) {
+      console.error('[ProfileService] Unexpected error in getEligiblePersonnel:', e.message);
       return { success: false, error: { message: e.message || 'An unexpected error occurred.' } };
     }
   },
@@ -126,11 +137,13 @@ const profileService = {
       const { error } = await supabase.rpc('delete_user_permanently', { user_id: userId });
 
       if (error) {
+        console.error('[ProfileService] Error in deleteUser:', error.message);
         return { success: false, error: { message: error.message } };
       }
 
       return { success: true, data: null };
     } catch (e: any) {
+      console.error('[ProfileService] Unexpected error in deleteUser:', e.message);
       return { success: false, error: { message: e.message || 'An unexpected error occurred.' } };
     }
   },
@@ -147,11 +160,13 @@ const profileService = {
         .in('id', userIds);
 
       if (error) {
+        console.error('[ProfileService] Error in getUsersByIds:', error.message);
         return { success: false, error: { message: error.message } };
       }
 
       return { success: true, data: data as User[] };
     } catch (e: any) {
+      console.error('[ProfileService] Unexpected error in getUsersByIds:', e.message);
       return { success: false, error: { message: e.message || 'An unexpected error occurred.' } };
     }
   },

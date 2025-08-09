@@ -2,7 +2,7 @@
 'use client';
 
 import { supabase } from '@/lib/supabaseClient';
-import type { ServiceResponse, User, Member, MemberWithDetails } from '@/lib/types';
+import type { ServiceResponse, User, Member, MemberWithDetails, MemberFormData } from '@/lib/types';
 import { getDateRangeFromFilterValue, type DateFilterValue } from '@/components/shared/DateRangeFilter';
 
 export interface MemberFilters {
@@ -13,202 +13,189 @@ export interface MemberFilters {
   typeFilter?: Record<Member['type'], boolean>;
 }
 
-const getFilteredMembers = async (filters: MemberFilters): Promise<ServiceResponse<MemberWithDetails[]>> => {
+const getFilteredMembers = async (filters: MemberFilters): Promise<MemberWithDetails[]> => {
   const { user, searchTerm, dateFilter, typeFilter, smallGroupId } = filters;
 
   if (!user) {
-    return { success: false, error: { message: 'Authentication required.' } };
+    throw new Error('Authentication required.');
   }
 
-  try {
-    let query = supabase
-      .from('members')
-      .select(`
-        id,
-        name,
-        gender,
-        type,
-        join_date,
-        phone,
-        email,
-        site_id,
-        small_group_id,
-        user_id,
-        site:sites(name),
-        small_group:small_groups(name)
-      `);
+  let query = supabase
+    .from('members')
+    .select(`
+      id,
+      name,
+      gender,
+      type,
+      join_date,
+      phone,
+      email,
+      level,
+      site_id,
+      small_group_id,
+      user_id,
+      sites(name),
+      small_groups(name)
+    `);
 
-    // Role-based filtering
-    switch (user.role) {
-      case 'national_coordinator':
-        // No additional filters needed
-        break;
-      case 'site_coordinator':
-        if (!user.siteId) {
-          return { success: true, data: [] }; // Return empty array if no siteId
-        }
-        query = query.eq('site_id', user.siteId);
-        break;
-      case 'small_group_leader':
-        if (!user.smallGroupId) {
-          return { success: true, data: [] }; // Return empty array if no smallGroupId
-        }
-        query = query.eq('small_group_id', user.smallGroupId);
-        break;
-      default:
-        // For members or any other roles, return no data
-        return { success: true, data: [] };
-    }
-
-    // Filter by small group if provided (for drilling down)
-    if (smallGroupId) {
-      query = query.eq('small_group_id', smallGroupId);
-    }
-
-    // Filter by date range using the helper function
-    if (dateFilter) {
-      const { startDate, endDate } = getDateRangeFromFilterValue(dateFilter);
-      if (startDate) {
-        query = query.gte('join_date', startDate.toISOString());
-      }
-      if (endDate) {
-        query = query.lte('join_date', endDate.toISOString());
-      }
-    }
-
-    // Filter by member type
-    const activeTypeFilters = typeFilter ? Object.entries(typeFilter).filter(([, value]) => value).map(([key]) => key) : [];
-    if (activeTypeFilters.length > 0) {
-        query = query.in('type', activeTypeFilters);
-    }
-
-    // Filter by search term (on member name)
-    if (searchTerm) {
-        query = query.ilike('name', `%${searchTerm}%`);
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      return { success: false, error: { message: error.message } };
-    }
-
-    // Transform the data to match the frontend's MemberWithDetails type
-    const membersWithDetails: MemberWithDetails[] = data.map((member: any) => ({
-      id: member.id,
-      name: member.name,
-      gender: member.gender,
-      type: member.type,
-      joinDate: member.join_date,
-      phone: member.phone,
-      email: member.email,
-      siteId: member.site_id,
-      smallGroupId: member.small_group_id,
-      userId: member.user_id,
-      siteName: member.site[0]?.name || 'N/A',
-      smallGroupName: member.small_group[0]?.name || 'N/A',
-    }));
-
-    return { success: true, data: membersWithDetails };
-
-  } catch (e) {
-    const error = e instanceof Error ? e.message : 'An unknown error occurred.';
-    return { success: false, error: { message: error } };
+  if (smallGroupId) {
+    query = query.eq('small_group_id', smallGroupId);
   }
-};
 
-const getMemberById = async (memberId: string): Promise<ServiceResponse<MemberWithDetails>> => {
-  try {
-    const { data, error } = await supabase
-      .from('members')
-      .select(`
-        id, name, gender, type, join_date, phone, email, site_id, small_group_id, user_id,
-        site:sites(name),
-        small_group:small_groups(name)
-      `)
-      .eq('id', memberId)
-      .single();
-
-    if (error) {
-      return { success: false, error: { message: `Member with id ${memberId} not found.` } };
+  if (dateFilter) {
+    const { startDate, endDate } = getDateRangeFromFilterValue(dateFilter);
+    if (startDate) {
+      query = query.gte('join_date', startDate.toISOString().substring(0, 10));
     }
+    if (endDate) {
+      query = query.lte('join_date', endDate.toISOString().substring(0, 10));
+    }
+  }
 
-    const memberWithDetails: MemberWithDetails = {
-      id: data.id,
-      name: data.name,
-      gender: data.gender,
-      type: data.type,
-      joinDate: data.join_date,
-      phone: data.phone,
-      email: data.email,
-      siteId: data.site_id,
-      smallGroupId: data.small_group_id,
-      userId: data.user_id,
-      siteName: data.site[0]?.name || 'N/A',
-      smallGroupName: data.small_group[0]?.name || 'N/A',
+  const activeTypeFilters = typeFilter ? Object.entries(typeFilter).filter(([, value]) => value).map(([key]) => key) : [];
+  if (activeTypeFilters.length > 0) {
+      query = query.in('type', activeTypeFilters);
+  }
+
+  if (searchTerm) {
+      query = query.ilike('name', `%${searchTerm}%`);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data.map((m: any) => {
+    const site = Array.isArray(m.sites) ? m.sites[0] : m.sites;
+    const small_group = Array.isArray(m.small_groups) ? m.small_groups[0] : m.small_groups;
+    return {
+      id: m.id,
+      name: m.name,
+      gender: m.gender,
+      type: m.type,
+      joinDate: m.join_date,
+      phone: m.phone,
+      email: m.email,
+      level: m.level,
+      siteId: m.site_id,
+      smallGroupId: m.small_group_id,
+      userId: m.user_id,
+      siteName: site?.name || 'N/A',
+      smallGroupName: small_group?.name || 'N/A',
     };
+  });
+};
 
-    return { success: true, data: memberWithDetails };
-  } catch (e) {
-    const error = e instanceof Error ? e.message : 'An unknown error occurred.';
-    return { success: false, error: { message: error } };
+const getMemberById = async (memberId: string): Promise<MemberWithDetails> => {
+  const { data, error } = await supabase
+    .from('members')
+    .select(`
+      id, name, gender, type, join_date, phone, email, level, site_id, small_group_id, user_id,
+      sites(name),
+      small_groups(name)
+    `)
+    .eq('id', memberId)
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  if (!data) {
+    throw new Error('Member not found.');
+  }
+
+  const site = Array.isArray(data.sites) ? data.sites[0] : data.sites;
+  const small_group = Array.isArray(data.small_groups) ? data.small_groups[0] : data.small_groups;
+
+  return {
+    id: data.id,
+    name: data.name,
+    gender: data.gender,
+    type: data.type,
+    joinDate: data.join_date,
+    phone: data.phone,
+    email: data.email,
+    level: data.level,
+    siteId: data.site_id,
+    smallGroupId: data.small_group_id,
+    userId: data.user_id,
+    siteName: site?.name || 'N/A',
+    smallGroupName: small_group?.name || 'N/A',
+  };
+};
+
+const updateMember = async (memberId: string, formData: MemberFormData): Promise<Member> => {
+  const { data, error } = await supabase
+    .from('members')
+    .update({
+      name: formData.name,
+      gender: formData.gender,
+      type: formData.type,
+      join_date: new Date(formData.joinDate).toISOString().substring(0, 10),
+      phone: formData.phone,
+      email: formData.email,
+      level: formData.level,
+      site_id: formData.siteId,
+      small_group_id: formData.smallGroupId,
+    })
+    .eq('id', memberId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  if (!data) {
+    throw new Error('Failed to update member: Member not found or no changes made.');
+  }
+
+  return data;
+};
+
+const deleteMember = async (memberId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('members')
+    .delete()
+    .eq('id', memberId);
+
+  if (error) {
+    throw new Error(error.message);
   }
 };
 
-const updateMember = async (memberId: string, formData: any): Promise<ServiceResponse<Member>> => {
-  try {
-    const { data, error } = await supabase
-      .from('members')
-      .update({
-        name: formData.name,
-        gender: formData.gender,
-        type: formData.type,
-        join_date: formData.joinDate,
-        phone: formData.phone,
-        email: formData.email,
-        site_id: formData.siteId,
-        small_group_id: formData.smallGroupId,
-      })
-      .eq('id', memberId)
-      .select()
-      .single();
+const createMember = async (formData: MemberFormData): Promise<Member> => {
+  const { data, error } = await supabase
+    .from('members')
+    .insert({
+      name: formData.name,
+      gender: formData.gender,
+      type: formData.type,
+      join_date: new Date(formData.joinDate).toISOString().substring(0, 10),
+      phone: formData.phone,
+      email: formData.email,
+      level: formData.level,
+      site_id: formData.siteId,
+      small_group_id: formData.smallGroupId,
+    })
+    .select()
+    .single();
 
-    if (error) {
-      return { success: false, error: { message: error.message } };
-    }
-
-    return { success: true, data };
-  } catch (e) {
-    const error = e instanceof Error ? e.message : 'An unknown error occurred.';
-    return { success: false, error: { message: error } };
+  if (error) {
+    throw new Error(error.message);
   }
-};
-
-const deleteMember = async (memberId: string): Promise<ServiceResponse<null>> => {
-  try {
-    const { error } = await supabase
-      .from('members')
-      .delete()
-      .eq('id', memberId);
-
-    if (error) {
-      return { success: false, error: { message: error.message } };
-    }
-
-    return { success: true, data: null };
-  } catch (e) {
-    const error = e instanceof Error ? e.message : 'An unknown error occurred.';
-    return { success: false, error: { message: error } };
+  if (!data) {
+    throw new Error('Failed to create member.');
   }
+
+  return data;
 };
 
 export const memberService = {
+  createMember,
   getFilteredMembers,
   getMemberById,
   updateMember,
   deleteMember,
 };
-
-
-
-

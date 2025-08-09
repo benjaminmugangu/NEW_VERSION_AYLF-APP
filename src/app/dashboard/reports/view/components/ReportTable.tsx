@@ -1,7 +1,7 @@
 // src/app/dashboard/reports/view/components/ReportTable.tsx
 "use client";
 
-import type { Report } from "@/lib/types";
+import type { ReportWithDetails } from "@/lib/types";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,13 +9,13 @@ import { Eye, Edit3, Trash2, CheckCircle, XCircle, AlertCircle } from "lucide-re
 import { format } from "date-fns";
 
 interface ReportTableProps {
-  reports: Report[];
+  reports: ReportWithDetails[];
   onViewDetails: (reportId: string) => void;
 }
 
 export function ReportTable({ reports, onViewDetails }: ReportTableProps) {
 
-  const getLevelBadgeColor = (level: Report["level"]) => {
+  const getLevelBadgeColor = (level: ReportWithDetails["level"]) => {
     switch(level) {
       case "national": return "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300";
       case "site": return "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300";
@@ -24,7 +24,7 @@ export function ReportTable({ reports, onViewDetails }: ReportTableProps) {
     }
   }
 
-  const getStatusBadgeInfo = (status: Report["status"]) => {
+  const getStatusBadgeInfo = (status: ReportWithDetails["status"]) => {
     switch (status) {
       case "approved":
         return { variant: "default", icon: <CheckCircle className="mr-1 h-3 w-3" />, text: "Approved", className: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 border-green-300 dark:border-green-700" };
@@ -49,6 +49,7 @@ export function ReportTable({ reports, onViewDetails }: ReportTableProps) {
             <TableHead>Activity Date</TableHead>
             <TableHead>Level</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead>Expenses</TableHead>
             <TableHead>Activity Type</TableHead>
             <TableHead className="min-w-[150px]">Thematic</TableHead>
             <TableHead>Submitted By</TableHead>
@@ -74,9 +75,10 @@ export function ReportTable({ reports, onViewDetails }: ReportTableProps) {
                     {statusInfo.text}
                   </Badge>
                 </TableCell>
-                <TableCell>{report.activityType}</TableCell>
+                <TableCell>{new Intl.NumberFormat('en-US', { style: 'currency', currency: report.currency || 'USD' }).format(report.totalExpenses || 0)}</TableCell>
+                <TableCell>{report.activityTypeName}</TableCell>
                 <TableCell className="truncate max-w-xs" title={report.thematic}>{report.thematic}</TableCell>
-                <TableCell>{report.submittedBy}</TableCell>
+                <TableCell>{report.submittedByName}</TableCell>
                 <TableCell>{new Date(report.submissionDate).toLocaleDateString()}</TableCell>
                 <TableCell className="text-right">
                   <Button variant="ghost" size="icon" onClick={() => onViewDetails(report.id)} title="View Details">

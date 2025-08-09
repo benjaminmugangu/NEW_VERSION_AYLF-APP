@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { PageHeader } from "@/components/shared/PageHeader";
 import { AllocationForm } from '@/app/dashboard/finances/components/AllocationForm';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { ROLES } from '@/lib/constants';
 import type { FundAllocationFormData, Site, SmallGroup } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast";

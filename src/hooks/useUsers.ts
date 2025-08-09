@@ -1,60 +1,91 @@
 // src/hooks/useUsers.ts
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { profileService } from '@/services/profileService';
-
-import { useAuth } from '@/contexts/AuthContext';
 import type { User } from '@/lib/types';
 
+// Type for the user creation data, matching the API route's schema
+import { type UserFormData } from "@/app/dashboard/users/components/UserForm";
 
+export type UserCreationData = Omit<User, 'id' | 'createdAt'>;
+
+// Key for caching user data
+const USERS_QUERY_KEY = ['users'];
 
 export const useUsers = () => {
-  const { currentUser } = useAuth();
-  const [users, setUsers] = useState<User[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  const fetchData = useCallback(async () => {
-    if (!currentUser) return;
+  // Query to fetch all users
+  const { data: users = [], isLoading, isError, error } = useQuery({
+    queryKey: USERS_QUERY_KEY,
+    queryFn: async () => {
+      const response = await profileService.getUsers();
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to fetch users');
+      }
+      return response.data || [];
+    },
+  });
 
-    setIsLoading(true);
-    setError(null);
-    const usersRes = await profileService.getUsers();
+  // Mutation to create a new user
+  const createUserMutation = useMutation({
+    mutationFn: async (userData: UserFormData) => {
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+          ...userData,
+          mandateStartDate: userData.mandateStartDate instanceof Date ? userData.mandateStartDate.toISOString() : undefined,
+          mandateEndDate: userData.mandateEndDate instanceof Date ? userData.mandateEndDate.toISOString() : undefined,
+        }),
+      });
 
-    if (usersRes.success) {
-      setUsers(usersRes.data || []);
-    } else {
-      const errorMessage = usersRes.error?.message || 'Failed to fetch user data.';
-      setError(errorMessage);
-      setUsers([]);
-    }
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create user');
+      }
 
-    setIsLoading(false);
-  }, []);
+      return response.json();
+    },
+    onSuccess: () => {
+      // Invalidate the users query to refetch the list
+      queryClient.invalidateQueries({ queryKey: USERS_QUERY_KEY });
+    },
+  });
 
-  useEffect(() => {
-    if (currentUser) {
-      fetchData();
-    }
-  }, [fetchData, currentUser]);
+  // Mutation to update a user's profile
+  const updateUserMutation = useMutation({
+    mutationFn: ({ userId, updates }: { userId: string; updates: Partial<User> }) => {
+      return profileService.updateProfile(userId, updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: USERS_QUERY_KEY });
+    },
+  });
 
-  const refetch = () => fetchData();
+  // Mutation to delete a user
+  const deleteUserMutation = useMutation({
+    mutationFn: (userId: string) => {
+      return profileService.deleteUser(userId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: USERS_QUERY_KEY });
+    },
+  });
 
-  const deleteUser = async (userId: string) => {
-        const response = await profileService.deleteUser(userId);
-    if (response.success) {
-      // Refetch data to ensure consistency after update
-      fetchData();
-      return { success: true };
-    } else {
-      const errorMessage = response.error?.message || 'An unknown error occurred during deletion.';
-      setError(errorMessage);
-      return { success: false, error: { message: errorMessage } };
-    }
+  return {
+    users,
+    isLoading,
+    isError,
+    error,
+    createUser: createUserMutation.mutate,
+    updateUser: updateUserMutation.mutate,
+    deleteUser: deleteUserMutation.mutate,
+    isCreatingUser: createUserMutation.isPending,
+    isUpdatingUser: updateUserMutation.isPending,
+    isDeletingUser: deleteUserMutation.isPending,
   };
-
-  return { users, isLoading, error, refetch, deleteUser };
 };
 
 

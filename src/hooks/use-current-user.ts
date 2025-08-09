@@ -1,7 +1,7 @@
 // src/hooks/use-current-user.ts
 'use client';
 
-import { useAuth } from './useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const useCurrentUser = () => {
   const { currentUser } = useAuth();

@@ -62,3 +62,47 @@ BEGIN
   DELETE FROM auth.users WHERE id = user_id;
 END;
 $$;
+
+-- =============================================================================
+-- FUNCTION: get_sites_with_details
+-- DESCRIPTION: Récupère tous les sites avec des détails enrichis, y compris
+--              le nom du coordinateur, le nombre de petits groupes et le
+--              nombre total de membres.
+-- =============================================================================
+DROP FUNCTION IF EXISTS get_sites_with_details();
+
+CREATE OR REPLACE FUNCTION get_sites_with_details()
+RETURNS TABLE(
+  id uuid,
+  name text,
+  city text,
+  country text,
+  coordinator_id uuid,
+  creation_date timestamptz,
+  coordinator_name text,
+  small_groups_count bigint,
+  members_count bigint
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    s.id,
+    s.name,
+    s.city,
+    s.country,
+    s.coordinator_id,
+    s.created_at AS creation_date,
+    p.name AS coordinator_name,
+    (SELECT COUNT(*) FROM small_groups sg WHERE sg.site_id = s.id) AS small_groups_count,
+    (SELECT COUNT(*) FROM small_group_members sgm JOIN small_groups sg ON sgm.small_group_id = sg.id WHERE sg.site_id = s.id) AS members_count
+  FROM
+    sites s
+  LEFT JOIN
+    profiles p ON s.coordinator_id = p.id
+  ORDER BY
+    s.name;
+END;
+$$;
+

@@ -6,7 +6,21 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export const formatCurrency = (amount: number) => {
+  if (typeof amount !== 'number') {
+    amount = 0;
+  }
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount);
+};
+
+export const formatDate = (dateString: string) => {
+  if (!dateString || isNaN(new Date(dateString).getTime())) {
+    return 'Invalid Date';
+  }
+  return new Date(dateString).toLocaleDateString('fr-FR', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
 };
 
 /**

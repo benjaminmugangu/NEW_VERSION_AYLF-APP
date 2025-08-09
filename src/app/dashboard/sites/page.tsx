@@ -66,10 +66,12 @@ export default function ManageSitesPage() {
     };
   }, [allSites, isLoading, error]);
 
+  React.useEffect(() => {
     if (error) {
-    const description = typeof error === 'string' ? error : (error as { message: string }).message;
-    toast({ title: "Error", description: description, variant: "destructive" });
-  }
+      const description = typeof error === 'string' ? error : (error as { message: string }).message;
+      toast({ title: "Error", description: description, variant: "destructive" });
+    }
+  }, [error, toast]);
 
   return (
     <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER]}>

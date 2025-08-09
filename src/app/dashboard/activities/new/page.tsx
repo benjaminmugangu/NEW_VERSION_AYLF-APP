@@ -17,7 +17,7 @@ export default function NewActivityPage() {
   const handleSuccessfulCreate = (newActivity: Activity) => {
     toast({
       title: "Activity Created!",
-      description: `Activity "${newActivity.name}" has been successfully created.`,
+      description: `Activity "${newActivity.title}" has been successfully created.`,
     });
     router.push("/dashboard/activities");
   };

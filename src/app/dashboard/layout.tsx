@@ -4,7 +4,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   SidebarProvider,
   Sidebar,
@@ -20,13 +20,13 @@ import {
   SidebarTrigger,
   SidebarInset,
 } from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
 import { UserNav } from "@/components/shared/UserNav";
-import { APP_NAME, NAVIGATION_LINKS, ROLES } from "@/lib/constants";
+import { APP_NAME, NAVIGATION_LINKS } from "@/lib/constants";
 import type { NavItem } from "@/lib/types";
-import { ChevronDown, ChevronUp, LogOut, Settings } from "lucide-react";
+import { ChevronDown, ChevronUp, LogOut } from "lucide-react";
 import Image from "next/image";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ClientOnly } from "@/components/shared/ClientOnly";
 
 export default function DashboardLayout({
   children,
@@ -44,24 +44,29 @@ export default function DashboardLayout({
   }, []);
 
   useEffect(() => {
-    if (!isLoading && !currentUser) {
+    if (isMounted && !isLoading && !currentUser) {
       router.replace("/login");
     }
-  }, [currentUser, isLoading, router]);
+  }, [currentUser, isLoading, router, isMounted]);
 
   const toggleSubmenu = (label: string) => {
     setOpenSubmenus(prev => ({ ...prev, [label]: !prev[label] }));
   };
 
-  const renderNavItems = (items: NavItem[], isSubmenu = false) => {
+  const renderNavItems = (items: NavItem[]) => {
+    if (!currentUser) return null;
+
     return items
-      .filter(item => currentUser && (!item.allowedRoles || item.allowedRoles.includes(currentUser.role)))
+      .filter(item => !item.allowedRoles || item.allowedRoles.includes(currentUser.role))
       .map((item) => {
         const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
         const Icon = item.icon;
 
         if (item.children && item.children.length > 0) {
           const isSubmenuOpen = openSubmenus[item.label] || item.children.some(child => pathname.startsWith(child.href));
+          const filteredChildren = item.children.filter(child => !child.allowedRoles || child.allowedRoles.includes(currentUser.role));
+          if (filteredChildren.length === 0) return null;
+
           return (
             <SidebarMenuItem key={item.label}>
               <SidebarMenuButton
@@ -77,9 +82,7 @@ export default function DashboardLayout({
               </SidebarMenuButton>
               {isSubmenuOpen && (
                 <SidebarMenuSub>
-                  {item.children
-                    .filter(child => currentUser && (!child.allowedRoles || child.allowedRoles.includes(currentUser.role)))
-                    .map(child => (
+                  {filteredChildren.map(child => (
                     <SidebarMenuSubItem key={child.href}>
                       <SidebarMenuSubButton isActive={pathname === child.href} asChild>
                         <Link href={child.href}>{child.label}</Link>
@@ -92,68 +95,33 @@ export default function DashboardLayout({
           );
         }
 
-        const MenuComponent = isSubmenu ? SidebarMenuSubButton : SidebarMenuButton;
-        
         return (
           <SidebarMenuItem key={item.href}>
-            <MenuComponent isActive={isActive} asChild tooltip={item.label}>
+            <SidebarMenuButton isActive={isActive} asChild tooltip={item.label}>
               <Link href={item.href}>
                 <span className="flex items-center gap-2">
                   <Icon className="h-5 w-5" />
                   <span>{item.label}</span>
                 </span>
               </Link>
-            </MenuComponent>
+            </SidebarMenuButton>
           </SidebarMenuItem>
         );
       });
   };
 
-  if (!isMounted || isLoading || !currentUser) {
-    return (
-       <div className="flex h-screen">
-        {/* Sidebar Skeleton */}
-        <div className="w-64 border-r p-4 space-y-4 hidden md:block bg-sidebar">
-          <div className="flex items-center gap-2 mb-6">
-            <Skeleton className="h-10 w-10 rounded-full" />
-            <Skeleton className="h-6 w-32" />
-          </div>
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <Skeleton className="h-5 w-5" />
-              <Skeleton className="h-5 w-full" />
-            </div>
-          ))}
-          <div className="mt-auto pt-4 border-t border-sidebar-border">
-             <Skeleton className="h-8 w-full" />
-          </div>
-        </div>
-        {/* Main Content Skeleton */}
-        <div className="flex-1 p-6 space-y-6">
-          <div className="flex justify-between items-center">
-            <Skeleton className="h-8 w-8 md:hidden" /> {/* Mobile Trigger */}
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-10 w-10 rounded-full" />
-          </div>
-          <Skeleton className="h-12 w-1/3" />
-          <Skeleton className="h-64 w-full" />
-          <Skeleton className="h-32 w-full" />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <SidebarProvider defaultOpen>
-      <Sidebar variant="sidebar" collapsible="icon">
+      <ClientOnly>
+        <Sidebar variant="sidebar" collapsible="icon">
         <SidebarHeader className="p-4">
           <Link href="/dashboard">
             <span className="flex items-center gap-2 group/logo">
               <Image 
                 src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcROsJ0oRg8RYoAuUWm025MBmI5tjiHUI-Pcgw&s"
                 alt="AYLF Logo" 
-                width={40} // Increased width
-                height={40} // Increased height
+                width={40}
+                height={40}
                 className="rounded-full transition-transform duration-300 group-hover/logo:scale-110"
               />
               <span className="font-bold text-xl text-primary group-hover/logo:text-accent-foreground transition-colors">
@@ -164,34 +132,47 @@ export default function DashboardLayout({
         </SidebarHeader>
         <SidebarContent>
           <SidebarMenu>
-            {renderNavItems(NAVIGATION_LINKS)}
+            {isMounted && !isLoading ? renderNavItems(NAVIGATION_LINKS) : (
+              <div className="p-4 space-y-2">
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-2/3" />
+              </div>
+            )}
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter className="p-2 border-t border-sidebar-border">
-          <SidebarMenu>
-            <SidebarMenuItem>
-                <SidebarMenuButton onClick={logout} tooltip="Logout">
-                    <LogOut className="h-5 w-5" />
-                    <span>Logout</span>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
+          {isMounted && currentUser && (
+            <SidebarMenu>
+              <SidebarMenuItem>
+                  <SidebarMenuButton onClick={logout} tooltip="Logout">
+                      <LogOut className="h-5 w-5" />
+                      <span>Logout</span>
+                  </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          )}
         </SidebarFooter>
-      </Sidebar>
+        </Sidebar>
+      </ClientOnly>
       <SidebarInset>
         <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-4 border-b bg-background px-4 md:px-6 backdrop-blur-sm bg-opacity-80">
-          <div className="md:hidden"> {/* Only show trigger on mobile/tablet */}
-            <SidebarTrigger />
+          <div className="md:hidden">
+            <ClientOnly>
+              <SidebarTrigger />
+            </ClientOnly>
           </div>
-          <div className="text-lg font-semibold hidden md:block"> {/* Title or breadcrumbs can go here */}
-            {/* Example: {pathname.split('/').pop()?.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Dashboard'} */}
-          </div>
+          <div className="text-lg font-semibold hidden md:block"></div>
           <div className="ml-auto">
-            <UserNav />
+            {isMounted && currentUser ? <UserNav /> : <Skeleton className="h-10 w-10 rounded-full" />}
           </div>
         </header>
         <main className="flex-1 p-4 md:p-6 lg:p-8">
-          {children}
+          {isMounted && currentUser ? children : (
+            <div className="w-full h-full flex items-center justify-center">
+              <Skeleton className="h-full w-full" />
+            </div>
+          )}
         </main>
         <footer className="border-t p-4 text-center text-sm text-muted-foreground">
           © {new Date().getFullYear()} {APP_NAME}. All rights reserved.
@@ -200,4 +181,3 @@ export default function DashboardLayout({
     </SidebarProvider>
   );
 }
-

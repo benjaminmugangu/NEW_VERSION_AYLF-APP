@@ -1,6 +1,6 @@
 // src/services/reportService.ts
 import { supabase } from '@/lib/supabaseClient';
-import type { Report, ReportFormData, ServiceResponse, User } from '@/lib/types';
+import type { Report, ReportWithDetails, ReportFormData, ServiceResponse, User } from '@/lib/types';
 import { getDateRangeFromFilterValue, type DateFilterValue } from '@/components/shared/DateRangeFilter';
 import { ROLES } from '@/lib/constants';
 
@@ -29,7 +29,7 @@ const toReportModel = (dbReport: any): Report => {
     girlsCount: dbReport.girls_count,
     boysCount: dbReport.boys_count,
     participantsCountReported: dbReport.participants_count_reported,
-    totalExpenses: dbReport.expenses,
+    totalExpenses: dbReport.total_expenses,
     currency: dbReport.currency,
     content: dbReport.content,
     images: dbReport.images,
@@ -38,6 +38,35 @@ const toReportModel = (dbReport: any): Report => {
     reviewNotes: dbReport.review_notes,
     attachments: dbReport.attachments,
   };
+};
+
+// Helper to convert frontend camelCase to DB snake_case
+const fromReportFormData = (formData: Partial<ReportFormData>): object => {
+  const dbData = {
+    title: formData.title,
+    activity_date: formData.activityDate,
+    level: formData.level,
+    site_id: formData.siteId,
+    small_group_id: formData.smallGroupId,
+    activity_type_id: formData.activityTypeId,
+    activity_id: formData.activityId, // Map frontend camelCase to DB snake_case
+    thematic: formData.thematic,
+    speaker: formData.speaker,
+    moderator: formData.moderator,
+    girls_count: formData.girlsCount,
+    boys_count: formData.boysCount,
+    total_expenses: formData.totalExpenses,
+    currency: formData.currency,
+    content: formData.content,
+    financial_summary: formData.financialSummary,
+    images: formData.images,
+    submitted_by: formData.submittedBy,
+    status: formData.status,
+    review_notes: formData.reviewNotes,
+  };
+
+  // Filter out undefined values to avoid inserting them as null
+  return Object.fromEntries(Object.entries(dbData).filter(([, value]) => value !== undefined));
 };
 
 export interface ReportFilters {
@@ -54,70 +83,91 @@ const reportService = {
       .from('reports')
       .select(`
         *,
-        profiles:submitted_by!inner(name),
-        sites:site_id!inner(name),
-        small_groups:small_group_id!inner(name),
-        activity_types:activity_type_id!inner(name)
+        profiles:submitted_by(name),
+        sites:site_id(name),
+        small_groups:small_group_id(name),
+        activity_types:activity_type_id(name)
       `)
       .eq('id', id)
       .single();
 
     if (error) {
-
+      console.error('[ReportService] Error in getReportById:', error.message);
       return { success: false, error: { message: 'Report not found.' } };
     }
     return { success: true, data: toReportModel(data) };
   },
 
-  createReport: async (reportData: ReportFormData): Promise<ServiceResponse<Report>> => {
-    const { data: insertData, error: insertError } = await supabase
+  createReport: async (reportData: ReportFormData): Promise<Report> => {
+    const reportForDb = fromReportFormData(reportData);
+
+    const { data, error } = await supabase
       .from('reports')
-      // The Supabase client automatically converts camelCase to snake_case.
-      // Redundant manual mapping is removed.
-      .insert({ ...reportData })
-      .select('id')
+      .insert(reportForDb)
+      .select(`
+        *,
+        profiles:submitted_by(name),
+        sites:site_id(name),
+        small_groups:small_group_id(name),
+        activity_types:activity_type_id(name)
+      `)
       .single();
 
-    if (insertError) {
-
-      return { success: false, error: { message: insertError.message } };
+    if (error) {
+      console.error('[ReportService] Error in createReport:', error.message);
+      throw new Error(error.message);
     }
 
-    return reportService.getReportById(insertData.id);
+    return toReportModel(data);
   },
 
-  updateReport: async (reportId: string, updatedData: Partial<ReportFormData>): Promise<ServiceResponse<Report>> => {
-    const { error: updateError } = await supabase
+  updateReport: async (reportId: string, updatedData: Partial<ReportFormData>): Promise<ReportWithDetails> => {
+    const reportForDb = fromReportFormData(updatedData);
+
+    const { data, error } = await supabase
       .from('reports')
-      // The Supabase client automatically converts camelCase to snake_case.
-      // Redundant manual mapping is removed.
-      .update({ ...updatedData })
-      .eq('id', reportId);
+      .update(reportForDb)
+      .eq('id', reportId)
+      .select(`
+        *,
+        profiles:submitted_by(name),
+        sites:site_id(name),
+        small_groups:small_group_id(name),
+        activity_types:activity_type_id(name)
+      `)
+      .single();
 
-    if (updateError) {
-
-      return { success: false, error: { message: updateError.message } };
+    if (error) {
+      console.error('[ReportService] Error in updateReport:', error.message);
+      throw new Error(error.message);
     }
 
-    return reportService.getReportById(reportId);
+    return toReportModel(data) as ReportWithDetails;
   },
 
   deleteReport: async (id: string): Promise<ServiceResponse<{ id: string }>> => {
     const { error } = await supabase.from('reports').delete().eq('id', id);
-    if (error) return { success: false, error: { message: error.message } };
+    if (error) {
+      console.error('[ReportService] Error in deleteReport:', error.message);
+      return { success: false, error: { message: error.message } };
+    }
     return { success: true, data: { id } };
   },
-  getFilteredReports: async (filters: ReportFilters): Promise<ServiceResponse<Report[]>> => {
+  getFilteredReports: async (filters: ReportFilters): Promise<ServiceResponse<ReportWithDetails[]>> => {
     const { user, entity, searchTerm, dateFilter, statusFilter } = filters;
-    if (!user && !entity) return { success: false, error: { message: 'Authentication or entity required' } };
+    if (!user && !entity) {
+    return { success: false, error: { message: 'User or entity is required to fetch reports.' } };
+  }
 
     // Restore the joins but keep filters commented out for now.
+    // Use standard left joins (default) instead of inner joins to prevent reports from being dropped
+    // if a related entity (like site or small group) is null.
     let query = supabase.from('reports').select(`
       *,
-      profiles:submitted_by!inner(name),
-      sites:site_id!inner(name),
-      small_groups:small_group_id!inner(name),
-      activity_types:activity_type_id!inner(name)
+      profiles:submitted_by(name),
+      sites:site_id(name),
+      small_groups:small_group_id(name),
+      activity_types:activity_type_id(name)
     `);
 
     if (entity) {
@@ -134,6 +184,7 @@ const reportService = {
             query = query.eq('site_id', user.siteId);
           } else {
             // This user is a site coordinator but has no site assigned.
+            // This user is a site coordinator but has no site assigned.
             // Return empty array to prevent RLS error from fetching all reports.
             return { success: true, data: [] };
           }
@@ -142,6 +193,7 @@ const reportService = {
           if (user.smallGroupId) {
             query = query.eq('small_group_id', user.smallGroupId);
           } else {
+            // This user is a small group leader but has no group assigned.
             // This user is a small group leader but has no group assigned.
             // Return empty array to prevent RLS error.
             return { success: true, data: [] };
@@ -183,11 +235,12 @@ const reportService = {
     const { data, error } = await query.order('submission_date', { ascending: false });
 
     if (error) {
-
+      console.error('[ReportService] Error in getFilteredReports:', error.message);
       return { success: false, error: { message: error.message } };
     }
 
-    const reports = data.map(toReportModel);
+    // The mapping is now assumed to be correct based on the select statement
+    const reports = data.map(toReportModel) as ReportWithDetails[];
     return { success: true, data: reports };
   },
 };

@@ -11,9 +11,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import type { User, UserRole, Site, SmallGroup } from "@/lib/types";
 import { ROLES } from "@/lib/constants";
-import siteService from '@/services/siteService';
+import { siteService } from '@/services/siteService';
 import smallGroupService from '@/services/smallGroupService';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -56,6 +57,7 @@ interface UserFormProps {
 
 export function UserForm({ user, onSubmitForm }: UserFormProps) {
   const { toast } = useToast();
+  const { currentUser } = useAuth();
   const [availableSites, setAvailableSites] = useState<Site[]>([]);
   const [availableSmallGroups, setAvailableSmallGroups] = useState<SmallGroup[]>([]);
   
@@ -82,15 +84,16 @@ export function UserForm({ user, onSubmitForm }: UserFormProps) {
   const showSiteField = watchedRole === ROLES.SITE_COORDINATOR || watchedRole === ROLES.SMALL_GROUP_LEADER;
   const showSmallGroupField = watchedRole === ROLES.SMALL_GROUP_LEADER;
 
-  useEffect(() => {
+    useEffect(() => {
     const fetchSites = async () => {
-      const response = await siteService.getAllSites();
+      if (!currentUser) return;
+      const response = await siteService.getSitesWithDetails(currentUser);
       if (response.success && response.data) {
         setAvailableSites(response.data);
       }
     };
     fetchSites();
-  }, []);
+  }, [currentUser]);
 
   useEffect(() => {
     // When role changes, reset fields that should no longer be visible or are dependent.

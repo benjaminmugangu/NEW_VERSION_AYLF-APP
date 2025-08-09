@@ -7,13 +7,13 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { ActivityForm } from "../../components/ActivityForm";
 import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
 import { ROLES } from "@/lib/constants";
-import { activityService } from '@/services/activityService';
-import type { Activity, ActivityFormData } from "@/lib/types";
+import { activityService, type ActivityFormData } from '@/services/activityService';
+import type { Activity } from '@/lib/types';
 import { Edit, Info, ShieldAlert } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function EditActivityPage() {
@@ -36,16 +36,13 @@ export default function EditActivityPage() {
 
     const fetchActivity = async () => {
       setIsLoading(true);
+      setError(null);
       try {
-        const result = await activityService.getActivityById(activityId);
-        if (result.success && result.data) {
-          setActivityToEdit(result.data);
-        } else {
-          setError(result.error?.message || "Activity not found.");
-        }
-      } catch (err) {
+        const activity = await activityService.getActivityById(activityId);
+        setActivityToEdit(activity);
+      } catch (err: any) {
         console.error("Fetch activity error:", err);
-        setError("An unexpected error occurred while fetching the activity.");
+        setError(err.message || "An unexpected error occurred while fetching the activity.");
       } finally {
         setIsLoading(false);
       }

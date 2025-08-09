@@ -9,29 +9,29 @@ import { UserPlus } from "lucide-react";
 import type { MemberFormData } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import { memberService } from "@/services/memberService";
 
 export default function NewMemberPage() {
   const { toast } = useToast();
   const router = useRouter();
 
-  const handleCreateMember = async (data: MemberFormData) => {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const newMember = {
-      id: `mem_${Date.now()}`,
-      ...data,
-      joinDate: data.joinDate.toISOString(), // Convert Date object to ISO string
-    };
-    
-    // mockMembers.unshift(newMember); 
+    const handleCreateMember = async (data: MemberFormData) => {
+    try {
+      await memberService.createMember(data);
 
+      toast({
+        title: "Member Added!",
+        description: `Member "${data.name}" has been successfully added.`,
+      });
+      router.push("/dashboard/members");
 
-    toast({
-      title: "Member Added!",
-      description: `Member "${newMember.name}" has been successfully added.`,
-    });
-    router.push("/dashboard/members"); // Redirect to members list
+    } catch (error) {
+      toast({
+        title: "Error Creating Member",
+        description: (error as Error).message || "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (

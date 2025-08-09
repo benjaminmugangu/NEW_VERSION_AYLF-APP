@@ -1,19 +1,19 @@
 // src/app/dashboard/sites/[siteId]/edit/page.tsx
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { PageHeader } from "@/components/shared/PageHeader";
-import { SiteForm } from "../../components/SiteForm";
-import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
-import { ROLES } from "@/lib/constants";
-import siteService from '@/services/siteService';
-import type { Site, SiteFormData } from "@/lib/types";
-import { Edit, Info } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { SiteFormSkeleton } from "@/components/shared/skeletons/SiteFormSkeleton";
+import React from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { useSites } from '@/hooks/useSites';
+import { useToast } from '@/hooks/use-toast';
+import { PageHeader } from '@/components/shared/PageHeader';
+import { SiteForm } from '../../components/SiteForm';
+import { RoleBasedGuard } from '@/components/shared/RoleBasedGuard';
+import { ROLES } from '@/lib/constants';
+import type { SiteFormData } from '@/lib/types';
+import { Edit, Info } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { SiteFormSkeleton } from '@/components/shared/skeletons/SiteFormSkeleton';
 
 export default function EditSitePage() {
   const params = useParams();
@@ -21,51 +21,26 @@ export default function EditSitePage() {
   const { toast } = useToast();
   const siteId = params.siteId as string;
 
-  const [siteToEdit, setSiteToEdit] = useState<Site | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { allSites, updateSite, isUpdating, isLoading } = useSites();
 
-  useEffect(() => {
-    if (!siteId) {
-      setIsLoading(false);
-      return;
-    }
-
-    const fetchSite = async () => {
-      setIsLoading(true);
-      try {
-        const response = await siteService.getSiteById(siteId);
-        if (response.success && response.data) {
-          setSiteToEdit(response.data);
-        } else {
-          setSiteToEdit(null);
-        }
-      } catch (error) {
-        toast({ title: "Error", description: "Could not load site data for editing.", variant: 'destructive' });
-        setSiteToEdit(null);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchSite();
-  }, [siteId]);
+  const siteToEdit = allSites.find(site => site.id === siteId);
 
   const handleUpdateSite = async (data: SiteFormData) => {
     if (!siteId) return;
 
-    const result = await siteService.updateSite(siteId, data);
-
-    if (result.success && result.data) {
+    try {
+      await updateSite({ id: siteId, siteData: data });
       toast({
-        title: "Site Updated!",
-        description: `Site "${result.data.name}" has been successfully updated.`,
+        title: 'Site Updated!',
+        description: 'The site details have been successfully updated.',
       });
       router.push(`/dashboard/sites/${siteId}`);
-    } else {
+    } catch (error) {
+      console.error("Erreur détaillée lors de la mise à jour du site:", error);
       toast({
-        title: "Error Updating Site",
-        description: result.error?.message || "An unknown error occurred. Please try again.",
-        variant: "destructive",
+        title: 'Error Updating Site',
+        description: (error as Error).message || 'An unknown error occurred.',
+        variant: 'destructive',
       });
     }
   };
@@ -100,7 +75,7 @@ export default function EditSitePage() {
         description="Modify the details and coordinator for this site."
         icon={Edit}
       />
-      <SiteForm site={siteToEdit} onSubmitForm={handleUpdateSite} />
+      <SiteForm site={siteToEdit} onSubmitForm={handleUpdateSite} isSubmitting={isUpdating} />
     </RoleBasedGuard>
   );
 }

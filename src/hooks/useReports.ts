@@ -1,28 +1,28 @@
 // src/hooks/useReports.ts
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import { useState, useEffect, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useToast } from '@/hooks/use-toast';
-import { reportService } from '@/services/reportService';
+import { reportService, type ReportFilters } from '@/services/reportService';
 import { ROLES } from '@/lib/constants';
 import type { ReportStatus, ReportWithDetails } from '@/lib/types';
 import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
 
 export const useReports = () => {
+  const queryClient = useQueryClient();
   const { currentUser } = useAuth();
   const { toast } = useToast();
   const isMobile = useIsMobile();
 
-  const [reports, setReports] = useState<ReportWithDetails[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+
 
   // Filters and view mode
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState<DateFilterValue>({ rangeKey: 'all_time', display: 'All Time' });
-  const [statusFilter, setStatusFilter] = useState<ReportStatus | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<Record<ReportStatus, boolean>>({ pending: true, approved: true, rejected: true, submitted: true });
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
 
   // Modal and action state
@@ -31,34 +31,33 @@ export const useReports = () => {
   const [rejectionNotes, setRejectionNotes] = useState('');
   const [isRejectingReport, setIsRejectingReport] = useState<ReportWithDetails | null>(null);
 
-  const fetchReports = useCallback(async () => {
-    if (!currentUser) return;
-    setIsLoading(true);
-    setError(null);
-    const response = await reportService.getReportsWithDetails({
-      searchTerm: searchTerm || undefined,
-      status: statusFilter === 'all' ? undefined : statusFilter,
-      dateRange: dateFilter,
-      siteId: currentUser.role === ROLES.SITE_COORDINATOR ? currentUser.siteId : undefined,
-      smallGroupId: currentUser.role === ROLES.SMALL_GROUP_LEADER ? currentUser.smallGroupId : undefined,
-    });
+  const filters = useMemo(() => ({
+    user: currentUser,
+    searchTerm: searchTerm || undefined,
+    dateFilter: dateFilter,
+    statusFilter: statusFilter,
+  }), [currentUser, searchTerm, dateFilter, statusFilter]);
 
-    if (response.success && response.data) {
-      setReports(response.data);
-    } else {
-      setError(response.error?.message || 'An unknown error occurred while fetching reports.');
-      setReports([]);
-    }
-    setIsLoading(false);
-  }, [searchTerm, statusFilter, dateFilter, currentUser]);
+  const { 
+    data: reports = [], 
+    isLoading, 
+    error, 
+    refetch 
+  } = useQuery<ReportWithDetails[], Error>({
+    queryKey: ['reports', filters],
+    queryFn: async () => {
+      const response = await reportService.getFilteredReports(filters);
+      if (response.success && response.data) {
+        return response.data;
+      }
+      throw new Error(response.error?.message || 'Failed to fetch reports.');
+    },
+    enabled: !!currentUser, // Only run the query if the user is loaded
+  });
 
-  useEffect(() => {
-    fetchReports();
-  }, [fetchReports]);
 
-  useEffect(() => {
-    setViewMode(isMobile ? 'grid' : 'table');
-  }, [isMobile]);
+
+
 
   useEffect(() => {
     const hash = window.location.hash.substring(1);
@@ -79,30 +78,44 @@ export const useReports = () => {
       window.location.hash = reportId;
     }
   };
-  
+
   const closeModal = () => {
-      setSelectedReport(null);
-      setIsModalOpen(false);
-      history.pushState("", document.title, window.location.pathname + window.location.search);
-  }
-
-  // TODO: Replace with actual backend API call to update report status
-  const handleReportStatusUpdate = async (reportId: string, newStatus: ReportStatus, notes?: string) => {
-
-    toast({ title: 'Success (Mock)', description: `Report has been ${newStatus}.` });
-    
-    setIsModalOpen(false);
     setSelectedReport(null);
-    setIsRejectingReport(null);
-    setRejectionNotes('');
-    await fetchReports();
+    setIsModalOpen(false);
+    history.pushState("", document.title, window.location.pathname + window.location.search);
+  };
+
+  const updateReportMutation = useMutation({
+    mutationFn: ({ reportId, newStatus, notes }: { reportId: string; newStatus: ReportStatus; notes?: string }) => 
+      reportService.updateReport(reportId, { status: newStatus, reviewNotes: notes }),
+    onSuccess: (updatedReport) => {
+      queryClient.invalidateQueries({ queryKey: ['reports', filters] });
+      toast({ title: 'Success', description: `Report has been ${updatedReport.status}.` });
+      // Close modals and reset state
+      setIsModalOpen(false);
+      setSelectedReport(null);
+      setIsRejectingReport(null);
+      setRejectionNotes('');
+    },
+    onError: (error) => {
+      toast({ title: 'Error', description: error.message || 'Failed to update report.', variant: 'destructive' });
+      // Still close modals and reset state
+      setIsModalOpen(false);
+      setSelectedReport(null);
+      setIsRejectingReport(null);
+      setRejectionNotes('');
+    },
+  });
+
+  const handleReportStatusUpdate = (reportId: string, newStatus: ReportStatus, notes?: string) => {
+    updateReportMutation.mutate({ reportId, newStatus, notes });
   };
 
   const confirmRejectReport = () => {
     if (isRejectingReport && rejectionNotes.trim()) {
       handleReportStatusUpdate(isRejectingReport.id, 'rejected', rejectionNotes);
     } else {
-        toast({ title: 'Validation Error', description: 'Rejection notes cannot be empty.', variant: 'destructive' });
+      toast({ title: 'Validation Error', description: 'Rejection notes cannot be empty.', variant: 'destructive' });
     }
   };
 
@@ -119,7 +132,7 @@ export const useReports = () => {
   return {
     reports,
     isLoading,
-    error,
+    error: error ? error.message : null,
     filters: {
       searchTerm,
       dateFilter,
@@ -148,6 +161,7 @@ export const useReports = () => {
       closeModal,
     },
     pageDescription,
-    refetch: fetchReports,
+    refetch,
+    isUpdating: updateReportMutation.isPending,
   };
 };

@@ -23,14 +23,14 @@ import type { User, UserRole } from "@/lib/types";
 
 export default function ManageUsersPage() {
   const { toast } = useToast();
-  const { users, isLoading, error, deleteUser } = useUsers();
+  const { users, isLoading, error, deleteUser, isDeletingUser } = useUsers();
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
   React.useEffect(() => {
     if (error) {
       toast({ 
         title: "Error loading user data", 
-        description: error,
+        description: error.message,
         variant: "destructive" 
       });
     }
@@ -40,18 +40,19 @@ export default function ManageUsersPage() {
     setUserToDelete(user);
   };
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = () => {
     if (!userToDelete) return;
 
-    const result = await deleteUser(userToDelete.id);
-
-    if (result.success) {
-      toast({ title: "Success", description: `User '${userToDelete.name}' has been deleted.` });
-    } else {
-      toast({ title: "Error", description: result.error?.message || "Failed to delete user.", variant: "destructive" });
-    }
-
-    setUserToDelete(null);
+    deleteUser(userToDelete.id, {
+      onSuccess: () => {
+        toast({ title: "Success", description: `User '${userToDelete.name}' has been deleted.` });
+        setUserToDelete(null);
+      },
+      onError: (error) => {
+        toast({ title: "Error", description: error.message || "Failed to delete user.", variant: "destructive" });
+        setUserToDelete(null);
+      },
+    });
   };
 
   const getRoleDisplayName = (role: UserRole) => role.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
@@ -163,7 +164,9 @@ export default function ManageUsersPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive hover:bg-destructive/90">Delete User</AlertDialogAction>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive hover:bg-destructive/90" disabled={isDeletingUser}>
+              {isDeletingUser ? 'Deleting...' : 'Delete User'}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

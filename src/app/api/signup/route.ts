@@ -61,6 +61,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: 'Registration successful! Please check your email to confirm your account.', user: data.user }, { status: 200 });
 
   } catch (err) {
+    console.error("Erreur détaillée dans l'API d'inscription:", err);
     console.error('Unexpected error during signup:', err);
     return NextResponse.json({ error: 'An unexpected server error occurred.' }, { status: 500 });
   }

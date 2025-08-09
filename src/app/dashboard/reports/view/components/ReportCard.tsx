@@ -1,7 +1,7 @@
 // src/app/dashboard/reports/view/components/ReportCard.tsx
 "use client";
 
-import type { Report } from "@/lib/types";
+import type { ReportWithDetails } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,12 +10,12 @@ import Image from "next/image";
 import { format } from "date-fns";
 
 interface ReportCardProps {
-  report: Report;
+  report: ReportWithDetails;
   onViewDetails: (reportId: string) => void;
 }
 
 export function ReportCard({ report, onViewDetails }: ReportCardProps) {
-  const getLevelBadgeColor = (level: Report["level"]) => {
+  const getLevelBadgeColor = (level: ReportWithDetails["level"]) => {
     switch(level) {
       case "national": return "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300";
       case "site": return "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300";
@@ -24,7 +24,7 @@ export function ReportCard({ report, onViewDetails }: ReportCardProps) {
     }
   }
 
-  const getStatusBadgeInfo = (status: Report["status"]) => {
+  const getStatusBadgeInfo = (status: ReportWithDetails["status"]) => {
     switch (status) {
       case "approved":
         return { variant: "default", icon: <CheckCircle className="mr-1 h-3 w-3" />, text: "Approved", className: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 border-green-300 dark:border-green-700" };
@@ -68,7 +68,7 @@ export function ReportCard({ report, onViewDetails }: ReportCardProps) {
         </div>
         <CardDescription className="text-xs text-muted-foreground space-y-0.5 pt-1">
           <div className="flex items-center"><CalendarDays className="mr-1.5 h-3 w-3" />Activity Date: {format(new Date(report.activityDate), "PP")}</div>
-          <div className="flex items-center"><Tag className="mr-1.5 h-3 w-3" />Type: {report.activityType}</div>
+          <div className="flex items-center"><Tag className="mr-1.5 h-3 w-3" />Type: {report.activityTypeName || 'N/A'}</div>
           <div className="flex items-center truncate"><Hash className="mr-1.5 h-3 w-3" />Theme: {report.thematic}</div>
         </CardDescription>
       </CardHeader>
@@ -78,7 +78,7 @@ export function ReportCard({ report, onViewDetails }: ReportCardProps) {
             {report.participantsCountReported !== undefined && (
                 <span className="flex items-center"><Users className="mr-1 h-3 w-3" /> {report.participantsCountReported} Participants</span>
             )}
-            <span className="flex items-center"><UserCircle className="mr-1 h-3 w-3" /> By: {report.submittedBy}</span>
+            <span className="flex items-center"><UserCircle className="mr-1 h-3 w-3" /> By: {report.submittedByName || 'N/A'}</span>
             <span className="flex items-center"><CalendarDays className="mr-1 h-3 w-3" />Submitted: {new Date(report.submissionDate).toLocaleDateString()}</span>
         </div>
          {report.financialSummary && (
@@ -87,9 +87,9 @@ export function ReportCard({ report, onViewDetails }: ReportCardProps) {
                 <p className="text-xs text-muted-foreground line-clamp-1">{report.financialSummary}</p>
             </div>
         )}
-         {report.amountUsed !== undefined && report.amountUsed > 0 && (
+         {report.totalExpenses !== undefined && report.totalExpenses > 0 && (
              <div className="mt-1 text-xs text-muted-foreground">
-                Amount Used: <span className="font-medium text-foreground">{report.amountUsed} {report.currency}</span>
+                Total Expenses: <span className="font-medium text-foreground">{report.totalExpenses.toLocaleString()} {report.currency}</span>
             </div>
         )}
       </CardContent>

@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
 import { useFinancials } from "@/hooks/useFinancials";
+import { useTransactions } from '@/hooks/useTransactions';
 import FinancialDashboard from "./components/FinancialDashboard";
+import { RecentTransactions } from './components/RecentTransactions';
 import { DateRangeFilter } from "@/components/shared/DateRangeFilter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -17,21 +19,22 @@ const FinancesPageSkeleton = () => (
       <Skeleton className="h-[126px]" />
       <Skeleton className="h-[126px]" />
     </div>
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7 mt-4">
-      <div className="col-span-4">
-        <Skeleton className="h-[350px]" />
+    <div className="grid gap-4 grid-cols-1 lg:grid-cols-3 mt-4">
+      <div className="lg:col-span-2">
+        <Skeleton className="h-[450px]" />
       </div>
-      <div className="col-span-3">
-        <Skeleton className="h-[350px]" />
+      <div>
+        <Skeleton className="h-[450px]" />
       </div>
     </div>
   </div>
 );
 
 export default function FinancesPage() {
-  const { stats, isLoading, error, refetch, dateFilter, setDateFilter, currentUser } = useFinancials();
+  const { stats, isLoading: isLoadingFinancials, error, refetch, dateFilter, setDateFilter, currentUser } = useFinancials();
+  const { transactions, isLoading: isLoadingTransactions } = useTransactions();
 
-  if (isLoading) {
+  if (isLoadingFinancials || isLoadingTransactions) {
     return <FinancesPageSkeleton />;
   }
 
@@ -42,7 +45,7 @@ export default function FinancesPage() {
         <p className="text-muted-foreground mb-4">
           {error || "Nous n'avons pas pu récupérer les statistiques financières."}
         </p>
-        <Button onClick={refetch}>Réessayer</Button>
+        <Button onClick={() => refetch()}>Réessayer</Button>
       </div>
     );
   }
@@ -52,18 +55,24 @@ export default function FinancesPage() {
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight">Finances Dashboard</h2>
         <div className="flex items-center space-x-2">
-          {/* TODO: Add NewAllocationModal when ready */}
           <DateRangeFilter 
             onFilterChange={setDateFilter} 
             initialRangeKey={dateFilter.rangeKey} 
           />
         </div>
       </div>
-      <FinancialDashboard 
-        stats={stats} 
-        currentUser={currentUser}
-        linkGenerator={(type, id) => `/dashboard/finances/${type}/${id}`}
-      />
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <FinancialDashboard 
+            stats={stats} 
+            currentUser={currentUser}
+            linkGenerator={(type, id) => `/dashboard/finances/${type}/${id}`}
+          />
+        </div>
+        <div>
+          <RecentTransactions transactions={transactions} />
+        </div>
+      </div>
     </div>
   );
 }

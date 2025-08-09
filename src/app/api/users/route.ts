@@ -19,8 +19,19 @@ const userCreateSchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters long'),
   email: z.string().email('Invalid email address'),
   role: z.enum(['national_coordinator', 'site_coordinator', 'small_group_leader', 'member']),
-  siteId: z.string().optional(),
-  smallGroupId: z.string().optional(),
+  siteId: z.string().optional().nullable(),
+  smallGroupId: z.string().optional().nullable(),
+  status: z.enum(['active', 'inactive']).optional().default('active'),
+  mandateStartDate: z.string().optional().nullable(),
+  mandateEndDate: z.string().optional().nullable(),
+}).refine(data => {
+  if (data.mandateStartDate && data.mandateEndDate) {
+    return new Date(data.mandateEndDate) >= new Date(data.mandateStartDate);
+  }
+  return true;
+}, {
+  message: 'End date cannot be before start date',
+  path: ['mandateEndDate'],
 });
 
 export async function POST(request: Request) {
@@ -39,7 +50,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid input', details: validation.error.flatten() }, { status: 400 });
     }
 
-    const { name, email, role, siteId, smallGroupId } = validation.data;
+    const { name, email, role, siteId, smallGroupId, status, mandateStartDate, mandateEndDate } = validation.data;
     const password = generatePassword();
 
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
@@ -49,8 +60,11 @@ export async function POST(request: Request) {
       user_metadata: {
         name,
         role,
+        status,
         site_id: siteId,
         small_group_id: smallGroupId,
+        mandate_start_date: mandateStartDate,
+        mandate_end_date: mandateEndDate,
       },
     });
 
@@ -79,6 +93,7 @@ export async function POST(request: Request) {
     }, { status: 201 });
 
   } catch (error) {
+    console.error("Erreur détaillée dans l'API utilisateur (POST):", error);
     console.error('Internal server error:', error);
     return NextResponse.json({ error: 'An unexpected error occurred.' }, { status: 500 });
   }

@@ -6,6 +6,9 @@ import { ROLES } from '@/lib/constants';
 // Helper to convert DB snake_case to frontend camelCase
 const toSmallGroupModel = (dbSmallGroup: any): SmallGroup => {
   // The dbSmallGroup can be complex due to joins
+  const memberSource = dbSmallGroup.small_group_members || dbSmallGroup.members; // Handle both possible structures
+  const memberCountObject = Array.isArray(memberSource) ? memberSource[0] : { count: 0 };
+
   return {
     id: dbSmallGroup.id,
     name: dbSmallGroup.name,
@@ -19,7 +22,7 @@ const toSmallGroupModel = (dbSmallGroup: any): SmallGroup => {
     // Enriched data from joins
     siteName: dbSmallGroup.sites?.name,
     leaderName: dbSmallGroup.leader?.name,
-    memberCount: Array.isArray(dbSmallGroup.members) ? dbSmallGroup.members[0]?.count : 0,
+    memberCount: memberCountObject?.count ?? 0,
     leader: dbSmallGroup.leader,
     logisticsAssistant: dbSmallGroup.logisticsAssistant,
     financeAssistant: dbSmallGroup.financeAssistant,
@@ -27,7 +30,7 @@ const toSmallGroupModel = (dbSmallGroup: any): SmallGroup => {
 };
 
 const smallGroupService = {
-  getSmallGroupsBySite: async (siteId: string): Promise<ServiceResponse<SmallGroup[]>> => {
+  getSmallGroupsBySite: async (siteId: string): Promise<SmallGroup[]> => {
     const { data, error } = await supabase
       .from('small_groups')
       .select('*')
@@ -35,14 +38,14 @@ const smallGroupService = {
       .order('name', { ascending: true });
 
     if (error) {
-      return { success: false, error: { message: error.message } };
+      throw new Error(error.message);
     }
 
-    return { success: true, data: data.map(toSmallGroupModel) };
+    return data.map(toSmallGroupModel);
   },
-    getFilteredSmallGroups: async ({ user, search, siteId }: { user: User; search?: string, siteId?: string }): Promise<ServiceResponse<SmallGroup[]>> => {
+  getFilteredSmallGroups: async ({ user, search, siteId }: { user: User; search?: string, siteId?: string }): Promise<SmallGroup[]> => {
     if (!user) {
-      return { success: false, error: { message: 'User not authenticated.' } };
+      throw new Error('User not authenticated.');
     }
 
     let query = supabase
@@ -56,30 +59,26 @@ const smallGroupService = {
     // Apply role-based filtering
     switch (user.role) {
       case ROLES.NATIONAL_COORDINATOR:
-        // If a specific siteId is provided for filtering, use it.
         if (siteId) {
           query = query.eq('site_id', siteId);
         }
-        // Otherwise, a national coordinator can see all groups, so no filter is applied.
         break;
       case ROLES.SITE_COORDINATOR:
         if (!user.siteId) {
-          return { success: true, data: [] }; // No site assigned, return empty
+          return [];
         }
         query = query.eq('site_id', user.siteId);
         break;
       case ROLES.SMALL_GROUP_LEADER:
         if (!user.smallGroupId) {
-          return { success: true, data: [] }; // No group assigned, return empty
+          return [];
         }
         query = query.eq('id', user.smallGroupId);
         break;
       default:
-        // Other roles should not see any small groups by default
-        return { success: true, data: [] };
+        return [];
     }
 
-    // Apply search filter if provided
     if (search) {
       query = query.ilike('name', `%${search}%`);
     }
@@ -87,14 +86,14 @@ const smallGroupService = {
     const { data, error } = await query;
 
     if (error) {
-      return { success: false, error: { message: `Failed to fetch small groups: ${error.message}` } };
+      console.error('[SmallGroupService] Error in getFilteredSmallGroups:', error.message);
+      throw new Error(`Failed to fetch small groups: ${error.message}`);
     }
 
-    const smallGroups = data.map(toSmallGroupModel);
-    return { success: true, data: smallGroups };
+    return data.map(toSmallGroupModel);
   },
 
-  getSmallGroupById: async (groupId: string): Promise<ServiceResponse<SmallGroup>> => {
+  getSmallGroupById: async (groupId: string): Promise<SmallGroup> => {
     const { data, error } = await supabase
       .from('small_groups')
       .select('*')
@@ -102,34 +101,34 @@ const smallGroupService = {
       .single();
 
     if (error) {
-      return { success: false, error: { message: 'Small group not found.' } };
+      throw new Error('Small group not found.');
     }
 
-    return { success: true, data: toSmallGroupModel(data) };
+    return toSmallGroupModel(data);
   },
 
-  getSmallGroupDetails: async (groupId: string): Promise<ServiceResponse<SmallGroup>> => {
+  getSmallGroupDetails: async (groupId: string): Promise<SmallGroup> => {
     const { data, error } = await supabase
       .from('small_groups')
       .select(`
         *,
         sites (id, name),
-        leader:leader_id (id, name, email, profilePicture),
-        logisticsAssistant:logistics_assistant_id (id, name, email, profilePicture),
-        financeAssistant:finance_assistant_id (id, name, email, profilePicture),
-        members (count)
+        leader:leader_id (id, name, email),
+        logisticsAssistant:logistics_assistant_id (id, name, email),
+        financeAssistant:finance_assistant_id (id, name, email),
+        small_group_members (count)
       `)
       .eq('id', groupId)
       .single();
 
     if (error) {
-      return { success: false, error: { message: 'Small group not found.' } };
+      throw new Error('Small group not found.');
     }
 
-    return { success: true, data: toSmallGroupModel(data) };
+    return toSmallGroupModel(data);
   },
 
-  createSmallGroup: async (siteId: string, formData: SmallGroupFormData): Promise<ServiceResponse<SmallGroup>> => {
+  createSmallGroup: async (siteId: string, formData: SmallGroupFormData): Promise<SmallGroup> => {
     const { data: newGroup, error: createError } = await supabase
       .from('small_groups')
       .insert({
@@ -146,7 +145,7 @@ const smallGroupService = {
       .single();
 
     if (createError) {
-      return { success: false, error: { message: createError.message } };
+      throw new Error(createError.message);
     }
 
     // Update user assignments
@@ -169,13 +168,15 @@ const smallGroupService = {
       }
     }
 
-    return { success: true, data: toSmallGroupModel(newGroup) };
+    return toSmallGroupModel(newGroup);
   },
 
-  updateSmallGroup: async (groupId: string, formData: SmallGroupFormData): Promise<ServiceResponse<SmallGroup>> => {
+  updateSmallGroup: async (groupId: string, formData: SmallGroupFormData): Promise<SmallGroup> => {
     // 1. Get old group to compare assignments
     const { data: oldGroup, error: fetchError } = await supabase.from('small_groups').select('*').eq('id', groupId).single();
-    if (fetchError || !oldGroup) return { success: false, error: { message: 'Small group not found.' } };
+    if (fetchError || !oldGroup) {
+      throw new Error('Small group not found.');
+    }
 
     // 2. Update small group details
     const { data: updatedGroup, error: updateError } = await supabase
@@ -193,7 +194,9 @@ const smallGroupService = {
       .select()
       .single();
 
-    if (updateError) return { success: false, error: { message: updateError.message } };
+    if (updateError) {
+      throw new Error(updateError.message);
+    }
 
     // 3. Update user assignments
     const assignments = [
@@ -218,10 +221,10 @@ const smallGroupService = {
       }
     }
 
-    return { success: true, data: toSmallGroupModel(updatedGroup) };
+    return toSmallGroupModel(updatedGroup);
   },
 
-  deleteSmallGroup: async (groupId: string): Promise<ServiceResponse<null>> => {
+  deleteSmallGroup: async (groupId: string): Promise<void> => {
     try {
       // 1. Unassign all users (leaders, assistants, members) from the small group.
       const { error: unassignError } = await supabase
@@ -230,8 +233,8 @@ const smallGroupService = {
         .eq('small_group_id', groupId);
 
       if (unassignError) {
-        console.error('Error unassigning members:', unassignError);
-        return { success: false, error: { message: `Failed to unassign members: ${unassignError.message}` } };
+        console.error('[SmallGroupService] Error unassigning members during group deletion:', unassignError.message);
+        throw new Error(`Failed to unassign members: ${unassignError.message}`);
       }
 
       // 2. Perform a hard delete on the small group itself.
@@ -241,15 +244,13 @@ const smallGroupService = {
         .eq('id', groupId);
 
       if (deleteError) {
-        console.error('Error deleting small group:', deleteError);
-        return { success: false, error: { message: `Failed to delete small group: ${deleteError.message}` } };
+        console.error('[SmallGroupService] Error deleting small group:', deleteError.message);
+        throw new Error(`Failed to delete small group: ${deleteError.message}`);
       }
-
-      return { success: true, data: null };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-      console.error(`Unexpected error in deleteSmallGroup: ${errorMessage}`);
-      return { success: false, error: { message: `An unexpected error occurred: ${errorMessage}` } };
+      console.error(`[SmallGroupService] Unexpected error in deleteSmallGroup: ${errorMessage}`);
+      throw new Error(`An unexpected error occurred: ${errorMessage}`);
     }
   },
 };
