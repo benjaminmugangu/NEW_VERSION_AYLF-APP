@@ -84,7 +84,7 @@ export type MemberWithDetails = Member & {
 // FEATURE-SPECIFIC TYPES
 // =============================================================================
 
-export type ActivityStatus = 'planned' | 'in_progress' | 'delayed' | 'executed';
+export type ActivityStatus = 'PLANNED' | 'EXECUTED' | 'CANCELED';
 
 export interface Activity extends BaseEntity {
   title: string;

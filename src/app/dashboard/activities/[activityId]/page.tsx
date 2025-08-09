@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
 import { ROLES } from "@/lib/constants";
 import { activityService } from "@/services/activityService";
-import type { Activity } from "@/lib/types";
+import { Activity, ActivityStatus } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CalendarDays, Users, Layers, Tag, CheckCircle, XCircle, Loader2, Info, FileText, Edit } from "lucide-react";
@@ -78,24 +78,28 @@ export default function ActivityDetailPage() {
     );
   }
 
+  const statusConfig: { [key in ActivityStatus]?: { color: string; label: string } } = {
+    EXECUTED: { color: 'text-green-500', label: 'Executed' },
+    PLANNED: { color: 'text-blue-500', label: 'Planned' },
+    CANCELED: { color: 'text-red-500', label: 'Canceled' },
+  };
+
   const getStatusIcon = (status: Activity["status"]) => {
     switch (status) {
-      case "executed": return <CheckCircle className="h-5 w-5 text-green-500" />;
-      case "planned": return <CalendarDays className="h-5 w-5 text-blue-500" />;
-      case "in_progress": return <Loader2 className="h-5 w-5 text-yellow-500 animate-spin" />;
-      case "delayed": return <Info className="h-5 w-5 text-orange-500" />;
+      case "EXECUTED": return <CheckCircle className="h-5 w-5 text-green-500" />;
+      case "PLANNED": return <CalendarDays className="h-5 w-5 text-blue-500" />;
+      case "CANCELED": return <XCircle className="h-5 w-5 text-red-500" />;
       default: return <Info className="h-5 w-5 text-gray-500" />;
     }
   };
   
   const getStatusBadgeVariant = (status: Activity["status"]) => {
-    const variants: Partial<Record<Activity["status"], "success" | "default" | "secondary" | "outline">> = {
-      executed: "success",
-      planned: "default",
-      in_progress: "secondary",
-      delayed: "outline",
+    const badgeVariants: Partial<Record<ActivityStatus, "success" | "default" | "secondary" | "outline">> = {
+      EXECUTED: "success",
+      PLANNED: "default",
+      CANCELED: "outline",
     };
-    return variants[status] || "default";
+    return badgeVariants[status] || "default";
   };
 
   const getLevelBadgeColor = (level: Activity["level"]) => {
@@ -110,8 +114,8 @@ export default function ActivityDetailPage() {
   return (
     <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR]}>
       <PageHeader 
-        title={activity.name}
-        description={`Details for activity: ${activity.name}`}
+        title={activity.title}
+        description={`Details for activity: ${activity.title}`}
         icon={Tag}
         actions={
           <Link href={`/dashboard/activities/${id}/edit`}>
@@ -128,8 +132,8 @@ export default function ActivityDetailPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div>
-                <h3 className="text-sm font-medium text-muted-foreground">Description</h3>
-                <p className="text-foreground whitespace-pre-wrap">{activity.description}</p>
+                <h3 className="text-sm font-medium text-muted-foreground">Thematic</h3>
+                <p className="text-foreground whitespace-pre-wrap">{activity.thematic}</p>
               </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 text-sm">
@@ -158,13 +162,13 @@ export default function ActivityDetailPage() {
                 )}
               </div>
 
-              {activity.level === 'site' && activity.siteId && (
+              {activity.level === 'site' && activity.site_id && (
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground">Site</h3>
                   <p className="text-foreground">{activity.siteName || 'N/A'}</p>
                 </div>
               )}
-              {activity.level === 'small_group' && activity.smallGroupId && (
+              {activity.level === 'small_group' && activity.small_group_id && (
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground">Small Group</h3>
                   <p className="text-foreground">{activity.smallGroupName || 'N/A'} (Site: {activity.siteName || 'N/A'})</p>

@@ -6,7 +6,7 @@ import { Banknote, Building, Receipt, TrendingDown } from 'lucide-react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { RoleBasedGuard } from '@/components/shared/RoleBasedGuard';
 import { ROLES } from '@/lib/constants';
-import { siteService } from '@/services/siteService';
+import siteService from '@/services/siteService';
 import type { Site } from '@/lib/types';
 import { StatCard } from "@/components/shared/StatCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -34,13 +34,15 @@ export default function SiteFinancialDashboardPage() {
     const fetchSite = async () => {
       if (!siteId) return;
       setIsSiteLoading(true);
-      const response = await siteService.getSiteById(siteId);
-      if (response.success && response.data) {
-        setSite(response.data);
-      } else {
+      try {
+        const siteData = await siteService.getSiteById(siteId);
+        setSite(siteData);
+      } catch (error) {
+        console.error('Failed to fetch site:', error);
         setSite(null);
+      } finally {
+        setIsSiteLoading(false);
       }
-      setIsSiteLoading(false);
     };
     fetchSite();
   }, [siteId]);
@@ -73,9 +75,9 @@ export default function SiteFinancialDashboardPage() {
           <DateRangeFilter onFilterChange={setDateFilter} initialRangeKey={dateFilter.rangeKey} />
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard icon={Banknote} title="Total Revenue" value={formatCurrency(stats?.totalRevenue || 0)} />
+          <StatCard icon={Banknote} title="Income" value={formatCurrency(stats?.income || 0)} />
           <StatCard icon={TrendingDown} title="Total Allocated" value={formatCurrency(stats?.totalAllocated || 0)} />
-          <StatCard icon={Receipt} title="Total Expenses" value={formatCurrency(stats?.totalExpenses || 0)} />
+          <StatCard icon={Receipt} title="Expenses" value={formatCurrency(stats?.expenses || 0)} />
           <StatCard icon={Building} title="Net Balance" value={formatCurrency(stats?.netBalance || 0)} />
         </div>
         <div className="mt-8">
