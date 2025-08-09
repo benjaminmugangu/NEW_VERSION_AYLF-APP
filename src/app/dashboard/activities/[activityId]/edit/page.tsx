@@ -54,7 +54,7 @@ export default function EditActivityPage() {
   const handleSuccessfulUpdate = (updatedActivity: Activity) => {
     toast({
       title: "Activity Updated!",
-      description: `Activity "${updatedActivity.name}" has been successfully updated.`,
+      description: `Activity "${updatedActivity.title}" has been successfully updated.`,
     });
     router.push('/dashboard/activities');
   };
@@ -100,16 +100,16 @@ export default function EditActivityPage() {
       canEditThisSpecificActivity = true;
     } else if (currentUser.role === ROLES.SITE_COORDINATOR) {
       // A Site Coordinator can edit site-level activities and small-group activities within their site.
-      if (activityToEdit.level === 'site' && activityToEdit.siteId === currentUser.siteId) {
+      if (activityToEdit.level === 'site' && activityToEdit.site_id === currentUser.siteId) {
           canEditThisSpecificActivity = true;
       } else if (activityToEdit.level === 'small_group') {
           // We need to check if the small group belongs to the site coordinator's site.
           // This logic requires access to small groups data, which should ideally be handled by the service or passed down.
           // For now, we'll stick to the original logic for simplicity, assuming `activityToEdit.siteId` is available for SG activities.
-          canEditThisSpecificActivity = activityToEdit.siteId === currentUser.siteId;
+          canEditThisSpecificActivity = activityToEdit.site_id === currentUser.siteId;
       }
     } else if (currentUser.role === ROLES.SMALL_GROUP_LEADER) {
-      canEditThisSpecificActivity = activityToEdit.level === 'small_group' && activityToEdit.smallGroupId === currentUser.smallGroupId;
+      canEditThisSpecificActivity = activityToEdit.level === 'small_group' && activityToEdit.small_group_id === currentUser.smallGroupId;
     }
   }
 
@@ -138,7 +138,7 @@ export default function EditActivityPage() {
   return (
     <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER]}>
       <PageHeader
-        title={`Edit Activity: ${activityToEdit.name}`}
+        title={`Edit Activity: ${activityToEdit.title}`}
         description="Modify the details of the existing activity."
         icon={Edit}
       />
