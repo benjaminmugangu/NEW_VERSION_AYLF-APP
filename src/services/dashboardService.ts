@@ -5,7 +5,7 @@ import type { ServiceResponse, Activity, Member, Report, Site, SiteWithDetails, 
 import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
 import { activityService } from './activityService';
 import { memberService } from './memberService';
-import { siteService } from './siteService';
+import siteService from './siteService';
 import smallGroupService from './smallGroupService';
 import { reportService } from './reportService';
 import { financialsService } from './financialsService';
