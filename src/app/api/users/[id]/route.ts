@@ -1,13 +1,13 @@
 // src/app/api/users/[id]/route.ts
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 
 export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: { id: string } }
 ) {
-  const userId = params.id;
+  const userId = context.params.id;
   const cookieStore = cookies();
   const supabase = createRouteHandlerClient({ cookies: () => cookieStore }, {
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
