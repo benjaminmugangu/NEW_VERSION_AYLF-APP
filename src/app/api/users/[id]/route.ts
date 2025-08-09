@@ -5,7 +5,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 
 export async function DELETE(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: any
 ) {
   const userId = context.params.id;
   const cookieStore = cookies();

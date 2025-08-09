@@ -7,7 +7,7 @@ import { Users, Receipt, Wallet, TrendingDown } from 'lucide-react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { RoleBasedGuard } from '@/components/shared/RoleBasedGuard';
 import { ROLES } from '@/lib/constants';
-import { smallGroupService } from '@/services/smallGroupService';
+import smallGroupService from '@/services/smallGroupService';
 import type { SmallGroup } from '@/lib/types';
 import { StatCard } from "@/components/shared/StatCard";
 import { DateRangeFilter, type DateFilterValue } from "@/components/shared/DateRangeFilter";
@@ -35,10 +35,11 @@ export default function SmallGroupFinancialDashboardPage() {
     const fetchSmallGroup = async () => {
       if (!smallGroupId) return;
       setIsSmallGroupLoading(true);
-      const response = await smallGroupService.getSmallGroupById(smallGroupId);
-      if (response.success && response.data) {
-        setSmallGroup(response.data);
-      } else {
+      try {
+        const group = await smallGroupService.getSmallGroupById(smallGroupId);
+        setSmallGroup(group);
+      } catch (error) {
+        console.error(error);
         setSmallGroup(null);
       }
       setIsSmallGroupLoading(false);
@@ -79,13 +80,13 @@ export default function SmallGroupFinancialDashboardPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <StatCard 
                 title="Funds Received"
-                value={formatCurrency(stats?.totalRevenue || 0)}
+                value={formatCurrency(stats?.income || 0)}
                 icon={Receipt}
                 description="Total funds allocated to this group"
             />
             <StatCard 
                 title="Expenses Declared"
-                value={formatCurrency(stats?.totalExpenses || 0)}
+                value={formatCurrency(stats?.expenses || 0)}
                 icon={TrendingDown}
                 description="Total expenses from activity reports"
             />

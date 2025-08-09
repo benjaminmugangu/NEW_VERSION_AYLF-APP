@@ -150,7 +150,7 @@ const deleteSite = async (id: string): Promise<{ id: string }> => {
   return { id };
 };
 
-export const siteService = {
+const siteService = {
   getSitesWithDetails,
   getSiteDetails, // Add this new function
   getSiteById,
@@ -158,3 +158,5 @@ export const siteService = {
   updateSite,
   deleteSite,
 };
+
+export default siteService;

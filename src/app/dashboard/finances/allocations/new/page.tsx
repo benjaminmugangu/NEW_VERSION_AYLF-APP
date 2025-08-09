@@ -11,8 +11,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { allocationService } from '@/services/allocations.service';
-import { siteService } from '@/services/siteService';
-import { smallGroupService } from '@/services/smallGroupService';
+import siteService from '@/services/siteService';
+import smallGroupService from '@/services/smallGroupService';
 
 export default function NewAllocationPage() {
   const { currentUser: user } = useAuth();
@@ -30,19 +30,11 @@ export default function NewAllocationPage() {
       setIsDataLoading(true);
       try {
         if (user.role === ROLES.NATIONAL_COORDINATOR) {
-          const sitesResponse = await siteService.getFilteredSites({ user });
-          if (sitesResponse.success && sitesResponse.data) {
-            setRecipients(sitesResponse.data);
-          } else {
-            toast({ title: "Error", description: sitesResponse.error?.message || "Could not load site data.", variant: 'destructive' });
-          }
+          const sites = await siteService.getSitesWithDetails(user);
+          setRecipients(sites);
         } else if (user.role === ROLES.SITE_COORDINATOR && user.siteId) {
-          const smallGroupsResponse = await smallGroupService.getFilteredSmallGroups({ user, siteId: user.siteId });
-          if (smallGroupsResponse.success && smallGroupsResponse.data) {
-            setRecipients(smallGroupsResponse.data);
-          } else {
-            toast({ title: "Error", description: smallGroupsResponse.error?.message || "Could not load small group data.", variant: 'destructive' });
-          }
+          const smallGroups = await smallGroupService.getFilteredSmallGroups({ user, siteId: user.siteId });
+          setRecipients(smallGroups);
         }
       } catch (error) {
 
