@@ -84,7 +84,7 @@ export type MemberWithDetails = Member & {
 // FEATURE-SPECIFIC TYPES
 // =============================================================================
 
-export type ActivityStatus = 'PLANNED' | 'EXECUTED' | 'CANCELED';
+export type ActivityStatus = 'planned' | 'in_progress' | 'delayed' | 'executed' | 'canceled';
 
 export interface Activity extends BaseEntity {
   title: string;
@@ -250,7 +250,7 @@ export interface TransactionFormData {
   date: string;
   description: string;
   amount: number;
-  type: 'income' | 'expense' | 'transfer';
+  type: 'income' | 'expense';
   category: string;
   siteId?: string;
   smallGroupId?: string;

@@ -12,17 +12,19 @@ interface ActivityDetailsProps {
 
 export function ActivityDetails({ activity }: ActivityDetailsProps) {
   const getStatusBadgeVariant = (status: Activity['status']) => {
-    const variants: Partial<Record<Activity['status'], 'success' | 'default' | 'destructive'>> = {
-      PLANNED: 'default',
-      EXECUTED: 'success',
-      CANCELED: 'destructive',
+    const variants: Partial<Record<Activity['status'], 'success' | 'default' | 'destructive' | 'secondary'>> = {
+      planned: 'secondary',
+      in_progress: 'default',
+      delayed: 'destructive',
+      executed: 'success',
+      canceled: 'destructive',
     };
     return variants[status] || 'default';
   };
 
   const detailItems = [
     { icon: Calendar, label: 'Date', value: new Date(activity.date).toLocaleDateString() },
-    { icon: Clock, label: 'Status', value: <Badge variant={getStatusBadgeVariant(activity.status)}>{activity.status.replace(/_/g, ' ')}</Badge> },
+    { icon: Clock, label: 'Status', value: <Badge variant={getStatusBadgeVariant(activity.status)}>{activity.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</Badge> },
     { icon: BarChart2, label: 'Level', value: activity.level.replace(/_/g, ' ') },
     { icon: Tag, label: 'Thematic', value: activity.thematic },
     { icon: Flag, label: 'Activity Type', value: activity.activityTypeName || 'N/A' },

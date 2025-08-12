@@ -12,10 +12,12 @@ interface ActivityChartProps {
   description?: string;
 }
 
-const chartConfigBase: ChartConfig = {
-  PLANNED: { label: "Planned", color: "hsl(var(--chart-2))" },
-  EXECUTED: { label: "Executed", color: "hsl(var(--chart-1))" },
-  CANCELED: { label: "Canceled", color: "hsl(var(--chart-5))" },
+const chartConfig: ChartConfig = {
+  planned: { label: "Planned", color: "hsl(var(--chart-2))" },
+  in_progress: { label: "In Progress", color: "hsl(var(--chart-3))" },
+  delayed: { label: "Delayed", color: "hsl(var(--chart-4))" },
+  executed: { label: "Executed", color: "hsl(var(--chart-1))" },
+  canceled: { label: "Canceled", color: "hsl(var(--chart-5))" },
 };
 
 export function ActivityChart({ activities, title, description }: ActivityChartProps) {
@@ -28,11 +30,14 @@ export function ActivityChart({ activities, title, description }: ActivityChartP
       {} as Record<ActivityStatus, number>
     );
 
-    return [
-      { name: "Planned", count: statusCounts.PLANNED || 0, fill: chartConfigBase.PLANNED.color },
-      { name: "Executed", count: statusCounts.EXECUTED || 0, fill: chartConfigBase.EXECUTED.color },
-      { name: "Canceled", count: statusCounts.CANCELED || 0, fill: chartConfigBase.CANCELED.color },
-    ];
+    return Object.keys(chartConfig).map(statusKey => {
+      const key = statusKey as ActivityStatus;
+      return {
+        name: chartConfig[key].label,
+        count: statusCounts[key] || 0,
+        fill: chartConfig[key].color,
+      };
+    });
   };
 
   const chartData = processData(activities);
@@ -44,7 +49,7 @@ export function ActivityChart({ activities, title, description }: ActivityChartP
         {description && <CardDescription>{description}</CardDescription>}
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfigBase} className="h-[300px] w-full">
+        <ChartContainer config={chartConfig} className="h-[300px] w-full">
           <BarChart data={chartData} accessibilityLayer>
             <CartesianGrid vertical={false} />
             <XAxis

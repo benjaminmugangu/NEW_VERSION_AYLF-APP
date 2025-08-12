@@ -69,10 +69,12 @@ export default function ActivitiesPage() {
 
   // Helper functions for UI rendering
   const getStatusBadgeVariant = (status: Activity["status"]) => {
-    const variants: Partial<Record<Activity['status'], 'success' | 'default' | 'destructive'>> = {
-      PLANNED: 'default',
-      EXECUTED: 'success',
-      CANCELED: 'destructive',
+    const variants: Partial<Record<Activity['status'], 'success' | 'default' | 'destructive' | 'warning'>> = {
+      planned: 'default',
+      executed: 'success',
+      in_progress: 'warning',
+      delayed: 'destructive',
+      canceled: 'destructive',
     };
     return variants[status] || "default";
   };
@@ -154,15 +156,15 @@ export default function ActivitiesPage() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
+                <DropdownMenuLabel>Status</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {Object.keys(filters.statusFilter).map(status => (
                   <DropdownMenuCheckboxItem
                     key={status}
-                    checked={filters.statusFilter[status as keyof typeof filters.statusFilter]}
-                    onCheckedChange={(checked) => setStatusFilter(prev => ({...prev, [status]: !!checked}))}
+                    checked={filters.statusFilter[status as Activity["status"]]}
+                    onCheckedChange={checked => setStatusFilter(prev => ({ ...prev, [status]: checked }))}
                   >
-                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                    {status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ')}
                   </DropdownMenuCheckboxItem>
                 ))}
                 {availableLevelFilters.length > 0 && (
@@ -190,7 +192,7 @@ export default function ActivitiesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
+                  <TableHead>Title</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Level</TableHead>
                   <TableHead>Status</TableHead>

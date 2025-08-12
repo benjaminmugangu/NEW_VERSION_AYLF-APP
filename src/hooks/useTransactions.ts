@@ -18,7 +18,7 @@ export const useTransactions = (initialFilters: Partial<TransactionFilters> = {}
   const [dateFilter, setDateFilter] = useState<DateFilterValue>(initialFilters.dateFilter || defaultDateFilter);
   const [typeFilter, setTypeFilter] = useState<'income' | 'expense' | 'all'>(initialFilters.typeFilter || 'all');
 
-  const filters: TransactionFilters = { user, searchTerm, dateFilter, typeFilter, entity: initialFilters.entity };
+    const filters: TransactionFilters = { user, searchTerm, dateFilter, typeFilter: typeFilter === 'all' ? undefined : typeFilter, entity: initialFilters.entity };
 
   const { 
     data: transactions,

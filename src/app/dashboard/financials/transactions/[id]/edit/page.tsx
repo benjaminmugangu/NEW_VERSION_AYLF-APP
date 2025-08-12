@@ -6,12 +6,11 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { transactionService } from '@/services/transactionService';
-import siteService from '@/services/siteService';
-import smallGroupService from '@/services/smallGroupService';
+
 import { TransactionForm } from '@/components/financials/TransactionForm';
 import { PageHeader } from '@/components/shared/PageHeader';
 // import { Breadcrumbs } from '@/components/shared/Breadcrumbs'; // TODO: Create or find this component
-import type { FinancialTransaction, Site, SmallGroup, TransactionFormData } from '@/lib/types';
+import type { FinancialTransaction, TransactionFormData } from '@/lib/types';
 
 const EditTransactionPage = () => {
   const router = useRouter();
@@ -22,8 +21,6 @@ const EditTransactionPage = () => {
   const id = typeof params.id === 'string' ? params.id : '';
 
   const [transaction, setTransaction] = useState<FinancialTransaction | null>(null);
-  const [sites, setSites] = useState<Site[]>([]);
-  const [smallGroups, setSmallGroups] = useState<SmallGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -33,11 +30,7 @@ const EditTransactionPage = () => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const [transactionRes, sitesResponse, smallGroupsResponse] = await Promise.all([
-          transactionService.getTransactionById(id),
-          siteService.getSitesWithDetails(currentUser),
-          smallGroupService.getFilteredSmallGroups({ user: currentUser }),
-        ]);
+        const transactionRes = await transactionService.getTransactionById(id);
 
         if (transactionRes.success && transactionRes.data) {
           setTransaction(transactionRes.data);
@@ -46,8 +39,7 @@ const EditTransactionPage = () => {
           router.push('/dashboard/financials');
         }
 
-        setSites(sitesResponse);
-        setSmallGroups(smallGroupsResponse);
+        
 
       } catch (error) {
         toast({ title: 'Error', description: 'Failed to load transaction data.', variant: 'destructive' });
@@ -92,8 +84,7 @@ const EditTransactionPage = () => {
         initialData={transaction}
         onSave={handleUpdate}
         isSaving={isSaving}
-        sites={sites}
-        smallGroups={smallGroups}
+        
       />
     </div>
   );

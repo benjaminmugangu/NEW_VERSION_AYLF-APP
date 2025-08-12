@@ -20,7 +20,7 @@ const formSchema = z.object({
   date: z.date(),
   description: z.string().min(1, 'Description is required'),
   amount: z.coerce.number().positive('Amount must be positive'),
-  type: z.enum(['income', 'expense', 'transfer']),
+  type: z.enum(['income', 'expense']),
   category: z.string().min(1, 'Category is required'),
   siteId: z.string().optional(),
   smallGroupId: z.string().optional(),
@@ -116,7 +116,6 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSave, initia
                   <SelectContent>
                     <SelectItem value="income">Income</SelectItem>
                     <SelectItem value="expense">Expense</SelectItem>
-                    <SelectItem value="transfer">Transfer</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -152,56 +151,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSave, initia
             )}
           />
 
-          {transactionType === 'transfer' && (
-            <>
-              <FormField
-                control={form.control}
-                name="siteId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>To Site</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a site" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {sites.map(site => (
-                          <SelectItem key={site.id} value={site.id}>{site.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="smallGroupId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>To Small Group (Optional)</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a small group" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {/* TODO: Filter small groups based on selected site */}
-                        {smallGroups.map(group => (
-                          <SelectItem key={group.id} value={group.id}>{group.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </>
-          )}
+          
 
           <div className="md:col-span-2">
             <FormField

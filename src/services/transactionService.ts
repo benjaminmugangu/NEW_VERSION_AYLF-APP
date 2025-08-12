@@ -34,7 +34,7 @@ export interface TransactionFilters {
   entity?: { type: 'site' | 'smallGroup'; id: string };
   searchTerm?: string;
   dateFilter?: DateFilterValue;
-  typeFilter?: 'income' | 'expense' | 'all';
+  typeFilter?: 'income' | 'expense';
 }
 
 export const transactionService = {
@@ -94,7 +94,7 @@ export const transactionService = {
       query = query.ilike('description', `%${searchTerm}%`);
     }
 
-    if (typeFilter && typeFilter !== 'all') {
+    if (typeFilter) {
       query = query.eq('type', typeFilter);
     }
 

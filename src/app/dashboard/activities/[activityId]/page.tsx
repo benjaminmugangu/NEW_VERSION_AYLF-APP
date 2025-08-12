@@ -10,7 +10,7 @@ import { activityService } from "@/services/activityService";
 import { Activity, ActivityStatus } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CalendarDays, Users, Layers, Tag, CheckCircle, XCircle, Loader2, Info, FileText, Edit } from "lucide-react";
+import { CalendarDays, Users, Layers, Tag, CheckCircle, XCircle, Loader2, Info, FileText, Edit, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
@@ -79,27 +79,33 @@ export default function ActivityDetailPage() {
   }
 
   const statusConfig: { [key in ActivityStatus]?: { color: string; label: string } } = {
-    EXECUTED: { color: 'text-green-500', label: 'Executed' },
-    PLANNED: { color: 'text-blue-500', label: 'Planned' },
-    CANCELED: { color: 'text-red-500', label: 'Canceled' },
+    planned: { color: 'text-blue-500', label: 'Planned' },
+    in_progress: { color: 'text-yellow-500', label: 'In Progress' },
+    delayed: { color: 'text-orange-500', label: 'Delayed' },
+    executed: { color: 'text-green-500', label: 'Executed' },
+    canceled: { color: 'text-red-500', label: 'Canceled' },
   };
 
   const getStatusIcon = (status: Activity["status"]) => {
     switch (status) {
-      case "EXECUTED": return <CheckCircle className="h-5 w-5 text-green-500" />;
-      case "PLANNED": return <CalendarDays className="h-5 w-5 text-blue-500" />;
-      case "CANCELED": return <XCircle className="h-5 w-5 text-red-500" />;
+      case "executed": return <CheckCircle className="h-5 w-5 text-green-500" />;
+      case "planned": return <CalendarDays className="h-5 w-5 text-blue-500" />;
+      case "in_progress": return <Loader2 className="h-5 w-5 text-yellow-500 animate-spin" />;
+      case "delayed": return <AlertTriangle className="h-5 w-5 text-orange-500" />;
+      case "canceled": return <XCircle className="h-5 w-5 text-red-500" />;
       default: return <Info className="h-5 w-5 text-gray-500" />;
     }
   };
   
   const getStatusBadgeVariant = (status: Activity["status"]) => {
-    const badgeVariants: Partial<Record<ActivityStatus, "success" | "default" | "secondary" | "outline">> = {
-      EXECUTED: "success",
-      PLANNED: "default",
-      CANCELED: "outline",
+    const statusVariantMap: { [key in ActivityStatus]?: "success" | "default" | "secondary" | "destructive" | "outline" } = {
+      executed: 'success',
+      canceled: 'destructive',
+      delayed: 'destructive',
+      in_progress: 'default',
+      planned: 'secondary',
     };
-    return badgeVariants[status] || "default";
+    return statusVariantMap[status] || "default";
   };
 
   const getLevelBadgeColor = (level: Activity["level"]) => {

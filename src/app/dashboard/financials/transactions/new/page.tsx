@@ -9,12 +9,11 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { transactionService } from '@/services/transactionService';
-import siteService from '@/services/siteService';
-import smallGroupService from '@/services/smallGroupService';
+
 import { useRouter } from 'next/navigation';
 
 import { useState, useEffect } from 'react';
-import type { TransactionFormData, Site, SmallGroup } from '@/lib/types';
+import type { TransactionFormData } from '@/lib/types';
 
 const NewTransactionPage = () => {
   const { currentUser } = useAuth();
@@ -22,25 +21,7 @@ const NewTransactionPage = () => {
   const { toast } = useToast();
   
   const [isSaving, setIsSaving] = useState(false);
-  const [sites, setSites] = useState<Site[]>([]);
-  const [smallGroups, setSmallGroups] = useState<SmallGroup[]>([]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      if (currentUser) {
-        try {
-          const sites = await siteService.getSitesWithDetails(currentUser);
-          setSites(sites);
-          const smallGroups = await smallGroupService.getFilteredSmallGroups({ user: currentUser });
-          setSmallGroups(smallGroups);
-        } catch (error) {
-          toast({ title: 'Error', description: 'Failed to load initial data.', variant: 'destructive' });
-          console.error('Data fetching error:', error);
-        }
-      }
-    };
-    fetchData();
-  }, [currentUser]);
+  
 
   const handleSave = async (data: TransactionFormData) => {
     if (!currentUser) {
@@ -82,7 +63,7 @@ const NewTransactionPage = () => {
         </Link>
         <h1 className="text-2xl font-bold">Add New Transaction</h1>
       </div>
-      <TransactionForm onSave={handleSave} isSaving={isSaving} sites={sites} smallGroups={smallGroups} />
+      <TransactionForm onSave={handleSave} isSaving={isSaving} />
     </div>
   );
 };

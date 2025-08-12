@@ -17,7 +17,7 @@ export const useActivities = () => {
   // Filters state
   const [searchTerm, setSearchTerm] = useState("");
   const [dateFilter, setDateFilter] = useState<DateFilterValue>({ rangeKey: 'all_time', display: "All Time" });
-  const [statusFilter, setStatusFilter] = useState<Record<ActivityStatus, boolean>>({ PLANNED: true, EXECUTED: true, CANCELED: true });
+  const [statusFilter, setStatusFilter] = useState<Record<ActivityStatus, boolean>>({ planned: true, in_progress: true, delayed: true, executed: true, canceled: true });
   const [levelFilter, setLevelFilter] = useState<Record<Activity['level'], boolean>>({ national: true, site: true, small_group: true });
 
   const filters = useMemo(() => ({

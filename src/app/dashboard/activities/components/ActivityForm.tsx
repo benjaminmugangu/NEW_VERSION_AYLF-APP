@@ -45,7 +45,7 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
       title: '',
       thematic: '',
       date: new Date(),
-      status: 'PLANNED',
+      status: 'planned',
       level: 'national',
       site_id: '',
       small_group_id: '',
@@ -153,7 +153,7 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
   const handleStartActivity = async () => {
     if (!initialActivity) return;
     try {
-      const updatedActivity = await activityService.updateActivity(initialActivity.id, { status: 'EXECUTED' });
+      const updatedActivity = await activityService.updateActivity(initialActivity.id, { status: 'executed' });
       toast({
         title: 'Activity Marked as Executed',
         description: `Activity "${updatedActivity.title}" is now in executed status.`,
@@ -193,9 +193,9 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
                 <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                   <SelectTrigger id="status" className="mt-1"><SelectValue placeholder="Select status" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="PLANNED">Planned</SelectItem>
-                    <SelectItem value="EXECUTED">Executed</SelectItem>
-                    <SelectItem value="CANCELED">Canceled</SelectItem>
+                    <SelectItem value="planned">Planned</SelectItem>
+                    <SelectItem value="executed">Executed</SelectItem>
+                    <SelectItem value="canceled">Canceled</SelectItem>
                   </SelectContent>
                 </Select>
               )} />
@@ -294,7 +294,7 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
         </CardContent>
         <CardFooter className="flex justify-between items-center">
             <div>
-              {isEditMode && initialActivity?.status === 'PLANNED' && (
+              {isEditMode && initialActivity?.status === 'planned' && (
                 <Button type="button" variant="secondary" onClick={handleStartActivity}>
                   <ActivityIconLucide className="mr-2 h-5 w-5" />
                   Mark as Executed

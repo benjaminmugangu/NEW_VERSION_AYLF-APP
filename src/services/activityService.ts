@@ -10,7 +10,7 @@ export const activityFormSchema = z.object({
   thematic: z.string().min(3, 'Thematic must be at least 3 characters long.'),
   date: z.date(),
   level: z.enum(["national", "site", "small_group"]),
-  status: z.enum(["PLANNED", "EXECUTED", "CANCELED"]).default('PLANNED'),
+  status: z.enum(["planned", "in_progress", "delayed", "executed", "canceled"]).default('planned'),
   site_id: z.string().optional(),
   small_group_id: z.string().optional(),
   activity_type_id: z.string().min(1, 'Activity type is required.'),
@@ -70,7 +70,7 @@ const getFilteredActivities = async (filters: any): Promise<Activity[]> => {
 
   let query = supabase
     .from('activities')
-    .select('*, sites:site_id(name), small_groups:small_group_id(name), activity_types:activity_type_id(name)');
+    .select('*, sites:site_id(name), small_groups:small_group_id(name), activity_types:activity_type_id(name), activity_participants(count)');
 
   // Role-based filtering
   if (user.role === ROLES.SITE_COORDINATOR && user.siteId) {
@@ -105,7 +105,7 @@ const getFilteredActivities = async (filters: any): Promise<Activity[]> => {
   const activeLevelFilters = Object.entries(levelFilter)
     .filter(([, isActive]) => isActive)
     .map(([level]) => level);
-
+  
   if (activeLevelFilters.length > 0) {
     query = query.in('level', activeLevelFilters);
   }
@@ -114,26 +114,15 @@ const getFilteredActivities = async (filters: any): Promise<Activity[]> => {
 
   if (error) {
     console.error('[ActivityService] Error in getFilteredActivities:', error.message);
-    throw new Error(`[ActivityService] Error in getFilteredActivities: "${error.message}"`);
+    throw new Error(error.message);
   }
-  
+
   if (!activitiesData) return [];
 
-  const activities = activitiesData.map(toActivityModel);
+  // DEBUG: Log raw data from Supabase
+  console.log('[Debug] Raw data from Supabase in getFilteredActivities:', activitiesData);
 
-  // Fetch participant counts for each activity using the RPC
-  const activitiesWithCounts = await Promise.all(
-    activities.map(async (activity) => {
-      const { data: count, error: countError } = await supabase.rpc('get_participant_count', { p_activity_id: activity.id });
-      if (countError) {
-        console.error(`[ActivityService] Error fetching participant count for activity ${activity.id}:`, countError.message);
-        return { ...activity, participantsCount: 0 }; // Default to 0 on error
-      }
-      return { ...activity, participantsCount: count };
-    })
-  );
-
-  return activitiesWithCounts;
+  return activitiesData.map(toActivityModel);
 };
 
 const getActivitiesByRole = async (user: User): Promise<Activity[]> => {
@@ -141,7 +130,7 @@ const getActivitiesByRole = async (user: User): Promise<Activity[]> => {
 
   let query = supabase
     .from('activities')
-    .select('*, sites:site_id(name), small_groups:small_group_id(name), activity_types:activity_type_id(name)');
+    .select('*, sites:site_id(name), small_groups:small_group_id(name), activity_types:activity_type_id(name), activity_participants(count)');
 
   // Role-based filtering
   if (user.role === ROLES.SITE_COORDINATOR && user.siteId) {
@@ -160,34 +149,20 @@ const getActivitiesByRole = async (user: User): Promise<Activity[]> => {
 
   if (!activitiesData) return [];
 
-  const activities = activitiesData.map(toActivityModel);
-
-  // Fetch participant counts for each activity using the RPC
-  const activitiesWithCounts = await Promise.all(
-    activities.map(async (activity) => {
-      const { data: count, error: countError } = await supabase.rpc('get_participant_count', { p_activity_id: activity.id });
-      if (countError) {
-        console.error(`[ActivityService] Error fetching participant count for activity ${activity.id}:`, countError.message);
-        return { ...activity, participantsCount: 0 }; // Default to 0 on error
-      }
-      return { ...activity, participantsCount: count };
-    })
-  );
-
-  return activitiesWithCounts;
+  return activitiesData.map(toActivityModel);
 };
 
 const getPlannedActivitiesForUser = async (user: User): Promise<Activity[]> => {
   if (!user) throw new Error('User not authenticated.');
 
   const allActivities = await getActivitiesByRole(user);
-  return allActivities.filter(activity => activity.status === 'PLANNED');
+  return allActivities.filter(activity => activity.status === 'planned');
 };
 
 const getActivityById = async (id: string): Promise<Activity> => {
   const { data, error } = await supabase
     .from('activities')
-    .select('*, sites:site_id(name), small_groups:small_group_id(name), activity_types:activity_type_id(name)')
+    .select('*, sites:site_id(name), small_groups:small_group_id(name), activity_types:activity_type_id(name), activity_participants(count)')
     .eq('id', id)
     .single();
 
@@ -199,20 +174,7 @@ const getActivityById = async (id: string): Promise<Activity> => {
     throw new Error('Activity not found');
   }
 
-  let activity = toActivityModel(data);
-
-  // Fetch participant count using the RPC
-  const { data: count, error: countError } = await supabase.rpc('get_participant_count', { p_activity_id: activity.id });
-
-  if (countError) {
-    console.error(`[ActivityService] Error fetching participant count for activity ${activity.id}:`, countError.message);
-    // We can decide to throw or return with a default count
-    activity.participantsCount = 0;
-  } else {
-    activity.participantsCount = count;
-  }
-
-  return activity;
+  return toActivityModel(data);
 };
 
 const createActivity = async (activityData: Omit<ActivityFormData, 'created_by'>, userId: string): Promise<Activity> => {
