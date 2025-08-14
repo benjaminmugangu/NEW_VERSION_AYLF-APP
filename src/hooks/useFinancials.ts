@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
-import { financialsService } from '@/services/financialsService';
+import financialsService from '@/services/financialsService';
 import type { Financials } from '@/lib/types';
 import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
 

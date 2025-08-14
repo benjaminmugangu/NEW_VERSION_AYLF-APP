@@ -3,7 +3,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { memberService } from '@/services/memberService';
+import memberService from '@/services/memberService';
 import { MemberForm } from '../../components/MemberForm';
 import { useToast } from '@/hooks/use-toast';
 import type { Member, MemberFormData } from '@/lib/types';

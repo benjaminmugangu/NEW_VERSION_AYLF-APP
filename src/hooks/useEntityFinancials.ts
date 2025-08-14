@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { financialsService } from '@/services/financialsService';
+import financialsService from '@/services/financialsService';
 import type { Financials } from '@/lib/types';
 import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
 

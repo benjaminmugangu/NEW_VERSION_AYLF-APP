@@ -3,12 +3,12 @@
 
 import type { Activity, Member, Report, Site, SiteWithDetails, SmallGroup, User, Financials } from '@/lib/types';
 import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
-import { activityService } from './activityService';
-import { memberService } from './memberService';
+import activityService from './activityService';
+import memberService from './memberService';
 import siteService from './siteService';
 import smallGroupService from './smallGroupService';
-import { reportService } from './reportService';
-import { financialsService } from './financialsService';
+import reportService from './reportService';
+import financialsService from './financialsService';
 
 export interface DashboardStats {
   totalActivities: number;

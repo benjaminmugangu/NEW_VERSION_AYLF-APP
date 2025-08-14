@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { memberService } from '@/services/memberService';
+import memberService from '@/services/memberService';
 import type { MemberWithDetails } from '@/lib/types';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { User } from 'lucide-react';

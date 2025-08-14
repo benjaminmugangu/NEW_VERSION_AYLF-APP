@@ -3,7 +3,7 @@
 
 import { allocationService } from './allocations.service';
 import { transactionService, type TransactionFilters } from './transactionService';
-import { reportService } from './reportService';
+import reportService from './reportService';
 import type {
   User,
   Financials,
@@ -82,4 +82,4 @@ const financialsService = {
   getFinancials,
 };
 
-export { financialsService };
+export default financialsService;

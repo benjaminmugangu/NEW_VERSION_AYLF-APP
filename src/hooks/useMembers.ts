@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
-import { memberService } from '@/services/memberService';
+import memberService from '@/services/memberService';
 import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
 import { ROLES } from '@/lib/constants';
 import type { Member, MemberWithDetails } from '@/lib/types';

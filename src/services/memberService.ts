@@ -192,10 +192,12 @@ const createMember = async (formData: MemberFormData): Promise<Member> => {
   return data;
 };
 
-export const memberService = {
+const memberService = {
   createMember,
   getFilteredMembers,
   getMemberById,
   updateMember,
   deleteMember,
 };
+
+export default memberService;

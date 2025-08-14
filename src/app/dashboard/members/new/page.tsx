@@ -9,7 +9,7 @@ import { UserPlus } from "lucide-react";
 import type { MemberFormData } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import { memberService } from "@/services/memberService";
+import memberService from "@/services/memberService";
 
 export default function NewMemberPage() {
   const { toast } = useToast();
