@@ -1,8 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import * as z from 'zod';
 import activityService from '@/services/activityService';
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
+
+
 
 // Zod schema for validating partial updates
 const activityUpdateSchema = z.object({
@@ -17,7 +19,7 @@ const activityUpdateSchema = z.object({
   participants_count_planned: z.number().int().min(0).optional(),
 }).partial();
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const supabase = createServerComponentClient({ cookies });
     const { data: { session } } = await supabase.auth.getSession();
@@ -47,7 +49,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(_request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const supabase = createServerComponentClient({ cookies });
     const { data: { session } } = await supabase.auth.getSession();
@@ -55,7 +57,7 @@ export async function DELETE(_request: Request, { params }: { params: { id: stri
       return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
     }
 
-        await activityService.deleteActivity(params.id);
+                await activityService.deleteActivity(params.id);
     return new NextResponse(null, { status: 204 });
 
   } catch (error) {
