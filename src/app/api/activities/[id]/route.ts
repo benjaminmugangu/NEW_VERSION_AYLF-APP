@@ -49,6 +49,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
 }
 
+/*
 export async function DELETE(_request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const supabase = createServerComponentClient({ cookies });
@@ -57,7 +58,7 @@ export async function DELETE(_request: NextRequest, { params }: { params: { id: 
       return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
     }
 
-                await activityService.deleteActivity(params.id);
+    await activityService.deleteActivity(params.id);
     return new NextResponse(null, { status: 204 });
 
   } catch (error) {
@@ -65,3 +66,4 @@ export async function DELETE(_request: NextRequest, { params }: { params: { id: 
     return new NextResponse(JSON.stringify({ error: 'Internal Server Error', details: errorMessage }), { status: 500 });
   }
 }
+*/
