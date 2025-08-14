@@ -2,13 +2,13 @@
 'use client';
 
 import { supabase } from '@/lib/supabaseClient';
-import type { User, LoginCredentials, ServiceResponse } from '@/lib/types';
+import type { User, LoginCredentials } from '@/lib/types';
 import { profileService } from './profileService';
 
 const authService = {
-  login: async (credentials: LoginCredentials): Promise<ServiceResponse<User>> => {
+    login: async (credentials: LoginCredentials): Promise<User> => {
     if (!credentials.password) {
-      return { success: false, error: { message: 'Password is required.' } };
+      throw new Error('Password is required.');
     }
 
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
@@ -18,33 +18,33 @@ const authService = {
 
     if (authError) {
       console.error('[AuthService] Error in login (auth):', authError.message);
-      return { success: false, error: { message: authError.message } };
+      throw new Error(authError.message);
     }
 
     if (!authData.user) {
-      return { success: false, error: { message: 'Authentication failed, user not found.' } };
+      throw new Error('Authentication failed, user not found.');
     }
 
     // After successful login, fetch the user's profile to get role and other details
-    const profileResponse = await profileService.getProfile(authData.user.id);
-
-    if (!profileResponse.success) {
-      console.error('[AuthService] Error in login (profile fetch):', profileResponse.error?.message);
+    try {
+      const userProfile = await profileService.getProfile(authData.user.id);
+      // The type assertion is safe here because getProfile will throw on failure
+      return userProfile as User;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('[AuthService] Error in login (profile fetch):', errorMessage);
       // If profile doesn't exist, it's a critical issue. Log out to be safe.
       await supabase.auth.signOut();
-      return { success: false, error: { message: 'User profile not found after login.' } };
+      throw new Error('User profile not found after login.');
     }
-
-    return { success: true, data: profileResponse.data! };
   },
 
-  logout: async (): Promise<ServiceResponse<{}>> => {
+  logout: async (): Promise<void> => {
     const { error } = await supabase.auth.signOut();
     if (error) {
       console.error('[AuthService] Error in logout:', error.message);
-      return { success: false, error: { message: error.message } };
+      throw new Error(error.message);
     }
-    return { success: true, data: {} };
   },
 
   getCurrentUser: async (): Promise<User | null> => {
@@ -57,14 +57,17 @@ const authService = {
       }
 
       if (session?.user) {
-        const profileResponse = await profileService.getProfile(session.user.id);
-        if (profileResponse.success) {
-          return profileResponse.data || null;
+        try {
+
+          const userProfile = await profileService.getProfile(session.user.id);
+          return userProfile as User | null;
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          // If profile fetch fails, the user is authenticated but their app data is missing.
+          // This is a problematic state. For now, we return null.
+          console.error('[AuthService] Failed to fetch profile for current user:', errorMessage);
+          return null;
         }
-        // If profile fetch fails, the user is authenticated but their app data is missing.
-        // This is a problematic state. For now, we return null.
-        console.error('[AuthService] Failed to fetch profile for current user:', profileResponse.error?.message);
-        return null;
       }
 
       return null;

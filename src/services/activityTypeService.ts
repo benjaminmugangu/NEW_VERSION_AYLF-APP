@@ -4,7 +4,8 @@ import type { ActivityType } from '@/lib/types';
 
 /**
  * Fetches all available activity types from the database.
- * @returns A ServiceResponse containing the list of all activity types.
+ * @returns A promise that resolves to an array of activity types.
+ * @throws An error if the database query fails.
  */
 export const getAllActivityTypes = async (): Promise<ActivityType[]> => {
   const { data, error } = await supabase
@@ -23,7 +24,8 @@ export const getAllActivityTypes = async (): Promise<ActivityType[]> => {
 /**
  * Fetches a single activity type by its ID.
  * @param id The ID of the activity type to fetch.
- * @returns A ServiceResponse containing the activity type or an error.
+ * @returns A promise that resolves to the activity type.
+ * @throws An error if the activity type is not found or the query fails.
  */
 export const getActivityTypeById = async (id: string): Promise<ActivityType> => {
   const { data, error } = await supabase

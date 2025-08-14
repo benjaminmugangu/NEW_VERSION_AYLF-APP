@@ -13,19 +13,19 @@ export type UserCreationData = Omit<User, 'id' | 'createdAt'>;
 // Key for caching user data
 const USERS_QUERY_KEY = ['users'];
 
+/**
+ * Custom hook for managing user data (profiles).
+ * Provides queries to fetch all users and mutations for creating, updating, and deleting users.
+ * Handles state management, caching, and background refetching via TanStack Query.
+ * @returns An object containing user data, loading/error states, and mutation functions.
+ */
 export const useUsers = () => {
   const queryClient = useQueryClient();
 
   // Query to fetch all users
   const { data: users = [], isLoading, isError, error } = useQuery({
     queryKey: USERS_QUERY_KEY,
-    queryFn: async () => {
-      const response = await profileService.getUsers();
-      if (!response.success) {
-        throw new Error(response.error?.message || 'Failed to fetch users');
-      }
-      return response.data || [];
-    },
+    queryFn: profileService.getUsers,
   });
 
   // Mutation to create a new user

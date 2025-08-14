@@ -19,17 +19,13 @@ export const useCertificates = () => {
     refetch 
   } = useQuery({
     queryKey: ['certificateRoster', dateFilter],
-    queryFn: async () => {
+    queryFn: () => {
       const { startDate, endDate } = getDateRangeFromFilterValue(dateFilter);
-      const response = await certificateService.getCertificateRoster({ 
+      // The service now throws an error, which react-query will handle automatically.
+      return certificateService.getCertificateRoster({ 
         startDate: startDate ?? null,
         endDate: endDate ?? null,
       });
-
-      if (!response.success || !response.data) {
-        throw new Error(response.error?.message || 'Failed to fetch certificate roster.');
-      }
-      return response.data;
     },
     placeholderData: (previousData) => previousData, // Show previous data while fetching new data
   });

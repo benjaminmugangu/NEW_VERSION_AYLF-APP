@@ -41,25 +41,21 @@ export const useSmallGroupDetails = (groupId: string | null) => {
         baseGroup.financeAssistantId,
       ].filter((id): id is string => !!id);
 
-      const [site, usersResponse, membersResponse] = await Promise.all([
+      const [site, users, members] = await Promise.all([
         baseGroup.siteId ? siteService.getSiteById(baseGroup.siteId) : Promise.resolve(undefined),
         profileService.getUsersByIds(userIds),
         memberService.getFilteredMembers({ user: currentUser, smallGroupId: groupId, searchTerm: '' }),
       ]);
 
-      const usersMap = (usersResponse.success && usersResponse.data) 
-        ? new Map(usersResponse.data.map((u: User) => [u.id, u])) 
-        : new Map();
+      const usersMap = new Map((users || []).map((u: User) => [u.id, u]));
       
-      const groupMembers = membersResponse || [];
-
       const details: SmallGroupDetails = {
         ...baseGroup,
         site,
         leader: baseGroup.leaderId ? usersMap.get(baseGroup.leaderId) : undefined,
         logisticsAssistant: baseGroup.logisticsAssistantId ? usersMap.get(baseGroup.logisticsAssistantId) : undefined,
         financeAssistant: baseGroup.financeAssistantId ? usersMap.get(baseGroup.financeAssistantId) : undefined,
-        members: groupMembers,
+        members: members || [],
       };
 
       setSmallGroup(details);

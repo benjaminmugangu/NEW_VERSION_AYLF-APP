@@ -2,12 +2,23 @@
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { type NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+
+const paramsSchema = z.object({
+  id: z.string().uuid({ message: 'Invalid User ID format.' }),
+});
 
 export async function DELETE(
   request: NextRequest,
-  context: any
+  context: { params: { id: string } }
 ) {
-  const userId = context.params.id;
+  const validation = paramsSchema.safeParse(context.params);
+
+  if (!validation.success) {
+    return NextResponse.json({ error: 'Invalid input', details: validation.error.flatten() }, { status: 400 });
+  }
+
+  const { id: userId } = validation.data;
   const cookieStore = cookies();
   const supabase = createRouteHandlerClient({ cookies: () => cookieStore }, {
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,

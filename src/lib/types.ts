@@ -31,7 +31,7 @@ export interface Site extends BaseEntity {
   city: string;
   country: string;
   creationDate: string; // ISO 8601 date string
-  coordinatorId?: string;
+  coordinatorId?: string | null;
   coordinator?: User; // Enriched data
   memberCount?: number; // Enriched data
   smallGroupCount?: number; // Enriched data
@@ -275,9 +275,9 @@ export type SiteFormData = Omit<Site, 'id' | 'coordinator' | 'memberCount' | 'sm
 
 export interface SmallGroupFormData {
   name: string;
-  leaderId?: string;
-  logisticsAssistantId?: string;
-  financeAssistantId?: string;
+  leaderId?: string | null;
+  logisticsAssistantId?: string | null;
+  financeAssistantId?: string | null;
   meetingDay?: 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday' | 'Sunday';
   meetingTime?: string;
   meetingLocation?: string;
@@ -309,15 +309,6 @@ export interface AuthContextType {
   currentUser: User | null;
   session: import('@supabase/supabase-js').Session | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error: string | null }>;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
-
-export interface ServiceResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: { message: string };
-  details?: any;
-}
-
-

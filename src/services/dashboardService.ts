@@ -1,7 +1,7 @@
 // src/services/dashboardService.ts
 'use client';
 
-import type { ServiceResponse, Activity, Member, Report, Site, SiteWithDetails, SmallGroup, User, Financials } from '@/lib/types';
+import type { Activity, Member, Report, Site, SiteWithDetails, SmallGroup, User, Financials } from '@/lib/types';
 import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
 import { activityService } from './activityService';
 import { memberService } from './memberService';
@@ -29,35 +29,13 @@ export interface DashboardStats {
 }
 
 const dashboardService = {
-  getDashboardStats: async (user: User | null, dateFilter: DateFilterValue): Promise<ServiceResponse<DashboardStats>> => {
+  getDashboardStats: async (user: User | null, dateFilter: DateFilterValue): Promise<DashboardStats> => {
     if (!user) {
-      return { success: false, error: { message: 'User not authenticated.' } };
+      throw new Error('User not authenticated.');
     }
 
     try {
-      // Fetch all data in parallel for efficiency
-      // Helper to safely extract data from settled promises. Handles both direct data and ServiceResponse wrappers.
-      const getResultData = <T>(result: PromiseSettledResult<T | ServiceResponse<T>>): T | null => {
-        if (result.status === 'rejected') {
-          console.error('[DashboardService] A promise was rejected:', result.reason);
-          return null;
-        }
-
-        const value = result.value as any;
-        // Handle ServiceResponse wrapper for legacy services
-        if (typeof value === 'object' && value !== null && 'success' in value) {
-          if (value.success) {
-            return value.data || null;
-          }
-          console.error('[DashboardService] A service call failed:', value.error?.message);
-          return null;
-        }
-
-        // Handle direct data for refactored services
-        return value as T;
-      };
-
-      const results = await Promise.allSettled([
+      const [activities, members, reports, sites, smallGroups, financials] = await Promise.all([
         activityService.getFilteredActivities({
           user,
           dateFilter,
@@ -71,13 +49,6 @@ const dashboardService = {
         smallGroupService.getFilteredSmallGroups({ user }),
         financialsService.getFinancials(user, dateFilter),
       ]);
-
-      const activities = getResultData<Activity[]>(results[0]) || [];
-      const members = getResultData<Member[]>(results[1]) || [];
-      const approvedReports = getResultData<Report[]>(results[2]) || [];
-      const sites = getResultData<SiteWithDetails[]>(results[3]) || [];
-      const smallGroups = getResultData<SmallGroup[]>(results[4]) || [];
-      const financials = getResultData<Financials>(results[5]);
 
       // --- Calculate Statistics ---
 
@@ -95,7 +66,7 @@ const dashboardService = {
       const nonStudentMembers = members.filter(m => m.type === 'non-student').length;
 
       // Other totals
-      const totalReports = approvedReports.length;
+      const totalReports = reports.length;
       const totalSites = sites.length;
       const totalSmallGroups = smallGroups.length;
 
@@ -118,7 +89,7 @@ const dashboardService = {
         { type: 'Non-Students', count: nonStudentMembers, fill: 'hsl(var(--chart-4))' },
       ];
 
-      const stats: DashboardStats = {
+      return {
         totalActivities,
         plannedActivities,
         executedActivities,
@@ -136,11 +107,10 @@ const dashboardService = {
         memberTypeData,
       };
 
-      return { success: true, data: stats };
     } catch (error) {
       const e = error instanceof Error ? error : new Error('An unknown error occurred');
       console.error('[DashboardService] Unexpected error in getDashboardStats:', e.message);
-      return { success: false, error: { message: 'Failed to fetch dashboard stats' } };
+      throw new Error(`Failed to fetch dashboard stats: ${e.message}`);
     }
   },
 };

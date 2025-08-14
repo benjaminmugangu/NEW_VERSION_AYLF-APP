@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { ActivityForm } from "../../components/ActivityForm";
 import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
 import { ROLES } from "@/lib/constants";
-import { activityService, type ActivityFormData } from '@/services/activityService';
+import activityService, { type ActivityFormData } from '@/services/activityService';
 import type { Activity } from '@/lib/types';
 import { Edit, Info, ShieldAlert } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";

@@ -41,17 +41,23 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchStats = React.useCallback(async () => {
+    if (!currentUser) {
+      // Don't fetch if user is not loaded yet.
+      // The UI will show the loading skeleton.
+      return;
+    }
     setIsLoading(true);
     setError(null);
-        const response = await dashboardService.getDashboardStats(currentUser, dateFilter);
-    if (response.success && response.data) {
-      setStats(response.data);
-    } else {
-            setError(response.error?.message || 'An unknown error occurred.');
+    try {
+      const data = await dashboardService.getDashboardStats(currentUser, dateFilter);
+      setStats(data);
+    } catch (err: any) {
+      setError(err.message || 'An unknown error occurred.');
       setStats(null);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
-  }, [dateFilter]);
+  }, [currentUser, dateFilter]);
 
   useEffect(() => {
     fetchStats();

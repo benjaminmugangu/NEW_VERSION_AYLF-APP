@@ -33,9 +33,19 @@ const userFormSchema = z.object({
   status: z.enum(["active", "inactive"]).optional().default("active"),
 });
 
-// Infer the type from the schema
+/**
+ * Represents the data structure for the user form, inferred from the Zod schema.
+ * This type is used for form handling and submission.
+ */
 export type UserFormData = z.infer<typeof userFormSchema>;
 
+/**
+ * A refined Zod schema for user form validation.
+ * It adds conditional validation based on the user's role:
+ * - Site Coordinators must have a site assigned.
+ * - Small Group Leaders must have both a site and a small group assigned.
+ * - Mandate end date cannot be earlier than the start date.
+ */
 const refinedUserFormSchema = userFormSchema
   .refine(data => data.role !== ROLES.SITE_COORDINATOR || !!data.siteId, {
     message: "Site assignment is required for Site Coordinators.",
@@ -51,10 +61,26 @@ const refinedUserFormSchema = userFormSchema
   });
 
 interface UserFormProps {
-  user?: User; // For editing
+  /**
+   * The user object to pre-populate the form for editing. If undefined, the form is in creation mode.
+   */
+  user?: User;
+  /**
+   * A callback function to handle the form submission.
+   * @param data The validated form data.
+   * @returns A promise that resolves when the submission is complete.
+   */
   onSubmitForm: (data: UserFormData) => Promise<void>;
 }
 
+/**
+ * A comprehensive form component for creating and editing users.
+ * It handles dynamic field visibility based on user roles, asynchronous data fetching for site/group assignments,
+ * and robust validation using Zod.
+ * 
+ * @param {UserFormProps} props The component props.
+ * @returns {React.ReactElement} The rendered form component.
+ */
 export function UserForm({ user, onSubmitForm }: UserFormProps) {
   const { toast } = useToast();
   const { currentUser } = useAuth();

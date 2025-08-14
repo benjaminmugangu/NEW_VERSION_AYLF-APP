@@ -2,7 +2,7 @@
 'use client';
 
 import { supabase } from '@/lib/supabaseClient';
-import type { ServiceResponse, User, Member, MemberWithDetails, MemberFormData } from '@/lib/types';
+import type { User, Member, MemberWithDetails, MemberFormData } from '@/lib/types';
 import { getDateRangeFromFilterValue, type DateFilterValue } from '@/components/shared/DateRangeFilter';
 
 export interface MemberFilters {

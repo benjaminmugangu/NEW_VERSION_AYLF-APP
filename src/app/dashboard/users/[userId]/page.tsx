@@ -30,14 +30,16 @@ export default function UserDetailPage() {
 
     const fetchUser = async () => {
       setIsLoading(true);
-      const response = await profileService.getProfile(userId);
-      if (response.success && response.data) {
-        setUser(response.data);
-      } else {
+      try {
+        const userData = await profileService.getProfile(userId);
+        setUser(userData);
+      } catch (error) {
         setUser(null);
-        toast({ title: "Error", description: response.error?.message || "Failed to fetch user details.", variant: 'destructive' });
+        const errorMessage = error instanceof Error ? error.message : "Failed to fetch user details.";
+        toast({ title: "Error", description: errorMessage, variant: 'destructive' });
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     fetchUser();

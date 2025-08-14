@@ -10,6 +10,13 @@ import { ROLES } from '@/lib/constants';
 
 const SITES_QUERY_KEY = 'sites';
 
+/**
+ * Custom hook for managing site data.
+ * Provides a query to fetch all sites with detailed information (coordinators, small groups count)
+ * and mutations for creating, updating, and deleting sites.
+ * It also includes logic for filtering and authorization based on the current user's role.
+ * @returns An object containing site data, loading/error states, mutation functions, and helpers.
+ */
 export const useSites = () => {
   const { currentUser: user } = useAuth();
   const queryClient = useQueryClient();
@@ -21,36 +28,75 @@ export const useSites = () => {
     enabled: !!user, // Only run the query if the user is logged in
   });
 
-    const createSiteMutation = useMutation<any, Error, SiteFormData>({
-    mutationFn: (newSite: SiteFormData) => siteService.createSite(newSite),
+      const createSiteMutation = useMutation<any, Error, SiteFormData>({
+    mutationFn: async (newSite: SiteFormData) => {
+      const response = await fetch('/api/sites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newSite),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create site');
+      }
+
+      return response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [SITES_QUERY_KEY, user?.id] });
     },
-    onError: (error) => {
-      // The error object from react-query is often not a direct Error instance
-      // Best practice is to re-throw a new error with a clear message
-      throw new Error(`Failed to create site: ${(error as Error).message}`);
+    onError: (error: Error) => {
+      // The error is now thrown from the mutation function itself, so we can just re-throw it
+      // or handle it as needed (e.g., show a toast notification).
+      console.error("Error creating site:", error.message);
+      throw error; // Re-throw to be caught by the component
     },
   });
 
-    const updateSiteMutation = useMutation<any, Error, { id: string; siteData: Partial<SiteFormData> }>({
-    mutationFn: ({ id, siteData }) => siteService.updateSite(id, siteData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [SITES_QUERY_KEY, user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['siteDetails', user?.id] });
+      const updateSiteMutation = useMutation<any, Error, { id: string; siteData: Partial<SiteFormData> }>({
+    mutationFn: async ({ id, siteData }) => {
+      const response = await fetch(`/api/sites/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(siteData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update site');
+      }
+
+      return response.json();
     },
-    onError: (error) => {
-      throw new Error(`Failed to update site: ${(error as Error).message}`);
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [SITES_QUERY_KEY, user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['siteDetails', variables.id] });
+    },
+    onError: (error: Error) => {
+      console.error("Error updating site:", error.message);
+      throw error;
     },
   });
 
-    const deleteSiteMutation = useMutation<any, Error, string>({
-    mutationFn: (id: string) => siteService.deleteSite(id),
+      const deleteSiteMutation = useMutation<any, Error, string>({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/sites/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete site');
+      }
+      // DELETE requests might not return a body, so we don't call .json()
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [SITES_QUERY_KEY, user?.id] });
     },
-    onError: (error) => {
-      throw new Error(`Failed to delete site: ${(error as Error).message}`);
+    onError: (error: Error) => {
+      console.error("Error deleting site:", error.message);
+      throw error;
     },
   });
 

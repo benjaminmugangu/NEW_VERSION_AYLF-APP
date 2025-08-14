@@ -37,17 +37,13 @@ export const useFinancials = (initialDateFilter?: DateFilterValue) => {
     refetch 
   } = useQuery<Financials, Error>({
     queryKey: ['financials', user?.id, dateFilter],
-    queryFn: async () => {
+    queryFn: () => {
       if (!user) {
         // This should not happen if `enabled` is set correctly, but as a safeguard:
-        return defaultFinancials;
+        return Promise.resolve(defaultFinancials);
       }
-      const response = await financialsService.getFinancials(user, dateFilter);
-      if (response.success && response.data) {
-        return response.data;
-      }
-      // Throw an error that react-query will catch
-      throw new Error(response.error?.message || 'An unknown error occurred while fetching financial data.');
+      // The service now throws an error, which react-query will handle automatically.
+      return financialsService.getFinancials(user, dateFilter);
     },
     enabled: !!user, // Only run the query if the user is logged in
     placeholderData: defaultFinancials, // Provide default data while loading

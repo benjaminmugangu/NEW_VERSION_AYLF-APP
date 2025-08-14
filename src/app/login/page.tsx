@@ -34,12 +34,13 @@ export default function LoginPage() {
     }
     setError("");
 
-    const { success, error } = await login(email, password);
-
-    if (!success && error) {
-      setError(error);
+    try {
+      await login(email, password);
+      // On success, the useEffect will handle the redirect
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
+      setError(errorMessage);
     }
-    // On success, the useEffect will handle the redirect
   };
 
   const isLoginDisabled = !email; // Simplified condition

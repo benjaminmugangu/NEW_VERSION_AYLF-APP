@@ -21,9 +21,9 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getAllActivityTypes } from "@/services/activityTypeService";
 import siteService from '@/services/siteService';
-import { reportService } from '@/services/reportService';
+import reportService from '@/services/reportService';
 import smallGroupService from '@/services/smallGroupService';
-import { activityService } from '@/services/activityService'; // Import activity service
+import activityService from '@/services/activityService'; // Import activity service
 import { storageService } from '@/services/storageService';
 import { useCurrentUser } from "../../../../../hooks/use-current-user";
 import { ROLES } from "@/lib/constants";

@@ -33,17 +33,13 @@ export default function EditUserPage() {
     const fetchUser = async () => {
       setIsLoading(true);
       try {
-        const response = await profileService.getProfile(userId);
-        if (response.success && response.data) {
-          setUserToEdit(response.data);
-        } else {
-
-          setUserToEdit(null);
-        }
+        const userData = await profileService.getProfile(userId);
+        setUserToEdit(userData);
       } catch (error) {
-        console.error("Erreur détaillée lors de la récupération de l'utilisateur:", error);
-
+        const errorMessage = error instanceof Error ? error.message : "Failed to fetch user details.";
+        toast({ title: "Error", description: errorMessage, variant: "destructive" });
         setUserToEdit(null);
+        router.push('/dashboard/users'); // Redirect if user cannot be fetched
       } finally {
         setIsLoading(false);
       }
@@ -54,30 +50,28 @@ export default function EditUserPage() {
 
   const handleUpdateUser = async (data: UserFormData) => {
     if (!userId) {
-        toast({
-            title: "Error",
-            description: "User ID is missing. Cannot update.",
-            variant: "destructive",
-        });
-        return;
+      toast({
+        title: "Error",
+        description: "User ID is missing. Cannot update.",
+        variant: "destructive",
+      });
+      return;
     }
 
-    // Force cast the form data to Partial<User> to bypass the persistent type error.
-    // This is a temporary workaround. The Supabase client should handle Date object serialization.
-    const result = await profileService.updateProfile(userId, data as Partial<User>);
-
-    if (result.success) {
-        toast({
-            title: "User Updated",
-            description: `Profile for ${data.name} has been successfully updated.`,
-        });
-        router.push('/dashboard/users');
-    } else {
-        toast({
-            title: "Update Failed",
-            description: result.error?.message || "An unknown error occurred.",
-            variant: "destructive",
-        });
+    try {
+      await profileService.updateProfile(userId, data as Partial<User>);
+      toast({
+        title: "User Updated",
+        description: `Profile for ${data.name} has been successfully updated.`,
+      });
+      router.push(`/dashboard/users/${userId}`); // Go back to the user's detail page
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+      toast({
+        title: "Update Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
     }
   };
 

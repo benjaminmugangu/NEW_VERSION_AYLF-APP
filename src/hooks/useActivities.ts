@@ -5,11 +5,18 @@ import { useState, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 
-import { activityService, type ActivityFormData } from '@/services/activityService';
+import activityService, { type ActivityFormData } from '@/services/activityService';
 import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
 import type { Activity, ActivityStatus, SmallGroup } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
 
+/**
+ * Custom hook for managing activities.
+ * Handles fetching, filtering (by date, status, level, search term), and mutations (create, update, delete).
+ * Provides role-based logic for authorization (e.g., who can edit an activity).
+ * Uses TanStack Query for state management, caching, and background refetching.
+ * @returns An object containing activity data, loading/error states, filter states and setters, and mutation functions.
+ */
 export const useActivities = () => {
   const { currentUser } = useAuth();
   const queryClient = useQueryClient();
@@ -62,42 +69,90 @@ export const useActivities = () => {
     }
   }, [currentUser]);
 
-  const createActivityMutation = useMutation<
-    any,
+    const createActivityMutation = useMutation<
+    Activity,
     Error,
-    Omit<ActivityFormData, 'createdBy'>
+    Omit<ActivityFormData, 'created_by'>
   >({
-    mutationFn: (activityData) =>
-      activityService.createActivity(activityData, currentUser!.id),
+    mutationFn: async (activityData) => {
+      // Dates must be stringified for JSON transport
+      const payload = {
+        ...activityData,
+        date: activityData.date.toISOString(),
+      };
+
+      const response = await fetch('/api/activities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create activity');
+      }
+
+      return response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['activities', filters] });
     },
-    onError: (error) => {
-      throw new Error(`Failed to create activity: ${(error as Error).message}`);
+    onError: (error: Error) => {
+      console.error('Failed to create activity:', error.message);
+      throw error;
     },
   });
 
-  const updateActivityMutation = useMutation<
-    any,
+    const updateActivityMutation = useMutation<
+    Activity,
     Error,
     { id: string; data: Partial<ActivityFormData> }
   >({
-    mutationFn: ({ id, data }) => activityService.updateActivity(id, data),
+    mutationFn: async ({ id, data }) => {
+      const payload = {
+        ...data,
+        ...(data.date && { date: data.date.toISOString() }),
+      };
+
+      const response = await fetch(`/api/activities/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update activity');
+      }
+
+      return response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['activities', filters] });
     },
-    onError: (error) => {
-      throw new Error(`Failed to update activity: ${(error as Error).message}`);
+    onError: (error: Error) => {
+      console.error('Failed to update activity:', error.message);
+      throw error;
     },
   });
 
-  const deleteActivityMutation = useMutation<any, Error, string>({
-    mutationFn: (activityId: string) => activityService.deleteActivity(activityId),
+    const deleteActivityMutation = useMutation<void, Error, string>({
+    mutationFn: async (activityId: string) => {
+      const response = await fetch(`/api/activities/${activityId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete activity');
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['activities', filters] });
     },
-    onError: (error) => {
-      throw new Error(`Failed to delete activity: ${(error as Error).message}`);
+    onError: (error: Error) => {
+      console.error('Failed to delete activity:', error.message);
+      throw error;
     },
   });
 

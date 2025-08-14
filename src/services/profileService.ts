@@ -1,10 +1,10 @@
 // src/services/profileService.ts
 import { supabase } from '@/lib/supabaseClient';
-import type { User, ServiceResponse } from '@/lib/types';
+import type { User } from '@/lib/types';
 
 const profileService = {
   // Récupère le profil d'un utilisateur à partir de son ID
-  async getProfile(userId: string): Promise<ServiceResponse<User>> {
+    async getProfile(userId: string): Promise<User> {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -18,28 +18,26 @@ const profileService = {
 
       if (error) {
         console.error('[ProfileService] Error in getProfile:', error.message);
-        return { success: false, error: { message: error.message } };
+        throw new Error(error.message);
       }
 
       if (!data) {
-        return { success: false, error: { message: 'Profile not found.' } };
+        throw new Error('Profile not found.');
       }
 
-      const userProfile: User = {
+      return {
         ...data,
         siteName: data.site?.name || 'N/A',
         smallGroupName: data.small_group?.name || 'N/A',
-      };
-
-      return { success: true, data: userProfile };
+      } as User;
     } catch (e: any) {
       console.error('[ProfileService] Unexpected error in getProfile:', e.message);
-      return { success: false, error: { message: e.message || 'An unexpected error occurred.' } };
+      throw new Error(e.message || 'An unexpected error occurred.');
     }
   },
 
   // Met à jour le profil d'un utilisateur
-      async updateProfile(userId: string, updates: Partial<User>): Promise<ServiceResponse<User>> {
+        async updateProfile(userId: string, updates: Partial<User>): Promise<User> {
      try {
       const { role } = updates;
 
@@ -69,35 +67,35 @@ const profileService = {
 
       if (error) {
         console.error('[ProfileService] Error in updateProfile:', error.message);
-        return { success: false, error: { message: error.message } };
+        throw new Error(error.message);
       }
 
-      return { success: true, data: data as User };
+      return data as User;
     } catch (e: any) {
       console.error('[ProfileService] Unexpected error in updateProfile:', e.message);
-      return { success: false, error: { message: e.message || 'An unexpected error occurred.' } };
+      throw new Error(e.message || 'An unexpected error occurred.');
     }
   },
 
   // Récupère tous les profils utilisateurs avec les détails d'affectation
-  async getUsers(): Promise<ServiceResponse<User[]>> {
+    async getUsers(): Promise<User[]> {
     try {
       const { data, error } = await supabase.rpc('get_users_with_details');
 
       if (error) {
         console.error('[ProfileService] Error in getUsers:', error.message);
-        return { success: false, error: { message: error.message } };
+        throw new Error(error.message);
       }
 
-      return { success: true, data: data as User[] };
+      return (data as User[]) || [];
     } catch (e: any) {
       console.error('[ProfileService] Unexpected error in getUsers:', e.message);
-      return { success: false, error: { message: e.message || 'An unexpected error occurred.' } };
+      throw new Error(e.message || 'An unexpected error occurred.');
     }
   },
 
   // Récupère les utilisateurs éligibles pour les rôles de direction de petits groupes
-  async getEligiblePersonnel(siteId: string, smallGroupId?: string): Promise<ServiceResponse<User[]>> {
+    async getEligiblePersonnel(siteId: string, smallGroupId?: string): Promise<User[]> {
     try {
       let query = supabase
         .from('profiles')
@@ -121,37 +119,35 @@ const profileService = {
 
       if (error) {
         console.error('[ProfileService] Error in getEligiblePersonnel:', error.message);
-        return { success: false, error: { message: error.message } };
+        throw new Error(error.message);
       }
 
-      return { success: true, data: data as User[] };
+      return (data as User[]) || [];
     } catch (e: any) {
       console.error('[ProfileService] Unexpected error in getEligiblePersonnel:', e.message);
-      return { success: false, error: { message: e.message || 'An unexpected error occurred.' } };
+      throw new Error(e.message || 'An unexpected error occurred.');
     }
   },
 
   // Supprime définitivement un utilisateur
-  async deleteUser(userId: string): Promise<ServiceResponse<null>> {
+    async deleteUser(userId: string): Promise<void> {
     try {
       const { error } = await supabase.rpc('delete_user_permanently', { user_id: userId });
 
       if (error) {
         console.error('[ProfileService] Error in deleteUser:', error.message);
-        return { success: false, error: { message: error.message } };
+        throw new Error(error.message);
       }
-
-      return { success: true, data: null };
     } catch (e: any) {
       console.error('[ProfileService] Unexpected error in deleteUser:', e.message);
-      return { success: false, error: { message: e.message || 'An unexpected error occurred.' } };
+      throw new Error(e.message || 'An unexpected error occurred.');
     }
   },
 
   // Récupère plusieurs profils utilisateurs par leurs IDs
-  async getUsersByIds(userIds: string[]): Promise<ServiceResponse<User[]>> {
+    async getUsersByIds(userIds: string[]): Promise<User[]> {
     if (!userIds || userIds.length === 0) {
-      return { success: true, data: [] };
+      return [];
     }
     try {
       const { data, error } = await supabase
@@ -161,13 +157,13 @@ const profileService = {
 
       if (error) {
         console.error('[ProfileService] Error in getUsersByIds:', error.message);
-        return { success: false, error: { message: error.message } };
+        throw new Error(error.message);
       }
 
-      return { success: true, data: data as User[] };
+      return (data as User[]) || [];
     } catch (e: any) {
       console.error('[ProfileService] Unexpected error in getUsersByIds:', e.message);
-      return { success: false, error: { message: e.message || 'An unexpected error occurred.' } };
+      throw new Error(e.message || 'An unexpected error occurred.');
     }
   },
 };

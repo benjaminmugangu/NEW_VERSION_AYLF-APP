@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useToast } from '@/hooks/use-toast';
-import { reportService, type ReportFilters } from '@/services/reportService';
+import reportService, { type ReportFilters } from '@/services/reportService';
 import { ROLES } from '@/lib/constants';
 import type { ReportStatus, ReportWithDetails } from '@/lib/types';
 import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
@@ -45,13 +45,7 @@ export const useReports = () => {
     refetch 
   } = useQuery<ReportWithDetails[], Error>({
     queryKey: ['reports', filters],
-    queryFn: async () => {
-      const response = await reportService.getFilteredReports(filters);
-      if (response.success && response.data) {
-        return response.data;
-      }
-      throw new Error(response.error?.message || 'Failed to fetch reports.');
-    },
+    queryFn: () => reportService.getFilteredReports(filters),
     enabled: !!currentUser, // Only run the query if the user is loaded
   });
 

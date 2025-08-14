@@ -1,6 +1,6 @@
 // src/services/smallGroupService.ts
 import { supabase } from '@/lib/supabaseClient';
-import type { SmallGroup, SmallGroupFormData, ServiceResponse, User } from '@/lib/types';
+import type { SmallGroup, SmallGroupFormData, User } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
 
 // Helper to convert DB snake_case to frontend camelCase
@@ -128,7 +128,7 @@ const smallGroupService = {
     return toSmallGroupModel(data);
   },
 
-  createSmallGroup: async (siteId: string, formData: SmallGroupFormData): Promise<ServiceResponse<SmallGroup>> => {
+  createSmallGroup: async (siteId: string, formData: SmallGroupFormData): Promise<SmallGroup> => {
     const { data: newGroup, error: createError } = await supabase
       .from('small_groups')
       .insert({
@@ -145,7 +145,11 @@ const smallGroupService = {
       .single();
 
     if (createError) {
-      return { success: false, error: { message: createError.message } };
+      throw new Error(createError.message);
+    }
+
+    if (!newGroup) {
+      throw new Error('Failed to create small group, no data returned.');
     }
 
     // Update user assignments
@@ -157,21 +161,24 @@ const smallGroupService = {
 
     for (const { userId, role } of assignments) {
       if (userId) {
-        const updatePayload: { small_group_id: string; site_id: string; role?: string } = {
-          small_group_id: newGroup.id,
-          site_id: siteId,
+        const updatePayload: { small_group_id: string; site_id: string; role?: string } = { 
+          small_group_id: newGroup.id, 
+          site_id: siteId 
         };
-        if (role) {
-          updatePayload.role = role;
+        if (role) updatePayload.role = role;
+        const { error: assignmentError } = await supabase.from('profiles').update(updatePayload).eq('id', userId);
+        if (assignmentError) {
+            // Attempt to roll back group creation for consistency
+            await supabase.from('small_groups').delete().eq('id', newGroup.id);
+            throw new Error(`Failed to assign user ${userId}: ${assignmentError.message}`);
         }
-        await supabase.from('profiles').update(updatePayload).eq('id', userId);
       }
     }
 
-    return { success: true, data: toSmallGroupModel(newGroup) };
+    return toSmallGroupModel(newGroup);
   },
 
-  updateSmallGroup: async (groupId: string, formData: SmallGroupFormData): Promise<SmallGroup> => {
+    updateSmallGroup: async (groupId: string, formData: Partial<SmallGroupFormData>): Promise<SmallGroup> => {
     // 1. Get old group to compare assignments
     const { data: oldGroup, error: fetchError } = await supabase.from('small_groups').select('*').eq('id', groupId).single();
     if (fetchError || !oldGroup) {
@@ -179,17 +186,18 @@ const smallGroupService = {
     }
 
     // 2. Update small group details
+        const updatePayload: any = {};
+    if (formData.name) updatePayload.name = formData.name;
+    if (formData.meetingDay) updatePayload.meeting_day = formData.meetingDay;
+    if (formData.meetingTime) updatePayload.meeting_time = formData.meetingTime;
+    if (formData.meetingLocation) updatePayload.meeting_location = formData.meetingLocation;
+    if (formData.leaderId !== undefined) updatePayload.leader_id = formData.leaderId;
+    if (formData.logisticsAssistantId !== undefined) updatePayload.logistics_assistant_id = formData.logisticsAssistantId;
+    if (formData.financeAssistantId !== undefined) updatePayload.finance_assistant_id = formData.financeAssistantId;
+
     const { data: updatedGroup, error: updateError } = await supabase
       .from('small_groups')
-      .update({
-        name: formData.name,
-        leader_id: formData.leaderId,
-        logistics_assistant_id: formData.logisticsAssistantId,
-        finance_assistant_id: formData.financeAssistantId,
-        meeting_day: formData.meetingDay,
-        meeting_time: formData.meetingTime,
-        meeting_location: formData.meetingLocation,
-      })
+      .update(updatePayload)
       .eq('id', groupId)
       .select()
       .single();
@@ -199,11 +207,11 @@ const smallGroupService = {
     }
 
     // 3. Update user assignments
-    const assignments = [
+        const assignments = [
       { oldUserId: oldGroup.leader_id, newUserId: formData.leaderId, role: ROLES.SMALL_GROUP_LEADER },
       { oldUserId: oldGroup.logistics_assistant_id, newUserId: formData.logisticsAssistantId, role: null },
       { oldUserId: oldGroup.finance_assistant_id, newUserId: formData.financeAssistantId, role: null },
-    ];
+    ].filter(a => a.newUserId !== undefined);
 
     for (const { oldUserId, newUserId, role } of assignments) {
       if (oldUserId !== newUserId) {

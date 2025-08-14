@@ -59,26 +59,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
-    const response = await authService.login({ email, password });
-    if (response.success && response.data) {
-      setCurrentUser(response.data);
-      // Update session from Supabase client after login
+    try {
+      const user = await authService.login({ email, password });
+      setCurrentUser(user);
       const { data } = await supabase.auth.getSession();
       setSession(data.session);
+    } catch (error) {
+      // Re-throw the error to be handled by the UI component (e.g., the login form)
+      throw error;
+    } finally {
       setIsLoading(false);
-      return { success: true, error: null };
-    } else {
-      setIsLoading(false);
-      return { success: false, error: response.error?.message || 'Login failed' };
     }
   };
 
   const logout = async () => {
     setIsLoading(true);
-    await authService.logout();
-    setCurrentUser(null);
-    setSession(null);
-    setIsLoading(false);
+    try {
+      await authService.logout();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred during logout';
+      console.error('[AuthContext] Logout failed but clearing session locally:', errorMessage);
+    } finally {
+      setCurrentUser(null);
+      setSession(null);
+      setIsLoading(false);
+    }
   };
 
   const value = {

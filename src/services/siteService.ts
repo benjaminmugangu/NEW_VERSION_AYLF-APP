@@ -1,6 +1,6 @@
 // src/services/siteService.ts
 import { supabase } from '@/lib/supabaseClient';
-import type { ServiceResponse, Site, SiteFormData, SiteWithDetails, User } from '@/lib/types';
+import type { Site, SiteFormData, SiteWithDetails, User } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
 
 // Helper to convert frontend camelCase to DB snake_case for writing
@@ -21,7 +21,7 @@ interface SiteDetailsRPCResponse {
   city: string;
   country: string;
   coordinator_id: string;
-  creation_date: string;
+  created_at: string;
   coordinator_name: string | null;
   small_groups_count: number;
   members_count: number;
@@ -46,7 +46,7 @@ const getSitesWithDetails = async (user: User | null): Promise<SiteWithDetails[]
     city: site.city,
     country: site.country,
     coordinatorId: site.coordinator_id,
-    creationDate: site.creation_date,
+    creationDate: site.created_at,
     coordinatorName: site.coordinator_name,
     smallGroupsCount: site.small_groups_count || 0,
     membersCount: site.members_count || 0,
@@ -90,9 +90,25 @@ const getSiteDetails = async (siteId: string): Promise<{ site: Site; smallGroups
   // Step 3: Calculate total members from the RPC call result.
   const totalMembers = smallGroupsData.reduce((acc: number, group: any) => acc + (group.members_count || 0), 0);
 
+  // Helper to map DB small_group to frontend model
+  const toSmallGroupModel = (dbGroup: any) => ({
+    id: dbGroup.id,
+    name: dbGroup.name,
+    siteId: dbGroup.site_id,
+    leaderId: dbGroup.leader_id,
+    meetingDay: dbGroup.meeting_day,
+    meetingTime: dbGroup.meeting_time,
+    meetingLocation: dbGroup.meeting_location,
+    createdAt: dbGroup.created_at, // Corrected field
+    logisticsAssistantId: dbGroup.logistics_assistant_id,
+    financeAssistantId: dbGroup.finance_assistant_id,
+    membersCount: dbGroup.members_count,
+    leaderName: dbGroup.leader_name,
+  });
+
   return {
     site: siteData as Site,
-    smallGroups: smallGroupsData,
+    smallGroups: smallGroupsData.map(toSmallGroupModel),
     totalMembers,
   };
 };

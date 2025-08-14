@@ -2,6 +2,7 @@
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 
 // This creates a Supabase client that has the permissions of the logged-in user.
 // For admin tasks, we'll need a service role client.
@@ -18,12 +19,23 @@ const generateRandomPassword = (length = 12) => {
   return password;
 };
 
-export const POST = async (request: Request) => {
-  let { email, name: fullName, role, siteId, smallGroupId } = await request.json();
+const inviteSchema = z.object({
+  email: z.string().email('Invalid email address.'),
+  name: z.string().min(3, 'Full name must be at least 3 characters long.'),
+  role: z.enum(['national_coordinator', 'site_coordinator', 'small_group_leader', 'member']),
+  siteId: z.string().uuid().optional().nullable(),
+  smallGroupId: z.string().uuid().optional().nullable(),
+});
 
-  if (!email || !fullName || !role) {
-    return NextResponse.json({ error: 'Email, full name, and role are required.' }, { status: 400 });
+export const POST = async (request: Request) => {
+  const body = await request.json();
+  const validation = inviteSchema.safeParse(body);
+
+  if (!validation.success) {
+    return NextResponse.json({ error: 'Invalid input', details: validation.error.flatten() }, { status: 400 });
   }
+
+  let { email, name: fullName, role, siteId, smallGroupId } = validation.data;
 
   // Enforce business logic for assignments based on role
   if (role === 'national_coordinator') {

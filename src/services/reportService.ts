@@ -1,6 +1,6 @@
 // src/services/reportService.ts
 import { supabase } from '@/lib/supabaseClient';
-import type { Report, ReportWithDetails, ReportFormData, ServiceResponse, User } from '@/lib/types';
+import type { Report, ReportWithDetails, ReportFormData, User } from '@/lib/types';
 import { getDateRangeFromFilterValue, type DateFilterValue } from '@/components/shared/DateRangeFilter';
 import { ROLES } from '@/lib/constants';
 
@@ -78,7 +78,7 @@ export interface ReportFilters {
 }
 
 const reportService = {
-  getReportById: async (id: string): Promise<ServiceResponse<Report>> => {
+  getReportById: async (id: string): Promise<Report> => {
     const { data, error } = await supabase
       .from('reports')
       .select(`
@@ -91,11 +91,10 @@ const reportService = {
       .eq('id', id)
       .single();
 
-    if (error) {
-      console.error('[ReportService] Error in getReportById:', error.message);
-      return { success: false, error: { message: 'Report not found.' } };
+    if (error || !data) {
+      throw new Error('Report not found.');
     }
-    return { success: true, data: toReportModel(data) };
+    return toReportModel(data);
   },
 
   createReport: async (reportData: ReportFormData): Promise<Report> => {
@@ -138,26 +137,23 @@ const reportService = {
       .single();
 
     if (error) {
-      console.error('[ReportService] Error in updateReport:', error.message);
       throw new Error(error.message);
     }
 
     return toReportModel(data) as ReportWithDetails;
   },
 
-  deleteReport: async (id: string): Promise<ServiceResponse<{ id: string }>> => {
+  deleteReport: async (id: string): Promise<void> => {
     const { error } = await supabase.from('reports').delete().eq('id', id);
     if (error) {
-      console.error('[ReportService] Error in deleteReport:', error.message);
-      return { success: false, error: { message: error.message } };
+      throw new Error(error.message);
     }
-    return { success: true, data: { id } };
   },
-  getFilteredReports: async (filters: ReportFilters): Promise<ServiceResponse<ReportWithDetails[]>> => {
+  getFilteredReports: async (filters: ReportFilters): Promise<ReportWithDetails[]> => {
     const { user, entity, searchTerm, dateFilter, statusFilter } = filters;
     if (!user && !entity) {
-    return { success: false, error: { message: 'User or entity is required to fetch reports.' } };
-  }
+      throw new Error('User or entity is required to fetch reports.');
+    }
 
     // Restore the joins but keep filters commented out for now.
     // Use standard left joins (default) instead of inner joins to prevent reports from being dropped
@@ -186,7 +182,7 @@ const reportService = {
             // This user is a site coordinator but has no site assigned.
             // This user is a site coordinator but has no site assigned.
             // Return empty array to prevent RLS error from fetching all reports.
-            return { success: true, data: [] };
+            return [];
           }
           break;
         case ROLES.SMALL_GROUP_LEADER:
@@ -196,7 +192,7 @@ const reportService = {
             // This user is a small group leader but has no group assigned.
             // This user is a small group leader but has no group assigned.
             // Return empty array to prevent RLS error.
-            return { success: true, data: [] };
+            return [];
           }
           break;
         // national_coordinator sees everything, so no additional filter is needed.
@@ -235,14 +231,12 @@ const reportService = {
     const { data, error } = await query.order('submission_date', { ascending: false });
 
     if (error) {
-      console.error('[ReportService] Error in getFilteredReports:', error.message);
-      return { success: false, error: { message: error.message } };
+      throw new Error(error.message);
     }
 
     // The mapping is now assumed to be correct based on the select statement
-    const reports = data.map(toReportModel) as ReportWithDetails[];
-    return { success: true, data: reports };
+    return data.map(toReportModel) as ReportWithDetails[];
   },
 };
 
-export { reportService };
+export default reportService;

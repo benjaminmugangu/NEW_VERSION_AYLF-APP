@@ -2,9 +2,23 @@ import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { z } from 'zod';
+
+const signupSchema = z.object({
+  fullName: z.string().min(3, { message: 'Full name must be at least 3 characters long.' }),
+  email: z.string().email({ message: 'Invalid email address.' }),
+  password: z.string().min(8, { message: 'Password must be at least 8 characters long.' }),
+});
 
 export async function POST(request: Request) {
-  const { fullName, email, password } = await request.json();
+  const body = await request.json();
+  const validation = signupSchema.safeParse(body);
+
+  if (!validation.success) {
+    return NextResponse.json({ error: validation.error.flatten().fieldErrors }, { status: 400 });
+  }
+
+  const { fullName, email, password } = validation.data;
 
   // 1. Check for environment variables for admin client
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

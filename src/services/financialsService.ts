@@ -7,7 +7,7 @@ import { reportService } from './reportService';
 import type {
   User,
   Financials,
-  ServiceResponse,
+
   FinancialTransaction,
   FundAllocation,
   Report
@@ -18,7 +18,7 @@ import { applyDateFilter, type DateFilterValue } from '@/components/shared/DateR
 /**
  * A centralized function to fetch and calculate financial statistics based on user context and date filters.
  */
-const getFinancials = async (user: User, dateFilter: DateFilterValue): Promise<ServiceResponse<Financials>> => {
+const getFinancials = async (user: User, dateFilter: DateFilterValue): Promise<Financials> => {
   try {
     // 1. Define filters based on user role
     const transactionFilters: TransactionFilters = { user, dateFilter };
@@ -36,25 +36,15 @@ const getFinancials = async (user: User, dateFilter: DateFilterValue): Promise<S
     }
 
     // 2. Fetch all data concurrently with the correct filters
-    const [transactionsRes, allocationsRes, reportsRes] = await Promise.all([
+    const [transactions, allocations, reports] = await Promise.all([
       transactionService.getFilteredTransactions(transactionFilters),
       allocationService.getAllocations(allocationFilters),
       reportService.getFilteredReports(reportFilters),
     ]);
 
-    if (!transactionsRes.success || !allocationsRes.success || !reportsRes.success) {
-      console.error('[FinancialsService] Failed to fetch one or more financial resources:', {
-        transactionsError: transactionsRes.error?.message,
-        allocationsError: allocationsRes.error?.message,
-        reportsError: reportsRes.error?.message,
-      });
-      return { success: false, error: { message: 'Could not fetch all financial data.' } };
-    }
-
     // Filter allocations and reports by date locally
-    const filteredAllocations = applyDateFilter(allocationsRes.data || [], 'allocationDate', dateFilter);
-    const filteredReports = applyDateFilter(reportsRes.data || [], 'submissionDate', dateFilter);
-    const transactions = transactionsRes.data || [];
+    const filteredAllocations = applyDateFilter(allocations, 'allocationDate', dateFilter);
+    const filteredReports = applyDateFilter(reports, 'submissionDate', dateFilter);
 
     const income = transactions
       .filter(t => t.type === 'income')
@@ -70,7 +60,7 @@ const getFinancials = async (user: User, dateFilter: DateFilterValue): Promise<S
     const totalSpent = filteredReports.reduce((acc, r) => acc + (r.totalExpenses || 0), 0);
     const allocationBalance = totalAllocated - totalSpent;
 
-    const data: Financials = {
+    return {
       income,
       expenses,
       netBalance,
@@ -82,11 +72,9 @@ const getFinancials = async (user: User, dateFilter: DateFilterValue): Promise<S
       reports: filteredReports,
     };
 
-    return { success: true, data };
-
   } catch (error: any) {
-    console.error('[FinancialsService] Unexpected error in getFinancials:', error.message);
-    return { success: false, error: { message: error.message || 'An unexpected error occurred.' } };
+    console.error('[FinancialsService] Error in getFinancials:', error.message);
+    throw new Error(error.message || 'An unexpected error occurred while fetching financial data.');
   }
 };
 

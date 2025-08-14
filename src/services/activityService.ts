@@ -45,7 +45,7 @@ const toActivityDbData = (data: Partial<ActivityFormData>): any => {
 // Converts database snake_case data to frontend Activity model (camelCase)
 const toActivityModel = (dbActivity: any): Activity => ({
   id: dbActivity.id,
-  title: dbActivity.title,
+  title: dbActivity.name,
   thematic: dbActivity.thematic,
   date: dbActivity.date,
   level: dbActivity.level,
@@ -118,9 +118,6 @@ const getFilteredActivities = async (filters: any): Promise<Activity[]> => {
   }
 
   if (!activitiesData) return [];
-
-  // DEBUG: Log raw data from Supabase
-  console.log('[Debug] Raw data from Supabase in getFilteredActivities:', activitiesData);
 
   return activitiesData.map(toActivityModel);
 };
@@ -214,7 +211,7 @@ const deleteActivity = async (id: string): Promise<void> => {
     .delete()
     .eq('id', id);
   if (error) {
-    console.error(`[ActivityService] Error in deleteActivity for id ${id}:`, error.message);
+            console.error(`[ActivityService] Error in deleteActivity for id ${id}:`, error.message);
     throw new Error(error.message);
   }
 };
@@ -228,13 +225,15 @@ const getActivityTypes = async (): Promise<ActivityType[]> => {
   return data || [];
 };
 
-export const activityService = {
+const activityService = {
   getFilteredActivities,
   getActivitiesByRole,
   getPlannedActivitiesForUser,
   getActivityById,
   createActivity,
   updateActivity,
-  deleteActivity,
+    deleteActivity,
   getActivityTypes,
 };
+
+export default activityService;

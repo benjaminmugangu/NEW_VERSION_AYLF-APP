@@ -20,22 +20,17 @@ export default function NewSmallGroupPage() {
 
   const handleCreateSmallGroup = async (data: SmallGroupFormData) => {
     try {
-      const result: { success: boolean; data?: SmallGroup; error?: any } = await smallGroupService.createSmallGroup(siteId, data);
-      if (result.success && result.data) {
-        toast({
-          title: 'Small Group Created!',
-          description: `Small Group "${result.data.name}" has been successfully created.`,
-        });
-        router.push(`/dashboard/sites/${siteId}`);
-      } else {
-        throw new Error(result.error?.message || 'Failed to create small group');
-      }
-    } catch (error) {
-      console.error("Erreur détaillée lors de la création du groupe:", error);
-
+      const newGroup = await smallGroupService.createSmallGroup(siteId, data);
       toast({
-        title: 'Error',
-        description: 'Could not create the small group. Please try again.',
+        title: 'Small Group Created!',
+        description: `Small Group "${newGroup.name}" has been successfully created.`,
+      });
+      router.push(`/dashboard/sites/${siteId}`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Could not create the small group. Please try again.';
+      toast({
+        title: 'Creation Failed',
+        description: errorMessage,
         variant: 'destructive',
       });
     }

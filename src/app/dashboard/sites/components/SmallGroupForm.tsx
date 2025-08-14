@@ -64,17 +64,19 @@ export function SmallGroupForm({ smallGroup, siteId, onSubmitForm }: SmallGroupF
   useEffect(() => {
     const fetchPersonnel = async () => {
       setIsLoadingPersonnel(true);
-      const response = await profileService.getEligiblePersonnel(siteId, smallGroup?.id);
-      if (response.success && response.data) {
-        setAvailablePersonnel(response.data);
-      } else {
-        toast({ title: "Error", description: `Failed to load personnel: ${response.error?.message}`, variant: 'destructive' });
+      try {
+        const personnel = await profileService.getEligiblePersonnel(siteId, smallGroup?.id);
+        setAvailablePersonnel(personnel || []);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Failed to load personnel";
+        toast({ title: "Error", description: errorMessage, variant: 'destructive' });
+      } finally {
+        setIsLoadingPersonnel(false);
       }
-      setIsLoadingPersonnel(false);
     };
 
     fetchPersonnel();
-  }, [siteId, smallGroup?.id]);
+  }, [siteId, smallGroup?.id, toast]);
 
   const processSubmit = async (data: SmallGroupFormData) => {
     await onSubmitForm(data);

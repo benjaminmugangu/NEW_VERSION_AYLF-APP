@@ -4,10 +4,10 @@
 import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { activityFormSchema, type ActivityFormData } from '@/services/activityService';
+import activityService, { activityFormSchema, type ActivityFormData } from '@/services/activityService';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
-import { activityService } from '@/services/activityService';
+
 import siteService from '@/services/siteService';
 import smallGroupService from '@/services/smallGroupService';
 import type { Activity, Site, SmallGroup, ActivityType } from '@/lib/types';
