@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
 import { ROLES } from "@/lib/constants";
-import { activityService } from "@/services/activityService";
+import activityService from '@/services/activityService';
 import { Activity, ActivityStatus } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";

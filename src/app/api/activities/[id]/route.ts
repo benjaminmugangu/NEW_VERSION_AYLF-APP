@@ -47,7 +47,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(_request: Request, context: { params: { id: string } }) {
+export async function DELETE(_request: Request, { params }: { params: { id: string } }) {
   try {
     const supabase = createServerComponentClient({ cookies });
     const { data: { session } } = await supabase.auth.getSession();
@@ -55,7 +55,7 @@ export async function DELETE(_request: Request, context: { params: { id: string 
       return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
     }
 
-    await activityService.deleteActivity(context.params.id);
+        await activityService.deleteActivity(params.id);
     return new NextResponse(null, { status: 204 });
 
   } catch (error) {
