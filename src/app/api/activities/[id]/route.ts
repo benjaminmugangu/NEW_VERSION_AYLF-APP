@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as z from 'zod';
 import activityService from '@/services/activityService';
-import { createClient } from '@/utils/supabase/server';
-
-
+import { createClient } from '@/middleware';
 
 // Zod schema for validating partial updates
 const activityUpdateSchema = z.object({
@@ -20,7 +18,7 @@ const activityUpdateSchema = z.object({
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-        const supabase = await createClient();
+        const supabase = createClient(request as any);
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
@@ -48,7 +46,6 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
 }
 
-import type { NextRequest } from 'next/server';
 
 type RouteContext = {
   params: {
@@ -59,7 +56,7 @@ type RouteContext = {
 export async function DELETE(request: NextRequest, context: RouteContext) {
   const { params } = context;
   try {
-        const supabase = await createClient();
+        const supabase = createClient(request as any);
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });

@@ -1,7 +1,7 @@
 // src/app/api/users/[id]/route.ts
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { createClient } from '@/utils/supabase/server';
+import { createClient } from '@/middleware';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 
 const paramsSchema = z.object({
@@ -12,7 +12,7 @@ export async function DELETE(
   request: Request,
   context: { params: { id: string } }
 ) {
-  const supabase = await createClient();
+  const supabase = createClient(request as any);
   const { data: { session } } = await supabase.auth.getSession();
 
   if (!session) {

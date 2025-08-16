@@ -1,7 +1,7 @@
 // src/app/api/users/invite/route.ts
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { createClient } from '@/utils/supabase/server';
+import { createClient } from '@/middleware';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 
 // Function to generate a random password
@@ -24,7 +24,7 @@ const inviteSchema = z.object({
 });
 
 export const POST = async (request: Request) => {
-  const supabase = await createClient();
+  const supabase = createClient(request as any);
   const { data: { session } } = await supabase.auth.getSession();
 
   if (!session) {

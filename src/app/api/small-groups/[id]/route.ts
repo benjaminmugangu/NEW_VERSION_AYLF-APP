@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import * as z from 'zod';
 import smallGroupService from '@/services/smallGroupService';
-import { createClient } from '@/utils/supabase/server';
+import { createClient } from '@/middleware';
 
 const smallGroupUpdateSchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters long').optional(),
@@ -15,7 +15,7 @@ const smallGroupUpdateSchema = z.object({
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   try {
-        const supabase = await createClient();
+        const supabase = createClient(request as any);
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
@@ -40,7 +40,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
 export async function DELETE(request: Request, { params }: { params: { id: string } }) {
   try {
-        const supabase = await createClient();
+        const supabase = createClient(request as any);
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });

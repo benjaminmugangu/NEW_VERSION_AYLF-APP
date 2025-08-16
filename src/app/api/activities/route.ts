@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import * as z from 'zod';
 import activityService from '@/services/activityService';
-import { createClient } from '@/utils/supabase/server';
+import { createClient } from '@/middleware';
 
 // Zod schema for validating incoming activity creation data (without created_by)
 const activityCreateSchema = z.object({
@@ -24,7 +24,7 @@ const activityCreateSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-        const supabase = await createClient();
+        const supabase = createClient(request as any);
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {
