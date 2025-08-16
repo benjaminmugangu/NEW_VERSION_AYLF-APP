@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import * as z from 'zod';
 import siteService from '@/services/siteService';
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createClient } from '@/utils/supabase/server';
 
 /**
  * @swagger
@@ -59,7 +58,7 @@ const siteCreateSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    const supabase = createServerComponentClient({ cookies });
+        const supabase = await createClient();
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {

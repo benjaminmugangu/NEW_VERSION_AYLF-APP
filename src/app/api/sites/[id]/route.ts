@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import * as z from 'zod';
 import siteService from '@/services/siteService';
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createClient } from '@/utils/supabase/server';
 
 // Schema for partial updates (PATCH)
 const siteUpdateSchema = z.object({
@@ -39,7 +38,7 @@ const siteUpdateSchema = z.object({
  */
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   try {
-    const supabase = createServerComponentClient({ cookies });
+        const supabase = await createClient();
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
@@ -81,7 +80,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
  */
 export async function DELETE(request: Request, { params }: { params: { id: string } }) {
   try {
-    const supabase = createServerComponentClient({ cookies });
+        const supabase = await createClient();
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });

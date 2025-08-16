@@ -1,12 +1,8 @@
 // src/app/api/users/invite/route.ts
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-
-// This creates a Supabase client that has the permissions of the logged-in user.
-// For admin tasks, we'll need a service role client.
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/utils/supabase/server';
+import { createClient as createAdminClient } from '@supabase/supabase-js';
 
 // Function to generate a random password
 const generateRandomPassword = (length = 12) => {
@@ -28,6 +24,23 @@ const inviteSchema = z.object({
 });
 
 export const POST = async (request: Request) => {
+  const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', session.user.id)
+    .single();
+
+  if (profile?.role !== 'national_coordinator') {
+    return NextResponse.json({ error: 'Forbidden: You do not have permission to invite users.' }, { status: 403 });
+  }
+
   const body = await request.json();
   const validation = inviteSchema.safeParse(body);
 
@@ -37,7 +50,6 @@ export const POST = async (request: Request) => {
 
   let { email, name: fullName, role, siteId, smallGroupId } = validation.data;
 
-  // Enforce business logic for assignments based on role
   if (role === 'national_coordinator') {
     siteId = null;
     smallGroupId = null;
@@ -45,21 +57,20 @@ export const POST = async (request: Request) => {
     smallGroupId = null;
   }
 
-  const supabaseAdmin = createClient(
+  const supabaseAdmin = createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
   const password = generateRandomPassword();
 
-  // 1. Create the user in the auth schema
   const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
     email: email,
     password: password,
-    email_confirm: true, // Auto-confirm the email
+    email_confirm: true, 
     user_metadata: {
       full_name: fullName,
-      role: role, // Store role in metadata as a fallback
+      role: role,
     },
   });
 
@@ -72,28 +83,24 @@ export const POST = async (request: Request) => {
     return NextResponse.json({ error: 'Could not create user.' }, { status: 500 });
   }
 
-  // 2. The trigger on `auth.users` should have created a profile. Now, update it.
   const { error: profileError } = await supabaseAdmin
     .from('profiles')
     .update({
       role: role,
       site_id: siteId,
       small_group_id: smallGroupId,
-      name: fullName, // Ensure name is also set here
+      name: fullName,
     })
     .eq('id', authData.user.id);
 
   if (profileError) {
     console.error('Error updating profile:', profileError);
-    // This is problematic, the auth user exists but the profile is incomplete.
-    // For now, we'll return an error but a more robust solution might be needed.
     return NextResponse.json({ error: `User created, but failed to set profile: ${profileError.message}` }, { status: 500 });
   }
 
-  // Return the generated password so the admin can share it manually
   return NextResponse.json({ 
     message: 'User created successfully. Please share the generated password with them.', 
     user: authData.user,
-    password: password, // IMPORTANT: This is sent back to the admin frontend
+    password: password,
   });
 };

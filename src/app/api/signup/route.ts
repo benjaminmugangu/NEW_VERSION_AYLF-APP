@@ -1,7 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/server';
 import { z } from 'zod';
 
 const signupSchema = z.object({
@@ -30,7 +29,7 @@ export async function POST(request: Request) {
   }
 
   // 2. Create Supabase admin client to check for existing users
-  const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+    const supabaseAdmin = createAdminClient(supabaseUrl, supabaseServiceKey);
 
   try {
     // 3. Check if any user exists
@@ -47,8 +46,7 @@ export async function POST(request: Request) {
     }
 
     // 5. If no users exist, proceed with signup for the first user
-    const cookieStore = cookies();
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+        const supabase = await createClient();
 
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,

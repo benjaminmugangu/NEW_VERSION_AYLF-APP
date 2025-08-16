@@ -1,8 +1,8 @@
 // src/app/api/users/route.ts
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { createClient } from '@/utils/supabase/server';
+import { createClient as createAdminClient } from '@supabase/supabase-js';
 
 // Helper to generate a random password
 const generatePassword = (length = 12) => {
@@ -35,12 +35,27 @@ const userCreateSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const cookieStore = cookies();
-  // Use createRouteHandlerClient for server-side operations with admin privileges
-  const supabase = createRouteHandlerClient({ cookies: () => cookieStore }, {
-    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    supabaseKey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  });
+  const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', session.user.id)
+    .single();
+
+  if (profile?.role !== 'national_coordinator') {
+    return NextResponse.json({ error: 'Forbidden: You do not have permission to create users.' }, { status: 403 });
+  }
+
+  const supabaseAdmin = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
 
   try {
     const body = await request.json();
@@ -53,10 +68,10 @@ export async function POST(request: Request) {
     const { name, email, role, siteId, smallGroupId, status, mandateStartDate, mandateEndDate } = validation.data;
     const password = generatePassword();
 
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      email_confirm: true, // Auto-confirm the email
+      email_confirm: true,
       user_metadata: {
         name,
         role,
@@ -69,8 +84,6 @@ export async function POST(request: Request) {
     });
 
     if (authError) {
-      console.error('Supabase auth error:', authError);
-      // Provide a more user-friendly error message
       if (authError.message.includes('unique constraint')) {
         return NextResponse.json({ error: 'A user with this email already exists.' }, { status: 409 });
       }
@@ -81,9 +94,6 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Failed to create user.' }, { status: 500 });
     }
 
-    // The user's profile is automatically created by a trigger in Supabase
-    // when a new auth.users entry is made. We just return the generated credentials.
-
     return NextResponse.json({ 
       message: 'User created successfully',
       credentials: {
@@ -93,8 +103,6 @@ export async function POST(request: Request) {
     }, { status: 201 });
 
   } catch (error) {
-    console.error("Erreur détaillée dans l'API utilisateur (POST):", error);
-    console.error('Internal server error:', error);
     return NextResponse.json({ error: 'An unexpected error occurred.' }, { status: 500 });
   }
 }
