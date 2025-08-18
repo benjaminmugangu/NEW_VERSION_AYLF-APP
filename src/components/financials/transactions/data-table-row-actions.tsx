@@ -12,7 +12,7 @@ import {
 import { MoreHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import { FinancialTransaction } from '@/lib/types';
-import { transactionService } from '@/services/transactionService';
+import transactionService from '@/services/transactionService';
 import { useToast } from '@/hooks/use-toast';
 
 interface DataTableRowActionsProps<TData> {

@@ -19,12 +19,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { getAllActivityTypes } from "@/services/activityTypeService";
+import { getActivityTypes } from '@/services/activityTypeService';
 import siteService from '@/services/siteService';
 import reportService from '@/services/reportService';
 import smallGroupService from '@/services/smallGroupService';
 import activityService from '@/services/activityService'; // Import activity service
-import { storageService } from '@/services/storageService';
+import storage from '@/services/storageService';
 import { useCurrentUser } from "../../../../../hooks/use-current-user";
 import { ROLES } from "@/lib/constants";
 
@@ -104,7 +104,7 @@ export function ReportForm({ onSubmitSuccess }: ReportFormProps) {
     try {
       const [activities, types] = await Promise.all([
         activityService.getPlannedActivitiesForUser(currentUser),
-        getAllActivityTypes()
+        getActivityTypes()
       ]);
       setPlannedActivities(activities);
       setActivityTypes(types);

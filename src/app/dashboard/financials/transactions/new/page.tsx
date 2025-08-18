@@ -8,7 +8,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { transactionService } from '@/services/transactionService';
+import transactionService from '@/services/transactionService';
 
 import { useRouter } from 'next/navigation';
 

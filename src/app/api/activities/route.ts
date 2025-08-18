@@ -24,7 +24,7 @@ const activityCreateSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = createClient();
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {

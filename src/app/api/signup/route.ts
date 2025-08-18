@@ -1,6 +1,6 @@
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-import { createClient } from '@/middleware';
+import { createClient } from '@/utils/supabase/server';
 import { z } from 'zod';
 
 const signupSchema = z.object({
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     }
 
     // 5. If no users exist, proceed with signup for the first user
-        const supabase = createClient(request as any);
+        const supabase = createClient();
 
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,

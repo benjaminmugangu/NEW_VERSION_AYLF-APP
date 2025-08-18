@@ -18,7 +18,7 @@ const activityUpdateSchema = z.object({
 type RouteContext = { params: { id: string } };
 
 export async function PATCH(request: NextRequest, { params }: RouteContext) {
-  const supabase = await createClient();
+  const supabase = createClient();
   const { data: { session } } = await supabase.auth.getSession();
 
   if (!session) {
@@ -49,7 +49,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 
 
 export async function DELETE(request: NextRequest, { params }: RouteContext) {
-  const supabase = await createClient();
+  const supabase = createClient();
   const { data: { session } } = await supabase.auth.getSession();
 
   if (!session) {
