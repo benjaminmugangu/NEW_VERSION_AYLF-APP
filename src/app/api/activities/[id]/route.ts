@@ -15,8 +15,9 @@ const activityUpdateSchema = z.object({
   participants_count_planned: z.number().int().min(0).optional(),
 }).partial();
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createClient();
+export async function PATCH(request: NextRequest, context: any) {
+  const { params } = context as { params: { id: string } };
+  const supabase = await createClient();
   const { data: { session } } = await supabase.auth.getSession();
 
   if (!session) {
@@ -46,8 +47,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 }
 
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createClient();
+export async function DELETE(request: NextRequest, context: any) {
+  const { params } = context as { params: { id: string } };
+  const supabase = await createClient();
   const { data: { session } } = await supabase.auth.getSession();
 
   if (!session) {
