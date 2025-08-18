@@ -1,5 +1,5 @@
 // src/services/reportService.ts
-import { supabase } from '@/lib/supabaseClient';
+import { createClient } from '@/utils/supabase/client';
 import type { Report, ReportWithDetails, ReportFormData, User } from '@/lib/types';
 import { getDateRangeFromFilterValue, type DateFilterValue } from '@/components/shared/DateRangeFilter';
 import { ROLES } from '@/lib/constants';
@@ -78,7 +78,8 @@ export interface ReportFilters {
 }
 
 const reportService = {
-  getReportById: async (id: string): Promise<Report> => {
+    getReportById: async (id: string): Promise<Report> => {
+    const supabase = createClient();
     const { data, error } = await supabase
       .from('reports')
       .select(`
@@ -97,7 +98,8 @@ const reportService = {
     return toReportModel(data);
   },
 
-  createReport: async (reportData: ReportFormData): Promise<Report> => {
+    createReport: async (reportData: ReportFormData): Promise<Report> => {
+    const supabase = createClient();
     const reportForDb = fromReportFormData(reportData);
 
     const { data, error } = await supabase
@@ -120,7 +122,8 @@ const reportService = {
     return toReportModel(data);
   },
 
-  updateReport: async (reportId: string, updatedData: Partial<ReportFormData>): Promise<ReportWithDetails> => {
+    updateReport: async (reportId: string, updatedData: Partial<ReportFormData>): Promise<ReportWithDetails> => {
+    const supabase = createClient();
     const reportForDb = fromReportFormData(updatedData);
 
     const { data, error } = await supabase
@@ -143,13 +146,15 @@ const reportService = {
     return toReportModel(data) as ReportWithDetails;
   },
 
-  deleteReport: async (id: string): Promise<void> => {
+    deleteReport: async (id: string): Promise<void> => {
+    const supabase = createClient();
     const { error } = await supabase.from('reports').delete().eq('id', id);
     if (error) {
       throw new Error(error.message);
     }
   },
-  getFilteredReports: async (filters: ReportFilters): Promise<ReportWithDetails[]> => {
+    getFilteredReports: async (filters: ReportFilters): Promise<ReportWithDetails[]> => {
+    const supabase = createClient();
     const { user, entity, searchTerm, dateFilter, statusFilter } = filters;
     if (!user && !entity) {
       throw new Error('User or entity is required to fetch reports.');
@@ -158,7 +163,7 @@ const reportService = {
     // Restore the joins but keep filters commented out for now.
     // Use standard left joins (default) instead of inner joins to prevent reports from being dropped
     // if a related entity (like site or small group) is null.
-    let query = supabase.from('reports').select(`
+        let query = supabase.from('reports').select(`
       *,
       profiles:submitted_by(name),
       sites:site_id(name),

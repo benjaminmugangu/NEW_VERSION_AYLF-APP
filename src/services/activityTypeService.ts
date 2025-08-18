@@ -1,5 +1,5 @@
 // src/services/activityTypeService.ts
-import { supabase } from '@/lib/supabaseClient';
+import { createClient } from '@/utils/supabase/client';
 import type { ActivityType } from '@/lib/types';
 
 /**
@@ -7,13 +7,15 @@ import type { ActivityType } from '@/lib/types';
  * @returns A promise that resolves to an array of activity types.
  * @throws An error if the database query fails.
  */
-export const getAllActivityTypes = async (): Promise<ActivityType[]> => {
+export const getActivityTypes = async (): Promise<ActivityType[]> => {
+  const supabase = createClient();
   const { data, error } = await supabase
     .from('activity_types')
     .select('*')
     .order('name', { ascending: true });
 
   if (error) {
+    console.error('[ActivityTypeService] Error in getActivityTypes:', error.message);
     console.error('[ActivityTypeService] Error in getAllActivityTypes:', error.message);
     throw new Error(error.message);
   }
@@ -28,6 +30,7 @@ export const getAllActivityTypes = async (): Promise<ActivityType[]> => {
  * @throws An error if the activity type is not found or the query fails.
  */
 export const getActivityTypeById = async (id: string): Promise<ActivityType> => {
+  const supabase = createClient();
   const { data, error } = await supabase
     .from('activity_types')
     .select('*')

@@ -1,7 +1,7 @@
 // src/services/memberService.ts
 'use client';
 
-import { supabase } from '@/lib/supabaseClient';
+import { createClient } from '@/utils/supabase/client';
 import type { User, Member, MemberWithDetails, MemberFormData } from '@/lib/types';
 import { getDateRangeFromFilterValue, type DateFilterValue } from '@/components/shared/DateRangeFilter';
 
@@ -14,6 +14,7 @@ export interface MemberFilters {
 }
 
 const getFilteredMembers = async (filters: MemberFilters): Promise<MemberWithDetails[]> => {
+  const supabase = createClient();
   const { user, searchTerm, dateFilter, typeFilter, smallGroupId } = filters;
 
   if (!user) {
@@ -89,6 +90,7 @@ const getFilteredMembers = async (filters: MemberFilters): Promise<MemberWithDet
 };
 
 const getMemberById = async (memberId: string): Promise<MemberWithDetails> => {
+  const supabase = createClient();
   const { data, error } = await supabase
     .from('members')
     .select(`
@@ -127,6 +129,7 @@ const getMemberById = async (memberId: string): Promise<MemberWithDetails> => {
 };
 
 const updateMember = async (memberId: string, formData: MemberFormData): Promise<Member> => {
+  const supabase = createClient();
   const { data, error } = await supabase
     .from('members')
     .update({
@@ -155,6 +158,7 @@ const updateMember = async (memberId: string, formData: MemberFormData): Promise
 };
 
 const deleteMember = async (memberId: string): Promise<void> => {
+  const supabase = createClient();
   const { error } = await supabase
     .from('members')
     .delete()
@@ -166,6 +170,7 @@ const deleteMember = async (memberId: string): Promise<void> => {
 };
 
 const createMember = async (formData: MemberFormData): Promise<Member> => {
+  const supabase = createClient();
   const { data, error } = await supabase
     .from('members')
     .insert({

@@ -2,7 +2,7 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { profileService } from '@/services/profileService';
+import profileService from '@/services/profileService';
 import type { User } from '@/lib/types';
 
 // Type for the user creation data, matching the API route's schema

@@ -1,5 +1,5 @@
 // src/services/siteService.ts
-import { supabase } from '@/lib/supabaseClient';
+import { createClient } from '@/utils/supabase/client';
 import type { Site, SiteFormData, SiteWithDetails, User } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
 
@@ -29,6 +29,7 @@ interface SiteDetailsRPCResponse {
 
 // Fetches all sites with enriched details using the RPC function.
 const getSitesWithDetails = async (user: User | null): Promise<SiteWithDetails[]> => {
+  const supabase = createClient();
   if (!user) {
     throw new Error('User not authenticated.');
   }
@@ -64,6 +65,7 @@ const getSitesWithDetails = async (user: User | null): Promise<SiteWithDetails[]
 };
 
 const getSiteDetails = async (siteId: string): Promise<{ site: Site; smallGroups: any[]; totalMembers: number }> => {
+  const supabase = createClient();
   // Step 1: Fetch site details including the coordinator's name via a join.
   const { data: siteData, error: siteError } = await supabase
     .from('sites')
@@ -114,6 +116,7 @@ const getSiteDetails = async (siteId: string): Promise<{ site: Site; smallGroups
 };
 
 const getSiteById = async (id: string): Promise<Site> => {
+  const supabase = createClient();
   const { data, error } = await supabase.from('sites').select('*').eq('id', id).single();
   if (error) {
     console.error(`[SiteService] Error in getSiteById for id ${id}:`, error.message);
@@ -123,6 +126,7 @@ const getSiteById = async (id: string): Promise<Site> => {
 };
 
 const createSite = async (siteData: SiteFormData): Promise<Site> => {
+  const supabase = createClient();
   if (!siteData.name || siteData.name.trim().length < 3) {
     throw new Error('Site name must be at least 3 characters long.');
   }
@@ -138,6 +142,7 @@ const createSite = async (siteData: SiteFormData): Promise<Site> => {
 };
 
 const updateSite = async (id: string, updatedData: Partial<SiteFormData>): Promise<Site> => {
+  const supabase = createClient();
   if (updatedData.name && updatedData.name.trim().length < 3) {
     throw new Error('Site name must be at least 3 characters long.');
   }
@@ -153,6 +158,7 @@ const updateSite = async (id: string, updatedData: Partial<SiteFormData>): Promi
 };
 
 const deleteSite = async (id: string): Promise<{ id: string }> => {
+  const supabase = createClient();
   const { error } = await supabase.from('sites').delete().eq('id', id);
 
   if (error) {

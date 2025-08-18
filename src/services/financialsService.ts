@@ -2,7 +2,7 @@
 'use client';
 
 import { allocationService } from './allocations.service';
-import { transactionService, type TransactionFilters } from './transactionService';
+import transactionService, { type TransactionFilters } from './transactionService';
 import reportService from './reportService';
 import type {
   User,

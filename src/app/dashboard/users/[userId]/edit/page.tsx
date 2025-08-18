@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { UserForm } from "../../components/UserForm";
 import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
 import { ROLES } from "@/lib/constants";
-import { profileService } from "@/services/profileService";
+import profileService from "@/services/profileService";
 import type { User } from "@/lib/types";
 import type { UserFormData } from "../../components/UserForm";
 import { Edit, Info } from "lucide-react";

@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { SmallGroup, User, SmallGroupFormData } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { profileService } from "@/services/profileService";
+import profileService from "@/services/profileService";
 import { ROLES } from "@/lib/constants";
 import { Users, Save } from "lucide-react";
 

@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
 import { ROLES } from "@/lib/constants";
-import activityService from '@/services/activityService';
+import { createClient } from '@/utils/supabase/client';
 import { Activity, ActivityStatus } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,8 +29,32 @@ export default function ActivityDetailPage() {
       setLoading(true);
       setError(null);
       try {
-        const activityData = await activityService.getActivityById(id);
-        setActivity(activityData);
+        const supabase = createClient();
+        const { data: activityData, error: fetchError } = await supabase
+          .from('activities')
+          .select(`
+            *,
+            site:sites(name),
+            small_group:small_groups(name),
+            activity_type:activity_types(name),
+            participants:activity_participants(count)
+          `)
+          .eq('id', id)
+          .single();
+
+        if (fetchError) throw fetchError;
+
+        // Remapper les données pour correspondre à la structure attendue par le composant
+        const formattedActivity = {
+          ...activityData,
+          title: activityData.name,
+          siteName: activityData.site?.name,
+          smallGroupName: activityData.small_group?.name,
+          activityTypeName: activityData.activity_type?.name,
+          participantsCount: activityData.participants[0]?.count || 0,
+        };
+
+        setActivity(formattedActivity as Activity);
       } catch (err: any) {
         setError(err.message || "An unexpected error occurred.");
         console.error(err);

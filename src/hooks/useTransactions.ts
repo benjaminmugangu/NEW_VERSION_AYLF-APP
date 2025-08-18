@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { transactionService, type TransactionFilters } from '@/services/transactionService';
+import transactionService, { type TransactionFilters } from '@/services/transactionService';
 import { useAuth } from '@/contexts/AuthContext';
 import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
 import type { TransactionFormData } from '@/lib/types';

@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as z from 'zod';
 import activityService from '@/services/activityService';
-import { createClient } from '@/middleware';
+import { createClient } from '@/utils/supabase/server';
 
-// Zod schema for validating partial updates
 const activityUpdateSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters long.').optional(),
   thematic: z.string().min(3, 'Thematic must be at least 3 characters long.').optional(),
-  date: z.string().datetime().optional(), // Expecting string from JSON
+  date: z.string().datetime().optional(),
   level: z.enum(["national", "site", "small_group"]).optional(),
   status: z.enum(["planned", "in_progress", "delayed", "executed", "canceled"]).optional(),
   site_id: z.string().uuid().optional().nullable(),
@@ -16,22 +15,24 @@ const activityUpdateSchema = z.object({
   participants_count_planned: z.number().int().min(0).optional(),
 }).partial();
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
-  try {
-        const supabase = createClient(request as any);
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
-    }
+type RouteContext = { params: { id: string } };
 
+export async function PATCH(request: NextRequest, { params }: RouteContext) {
+  const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
     const json = await request.json();
     const parsedData = activityUpdateSchema.safeParse(json);
 
     if (!parsedData.success) {
-      return new NextResponse(JSON.stringify({ error: 'Invalid input', details: parsedData.error.format() }), { status: 400 });
+      return NextResponse.json({ error: 'Invalid input', details: parsedData.error.format() }, { status: 400 });
     }
 
-    // Convert date string back to Date object if it exists
     const dataForService = {
       ...parsedData.data,
       ...(parsedData.data.date && { date: new Date(parsedData.data.date) }),
@@ -42,31 +43,25 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-    return new NextResponse(JSON.stringify({ error: 'Internal Server Error', details: errorMessage }), { status: 500 });
+    return NextResponse.json({ error: 'Internal Server Error', details: errorMessage }, { status: 500 });
   }
 }
 
 
-type RouteContext = {
-  params: {
-    id: string;
-  };
-};
+export async function DELETE(request: NextRequest, { params }: RouteContext) {
+  const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
 
-export async function DELETE(request: NextRequest, context: RouteContext) {
-  const { params } = context;
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
-        const supabase = createClient(request as any);
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
-    }
-
     await activityService.deleteActivity(params.id);
-    return new NextResponse(null, { status: 204 });
+    return new Response(null, { status: 204 });
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-    return new NextResponse(JSON.stringify({ error: 'Internal Server Error', details: errorMessage }), { status: 500 });
+    return NextResponse.json({ error: 'Internal Server Error', details: errorMessage }, { status: 500 });
   }
 }

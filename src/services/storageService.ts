@@ -1,5 +1,5 @@
 // src/services/storageService.ts
-import { supabase } from '@/lib/supabaseClient';
+import { createClient } from '@/utils/supabase/client';
 
 
 // Define a more specific type for the returned data
@@ -15,10 +15,11 @@ const storageService = {
    * @param bucketName The name of the storage bucket (e.g., 'report-images').
    * @returns A service response containing the file path and its public URL.
    */
-  uploadFile: async (
+    uploadFile: async (
     file: File,
     bucketName: string
   ): Promise<UploadedFileResponse> => {
+    const supabase = createClient();
     const fileExt = file.name.split('.').pop();
     const fileName = `${Math.random()}-${Date.now()}.${fileExt}`;
     const filePath = `${fileName}`;
@@ -48,4 +49,4 @@ const storageService = {
   },
 };
 
-export { storageService };
+export default storageService;

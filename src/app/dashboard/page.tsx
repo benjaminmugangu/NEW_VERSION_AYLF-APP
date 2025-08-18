@@ -34,7 +34,7 @@ const chartConfigMembers = {
 };
 
 export default function DashboardPage() {
-  const { currentUser } = useAuth();
+  const { currentUser, isLoading: isAuthLoading } = useAuth();
   const [dateFilter, setDateFilter] = useState<DateFilterValue>({ rangeKey: 'all_time', display: "All Time" });
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,8 +42,7 @@ export default function DashboardPage() {
 
   const fetchStats = React.useCallback(async () => {
     if (!currentUser) {
-      // Don't fetch if user is not loaded yet.
-      // The UI will show the loading skeleton.
+      setIsLoading(false);
       return;
     }
     setIsLoading(true);
@@ -60,15 +59,31 @@ export default function DashboardPage() {
   }, [currentUser, dateFilter]);
 
   useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
+    if (!isAuthLoading) {
+      fetchStats();
+    }
+  }, [isAuthLoading, fetchStats]);
 
   const handlePrintPage = () => {
     window.print();
   };
 
-  if (isLoading) {
+  if (isAuthLoading || isLoading) {
     return <DashboardSkeleton />;
+  }
+
+  if (!currentUser) {
+    return (
+      <>
+        <PageHeader title="Dashboard" description="Please log in to continue" />
+        <Card className="mt-6">
+          <CardContent className="pt-6 text-center">
+            <p>You need to be authenticated to view this page.</p>
+            <Button asChild className="mt-4"><Link href="/">Go to Login</Link></Button>
+          </CardContent>
+        </Card>
+      </>
+    );
   }
 
   if (error) {

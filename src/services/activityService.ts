@@ -1,5 +1,5 @@
 // src/services/activityService.ts
-import { supabase } from '@/lib/supabaseClient';
+import { createClient } from '@/utils/supabase/client';
 import * as z from 'zod';
 import type { Activity, ActivityStatus, ActivityType, User } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
@@ -64,6 +64,7 @@ const toActivityModel = (dbActivity: any): Activity => ({
 });
 
 const getFilteredActivities = async (filters: any): Promise<Activity[]> => {
+  const supabase = createClient();
   const { user, searchTerm, dateFilter, statusFilter, levelFilter } = filters;
 
   if (!user) throw new Error('User not authenticated.');
@@ -123,6 +124,7 @@ const getFilteredActivities = async (filters: any): Promise<Activity[]> => {
 };
 
 const getActivitiesByRole = async (user: User): Promise<Activity[]> => {
+  const supabase = createClient();
   if (!user) throw new Error('User not authenticated.');
 
   let query = supabase
@@ -157,6 +159,7 @@ const getPlannedActivitiesForUser = async (user: User): Promise<Activity[]> => {
 };
 
 const getActivityById = async (id: string): Promise<Activity> => {
+  const supabase = createClient();
   const { data, error } = await supabase
     .from('activities')
     .select('*, sites:site_id(name), small_groups:small_group_id(name), activity_types:activity_type_id(name), activity_participants(count)')
@@ -175,6 +178,7 @@ const getActivityById = async (id: string): Promise<Activity> => {
 };
 
 const createActivity = async (activityData: Omit<ActivityFormData, 'created_by'>, userId: string): Promise<Activity> => {
+  const supabase = createClient();
   const dbData = toActivityDbData({ ...activityData, created_by: userId });
 
   const { data, error } = await supabase
@@ -191,6 +195,7 @@ const createActivity = async (activityData: Omit<ActivityFormData, 'created_by'>
 };
 
 const updateActivity = async (id: string, updatedData: Partial<ActivityFormData | { status: ActivityStatus }>): Promise<Activity> => {
+  const supabase = createClient();
   const dbData = toActivityDbData(updatedData as Partial<ActivityFormData>);
 
   const { error } = await supabase
@@ -206,6 +211,7 @@ const updateActivity = async (id: string, updatedData: Partial<ActivityFormData 
 };
 
 const deleteActivity = async (id: string): Promise<void> => {
+  const supabase = createClient();
   const { error } = await supabase
     .from('activities')
     .delete()
@@ -217,6 +223,7 @@ const deleteActivity = async (id: string): Promise<void> => {
 };
 
 const getActivityTypes = async (): Promise<ActivityType[]> => {
+  const supabase = createClient();
   const { data, error } = await supabase.from('activity_types').select('*');
   if (error) {
     console.error('[ActivityService] Error in getActivityTypes:', error.message);

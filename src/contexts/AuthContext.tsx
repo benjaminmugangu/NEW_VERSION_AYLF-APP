@@ -3,7 +3,7 @@
 
 import type { User, AuthContextType } from "@/lib/types";
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { supabase } from '@/lib/supabaseClient';
+import { createClient } from '@/utils/supabase/client';
 import authService from '@/services/auth.service';
 import { Session } from "@supabase/supabase-js";
 
@@ -23,23 +23,33 @@ export const useAuth = () => {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null); // Keep session for other potential uses
-  const [isLoading, setIsLoading] = useState(true);
+  const [session, setSession] = useState<Session | null>(null);
+  const [isLoading, setIsLoading] = useState(true); // Start as true
 
   useEffect(() => {
-    // Check for an existing session on initial load
+    const supabase = createClient();
+
     const checkCurrentUser = async () => {
-      const user = await authService.getCurrentUser();
-      setCurrentUser(user);
-      // Also get the session if needed, though currentUser is primary
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session);
-      setIsLoading(false);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setSession(session);
+        if (session) {
+          const user = await authService.getCurrentUser();
+          setCurrentUser(user);
+        } else {
+          setCurrentUser(null);
+        }
+      } catch (error) {
+        console.error("[AuthContext] Error checking current user:", error);
+        setCurrentUser(null);
+        setSession(null);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     checkCurrentUser();
 
-    // Listen for auth state changes (e.g., logout from another tab)
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setSession(session);
@@ -62,10 +72,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const user = await authService.login({ email, password });
       setCurrentUser(user);
+      const supabase = createClient();
       const { data } = await supabase.auth.getSession();
       setSession(data.session);
     } catch (error) {
-      // Re-throw the error to be handled by the UI component (e.g., the login form)
       throw error;
     } finally {
       setIsLoading(false);

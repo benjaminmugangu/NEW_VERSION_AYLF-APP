@@ -1,5 +1,5 @@
 // src/services/transactionService.ts
-import { supabase } from '@/lib/supabaseClient';
+import { createClient } from '@/utils/supabase/client';
 import type { FinancialTransaction, User, TransactionFormData } from '@/lib/types';
 import { getDateRangeFromFilterValue, type DateFilterValue } from '@/components/shared/DateRangeFilter';
 
@@ -37,8 +37,9 @@ export interface TransactionFilters {
   typeFilter?: 'income' | 'expense';
 }
 
-export const transactionService = {
-  getTransactionById: async (id: string): Promise<FinancialTransaction> => {
+const transactionService = {
+    getTransactionById: async (id: string): Promise<FinancialTransaction> => {
+    const supabase = createClient();
     const { data, error } = await supabase
       .from('transactions')
       .select(baseSelectQuery)
@@ -51,7 +52,8 @@ export const transactionService = {
     return toTransactionModel(data);
   },
 
-  getFilteredTransactions: async (filters: TransactionFilters): Promise<FinancialTransaction[]> => {
+    getFilteredTransactions: async (filters: TransactionFilters): Promise<FinancialTransaction[]> => {
+    const supabase = createClient();
     const { user, entity, searchTerm, dateFilter, typeFilter } = filters;
     if (!user && !entity) throw new Error('Authentication or entity required');
 
@@ -106,7 +108,8 @@ export const transactionService = {
     return data.map(toTransactionModel);
   },
 
-  createTransaction: async (formData: TransactionFormData): Promise<FinancialTransaction> => {
+    createTransaction: async (formData: TransactionFormData): Promise<FinancialTransaction> => {
+    const supabase = createClient();
     const { data, error } = await supabase
       .from('transactions')
       .insert({
@@ -128,7 +131,8 @@ export const transactionService = {
     return transactionService.getTransactionById(data.id);
   },
 
-  updateTransaction: async (id: string, formData: Partial<TransactionFormData>): Promise<FinancialTransaction> => {
+    updateTransaction: async (id: string, formData: Partial<TransactionFormData>): Promise<FinancialTransaction> => {
+    const supabase = createClient();
     const { error } = await supabase
       .from('transactions')
       .update({
@@ -148,7 +152,8 @@ export const transactionService = {
     return transactionService.getTransactionById(id);
   },
 
-  deleteTransaction: async (id: string): Promise<void> => {
+    deleteTransaction: async (id: string): Promise<void> => {
+    const supabase = createClient();
     const { error } = await supabase
       .from('transactions')
       .delete()
@@ -157,7 +162,9 @@ export const transactionService = {
     if (error) {
       throw new Error(error.message);
     }
-  },
+  }
 };
+
+export default transactionService;
 
 

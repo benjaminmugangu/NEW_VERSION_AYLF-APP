@@ -1,5 +1,5 @@
 // src/services/smallGroupService.ts
-import { supabase } from '@/lib/supabaseClient';
+import { createClient } from '@/utils/supabase/client';
 import type { SmallGroup, SmallGroupFormData, User } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
 
@@ -30,7 +30,8 @@ const toSmallGroupModel = (dbSmallGroup: any): SmallGroup => {
 };
 
 const smallGroupService = {
-  getSmallGroupsBySite: async (siteId: string): Promise<SmallGroup[]> => {
+    getSmallGroupsBySite: async (siteId: string): Promise<SmallGroup[]> => {
+    const supabase = createClient();
     const { data, error } = await supabase
       .from('small_groups')
       .select('*')
@@ -43,7 +44,8 @@ const smallGroupService = {
 
     return data.map(toSmallGroupModel);
   },
-  getFilteredSmallGroups: async ({ user, search, siteId }: { user: User; search?: string, siteId?: string }): Promise<SmallGroup[]> => {
+    getFilteredSmallGroups: async ({ user, search, siteId }: { user: User; search?: string, siteId?: string }): Promise<SmallGroup[]> => {
+    const supabase = createClient();
     if (!user) {
       throw new Error('User not authenticated.');
     }
@@ -93,7 +95,8 @@ const smallGroupService = {
     return data.map(toSmallGroupModel);
   },
 
-  getSmallGroupById: async (groupId: string): Promise<SmallGroup> => {
+    getSmallGroupById: async (groupId: string): Promise<SmallGroup> => {
+    const supabase = createClient();
     const { data, error } = await supabase
       .from('small_groups')
       .select('*')
@@ -107,7 +110,8 @@ const smallGroupService = {
     return toSmallGroupModel(data);
   },
 
-  getSmallGroupDetails: async (groupId: string): Promise<SmallGroup> => {
+    getSmallGroupDetails: async (groupId: string): Promise<SmallGroup> => {
+    const supabase = createClient();
     const { data, error } = await supabase
       .from('small_groups')
       .select(`
@@ -128,7 +132,8 @@ const smallGroupService = {
     return toSmallGroupModel(data);
   },
 
-  createSmallGroup: async (siteId: string, formData: SmallGroupFormData): Promise<SmallGroup> => {
+    createSmallGroup: async (siteId: string, formData: SmallGroupFormData): Promise<SmallGroup> => {
+    const supabase = createClient();
     const { data: newGroup, error: createError } = await supabase
       .from('small_groups')
       .insert({
@@ -178,7 +183,8 @@ const smallGroupService = {
     return toSmallGroupModel(newGroup);
   },
 
-    updateSmallGroup: async (groupId: string, formData: Partial<SmallGroupFormData>): Promise<SmallGroup> => {
+      updateSmallGroup: async (groupId: string, formData: Partial<SmallGroupFormData>): Promise<SmallGroup> => {
+    const supabase = createClient();
     // 1. Get old group to compare assignments
     const { data: oldGroup, error: fetchError } = await supabase.from('small_groups').select('*').eq('id', groupId).single();
     if (fetchError || !oldGroup) {
@@ -232,7 +238,8 @@ const smallGroupService = {
     return toSmallGroupModel(updatedGroup);
   },
 
-  deleteSmallGroup: async (groupId: string): Promise<void> => {
+    deleteSmallGroup: async (groupId: string): Promise<void> => {
+    const supabase = createClient();
     try {
       // 1. Unassign all users (leaders, assistants, members) from the small group.
       const { error: unassignError } = await supabase

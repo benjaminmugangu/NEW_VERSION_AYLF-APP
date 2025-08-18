@@ -1,17 +1,14 @@
-// src/app/api/certificates/eligible-users/route.ts
-import { NextResponse } from 'next/server';
-import { createClient } from '@/middleware';
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/utils/supabase/server';
 import { certificateService } from '@/services/certificateService';
 import { parseISO, isValid } from 'date-fns';
 
-export async function GET(request: Request) {
-  const supabase = createClient(request as any);
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-  console.log('Session debug:', { session: !!session, sessionError, userId: session?.user?.id });
+export async function GET(request: NextRequest) {
+  const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
 
   if (!session) {
-    return NextResponse.json({ error: 'Unauthorized - No active session' }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const { data: profile } = await supabase

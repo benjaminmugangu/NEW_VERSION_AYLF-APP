@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import smallGroupService from '@/services/smallGroupService';
 import siteService from '@/services/siteService';
-import { profileService } from '@/services/profileService';
+import profileService from '@/services/profileService';
 import memberService from '@/services/memberService';
 import { SmallGroup, Site, User, MemberWithDetails } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';

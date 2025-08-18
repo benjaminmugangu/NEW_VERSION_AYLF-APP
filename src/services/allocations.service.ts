@@ -1,5 +1,5 @@
 // src/services/allocations.service.ts
-import { supabase } from '@/lib/supabaseClient';
+import { createClient } from '@/utils/supabase/client';
 import type { FundAllocation, FundAllocationFormData } from '@/lib/types';
 
 const baseSelectQuery = `
@@ -34,7 +34,8 @@ const toAllocationModel = (dbAllocation: any): FundAllocation => {
 };
 
 export const allocationService = {
-  getAllocations: async (filters?: { siteId?: string; smallGroupId?: string }): Promise<FundAllocation[]> => {
+    getAllocations: async (filters?: { siteId?: string; smallGroupId?: string }): Promise<FundAllocation[]> => {
+    const supabase = createClient();
     let query = supabase
       .from('fund_allocations')
       .select(baseSelectQuery);
@@ -57,7 +58,8 @@ export const allocationService = {
     return data.map(toAllocationModel);
   },
 
-  getAllocationById: async (id: string): Promise<FundAllocation> => {
+    getAllocationById: async (id: string): Promise<FundAllocation> => {
+    const supabase = createClient();
     const { data, error } = await supabase
       .from('fund_allocations')
       .select(baseSelectQuery)
@@ -71,7 +73,8 @@ export const allocationService = {
     return toAllocationModel(data);
   },
 
-  createAllocation: async (formData: FundAllocationFormData): Promise<FundAllocation> => {
+    createAllocation: async (formData: FundAllocationFormData): Promise<FundAllocation> => {
+    const supabase = createClient();
     const { data, error } = await supabase
       .from('fund_allocations')
       .insert({
@@ -95,7 +98,8 @@ export const allocationService = {
     return allocationService.getAllocationById(data.id);
   },
 
-  updateAllocation: async (id: string, formData: Partial<FundAllocationFormData>): Promise<FundAllocation> => {
+    updateAllocation: async (id: string, formData: Partial<FundAllocationFormData>): Promise<FundAllocation> => {
+    const supabase = createClient();
     const { error } = await supabase
       .from('fund_allocations')
       .update({
@@ -117,7 +121,8 @@ export const allocationService = {
     return allocationService.getAllocationById(id);
   },
 
-  deleteAllocation: async (id: string): Promise<void> => {
+    deleteAllocation: async (id: string): Promise<void> => {
+    const supabase = createClient();
     const { error } = await supabase.from('fund_allocations').delete().eq('id', id);
 
     if (error) {

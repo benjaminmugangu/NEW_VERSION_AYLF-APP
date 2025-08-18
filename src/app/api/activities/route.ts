@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import * as z from 'zod';
 import activityService from '@/services/activityService';
-import { createClient } from '@/middleware';
+import { createClient } from '@/utils/supabase/server';
 
 // Zod schema for validating incoming activity creation data (without created_by)
 const activityCreateSchema = z.object({
@@ -22,34 +22,32 @@ const activityCreateSchema = z.object({
   path: ['small_group_id'],
 });
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-        const supabase = createClient(request as any);
+    const supabase = await createClient();
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {
-      return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const json = await request.json();
     const parsedData = activityCreateSchema.safeParse(json);
 
     if (!parsedData.success) {
-      return new NextResponse(JSON.stringify({ error: 'Invalid input', details: parsedData.error.format() }), { status: 400 });
+      return NextResponse.json({ error: 'Invalid input', details: parsedData.error.format() }, { status: 400 });
     }
 
-    // The date from the form comes as a string, but the service expects a Date object.
-    // The service function `createActivity` will handle the conversion.
     const activityDataForService = {
         ...parsedData.data,
         date: new Date(parsedData.data.date),
     };
 
     const newActivity = await activityService.createActivity(activityDataForService, session.user.id);
-    return new NextResponse(JSON.stringify(newActivity), { status: 201 });
+    return NextResponse.json(newActivity, { status: 201 });
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-    return new NextResponse(JSON.stringify({ error: 'Internal Server Error', details: errorMessage }), { status: 500 });
+    return NextResponse.json({ error: 'Internal Server Error', details: errorMessage }, { status: 500 });
   }
 }

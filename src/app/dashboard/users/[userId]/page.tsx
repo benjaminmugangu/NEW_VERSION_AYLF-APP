@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { profileService } from '@/services/profileService';
+import profileService from '@/services/profileService';
 import { useToast } from '@/hooks/use-toast';
 import type { User } from '@/lib/types';
 import { PageHeader } from '@/components/shared/PageHeader';
