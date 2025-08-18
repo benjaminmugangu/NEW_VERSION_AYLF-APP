@@ -15,9 +15,7 @@ const activityUpdateSchema = z.object({
   participants_count_planned: z.number().int().min(0).optional(),
 }).partial();
 
-type RouteContext = { params: { id: string } };
-
-export async function PATCH(request: NextRequest, { params }: RouteContext) {
+export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   const supabase = createClient();
   const { data: { session } } = await supabase.auth.getSession();
 
@@ -48,7 +46,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 }
 
 
-export async function DELETE(request: NextRequest, { params }: RouteContext) {
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   const supabase = createClient();
   const { data: { session } } = await supabase.auth.getSession();
 
