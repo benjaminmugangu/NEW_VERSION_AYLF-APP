@@ -57,7 +57,7 @@ export default function SmallGroupDetailsPage() {
   if (error || !smallGroup) {
     return (
       <div className="text-center py-10">
-        <p className="text-xl font-semibold text-destructive">{error || 'Small group not found.'}</p>
+        <p className="text-xl font-semibold text-destructive">{error ? error.message : 'Small group not found.'}</p>
         <Button onClick={() => router.back()} className="mt-4">Go Back</Button>
       </div>
     );
@@ -82,7 +82,7 @@ export default function SmallGroupDetailsPage() {
             <Button variant="outline" onClick={() => router.push('/dashboard/small-groups')}>
               <ArrowLeft className="mr-2 h-4 w-4" /> Back to List
             </Button>
-            <Link href={`/dashboard/small-groups/${smallGroup.id}/edit`}>
+            <Link href={`/dashboard/sites/${smallGroup.siteId}/small-groups/${smallGroup.id}/edit`}>
               <Button>
                 <Edit className="mr-2 h-4 w-4" /> Edit Group
               </Button>

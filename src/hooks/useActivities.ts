@@ -3,6 +3,7 @@
 
 import { useState, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 
 import { activityService, type ActivityFormData } from '@/services/activityService';
@@ -13,6 +14,7 @@ import { ROLES } from '@/lib/constants';
 export const useActivities = () => {
   const { currentUser } = useAuth();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   // Filters state
   const [searchTerm, setSearchTerm] = useState("");
@@ -70,10 +72,11 @@ export const useActivities = () => {
     mutationFn: (activityData) =>
       activityService.createActivity(activityData, currentUser!.id),
     onSuccess: () => {
+      toast({ title: 'Success', description: 'Activity created successfully.' });
       queryClient.invalidateQueries({ queryKey: ['activities', filters] });
     },
     onError: (error) => {
-      throw new Error(`Failed to create activity: ${(error as Error).message}`);
+      toast({ title: 'Error', description: `Failed to create activity: ${error.message}`, variant: 'destructive' });
     },
   });
 
@@ -83,21 +86,25 @@ export const useActivities = () => {
     { id: string; data: Partial<ActivityFormData> }
   >({
     mutationFn: ({ id, data }) => activityService.updateActivity(id, data),
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      toast({ title: 'Success', description: 'Activity updated successfully.' });
       queryClient.invalidateQueries({ queryKey: ['activities', filters] });
+      // Also invalidate the specific activity details if such a query exists
+      queryClient.invalidateQueries({ queryKey: ['activityDetails', variables.id] });
     },
     onError: (error) => {
-      throw new Error(`Failed to update activity: ${(error as Error).message}`);
+      toast({ title: 'Error', description: `Failed to update activity: ${error.message}`, variant: 'destructive' });
     },
   });
 
   const deleteActivityMutation = useMutation<any, Error, string>({
     mutationFn: (activityId: string) => activityService.deleteActivity(activityId),
     onSuccess: () => {
+      toast({ title: 'Success', description: 'Activity deleted successfully.' });
       queryClient.invalidateQueries({ queryKey: ['activities', filters] });
     },
     onError: (error) => {
-      throw new Error(`Failed to delete activity: ${(error as Error).message}`);
+      toast({ title: 'Error', description: `Failed to delete activity: ${error.message}`, variant: 'destructive' });
     },
   });
 
@@ -118,9 +125,9 @@ export const useActivities = () => {
     refetch,
     availableLevelFilters,
     canEditActivity,
-    createActivity: createActivityMutation.mutate,
-    updateActivity: updateActivityMutation.mutate,
-    deleteActivity: deleteActivityMutation.mutate,
+    createActivity: createActivityMutation.mutateAsync,
+    updateActivity: updateActivityMutation.mutateAsync,
+    deleteActivity: deleteActivityMutation.mutateAsync,
     isCreating: createActivityMutation.isPending,
     isUpdating: updateActivityMutation.isPending,
     isDeleting: deleteActivityMutation.isPending,

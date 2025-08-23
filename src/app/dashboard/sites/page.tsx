@@ -31,28 +31,17 @@ import { useToast } from "@/hooks/use-toast";
 import { getInitials } from "@/lib/utils";
 
 export default function ManageSitesPage() {
-  const { sites, allSites, isLoading, error, deleteSite, searchTerm, setSearchTerm, canCreateSite, canEditSite, canDeleteSite } = useSites();
+    const { sites, allSites, isLoading, error, deleteSite, isDeleting, searchTerm, setSearchTerm, canCreateSite, canEditSite, canDeleteSite } = useSites();
   const { toast } = useToast();
   const [siteToDelete, setSiteToDelete] = useState<SiteWithDetails | null>(null);
 
   const handleDeleteSite = async () => {
     if (!siteToDelete) return;
-
-    const result = await deleteSite(siteToDelete.id);
-
-    if (result.success) {
-      toast({
-        title: "Site Deleted!",
-        description: `Site "${siteToDelete.name}" has been successfully deleted.`,
-      });
-    } else {
-      toast({
-        title: "Error Deleting Site",
-        description: result.error?.message || "An unknown error occurred.",
-        variant: "destructive",
-      });
+    try {
+      await deleteSite(siteToDelete.id);
+    } finally {
+      setSiteToDelete(null);
     }
-    setSiteToDelete(null);
   };
 
   const analytics = useMemo(() => {
@@ -228,9 +217,10 @@ export default function ManageSitesPage() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteSite}
+              disabled={isDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete
+              {isDeleting ? 'Deleting...' : 'Delete'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

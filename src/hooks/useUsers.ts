@@ -2,6 +2,7 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/components/ui/use-toast';
 import { profileService } from '@/services/profileService';
 import type { User } from '@/lib/types';
 
@@ -15,6 +16,7 @@ const USERS_QUERY_KEY = ['users'];
 
 export const useUsers = () => {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   // Query to fetch all users
   const { data: users = [], isLoading, isError, error } = useQuery({
@@ -49,8 +51,11 @@ export const useUsers = () => {
       return response.json();
     },
     onSuccess: () => {
-      // Invalidate the users query to refetch the list
+      toast({ title: 'Success', description: 'User created successfully.' });
       queryClient.invalidateQueries({ queryKey: USERS_QUERY_KEY });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
     },
   });
 
@@ -59,8 +64,13 @@ export const useUsers = () => {
     mutationFn: ({ userId, updates }: { userId: string; updates: Partial<User> }) => {
       return profileService.updateProfile(userId, updates);
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      toast({ title: 'Success', description: 'User updated successfully.' });
       queryClient.invalidateQueries({ queryKey: USERS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ['userDetails', variables.userId] });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
     },
   });
 
@@ -70,7 +80,11 @@ export const useUsers = () => {
       return profileService.deleteUser(userId);
     },
     onSuccess: () => {
+      toast({ title: 'Success', description: 'User deleted successfully.' });
       queryClient.invalidateQueries({ queryKey: USERS_QUERY_KEY });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
     },
   });
 
@@ -79,9 +93,9 @@ export const useUsers = () => {
     isLoading,
     isError,
     error,
-    createUser: createUserMutation.mutate,
-    updateUser: updateUserMutation.mutate,
-    deleteUser: deleteUserMutation.mutate,
+    createUser: createUserMutation.mutateAsync,
+    updateUser: updateUserMutation.mutateAsync,
+    deleteUser: deleteUserMutation.mutateAsync,
     isCreatingUser: createUserMutation.isPending,
     isUpdatingUser: updateUserMutation.isPending,
     isDeletingUser: deleteUserMutation.isPending,

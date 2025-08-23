@@ -2,6 +2,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useToast } from '@/components/ui/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import siteService from '@/services/siteService';
 import type { SiteFormData, SiteWithDetails } from '@/lib/types';
@@ -13,6 +14,7 @@ const SITES_QUERY_KEY = 'sites';
 export const useSites = () => {
   const { currentUser: user } = useAuth();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
 
   const { data: sites = [], isLoading, isError, error } = useQuery<SiteWithDetails[], Error>({
@@ -24,33 +26,35 @@ export const useSites = () => {
     const createSiteMutation = useMutation<any, Error, SiteFormData>({
     mutationFn: (newSite: SiteFormData) => siteService.createSite(newSite),
     onSuccess: () => {
+      toast({ title: 'Success', description: 'Site created successfully.' });
       queryClient.invalidateQueries({ queryKey: [SITES_QUERY_KEY, user?.id] });
     },
     onError: (error) => {
-      // The error object from react-query is often not a direct Error instance
-      // Best practice is to re-throw a new error with a clear message
-      throw new Error(`Failed to create site: ${(error as Error).message}`);
+      toast({ title: 'Error', description: `Failed to create site: ${error.message}`, variant: 'destructive' });
     },
   });
 
     const updateSiteMutation = useMutation<any, Error, { id: string; siteData: Partial<SiteFormData> }>({
     mutationFn: ({ id, siteData }) => siteService.updateSite(id, siteData),
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      toast({ title: 'Success', description: 'Site updated successfully.' });
       queryClient.invalidateQueries({ queryKey: [SITES_QUERY_KEY, user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['siteDetails', user?.id] });
+      // Also invalidate the specific site details if it's being viewed
+      queryClient.invalidateQueries({ queryKey: ['siteDetails', variables.id] });
     },
     onError: (error) => {
-      throw new Error(`Failed to update site: ${(error as Error).message}`);
+      toast({ title: 'Error', description: `Failed to update site: ${error.message}`, variant: 'destructive' });
     },
   });
 
     const deleteSiteMutation = useMutation<any, Error, string>({
     mutationFn: (id: string) => siteService.deleteSite(id),
     onSuccess: () => {
+      toast({ title: 'Success', description: 'Site deleted successfully.' });
       queryClient.invalidateQueries({ queryKey: [SITES_QUERY_KEY, user?.id] });
     },
     onError: (error) => {
-      throw new Error(`Failed to delete site: ${(error as Error).message}`);
+      toast({ title: 'Error', description: `Failed to delete site: ${error.message}`, variant: 'destructive' });
     },
   });
 

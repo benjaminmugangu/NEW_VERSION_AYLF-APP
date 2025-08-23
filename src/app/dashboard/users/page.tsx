@@ -26,33 +26,18 @@ export default function ManageUsersPage() {
   const { users, isLoading, error, deleteUser, isDeletingUser } = useUsers();
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
-  React.useEffect(() => {
-    if (error) {
-      toast({ 
-        title: "Error loading user data", 
-        description: error.message,
-        variant: "destructive" 
-      });
-    }
-  }, [error, toast]);
 
   const handleDeleteClick = (user: User) => {
     setUserToDelete(user);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!userToDelete) return;
-
-    deleteUser(userToDelete.id, {
-      onSuccess: () => {
-        toast({ title: "Success", description: `User '${userToDelete.name}' has been deleted.` });
-        setUserToDelete(null);
-      },
-      onError: (error) => {
-        toast({ title: "Error", description: error.message || "Failed to delete user.", variant: "destructive" });
-        setUserToDelete(null);
-      },
-    });
+    try {
+      await deleteUser(userToDelete.id);
+    } finally {
+      setUserToDelete(null);
+    }
   };
 
   const getRoleDisplayName = (role: UserRole) => role.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());

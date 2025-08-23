@@ -3,80 +3,80 @@ import { supabase } from '@/lib/supabaseClient';
 import type { User, ServiceResponse } from '@/lib/types';
 
 const profileService = {
-  // Récupère le profil d'un utilisateur à partir de son ID
-  async getProfile(userId: string): Promise<ServiceResponse<User>> {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select(`
-          *, 
-          site:site_id(name),
-          small_group:small_group_id(name)
-        `)
-        .eq('id', userId)
-        .single();
+  /**
+   * Retrieves a user's profile by their ID.
+   * @param {string} userId - The ID of the user to retrieve.
+   * @returns {Promise<User>} The user profile.
+   * @throws {Error} If the profile is not found or if a database error occurs.
+   */
+  async getProfile(userId: string): Promise<User> {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select(`
+        *, 
+        site:site_id(name),
+        small_group:small_group_id(name)
+      `)
+      .eq('id', userId)
+      .single();
 
-      if (error) {
-        console.error('[ProfileService] Error in getProfile:', error.message);
-        return { success: false, error: { message: error.message } };
-      }
-
-      if (!data) {
-        return { success: false, error: { message: 'Profile not found.' } };
-      }
-
-      const userProfile: User = {
-        ...data,
-        siteName: data.site?.name || 'N/A',
-        smallGroupName: data.small_group?.name || 'N/A',
-      };
-
-      return { success: true, data: userProfile };
-    } catch (e: any) {
-      console.error('[ProfileService] Unexpected error in getProfile:', e.message);
-      return { success: false, error: { message: e.message || 'An unexpected error occurred.' } };
+    if (error) {
+      console.error('[ProfileService] Error in getProfile:', error.message);
+      throw new Error(error.message);
     }
+
+    if (!data) {
+      throw new Error('Profile not found.');
+    }
+
+    return {
+      ...data,
+      siteName: data.site?.name || 'N/A',
+      smallGroupName: data.small_group?.name || 'N/A',
+    };
   },
 
   // Met à jour le profil d'un utilisateur
-      async updateProfile(userId: string, updates: Partial<User>): Promise<ServiceResponse<User>> {
-     try {
-      const { role } = updates;
+  /**
+   * Updates a user's profile.
+   * @param {string} userId - The ID of the user to update.
+   * @param {Partial<User>} updates - The fields to update.
+   * @returns {Promise<User>} The updated user profile.
+   * @throws {Error} If the update fails.
+   */
+  async updateProfile(userId: string, updates: Partial<User>): Promise<User> {
+    const { role } = updates;
 
-      // Enforce business logic for assignments based on role
-      if (role === 'national_coordinator') {
-        updates.siteId = null;
-        updates.smallGroupId = null;
-      } else if (role === 'site_coordinator') {
-        updates.smallGroupId = null;
-      }
-
-      // Map camelCase to snake_case for DB
-      const { mandateStartDate, mandateEndDate, siteId, smallGroupId, ...rest } = updates;
-      const dbUpdates: { [key: string]: any } = { ...rest };
-
-      if (mandateStartDate !== undefined) dbUpdates.mandate_start_date = mandateStartDate;
-      if (mandateEndDate !== undefined) dbUpdates.mandate_end_date = mandateEndDate;
-      if (siteId !== undefined) dbUpdates.site_id = siteId;
-      if (smallGroupId !== undefined) dbUpdates.small_group_id = smallGroupId;
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .update(dbUpdates)
-        .eq('id', userId)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('[ProfileService] Error in updateProfile:', error.message);
-        return { success: false, error: { message: error.message } };
-      }
-
-      return { success: true, data: data as User };
-    } catch (e: any) {
-      console.error('[ProfileService] Unexpected error in updateProfile:', e.message);
-      return { success: false, error: { message: e.message || 'An unexpected error occurred.' } };
+    // Enforce business logic for assignments based on role
+    if (role === 'national_coordinator') {
+      updates.siteId = null;
+      updates.smallGroupId = null;
+    } else if (role === 'site_coordinator') {
+      updates.smallGroupId = null;
     }
+
+    // Map camelCase to snake_case for DB
+    const { mandateStartDate, mandateEndDate, siteId, smallGroupId, ...rest } = updates;
+    const dbUpdates: { [key: string]: any } = { ...rest };
+
+    if (mandateStartDate !== undefined) dbUpdates.mandate_start_date = mandateStartDate;
+    if (mandateEndDate !== undefined) dbUpdates.mandate_end_date = mandateEndDate;
+    if (siteId !== undefined) dbUpdates.site_id = siteId;
+    if (smallGroupId !== undefined) dbUpdates.small_group_id = smallGroupId;
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(dbUpdates)
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[ProfileService] Error in updateProfile:', error.message);
+      throw new Error(error.message);
+    }
+
+    return data as User;
   },
 
   // Récupère tous les profils utilisateurs avec les détails d'affectation

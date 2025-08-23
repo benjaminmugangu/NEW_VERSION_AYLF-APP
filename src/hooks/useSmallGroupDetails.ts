@@ -1,12 +1,13 @@
 // src/hooks/useSmallGroupDetails.ts
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/components/ui/use-toast';
 import smallGroupService from '@/services/smallGroupService';
 import siteService from '@/services/siteService';
 import { profileService } from '@/services/profileService';
 import { memberService } from '@/services/memberService';
-import { SmallGroup, Site, User, MemberWithDetails } from '@/lib/types';
+import { SmallGroup, Site, User, MemberWithDetails, SmallGroupFormData } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
 
 export interface SmallGroupDetails extends SmallGroup {
@@ -19,62 +20,92 @@ export interface SmallGroupDetails extends SmallGroup {
 
 export const useSmallGroupDetails = (groupId: string | null) => {
   const { currentUser } = useAuth();
-  const [smallGroup, setSmallGroup] = useState<SmallGroupDetails | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
-  const fetchDetails = useCallback(async () => {
-    if (!groupId || !currentUser) {
-      setIsLoading(false);
-      return;
-    }
+  const fetchDetails = async () => {
+    if (!groupId || !currentUser) return null;
 
-    setIsLoading(true);
-    setError(null);
+    const baseGroup = await smallGroupService.getSmallGroupById(groupId);
 
-    try {
-      const baseGroup = await smallGroupService.getSmallGroupById(groupId);
+    const userIds = [
+      baseGroup.leaderId,
+      baseGroup.logisticsAssistantId,
+      baseGroup.financeAssistantId,
+    ].filter((id): id is string => !!id);
 
-      const userIds = [
-        baseGroup.leaderId,
-        baseGroup.logisticsAssistantId,
-        baseGroup.financeAssistantId,
-      ].filter((id): id is string => !!id);
+    const [site, usersResponse, membersResponse] = await Promise.all([
+      baseGroup.siteId ? siteService.getSiteById(baseGroup.siteId) : Promise.resolve(undefined),
+      profileService.getUsersByIds(userIds),
+      memberService.getFilteredMembers({ user: currentUser, smallGroupId: groupId, searchTerm: '' }),
+    ]);
 
-      const [site, usersResponse, membersResponse] = await Promise.all([
-        baseGroup.siteId ? siteService.getSiteById(baseGroup.siteId) : Promise.resolve(undefined),
-        profileService.getUsersByIds(userIds),
-        memberService.getFilteredMembers({ user: currentUser, smallGroupId: groupId, searchTerm: '' }),
-      ]);
+    const usersMap = (usersResponse.success && usersResponse.data)
+      ? new Map(usersResponse.data.map((u: User) => [u.id, u]))
+      : new Map();
 
-      const usersMap = (usersResponse.success && usersResponse.data) 
-        ? new Map(usersResponse.data.map((u: User) => [u.id, u])) 
-        : new Map();
-      
-      const groupMembers = membersResponse || [];
+    const groupMembers = membersResponse || [];
 
-      const details: SmallGroupDetails = {
-        ...baseGroup,
-        site,
-        leader: baseGroup.leaderId ? usersMap.get(baseGroup.leaderId) : undefined,
-        logisticsAssistant: baseGroup.logisticsAssistantId ? usersMap.get(baseGroup.logisticsAssistantId) : undefined,
-        financeAssistant: baseGroup.financeAssistantId ? usersMap.get(baseGroup.financeAssistantId) : undefined,
-        members: groupMembers,
-      };
+    return {
+      ...baseGroup,
+      site,
+      leader: baseGroup.leaderId ? usersMap.get(baseGroup.leaderId) : undefined,
+      logisticsAssistant: baseGroup.logisticsAssistantId ? usersMap.get(baseGroup.logisticsAssistantId) : undefined,
+      financeAssistant: baseGroup.financeAssistantId ? usersMap.get(baseGroup.financeAssistantId) : undefined,
+      members: groupMembers,
+    };
+  };
 
-      setSmallGroup(details);
-    } catch (e) {
-      const errorMsg = e instanceof Error ? e.message : 'An unknown error occurred.';
-      console.error('[useSmallGroupDetails] Error fetching details:', errorMsg);
-      setError(errorMsg);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [groupId, currentUser]);
+  const {
+    data: smallGroup,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery<SmallGroupDetails | null, Error>({
+    queryKey: ['smallGroupDetails', groupId, currentUser?.id],
+    queryFn: fetchDetails,
+    enabled: !!groupId && !!currentUser,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
-  useEffect(() => {
-    fetchDetails();
-  }, [fetchDetails]);
+  const mutationOptions = {
+    onSuccess: () => {
+      toast({ title: 'Success', description: 'Operation completed successfully.' });
+      // Invalidate the details query to refetch the latest data
+      queryClient.invalidateQueries({ queryKey: ['smallGroupDetails', groupId] });
+      // Also invalidate the list of all small groups as it might have changed
+      queryClient.invalidateQueries({ queryKey: ['smallGroups'] });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  };
 
-  return { smallGroup, isLoading, error, refetch: fetchDetails };
+  const { mutateAsync: updateSmallGroup, isPending: isUpdating } = useMutation({
+    ...mutationOptions,
+        mutationFn: (data: SmallGroupFormData) => {
+      if (!groupId) throw new Error('Group ID is missing');
+      return smallGroupService.updateSmallGroup(groupId, data);
+    },
+  });
+
+  const { mutateAsync: deleteSmallGroup, isPending: isDeleting } = useMutation({
+    ...mutationOptions,
+    mutationFn: () => {
+      if (!groupId) throw new Error('Group ID is missing');
+      return smallGroupService.deleteSmallGroup(groupId);
+    },
+  });
+
+
+  return {
+    smallGroup,
+    isLoading,
+    error,
+    refetch,
+    updateSmallGroup,
+    isUpdating,
+    deleteSmallGroup,
+    isDeleting,
+  };
 };

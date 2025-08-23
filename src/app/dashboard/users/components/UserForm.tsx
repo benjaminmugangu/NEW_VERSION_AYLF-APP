@@ -53,9 +53,10 @@ const refinedUserFormSchema = userFormSchema
 interface UserFormProps {
   user?: User; // For editing
   onSubmitForm: (data: UserFormData) => Promise<void>;
+  isSubmitting?: boolean;
 }
 
-export function UserForm({ user, onSubmitForm }: UserFormProps) {
+export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }: UserFormProps) {
   const { toast } = useToast();
   const { currentUser } = useAuth();
   const [availableSites, setAvailableSites] = useState<Site[]>([]);
@@ -72,7 +73,7 @@ export function UserForm({ user, onSubmitForm }: UserFormProps) {
     status: "active" as const,
   };
 
-  const { control, handleSubmit, register, watch, formState: { errors, isSubmitting }, reset, setValue } = useForm<UserFormData>({
+    const { control, handleSubmit, register, watch, formState: { errors, isSubmitting: isFormSubmitting }, reset, setValue } = useForm<UserFormData>({
     resolver: zodResolver(refinedUserFormSchema),
     defaultValues,
   });
@@ -301,9 +302,9 @@ export function UserForm({ user, onSubmitForm }: UserFormProps) {
           </div>
 
 
-          <Button type="submit" className="w-full py-3 text-base" disabled={isSubmitting}>
+                    <Button type="submit" className="w-full py-3 text-base" disabled={isFormSubmitting || isSubmittingProp}>
             <Save className="mr-2 h-5 w-5" />
-            {isSubmitting ? (user ? 'Saving...' : 'Sending Invitation...') : (user ? 'Save Changes' : 'Send Invitation')}
+                        {(isFormSubmitting || isSubmittingProp) ? (user ? 'Saving...' : 'Sending Invitation...') : (user ? 'Save Changes' : 'Send Invitation')}
           </Button>
         </form>
       </CardContent>

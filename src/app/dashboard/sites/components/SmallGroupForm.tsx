@@ -34,9 +34,10 @@ interface SmallGroupFormProps {
   smallGroup?: SmallGroup; // For editing
   siteId: string; 
   onSubmitForm: (data: SmallGroupFormData) => Promise<void>;
+  isSaving?: boolean;
 }
 
-export function SmallGroupForm({ smallGroup, siteId, onSubmitForm }: SmallGroupFormProps) {
+export function SmallGroupForm({ smallGroup, siteId, onSubmitForm, isSaving }: SmallGroupFormProps) {
   const { toast } = useToast();
   const [availablePersonnel, setAvailablePersonnel] = useState<User[]>([]);
   const [isLoadingPersonnel, setIsLoadingPersonnel] = useState(true);
@@ -206,9 +207,9 @@ export function SmallGroupForm({ smallGroup, siteId, onSubmitForm }: SmallGroupF
               Leaders and assistants can be chosen from unassigned Small Group Leaders, the Site Coordinator of this site, or National Coordinators. Ensure gender considerations for assistants if applicable.
           </p>
 
-          <Button type="submit" className="w-full py-3 text-base" disabled={isSubmitting}>
+          <Button type="submit" className="w-full py-3 text-base" disabled={isSubmitting || isSaving}>
             <Save className="mr-2 h-5 w-5" />
-            {isSubmitting ? "Saving..." : (smallGroup ? "Save Changes" : "Add Small Group")}
+            {isSubmitting || isSaving ? "Saving..." : (smallGroup ? "Save Changes" : "Add Small Group")}
           </Button>
         </form>
       </CardContent>

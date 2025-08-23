@@ -1,11 +1,10 @@
 // src/app/dashboard/users/[userId]/page.tsx
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { profileService } from '@/services/profileService';
-import { useToast } from '@/hooks/use-toast';
+import { useUser } from '@/hooks/useUser';
 import type { User } from '@/lib/types';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { RoleBasedGuard } from '@/components/shared/RoleBasedGuard';
@@ -19,29 +18,8 @@ import { UserDetailSkeleton } from '@/components/shared/skeletons/UserDetailSkel
 export default function UserDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { toast } = useToast();
   const userId = params.userId as string;
-
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    if (!userId) return;
-
-    const fetchUser = async () => {
-      setIsLoading(true);
-      const response = await profileService.getProfile(userId);
-      if (response.success && response.data) {
-        setUser(response.data);
-      } else {
-        setUser(null);
-        toast({ title: "Error", description: response.error?.message || "Failed to fetch user details.", variant: 'destructive' });
-      }
-      setIsLoading(false);
-    };
-
-    fetchUser();
-  }, [userId, toast]);
+  const { user, isLoading, isError } = useUser(userId);
 
   if (isLoading) {
     return (
@@ -52,7 +30,22 @@ export default function UserDetailPage() {
     );
   }
 
-  if (!user) {
+  if (isError) {
+    return (
+      <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR]}>
+        <PageHeader title="User Not Found" icon={Info} />
+        <Card>
+          <CardContent className="pt-6">
+            <p>The user you are looking for does not exist or an error occurred.</p>
+            <Button onClick={() => router.push('/dashboard/users')} className="mt-4">Go to Users List</Button>
+          </CardContent>
+        </Card>
+      </RoleBasedGuard>
+    );
+  }
+
+  if (!user) { // This will be true only after isError check and if user is null for other reasons
+
     return (
       <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR]}>
         <PageHeader title="User Not Found" icon={Info} />
