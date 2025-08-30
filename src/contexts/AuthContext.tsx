@@ -57,28 +57,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
   }, []);
 
-  const login = async (email: string, password: string) => {
+    const login = async (email: string, password: string) => {
     setIsLoading(true);
-    const response = await authService.login({ email, password });
-    if (response.success && response.data) {
-      setCurrentUser(response.data);
-      // Update session from Supabase client after login
+    try {
+      const user = await authService.login({ email, password });
+      setCurrentUser(user);
       const { data } = await supabase.auth.getSession();
       setSession(data.session);
-      setIsLoading(false);
       return { success: true, error: null };
-    } else {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Login failed';
+      return { success: false, error: errorMessage };
+    } finally {
       setIsLoading(false);
-      return { success: false, error: response.error?.message || 'Login failed' };
     }
   };
 
   const logout = async () => {
     setIsLoading(true);
-    await authService.logout();
-    setCurrentUser(null);
-    setSession(null);
-    setIsLoading(false);
+    try {
+      await authService.logout();
+    } catch (error) {
+      console.error("Logout failed:", error);
+      // Even if server logout fails, clear client state
+    } finally {
+      setCurrentUser(null);
+      setSession(null);
+      setIsLoading(false);
+    }
   };
 
   const value = {

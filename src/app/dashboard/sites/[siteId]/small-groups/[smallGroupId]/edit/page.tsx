@@ -23,7 +23,7 @@ export default function EditSmallGroupPage() {
 
   const handleUpdateSmallGroup = async (data: SmallGroupFormData) => {
     if (!smallGroupId) return;
-    await updateSmallGroup({ id: smallGroupId, data });
+    await updateSmallGroup(data);
     router.push(`/dashboard/sites/${smallGroup?.siteId}`);
   };
 
