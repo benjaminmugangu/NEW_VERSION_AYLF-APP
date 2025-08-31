@@ -68,7 +68,8 @@ async function getDashboardStats(userId: string, userRole: string, siteId: strin
     } as DashboardStats;
 }
 
-export default async function DashboardPage({ searchParams }: { searchParams: { [key: string]: string | string[] | undefined } }) {
+export default async function DashboardPage(props: any) {
+  const { searchParams } = props;
   const supabase = createClient();
 
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();

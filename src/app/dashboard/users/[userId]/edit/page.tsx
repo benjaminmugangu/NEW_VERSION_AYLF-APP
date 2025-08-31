@@ -13,7 +13,8 @@ interface EditUserPageProps {
   };
 }
 
-export default async function EditUserPage({ params }: EditUserPageProps) {
+export default async function EditUserPage(props: any) {
+  const { params } = props;
   const supabase = createServerComponentClient({ cookies });
   const { data: { session } } = await supabase.auth.getSession();
 

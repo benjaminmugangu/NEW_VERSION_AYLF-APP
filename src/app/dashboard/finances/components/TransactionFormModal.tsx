@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { TransactionForm } from '@/components/financials/TransactionForm';
 import type { FinancialTransaction, TransactionFormData } from '@/lib/types';
 import { useTransactions } from '@/hooks/useTransactions';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface TransactionFormModalProps {
   isOpen: boolean;
@@ -13,7 +14,8 @@ interface TransactionFormModalProps {
 }
 
 export function TransactionFormModal({ isOpen, onClose, transaction }: TransactionFormModalProps) {
-  const { createTransaction, updateTransaction, isCreating, isUpdating } = useTransactions();
+  const { currentUser } = useAuth();
+  const { createTransaction, updateTransaction, isCreating, isUpdating } = useTransactions({ user: currentUser });
 
   const handleSubmit = async (formData: TransactionFormData) => {
     try {

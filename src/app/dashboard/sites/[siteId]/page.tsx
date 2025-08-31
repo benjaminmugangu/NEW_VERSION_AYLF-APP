@@ -9,7 +9,8 @@ interface SiteDetailPageProps {
   params: { siteId: string };
 }
 
-export default async function SiteDetailPage({ params }: SiteDetailPageProps) {
+export default async function SiteDetailPage(props: any) {
+  const { params } = props;
   const supabase = createClient();
   const { siteId } = params;
 

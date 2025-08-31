@@ -8,7 +8,8 @@ interface EditSitePageProps {
   params: { siteId: string };
 }
 
-export default async function EditSitePage({ params }: EditSitePageProps) {
+export default async function EditSitePage(props: any) {
+  const { params } = props;
   const supabase = createClient();
   const { siteId } = params;
 

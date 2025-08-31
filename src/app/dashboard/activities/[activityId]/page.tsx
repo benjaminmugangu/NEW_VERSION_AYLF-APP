@@ -5,13 +5,9 @@ import { ROLES } from '@/lib/constants';
 import { activityService } from '@/services/activityService';
 import ActivityDetailClient from './ActivityDetailClient';
 
-interface ActivityDetailPageProps {
-  params: { activityId: string };
-}
-
-export default async function ActivityDetailPage({ params }: ActivityDetailPageProps) {
+export default async function ActivityDetailPage(props: any) {
   const supabase = createClient();
-  const { activityId } = params;
+  const { activityId } = props.params;
 
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -37,9 +33,9 @@ export default async function ActivityDetailPage({ params }: ActivityDetailPageP
     if (profile.role === ROLES.NATIONAL_COORDINATOR) {
       canView = true;
     } else if (profile.role === ROLES.SITE_COORDINATOR) {
-      canView = activity.site_id === profile.site_id;
+      canView = activity.siteId === profile.site_id;
     } else if (profile.role === ROLES.SMALL_GROUP_LEADER) {
-      canView = activity.small_group_id === profile.small_group_id;
+      canView = activity.smallGroupId === profile.small_group_id;
     }
 
     if (!canView) {

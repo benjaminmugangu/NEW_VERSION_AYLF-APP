@@ -9,7 +9,7 @@ interface EditActivityPageProps {
   params: { activityId: string };
 }
 
-export default async function EditActivityPage(props: EditActivityPageProps) {
+export default async function EditActivityPage(props: any) {
   const { params } = props;
   const supabase = createClient();
   const { activityId } = params;

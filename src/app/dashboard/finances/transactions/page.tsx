@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { useTransactions } from '@/hooks/useTransactions';
 import { TransactionTable } from './components/TransactionTable';
 import { columns } from './components/columns';
@@ -14,6 +15,7 @@ import { TransactionFormModal } from '../components/TransactionFormModal';
 import { FinancialTransaction, TransactionFormData } from '@/lib/types';
 
 export default function TransactionsPage() {
+  const { currentUser } = useAuth();
   const { 
     transactions,
     isLoading,
@@ -24,7 +26,7 @@ export default function TransactionsPage() {
     setTypeFilter,
     deleteTransaction,
     isDeleting
-  } = useTransactions();
+  } = useTransactions({ user: currentUser });
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<FinancialTransaction | null>(null);

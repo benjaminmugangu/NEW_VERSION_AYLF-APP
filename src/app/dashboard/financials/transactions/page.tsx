@@ -7,7 +7,8 @@ import { ROLES } from '@/lib/constants';
 import { TransactionsClient } from './components/TransactionsClient';
 import type { User, FinancialTransaction } from '@/lib/types';
 
-export default async function TransactionsPage({ searchParams }: { searchParams: { [key: string]: string | string[] | undefined } }) {
+export default async function TransactionsPage(props: any) {
+  const { searchParams } = props;
   const supabase = createServerComponentClient({ cookies });
   const { data: { session } } = await supabase.auth.getSession();
 

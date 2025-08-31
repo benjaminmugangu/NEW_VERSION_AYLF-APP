@@ -44,19 +44,15 @@ const NewAllocationPage = () => {
       return;
     }
 
-    const result = await allocationService.createAllocation(fullData);
-
-    setIsSaving(false);
-
-    if (result.success) {
+    try {
+      await allocationService.createAllocation(fullData);
       alert('Fund allocation created successfully!');
       router.push('/dashboard/financials');
-    } else {
-      if (result.error) {
-        alert(`Failed to create allocation: ${result.error.message}`);
-      } else {
-        alert('An unknown error occurred while creating the allocation.');
-      }
+    } catch (e) {
+      const error = e as Error;
+      alert(`Failed to create allocation: ${error.message}`);
+    } finally {
+      setIsSaving(false);
     }
   };
 
