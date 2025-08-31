@@ -9,7 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { activityService } from '@/services/activityService';
 import siteService from '@/services/siteService';
-import smallGroupService from '@/services/smallGroupService';
+import { smallGroupService } from '@/services/smallGroupService';
 import type { Activity, Site, SmallGroup, ActivityType } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';

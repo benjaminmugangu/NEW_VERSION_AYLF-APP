@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Member, MemberFormData, Site, SmallGroup } from "@/lib/types";
 import siteService from '@/services/siteService';
-import smallGroupService from '@/services/smallGroupService';
+import { smallGroupService } from '@/services/smallGroupService';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, Save, UserPlus } from "lucide-react";

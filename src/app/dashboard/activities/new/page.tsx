@@ -1,39 +1,33 @@
 // src/app/dashboard/activities/new/page.tsx
-"use client";
+import { createClient } from '@/utils/supabase/server';
+import { redirect } from 'next/navigation';
+import { ROLES } from '@/lib/constants';
+import NewActivityClient from './NewActivityClient';
 
-import { PageHeader } from "@/components/shared/PageHeader";
-import { ActivityForm } from "../components/ActivityForm";
-import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
-import { ROLES } from "@/lib/constants";
-import { Activity as ActivityIcon, PlusCircle } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { useRouter } from "next/navigation";
-import type { Activity } from "@/lib/types";
+export default async function NewActivityPage() {
+  const supabase = createClient();
 
-export default function NewActivityPage() {
-  const { toast } = useToast();
-  const router = useRouter();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  const handleSuccessfulCreate = (newActivity: Activity) => {
-    toast({
-      title: "Activity Created!",
-      description: `Activity "${newActivity.title}" has been successfully created.`,
-    });
-    router.push("/dashboard/activities");
-  };
+  if (!user) {
+    return redirect('/login');
+  }
 
-  const handleCancel = () => {
-    router.push("/dashboard/activities");
-  };
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
 
-  return (
-    <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER]}>
-      <PageHeader 
-        title="Create New Activity"
-        description="Define the details for a new activity at the appropriate level."
-        icon={PlusCircle}
-      />
-      <ActivityForm onSave={handleSuccessfulCreate} onCancel={handleCancel} />
-    </RoleBasedGuard>
-  );
+  const allowedRoles = [
+    ROLES.NATIONAL_COORDINATOR,
+    ROLES.SITE_COORDINATOR,
+    ROLES.SMALL_GROUP_LEADER,
+  ];
+
+  if (!profile || !allowedRoles.includes(profile.role)) {
+    return redirect('/dashboard');
+  }
+
+  return <NewActivityClient />;
 }

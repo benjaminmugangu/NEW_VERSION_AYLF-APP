@@ -1,5 +1,7 @@
 // src/services/transactionService.ts
-import { supabase } from '@/lib/supabaseClient';
+import { createClient } from '@/utils/supabase/client';
+
+const supabase = createClient();
 import type { FinancialTransaction, ServiceResponse, User, TransactionFormData } from '@/lib/types';
 import { getDateRangeFromFilterValue, type DateFilterValue } from '@/components/shared/DateRangeFilter';
 
@@ -38,7 +40,7 @@ export interface TransactionFilters {
 }
 
 export const transactionService = {
-  getTransactionById: async (id: string): Promise<ServiceResponse<FinancialTransaction>> => {
+  getTransactionById: async (id: string): Promise<FinancialTransaction> => {
     const { data, error } = await supabase
       .from('transactions')
       .select(baseSelectQuery)
@@ -46,15 +48,14 @@ export const transactionService = {
       .single();
 
     if (error) {
-
-      return { success: false, error: { message: 'Transaction not found.' } };
+      throw new Error('Transaction not found.');
     }
-    return { success: true, data: toTransactionModel(data) };
+    return toTransactionModel(data);
   },
 
-  getFilteredTransactions: async (filters: TransactionFilters): Promise<ServiceResponse<FinancialTransaction[]>> => {
+  getFilteredTransactions: async (filters: TransactionFilters): Promise<FinancialTransaction[]> => {
     const { user, entity, searchTerm, dateFilter, typeFilter } = filters;
-    if (!user && !entity) return { success: false, error: { message: 'Authentication or entity required' } };
+    if (!user && !entity) throw new Error('Authentication or entity required');
 
     let query = supabase.from('transactions').select(baseSelectQuery);
 
@@ -101,15 +102,13 @@ export const transactionService = {
     const { data, error } = await query.order('date', { ascending: false });
 
     if (error) {
-
-      return { success: false, error: { message: error.message } };
+      throw new Error(error.message || 'Failed to fetch transactions.');
     }
 
-    const transactions = data.map(toTransactionModel);
-    return { success: true, data: transactions };
+    return data.map(toTransactionModel);
   },
 
-  createTransaction: async (formData: TransactionFormData): Promise<ServiceResponse<FinancialTransaction>> => {
+  createTransaction: async (formData: TransactionFormData): Promise<FinancialTransaction> => {
     const { data, error } = await supabase
       .from('transactions')
       .insert({
@@ -126,13 +125,12 @@ export const transactionService = {
       .single();
 
     if (error) {
-
-      return { success: false, error: { message: error.message } };
+      throw new Error(error.message || 'Failed to create transaction.');
     }
     return transactionService.getTransactionById(data.id);
   },
 
-  updateTransaction: async (id: string, formData: Partial<TransactionFormData>): Promise<ServiceResponse<FinancialTransaction>> => {
+  updateTransaction: async (id: string, formData: Partial<TransactionFormData>): Promise<FinancialTransaction> => {
     const { error } = await supabase
       .from('transactions')
       .update({
@@ -147,22 +145,20 @@ export const transactionService = {
       .eq('id', id);
 
     if (error) {
-
-      return { success: false, error: { message: error.message } };
+      throw new Error(error.message || 'Failed to update transaction.');
     }
     return transactionService.getTransactionById(id);
   },
 
-  deleteTransaction: async (id: string): Promise<ServiceResponse<null>> => {
+  deleteTransaction: async (id: string): Promise<void> => {
     const { error } = await supabase
       .from('transactions')
       .delete()
       .eq('id', id);
 
     if (error) {
-      return { success: false, error: { message: error.message } };
+      throw new Error(error.message || 'Failed to delete transaction.');
     }
-    return { success: true, data: null };
   },
 };
 

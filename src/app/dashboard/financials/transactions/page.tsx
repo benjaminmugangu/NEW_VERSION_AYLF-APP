@@ -1,44 +1,49 @@
-'use client';
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { profileService } from '@/services/profileService';
+import { transactionService } from '@/services/transactionService';
+import { ROLES } from '@/lib/constants';
+import { TransactionsClient } from './components/TransactionsClient';
+import type { User, FinancialTransaction } from '@/lib/types';
 
-import React from 'react';
-import { useSearchParams } from 'next/navigation';
-import { useTransactions } from '@/hooks/useTransactions'; // Assuming this hook exists or will be created
-import { columns } from '@/components/financials/transactions/columns'; // Assuming this will be created
-import { DataTable } from '../../../../components/shared/DataTable';
-import { Button } from '@/components/ui/button';
-import { PlusCircle } from 'lucide-react';
-import Link from 'next/link';
+export default async function TransactionsPage({ searchParams }: { searchParams: { [key: string]: string | string[] | undefined } }) {
+  const supabase = createServerComponentClient({ cookies });
+  const { data: { session } } = await supabase.auth.getSession();
 
-const TransactionsListPage = () => {
-  const searchParams = useSearchParams();
-  const type = searchParams.get('type');
+  if (!session) {
+    redirect('/login');
+  }
 
-  const { transactions, isLoading, error } = useTransactions({
-    typeFilter: type === 'income' ? 'income' : type === 'expense' ? 'expense' : undefined,
-  });
+  const user: User = await profileService.getProfile(session.user.id);
 
-  const pageTitle = type === 'income' ? 'Income Transactions' : type === 'expense' ? 'Expense Transactions' : 'All Transactions';
-
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">{pageTitle}</h1>
-        <Button asChild>
-          <Link href="/dashboard/financials/transactions/new">
-            <PlusCircle className="mr-2 h-4 w-4" /> Add Transaction
-          </Link>
-        </Button>
+  if (!user || user.role !== ROLES.NATIONAL_COORDINATOR) {
+    return (
+      <div className="p-4">
+        <p>You do not have permission to view this page.</p>
       </div>
-      <DataTable
-        columns={columns}
-        data={transactions || []}
-        isLoading={isLoading}
-        error={error}
-        filterColumnId="description"
-        filterPlaceholder="Filter by description..."
-      />
-    </div>
-  );
-};
+    );
+  }
 
-export default TransactionsListPage;
+  const typeParam = searchParams?.type;
+  const typeValue = Array.isArray(typeParam) ? typeParam[0] : typeParam;
+  let typeFilter: 'income' | 'expense' | undefined;
+  if (typeValue === 'income' || typeValue === 'expense') {
+    typeFilter = typeValue;
+  }
+
+  const initialFilters = {
+    user,
+    typeFilter,
+  };
+
+  let initialTransactions: FinancialTransaction[] = [];
+  try {
+    initialTransactions = await transactionService.getFilteredTransactions(initialFilters);
+  } catch (error) {
+    console.error('Failed to fetch initial transactions:', error);
+    // The client component will show an error state
+  }
+
+  return <TransactionsClient initialTransactions={initialTransactions} user={user} />;
+}

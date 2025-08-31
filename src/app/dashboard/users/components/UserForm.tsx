@@ -4,56 +4,28 @@
 import React, { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "../../../../contexts/AuthContext";
 import type { User, UserRole, Site, SmallGroup } from "@/lib/types";
 import { ROLES } from "@/lib/constants";
 import siteService from '@/services/siteService';
-import smallGroupService from '@/services/smallGroupService';
+import { smallGroupService } from '@/services/smallGroupService';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, Save, UserPlus, UsersRound } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
-
-const userFormSchema = z.object({
-  name: z.string().min(3, "Name must be at least 3 characters."),
-  email: z.string().email("Invalid email address."),
-  role: z.enum([ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER]),
-  siteId: z.string().nullable().optional(),
-  smallGroupId: z.string().nullable().optional(),
-  mandateStartDate: z.coerce.date().nullable().optional(),
-  mandateEndDate: z.coerce.date().nullable().optional(),
-  status: z.enum(["active", "inactive"]).optional().default("active"),
-});
-
-// Infer the type from the schema
-export type UserFormData = z.infer<typeof userFormSchema>;
-
-const refinedUserFormSchema = userFormSchema
-  .refine(data => data.role !== ROLES.SITE_COORDINATOR || !!data.siteId, {
-    message: "Site assignment is required for Site Coordinators.",
-    path: ["siteId"],
-  })
-  .refine(data => data.role !== ROLES.SMALL_GROUP_LEADER || (!!data.siteId && !!data.smallGroupId), {
-    message: "Site and Small Group assignment are required for Small Group Leaders.",
-    path: ["smallGroupId"],
-  })
-  .refine(data => !data.mandateEndDate || !data.mandateStartDate || (data.mandateEndDate >= data.mandateStartDate), {
-      message: "Mandate end date cannot be before start date.",
-      path: ["mandateEndDate"],
-  });
+import { refinedUserFormSchema, type UserFormData } from "@/schemas/user";
 
 interface UserFormProps {
-  user?: User; // For editing
+  user?: User;
   onSubmitForm: (data: UserFormData) => Promise<void>;
-  isSubmitting?: boolean;
+  isSubmitting: boolean;
 }
 
 export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }: UserFormProps) {
@@ -62,15 +34,19 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
   const [availableSites, setAvailableSites] = useState<Site[]>([]);
   const [availableSmallGroups, setAvailableSmallGroups] = useState<SmallGroup[]>([]);
   
-  const defaultValues = user ? {
+  const defaultValues: Partial<UserFormData> = user ? {
     ...user,
     mandateStartDate: user.mandateStartDate ? parseISO(user.mandateStartDate) : undefined,
     mandateEndDate: user.mandateEndDate ? parseISO(user.mandateEndDate) : undefined,
     status: user.status || "active",
   } : {
-    role: ROLES.SMALL_GROUP_LEADER as UserRole, // Default to SG Leader for new users
+    name: '',
+    email: '',
+    role: ROLES.SMALL_GROUP_LEADER as UserRole,
     mandateStartDate: new Date(),
     status: "active" as const,
+    siteId: null,
+    smallGroupId: null,
   };
 
     const { control, handleSubmit, register, watch, formState: { errors, isSubmitting: isFormSubmitting }, reset, setValue } = useForm<UserFormData>({

@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { allocationService } from '@/services/allocations.service';
 import siteService from '@/services/siteService';
-import smallGroupService from '@/services/smallGroupService';
+import { smallGroupService } from '@/services/smallGroupService';
 
 export default function NewAllocationPage() {
   const { currentUser: user } = useAuth();

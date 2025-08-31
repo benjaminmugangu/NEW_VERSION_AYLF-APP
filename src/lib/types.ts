@@ -10,20 +10,46 @@ export interface BaseEntity {
 
 export type UserRole = 'national_coordinator' | 'site_coordinator' | 'small_group_leader' | 'member';
 
-export interface User extends BaseEntity {
+/**
+ * Represents the raw user profile data as it is stored in the 'profiles' table.
+ * Uses snake_case for database column names.
+ */
+export interface DbUser {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  site_id?: string | null;
+  small_group_id?: string | null;
+  mandate_start_date?: string;
+  mandate_end_date?: string;
+  status?: 'active' | 'inactive';
+}
+
+/**
+ * Represents the enriched User object used throughout the frontend application.
+ * Uses camelCase for properties and includes relational data.
+ */
+export interface User {
+  id: string;
   name: string;
   email: string;
   role: UserRole;
   siteId?: string | null;
   smallGroupId?: string | null;
-  profilePicture?: string;
-  mandateStartDate?: string; 
-  mandateEndDate?: string;   
-  status?: "active" | "inactive";
-  // Enriched data from services
+  mandateStartDate?: string;
+  mandateEndDate?: string;
+  status?: 'active' | 'inactive';
+
+  // Enriched data for UI
   siteName?: string;
   smallGroupName?: string;
-  assignment?: string;
+
+  // Supabase specific fields
+  app_metadata?: Record<string, any>;
+  user_metadata?: Record<string, any>;
+  aud?: string;
+  createdAt?: string;
 }
 
 export interface Site extends BaseEntity {
@@ -41,9 +67,11 @@ export interface SiteWithDetails extends Site {
   coordinatorName: string | null;
   smallGroupsCount: number;
   membersCount: number;
+  coordinatorProfilePicture?: string;
 }
 
-export interface SmallGroup extends BaseEntity {
+export interface SmallGroup {
+  id: string;
   name: string;
   siteId: string;
   leaderId?: string;
@@ -59,6 +87,18 @@ export interface SmallGroup extends BaseEntity {
   leader?: User;
   logisticsAssistant?: User;
   financeAssistant?: User;
+}
+
+export interface DbSmallGroup {
+  id: string;
+  name: string;
+  site_id: string;
+  leader_id?: string;
+  logistics_assistant_id?: string;
+  finance_assistant_id?: string;
+  meeting_day?: 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday' | 'Sunday';
+  meeting_time?: string;
+  meeting_location?: string;
 }
 
 export interface Member extends BaseEntity {
@@ -92,17 +132,32 @@ export interface Activity extends BaseEntity {
   date: string; // ISO date string
   status: ActivityStatus;
   level: "national" | "site" | "small_group";
-  site_id?: string;
-  small_group_id?: string;
-  activity_type_id: string;
-  participants_count_planned?: number;
-  created_by: string; // UUID of the user who created the activity
-  created_at: string; // ISO date string
+  siteId?: string;
+  smallGroupId?: string;
+  activityTypeId: string;
+  participantsCountPlanned?: number;
+  createdBy: string; // UUID of the user who created the activity
+  createdAt: string; // ISO date string
   // Enriched data for UI
   siteName?: string;
   smallGroupName?: string;
   activityTypeName?: string;
   participantsCount?: number;
+}
+
+export interface DbActivity {
+  id: string;
+  title: string;
+  thematic: string;
+  date: string;
+  level: 'national' | 'site' | 'small_group';
+  status: ActivityStatus;
+  site_id?: string;
+  small_group_id?: string;
+  activity_type_id: string;
+  participants_count_planned?: number;
+  created_by: string;
+  created_at: string;
 }
 
 export interface ActivityType {
@@ -113,6 +168,37 @@ export interface ActivityType {
 }
 
 export type ReportStatus = 'pending' | 'submitted' | 'approved' | 'rejected';
+
+/**
+ * Represents the raw report data as it is stored in the 'reports' table.
+ * Uses snake_case for database column names.
+ */
+export interface DbReport {
+  id: string;
+  title: string;
+  activity_date: string;
+  submitted_by: string; // User ID
+  submission_date: string; // ISO date string
+  level: "national" | "site" | "small_group";
+  site_id?: string;
+  small_group_id?: string;
+  activity_type_id: string;
+  activity_id?: string;
+  thematic: string;
+  speaker?: string;
+  moderator?: string;
+  girls_count?: number;
+  boys_count?: number;
+  participants_count_reported?: number;
+  total_expenses?: number;
+  currency?: string;
+  content: string;
+  images?: Array<{ name: string; url: string }>;
+  financial_summary?: string;
+  status: ReportStatus;
+  review_notes?: string;
+  attachments?: string[];
+}
 
 export interface Report extends BaseEntity {
   title: string;
@@ -272,6 +358,7 @@ export interface FundAllocationFormData {
 }
 
 export type SiteFormData = Omit<Site, 'id' | 'coordinator' | 'memberCount' | 'smallGroupCount'>;
+
 
 export interface SmallGroupFormData {
   name: string;

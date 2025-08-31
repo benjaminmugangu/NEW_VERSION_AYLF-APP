@@ -5,9 +5,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Users, Receipt, Wallet, TrendingDown } from 'lucide-react';
 import { PageHeader } from '@/components/shared/PageHeader';
-import { RoleBasedGuard } from '@/components/shared/RoleBasedGuard';
 import { ROLES } from '@/lib/constants';
-import smallGroupService from '@/services/smallGroupService';
+import { smallGroupService } from '@/services/smallGroupService';
 import type { SmallGroup } from '@/lib/types';
 import { StatCard } from "@/components/shared/StatCard";
 import { DateRangeFilter, type DateFilterValue } from "@/components/shared/DateRangeFilter";
@@ -55,17 +54,14 @@ export default function SmallGroupFinancialDashboardPage() {
 
   if (!smallGroup) {
     return (
-      <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER]}>
-        <div className="p-4 md:p-8 pt-6">
+          <div className="p-4 md:p-8 pt-6">
             <PageHeader title="Small Group Not Found" icon={Users} />
             <p className="mt-4">The requested small group could not be found.</p>
         </div>
-      </RoleBasedGuard>
     );
   }
 
   return (
-    <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER]}>
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <PageHeader
             title={`Financial Overview for ${smallGroup.name}`}
@@ -111,6 +107,5 @@ export default function SmallGroupFinancialDashboardPage() {
             />
         </div>
       </div>
-    </RoleBasedGuard>
   );
 }

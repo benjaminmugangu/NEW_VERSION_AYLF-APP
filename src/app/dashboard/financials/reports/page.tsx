@@ -1,33 +1,37 @@
-'use client';
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { profileService } from '@/services/profileService';
+import { reportService } from '@/services/reportService';
+import FinancialReportsClient from './components/FinancialReportsClient';
+import { User } from '@/lib/types';
+import { ROLES } from '@/lib/constants';
 
-import React from 'react';
-import { useReports } from '@/hooks/useReports';
-import { columns } from '@/components/financials/reports/columns'; // Assuming this will be created
-import { DataTable } from '../../../../components/shared/DataTable';
+const FinancialReportsPage = async () => {
+  const supabase = createServerComponentClient({ cookies });
+  const { data: { session } } = await supabase.auth.getSession();
 
-const FinancialReportsPage = () => {
-  const { reports, isLoading, error } = useReports();
+  if (!session) {
+    redirect('/login');
+  }
 
-  // Filter for reports that have expenses
-  const reportsWithExpenses = React.useMemo(() => {
-    return reports?.filter(report => (report.totalExpenses ?? 0) > 0) || [];
-  }, [reports]);
+  const profile: User = await profileService.getProfile(session.user.id);
+  if (!profile || ![ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR].includes(profile.role)) {
+    // Or redirect to an unauthorized page
+    return <p>You do not have permission to view this page.</p>;
+  }
 
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Reports with Declared Expenses</h1>
-      </div>
-      <DataTable
-        columns={columns}
-        data={reportsWithExpenses}
-        isLoading={isLoading}
-        error={error}
-        filterColumnId="title"
-        filterPlaceholder="Filter by report title..."
-      />
-    </div>
-  );
+  try {
+    const response = await reportService.getFilteredReports({ user: profile });
+    if (!response.success || !response.data) {
+      throw new Error(response.error?.message || 'Failed to fetch reports.');
+    }
+    return <FinancialReportsClient reports={response.data} />;
+  } catch (error) {
+    console.error('Error fetching reports:', error);
+    // Handle error state appropriately
+    return <p>Could not load reports.</p>;
+  }
 };
 
 export default FinancialReportsPage;

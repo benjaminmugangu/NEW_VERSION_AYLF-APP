@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { allocationService } from '@/services/allocations.service';
 import siteService from '@/services/siteService';
-import smallGroupService from '@/services/smallGroupService';
+import { smallGroupService } from '@/services/smallGroupService';
 import { useRouter } from 'next/navigation';
 import type { FundAllocationFormData, Site, SmallGroup } from '@/lib/types';
 

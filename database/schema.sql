@@ -216,129 +216,65 @@ CREATE TRIGGER on_auth_user_created
 
 
 -- =============================================================================
--- POLITIQUES DE SÉCURITÉ (ROW LEVEL SECURITY - RLS)
+-- FONCTION POUR LES STATISTIQUES DU TABLEAU DE BORD (ADMIN)
 -- =============================================================================
+-- Cette fonction est appelée côté serveur avec les droits d'administrateur
+-- pour agréger les statistiques du tableau de bord.
 
--- Activation de la Row Level Security (RLS) pour toutes les tables.
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.sites ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.small_groups ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.members ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.activities ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.fund_allocations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.activity_types ENABLE ROW LEVEL SECURITY;
+CREATE OR REPLACE FUNCTION public.get_dashboard_stats(
+    from_date text DEFAULT NULL,
+    to_date text DEFAULT NULL
+)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    start_ts timestamptz;
+    end_ts timestamptz;
+    stats json;
+    total_sites_count int;
+    total_small_groups_count int;
+    total_members_count int;
+    total_activities_count int;
+    total_reports_count int;
+    total_income_val numeric;
+    total_expenses_val numeric;
+    balance_val numeric;
+BEGIN
+    -- Convertir les dates text en timestamptz.
+    -- Si NULL, utilise une plage très large pour signifier "tout le temps".
+    start_ts := COALESCE(from_date::timestamptz, '1970-01-01'::timestamptz);
+    end_ts := COALESCE(to_date::timestamptz, '2999-12-31'::timestamptz);
 
--- POLITIQUES PAR DÉFAUT
--- Supprime les politiques existantes pour éviter les doublons
-DROP POLICY IF EXISTS "Les utilisateurs peuvent voir leurs propres données." ON public.profiles;
-DROP POLICY IF EXISTS "Les utilisateurs peuvent mettre à jour leurs propres données." ON public.profiles;
-DROP POLICY IF EXISTS "Les utilisateurs authentifiés peuvent voir les profils des autres." ON public.profiles;
+    -- Statistiques non filtrées par date
+    SELECT count(*) INTO total_sites_count FROM sites;
+    SELECT count(*) INTO total_small_groups_count FROM small_groups;
 
--- `profiles` table
-CREATE POLICY "Les utilisateurs peuvent voir et gérer leurs propres données."
-  ON public.profiles FOR ALL
-  USING (auth.uid() = id);
+    -- Statistiques filtrées par la plage de dates
+    SELECT count(*) INTO total_members_count FROM members WHERE join_date >= start_ts::date AND join_date <= end_ts::date;
+    SELECT count(*) INTO total_activities_count FROM activities WHERE date >= start_ts AND date <= end_ts AND deleted_at IS NULL;
+    SELECT count(*) INTO total_reports_count FROM reports WHERE activity_date >= start_ts::date AND activity_date <= end_ts::date;
 
-CREATE POLICY "Les utilisateurs authentifiés peuvent voir les profils des autres."
-  ON public.profiles FOR SELECT
-  USING (auth.role() = 'authenticated');
+    -- Finances filtrées par la plage de dates
+    SELECT COALESCE(sum(amount), 0) INTO total_income_val FROM transactions WHERE type = 'income' AND date >= start_ts AND date <= end_ts;
+    SELECT COALESCE(sum(amount), 0) INTO total_expenses_val FROM transactions WHERE type = 'expense' AND date >= start_ts AND date <= end_ts;
+    
+    balance_val := total_income_val - total_expenses_val;
 
+    -- Construction de l'objet JSON de retour
+    stats := json_build_object(
+        'totalSites', total_sites_count,
+        'totalSmallGroups', total_small_groups_count,
+        'totalMembers', total_members_count,
+        'totalActivities', total_activities_count,
+        'totalReports', total_reports_count,
+        'totalIncome', total_income_val,
+        'totalExpenses', total_expenses_val,
+        'balance', balance_val
+    );
 
--- `sites` and `small_groups` tables
-CREATE POLICY "Tout utilisateur authentifié peut voir les sites et les petits groupes."
-  ON public.sites FOR SELECT USING (auth.role() = 'authenticated');
-CREATE POLICY "Tout utilisateur authentifié peut voir les petits groupes."
-  ON public.small_groups FOR SELECT USING (auth.role() = 'authenticated');
-CREATE POLICY "Les coordinateurs nationaux peuvent gérer les sites."
-  ON public.sites FOR ALL
-  USING (get_my_role() = 'national_coordinator');
-CREATE POLICY "Les coordinateurs de site peuvent gérer les petits groupes de leur site."
-  ON public.small_groups FOR ALL
-  USING (get_my_role() = 'national_coordinator' OR (get_my_role() = 'site_coordinator' AND site_id = get_my_site_id()));
-  
--- `activity_types` table
-CREATE POLICY "Tout utilisateur authentifié peut voir les types d'activités."
-  ON public.activity_types FOR SELECT USING (auth.role() = 'authenticated');
-CREATE POLICY "Les coordinateurs nationaux peuvent gérer les types d'activités."
-  ON public.activity_types FOR ALL
-  USING (get_my_role() = 'national_coordinator');
-
--- `activities`, `reports`, `members`, `transactions` tables
-CREATE POLICY "Les utilisateurs peuvent voir les données selon leur niveau."
-  ON public.activities FOR SELECT
-  USING (
-    get_my_role() = 'national_coordinator' OR
-    (get_my_role() = 'site_coordinator' AND site_id = get_my_site_id()) OR
-    (get_my_role() = 'small_group_leader' AND small_group_id = get_my_small_group_id())
-  );
-CREATE POLICY "Les utilisateurs peuvent créer des données selon leur niveau."
-  ON public.activities FOR INSERT
-  WITH CHECK (
-    (level = 'national' AND get_my_role() = 'national_coordinator') OR
-    (level = 'site' AND get_my_role() = 'site_coordinator' AND site_id = get_my_site_id()) OR
-    (level = 'small_group' AND get_my_role() = 'small_group_leader' AND small_group_id = get_my_small_group_id())
-  );
-
--- Étape 3: Crée la politique de MISE À JOUR (UPDATE) correcte.
--- Autorise la mise à jour si l'utilisateur est le créateur OU un coordinateur national.
--- La clause WITH CHECK a été retirée pour résoudre un bug persistant.
-CREATE POLICY "Permissions de mise à jour pour les activités"
-ON public.activities
-FOR UPDATE
-USING (
-  (auth.uid() = created_by) OR (get_my_role() = 'national_coordinator')
-);
-
--- Étape 4: Crée la politique de SUPPRESSION (DELETE) correcte.
--- Autorise la suppression si l'utilisateur est le créateur OU un coordinateur national.
-CREATE POLICY "Permissions de suppression pour les activités"
-ON public.activities
-FOR DELETE
-USING (
-  (auth.uid() = created_by) OR (get_my_role() = 'national_coordinator')
-);
--- Répétez des politiques similaires pour les autres tables
-CREATE POLICY "Les utilisateurs peuvent voir les rapports selon leur niveau."
-  ON public.reports FOR SELECT
-  USING (
-    get_my_role() = 'national_coordinator' OR
-    (get_my_role() = 'site_coordinator' AND site_id = get_my_site_id()) OR
-    (get_my_role() = 'small_group_leader' AND small_group_id = get_my_small_group_id())
-  );
-CREATE POLICY "Les utilisateurs peuvent soumettre et gérer leurs propres rapports."
-  ON public.reports FOR ALL
-  USING (submitted_by = auth.uid())
-  WITH CHECK (submitted_by = auth.uid());
-  
-CREATE POLICY "Les coordinateurs nationaux peuvent gérer tous les rapports."
-  ON public.reports FOR ALL
-  USING (get_my_role() = 'national_coordinator');
-
--- `fund_allocations` table
-CREATE POLICY "Les coordinateurs peuvent voir les allocations qui les concernent."
-  ON public.fund_allocations FOR SELECT
-  USING (
-    get_my_role() = 'national_coordinator' OR
-    (get_my_role() = 'site_coordinator' AND recipient_site_id = get_my_site_id()) OR
-    (get_my_role() = 'small_group_leader' AND recipient_small_group_id = get_my_small_group_id())
-  );
-CREATE POLICY "Les coordinateurs peuvent créer des allocations pour leur niveau."
-  ON public.fund_allocations FOR INSERT
-  WITH CHECK (
-    (level = 'national_to_site' AND get_my_role() = 'national_coordinator' AND sender_id = auth.uid()) OR
-    (level = 'site_to_sg' AND get_my_role() = 'site_coordinator' AND sender_id = auth.uid())
-  );
-
--- `transactions` table (NOUVEAU)
-CREATE POLICY "Les utilisateurs peuvent voir les transactions de leur périmètre."
-  ON public.transactions FOR SELECT
-  USING (
-    get_my_role() = 'national_coordinator' OR
-    (get_my_role() = 'site_coordinator' AND site_id = get_my_site_id()) OR
-    (get_my_role() = 'small_group_leader' AND small_group_id = get_my_small_group_id())
-  );
-CREATE POLICY "Les utilisateurs peuvent enregistrer des transactions pour leur périmètre."
-  ON public.transactions FOR INSERT
-  WITH CHECK (recorded_by = auth.uid());
+    RETURN stats;
+END;
+$$;

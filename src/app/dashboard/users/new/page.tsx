@@ -3,12 +3,12 @@
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { UserForm } from "../components/UserForm";
-import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
 import { ROLES } from "@/lib/constants";
 import { UserPlus } from "lucide-react";
-import { type UserFormData } from "../components/UserForm";
+import type { UserFormData } from '@/schemas/user';
 import { useRouter } from "next/navigation";
-import { useUsers } from "@/hooks/useUsers";
+import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 interface InviteResponse {
   password?: string;
@@ -17,28 +17,46 @@ interface InviteResponse {
 
 export default function NewUserPage() {
   const router = useRouter();
-  const { createUser, isCreatingUser } = useUsers();
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const { toast } = useToast();
 
   const handleInviteUser = async (data: UserFormData) => {
     try {
-      await createUser(data);
+      setIsCreatingUser(true);
+      const response = await fetch('/api/users/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to invite user.');
+      }
+
+      toast({ title: 'Success', description: 'User invited successfully.' });
       router.push('/dashboard/users');
     } catch (error) {
-      // The hook handles the error toast.
-      // This try/catch is to prevent navigation on failure.
+      toast({
+        title: 'Error',
+        description: (error as Error).message || 'An unexpected error occurred.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsCreatingUser(false);
     }
   };
 
   
 
   return (
-    <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR]}>
+    <>
       <PageHeader 
         title="Invite New User"
         description="Create a new user account. An invitation email will be sent to them to set their password."
         icon={UserPlus}
       />
       <UserForm onSubmitForm={handleInviteUser} isSubmitting={isCreatingUser} />
-    </RoleBasedGuard>
+    </>
   );
 }

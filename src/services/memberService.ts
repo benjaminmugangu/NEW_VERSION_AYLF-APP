@@ -1,8 +1,10 @@
 // src/services/memberService.ts
 'use client';
 
-import { supabase } from '@/lib/supabaseClient';
-import type { ServiceResponse, User, Member, MemberWithDetails, MemberFormData } from '@/lib/types';
+import { createClient } from '@/utils/supabase/client';
+
+const supabase = createClient();
+import type { User, Member, MemberWithDetails, MemberFormData } from '@/lib/types';
 import { getDateRangeFromFilterValue, type DateFilterValue } from '@/components/shared/DateRangeFilter';
 
 export interface MemberFilters {

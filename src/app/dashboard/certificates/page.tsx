@@ -1,10 +1,8 @@
-
 // src/app/dashboard/certificates/page.tsx
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
 import { ROLES, APP_NAME } from "@/lib/constants";
 import type { RosterMember } from "@/services/certificateService";
 import { useCertificates } from "@/hooks/useCertificates";
@@ -78,7 +76,7 @@ export default function CertificatesPage() {
 
 
   return (
-    <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR]}>
+    <>
       <PageHeader
         title="Coordinator & Leader Certificates"
         description={`Generate certificates of service. Filter: ${dateFilter.display}`}
@@ -223,6 +221,6 @@ export default function CertificatesPage() {
           </DialogContent>
         </Dialog>
       )}
-    </RoleBasedGuard>
+    </>
   );
 }

@@ -1,5 +1,7 @@
 // src/services/activityTypeService.ts
-import { supabase } from '@/lib/supabaseClient';
+import { createClient } from '@/utils/supabase/client';
+
+const supabase = createClient();
 import type { ActivityType } from '@/lib/types';
 
 /**

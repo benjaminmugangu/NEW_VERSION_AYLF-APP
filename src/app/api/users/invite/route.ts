@@ -1,10 +1,6 @@
-// src/app/api/users/invite/route.ts
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-
-// This creates a Supabase client that has the permissions of the logged-in user.
-// For admin tasks, we'll need a service role client.
 import { createClient } from '@supabase/supabase-js';
 
 // Function to generate a random password
@@ -12,13 +8,33 @@ const generateRandomPassword = (length = 12) => {
   const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()';
   let password = '';
   for (let i = 0; i < length; i++) {
-    const randomIndex = Math.floor(Math.random() * charset.length);
-    password += charset[randomIndex];
+    password += charset.charAt(Math.floor(Math.random() * charset.length));
   }
   return password;
 };
 
 export const POST = async (request: Request) => {
+  const cookieStore = cookies();
+  const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
+  // 1. Check if the user making the request is authenticated and is an admin
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', session.user.id)
+    .single();
+
+  if (profileError || !profile || profile.role !== 'national_coordinator') {
+    return NextResponse.json({ error: 'Forbidden: You do not have permission to create users.' }, { status: 403 });
+  }
+
+  // 2. Proceed with creating the new user
   let { email, name: fullName, role, siteId, smallGroupId } = await request.json();
 
   if (!email || !fullName || !role) {
@@ -40,14 +56,13 @@ export const POST = async (request: Request) => {
 
   const password = generateRandomPassword();
 
-  // 1. Create the user in the auth schema
   const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
     email: email,
     password: password,
     email_confirm: true, // Auto-confirm the email
     user_metadata: {
       full_name: fullName,
-      role: role, // Store role in metadata as a fallback
+      role: role,
     },
   });
 
@@ -60,28 +75,25 @@ export const POST = async (request: Request) => {
     return NextResponse.json({ error: 'Could not create user.' }, { status: 500 });
   }
 
-  // 2. The trigger on `auth.users` should have created a profile. Now, update it.
-  const { error: profileError } = await supabaseAdmin
+  // 3. Update the profile for the newly created user
+  const { error: updateProfileError } = await supabaseAdmin
     .from('profiles')
     .update({
       role: role,
       site_id: siteId,
       small_group_id: smallGroupId,
-      name: fullName, // Ensure name is also set here
+      name: fullName,
     })
     .eq('id', authData.user.id);
 
-  if (profileError) {
-    console.error('Error updating profile:', profileError);
-    // This is problematic, the auth user exists but the profile is incomplete.
-    // For now, we'll return an error but a more robust solution might be needed.
-    return NextResponse.json({ error: `User created, but failed to set profile: ${profileError.message}` }, { status: 500 });
+  if (updateProfileError) {
+    console.error('Error updating profile:', updateProfileError);
+    return NextResponse.json({ error: `User created, but failed to set profile: ${updateProfileError.message}` }, { status: 500 });
   }
 
-  // Return the generated password so the admin can share it manually
-  return NextResponse.json({ 
-    message: 'User created successfully. Please share the generated password with them.', 
+  return NextResponse.json({
+    message: 'User created successfully. Please share the generated password with them.',
     user: authData.user,
-    password: password, // IMPORTANT: This is sent back to the admin frontend
+    password: password,
   });
 };

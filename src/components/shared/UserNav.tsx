@@ -1,7 +1,7 @@
 // src/components/shared/UserNav.tsx
 "use client";
 
-import { LogOut, UserCircle, Settings, ShieldCheck } from "lucide-react";
+import { LogOut, UserCircle, ShieldCheck } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,28 +13,30 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useAuth } from "@/contexts/AuthContext";
-import { Skeleton } from "@/components/ui/skeleton";
-import Link from "next/link"; // Import Link
-import { ROLES } from "@/lib/constants";
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { useRouter } from 'next/navigation';
+import Link from "next/link";
+import type { User } from '@supabase/supabase-js';
 
-export function UserNav() {
-  const { currentUser, logout, isLoading } = useAuth();
+interface UserNavProps {
+  user: User | null;
+}
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center space-x-2">
-        <Skeleton className="h-8 w-24 rounded-md" />
-        <Skeleton className="h-10 w-10 rounded-full" />
-      </div>
-    );
+export function UserNav({ user }: UserNavProps) {
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    const supabase = createSupabaseBrowserClient();
+    await supabase.auth.signOut();
+    router.push('/login');
+    router.refresh(); // Force a refresh to update server components
+  };
+
+  if (!user) {
+    return null; // The parent component decides whether to show this or a login button
   }
 
-  if (!currentUser) {
-    return null; // Or a login button if appropriate for the context
-  }
-
-    const getInitials = (name: string | null | undefined) => {
+  const getInitials = (name: string | null | undefined) => {
     if (!name) return '??';
     const names = name.split(' ');
     if (names.length > 1 && names[0] && names[names.length - 1]) {
@@ -43,18 +45,16 @@ export function UserNav() {
     return name.substring(0, 2).toUpperCase();
   };
 
-    const displayName = currentUser.name || currentUser.email || 'User';
-  const displayEmail = currentUser.email || 'No email provided';
-  const displayRole = currentUser.role ? currentUser.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'No role assigned';
-
-
+  const displayName = user.user_metadata?.full_name || user.email || 'User';
+  const displayEmail = user.email || 'No email provided';
+  const displayRole = user.user_metadata?.role ? user.user_metadata.role.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) : 'No role assigned';
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0">
           <Avatar className="h-10 w-10 border-2 border-primary">
-                        <AvatarImage src={`https://avatar.vercel.sh/${displayEmail}.png`} alt={displayName} data-ai-hint="user avatar"/>
+            <AvatarImage src={`https://avatar.vercel.sh/${displayEmail}.png`} alt={displayName} />
             <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
           </Avatar>
         </Button>
@@ -62,7 +62,7 @@ export function UserNav() {
       <DropdownMenuContent className="w-64" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1 py-1">
-                        <p className="text-sm font-semibold leading-none">{displayName}</p>
+            <p className="text-sm font-semibold leading-none">{displayName}</p>
             <p className="text-xs leading-none text-muted-foreground">
               {displayEmail}
             </p>
@@ -76,14 +76,13 @@ export function UserNav() {
                 <span>My Profile</span>
             </DropdownMenuItem>
           </Link>
-          <DropdownMenuItem className="cursor-default"> {/* Made non-interactive as it's just info */}
+          <DropdownMenuItem className="cursor-default">
              <ShieldCheck className="mr-2 h-4 w-4 text-muted-foreground" />
-                        <span>{displayRole}</span>
+             <span>{displayRole}</span>
           </DropdownMenuItem>
-          {/* Future settings link can be added here if needed */}
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={logout} className="cursor-pointer text-destructive focus:text-destructive-foreground focus:bg-destructive">
+        <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:text-destructive-foreground focus:bg-destructive">
           <LogOut className="mr-2 h-4 w-4" />
           <span>Log out</span>
         </DropdownMenuItem>

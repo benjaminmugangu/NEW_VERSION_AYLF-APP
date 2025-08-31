@@ -4,6 +4,6 @@
 import { useAuth } from '@/contexts/AuthContext';
 
 export const useCurrentUser = () => {
-  const { currentUser } = useAuth();
-  return currentUser;
+  const { currentUser, isLoading } = useAuth();
+  return { currentUser, isLoading };
 };

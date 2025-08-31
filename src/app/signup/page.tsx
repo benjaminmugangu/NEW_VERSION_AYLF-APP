@@ -1,9 +1,7 @@
-// src/app/signup/page.tsx
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -13,16 +11,17 @@ import { UserPlus } from 'lucide-react';
 import Link from 'next/link';
 
 export default function SignUpPage() {
-    const [fullName, setFullName] = useState('');
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
 
-    const handleSignUp = async (e: React.FormEvent) => {
+  const supabase = createSupabaseBrowserClient();
+
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setMessage(null);
@@ -34,30 +33,25 @@ export default function SignUpPage() {
 
     setIsLoading(true);
 
-    try {
-      const response = await fetch('/api/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
         },
-        body: JSON.stringify({ fullName, email, password }),
-      });
+      },
+    });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || 'An unexpected error occurred.');
-      } else {
-        setMessage(data.message || 'Registration process started. Please check your email.');
-        // Clear form on success
-        setFullName('');
-        setEmail('');
-        setPassword('');
-        setConfirmPassword('');
-      }
-    } catch (error) {
-      console.error("Erreur détaillée lors de l'inscription:", error);
-      setError('Failed to connect to the server. Please try again later.');
+    if (signUpError) {
+      setError(signUpError.message);
+    } else {
+      setMessage('Please check your email to confirm your registration.');
+      // Clear form on success
+      setFullName('');
+      setEmail('');
+      setPassword('');
+      setConfirmPassword('');
     }
 
     setIsLoading(false);
@@ -81,7 +75,7 @@ export default function SignUpPage() {
               </Button>
             </div>
           ) : (
-                        <form onSubmit={handleSignUp} className="space-y-6">
+            <form onSubmit={handleSignUp} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="fullName">Full Name</Label>
                 <Input

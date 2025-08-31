@@ -1,12 +1,12 @@
 "use client";
 
 import React from 'react';
-import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
-import { useFinancials } from "@/hooks/useFinancials";
+import { useCurrentUser } from '@/hooks/use-current-user';
+import { useFinancials } from '@/hooks/useFinancials';
 import { useTransactions } from '@/hooks/useTransactions';
 import FinancialDashboard from "./components/FinancialDashboard";
 import { RecentTransactions } from './components/RecentTransactions';
-import { DateRangeFilter } from "@/components/shared/DateRangeFilter";
+import { DateRangeFilter, type DateFilterValue } from "@/components/shared/DateRangeFilter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { ROLES } from "@/lib/constants";
@@ -31,8 +31,20 @@ const FinancesPageSkeleton = () => (
 );
 
 export default function FinancesPage() {
-  const { stats, isLoading: isLoadingFinancials, error, refetch, dateFilter, setDateFilter, currentUser } = useFinancials();
-  const { transactions, isLoading: isLoadingTransactions } = useTransactions();
+    const [dateFilter, setDateFilter] = React.useState<DateFilterValue>({ rangeKey: 'this_year', display: 'This Year' });
+  const currentUser = useCurrentUser();
+
+  const { 
+    stats, 
+    isLoading: isLoadingFinancials, 
+    error, 
+    refetch 
+  } = useFinancials(currentUser, dateFilter);
+
+  const { 
+    transactions, 
+    isLoading: isLoadingTransactions 
+  } = useTransactions({ user: currentUser });
 
   if (isLoadingFinancials || isLoadingTransactions) {
     return <FinancesPageSkeleton />;

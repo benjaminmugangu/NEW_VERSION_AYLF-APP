@@ -1,5 +1,7 @@
 // src/services/storageService.ts
-import { supabase } from '@/lib/supabaseClient';
+import { createClient } from '@/utils/supabase/client';
+
+const supabase = createClient();
 
 
 // Define a more specific type for the returned data

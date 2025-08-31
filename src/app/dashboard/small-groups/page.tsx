@@ -3,7 +3,6 @@
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/shared/PageHeader';
-import { RoleBasedGuard } from '@/components/shared/RoleBasedGuard';
 import { ROLES } from '@/lib/constants';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { UsersRound, PlusCircle, Search, Eye, Edit, Trash2 } from 'lucide-react';
@@ -82,7 +81,7 @@ export default function SmallGroupsPage() {
   }
 
   return (
-    <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER]}>
+    <>
       <PageHeader
         title="Small Groups Management"
         description="View and manage all small groups across different sites."
@@ -222,6 +221,6 @@ export default function SmallGroupsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </RoleBasedGuard>
+    </>
   );
 }

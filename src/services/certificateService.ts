@@ -1,7 +1,9 @@
 // src/services/certificateService.ts
 'use client';
 
-import { supabase } from '@/lib/supabaseClient';
+import { createClient } from '@/utils/supabase/client';
+
+const supabase = createClient();
 import type { ServiceResponse, User, Site, SmallGroup } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
 import { startOfDay, endOfDay, parseISO, isValid } from 'date-fns';

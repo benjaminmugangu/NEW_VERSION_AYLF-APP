@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import type { User, Site, SmallGroup } from "@/lib/types";
 import siteService from '@/services/siteService';
-import smallGroupService from "@/services/smallGroupService";
+import { smallGroupService } from '@/services/smallGroupService';
 import { ROLES } from "@/lib/constants";
 
 import { Save, CalendarIcon } from "lucide-react";

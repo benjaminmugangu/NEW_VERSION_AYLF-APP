@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import type { Report, ReportFormData, ActivityType, Site, SmallGroup, Activity } from "@/lib/types";
+import type { Report, ReportFormData, ActivityType, Site, SmallGroup, Activity, User } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { UploadCloud, Send, CalendarIcon, X } from "lucide-react";
 import Image from "next/image";
@@ -22,10 +22,9 @@ import { cn } from "@/lib/utils";
 import { getAllActivityTypes } from "@/services/activityTypeService";
 import siteService from '@/services/siteService';
 import { reportService } from '@/services/reportService';
-import smallGroupService from '@/services/smallGroupService';
+import { smallGroupService } from '@/services/smallGroupService';
 import { activityService } from '@/services/activityService'; // Import activity service
 import { storageService } from '@/services/storageService';
-import { useCurrentUser } from "../../../../../hooks/use-current-user";
 import { ROLES } from "@/lib/constants";
 
 const CURRENCIES = ["USD", "CDF"];
@@ -71,11 +70,11 @@ type ReportFormSchema = z.infer<typeof reportFormSchema>;
 
 interface ReportFormProps {
   onSubmitSuccess?: (data: Report) => void;
+  user: User;
 }
 
-export function ReportForm({ onSubmitSuccess }: ReportFormProps) {
+export function ReportForm({ onSubmitSuccess, user }: ReportFormProps) {
   const { toast } = useToast();
-  const currentUser = useCurrentUser();
   const [plannedActivities, setPlannedActivities] = useState<Activity[]>([]);
   const [activityTypes, setActivityTypes] = useState<ActivityType[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -99,28 +98,28 @@ export function ReportForm({ onSubmitSuccess }: ReportFormProps) {
     },
   });
 
-  const fetchData = async () => {
-    if (!currentUser) return;
-    try {
-      const [activities, types] = await Promise.all([
-        activityService.getPlannedActivitiesForUser(currentUser),
-        getAllActivityTypes()
-      ]);
-      setPlannedActivities(activities);
-      setActivityTypes(types);
-    } catch (error) {
-      console.error("Failed to fetch initial data:", error);
-      toast({
-        title: "Error",
-        description: "Could not load necessary data. Please try again later.",
-        variant: "destructive",
-      });
-    }
-  };
+    useEffect(() => {
+    const fetchData = async () => {
+      if (!user) return;
+      try {
+        const [activities, types] = await Promise.all([
+          activityService.getPlannedActivitiesForUser(user),
+          getAllActivityTypes()
+        ]);
+        setPlannedActivities(activities);
+        setActivityTypes(types);
+      } catch (error) {
+        console.error("Failed to fetch initial data:", error);
+        toast({
+          title: "Error",
+          description: "Could not load necessary data. Please try again later.",
+          variant: "destructive",
+        });
+      }
+    };
 
-  useEffect(() => {
     fetchData();
-  }, [currentUser, toast]);
+  }, [user, toast]);
 
   const handleActivitySelection = useCallback((activityId: string) => {
     const activity = plannedActivities.find(a => a.id === activityId);
@@ -162,8 +161,8 @@ export function ReportForm({ onSubmitSuccess }: ReportFormProps) {
   };
 
   const processSubmit = async (data: ReportFormSchema) => {
-    if (!currentUser) {
-      toast({ title: "Error", description: "You must be logged in to submit a report.", variant: "destructive" });
+    if (!user) {
+      toast({ title: "Error", description: "User data is missing.", variant: "destructive" });
       return;
     }
     setIsSubmitting(true);
@@ -186,7 +185,7 @@ export function ReportForm({ onSubmitSuccess }: ReportFormProps) {
       const reportPayload: ReportFormData = {
         ...data,
         activityDate: format(data.activityDate, 'yyyy-MM-dd'),
-        submittedBy: currentUser.id,
+        submittedBy: user.id,
         images: imageUrls,
         status: 'submitted',
         // No longer need manual mapping, Zod schema provides `activityId`

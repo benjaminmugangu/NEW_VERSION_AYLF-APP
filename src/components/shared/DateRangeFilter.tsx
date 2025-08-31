@@ -46,10 +46,13 @@ export type PredefinedRange =
 
 export interface DateFilterValue {
   rangeKey: PredefinedRange;
-  customRange?: DateRange;
-  specificYear?: string; 
-  specificMonth?: string; // "0"-"11" (for specific month), or "all" (for whole year via specific_period)
+  from?: string; // ISO string
+  to?: string; // ISO string
   display: string;
+  // The following are for client-side component state, not for server-side logic
+  customRange?: DateRange;
+  specificYear?: string;
+  specificMonth?: string;
 }
 
 interface DateRangeFilterProps {
@@ -285,6 +288,77 @@ export function DateRangeFilter({
     </div>
   );
 }
+
+export const getDateRange = (rangeKey: PredefinedRange, year?: number, month?: number): { from?: Date; to?: Date; display: string } => {
+  const now = new Date();
+  let from: Date | undefined;
+  let to: Date | undefined;
+  let display = PREDEFINED_RANGES_OPTIONS.find(r => r.value === rangeKey)?.label || "";
+
+  switch (rangeKey) {
+    case 'all_time':
+      break;
+    case 'today':
+      from = startOfDay(now);
+      to = endOfDay(now);
+      break;
+    case 'this_week':
+      from = startOfWeek(now, { weekStartsOn: 1 });
+      to = endOfWeek(now, { weekStartsOn: 1 });
+      break;
+    case 'last_week':
+      const lastWeek = subWeeks(now, 1);
+      from = startOfWeek(lastWeek, { weekStartsOn: 1 });
+      to = endOfWeek(lastWeek, { weekStartsOn: 1 });
+      break;
+    case 'this_month':
+      from = startOfMonth(now);
+      to = endOfMonth(now);
+      break;
+    case 'last_month':
+      const lastMonth = subMonths(now, 1);
+      from = startOfMonth(lastMonth);
+      to = endOfMonth(lastMonth);
+      break;
+    case 'this_year':
+      from = startOfYear(now);
+      to = endOfYear(now);
+      break;
+    case 'last_7_days':
+      from = startOfDay(subDays(now, 6));
+      to = endOfDay(now);
+      break;
+    case 'last_30_days':
+      from = startOfDay(subDays(now, 29));
+      to = endOfDay(now);
+      break;
+    case 'last_90_days':
+      from = startOfDay(subDays(now, 89));
+      to = endOfDay(now);
+      break;
+    case 'last_12_months':
+      from = startOfDay(startOfMonth(subMonths(now, 11)));
+      to = endOfDay(now);
+      break;
+    case 'specific_period':
+      if (year) {
+        if (month !== undefined && month >= 0 && month <= 11) {
+          const date = new Date(year, month, 1);
+          from = startOfMonth(date);
+          to = endOfMonth(date);
+          display = `Period: ${format(date, "MMMM")} ${year}`;
+        } else {
+          from = startOfYear(new Date(year, 0, 1));
+          to = endOfYear(new Date(year, 11, 31));
+          display = `Period: Year ${year}`;
+        }
+      }
+      break;
+    default:
+      break;
+  }
+  return { from, to, display };
+};
 
 export function getDateRangeFromFilterValue(filterValue: DateFilterValue): { startDate?: Date, endDate?: Date } {
   if (filterValue.rangeKey === 'all_time' && !filterValue.customRange && !filterValue.specificYear) {

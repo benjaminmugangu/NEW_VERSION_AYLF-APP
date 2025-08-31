@@ -1,0 +1,22 @@
+-- This file is the entry point for applying all RLS policies.
+-- The policies have been modularized and are located in the /database/policies/ directory.
+--
+-- To apply all policies, you should run each .sql file in that directory against your database.
+-- For example, using a shell script with psql:
+--
+-- #!/bin/bash
+-- for f in database/policies/*.sql; do
+--   echo "Applying $f..."
+--   psql -d "<your_db_url>" -f "$f"
+-- done
+--
+-- The individual policy files are:
+-- - policies/profiles.sql
+-- - policies/sites.sql
+-- - policies/small_groups.sql
+-- - policies/activities.sql
+-- - policies/reports.sql
+-- - policies/members.sql
+-- - policies/transactions.sql
+-- - policies/fund_allocations.sql
+

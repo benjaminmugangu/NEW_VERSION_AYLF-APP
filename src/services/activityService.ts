@@ -1,205 +1,107 @@
 // src/services/activityService.ts
-import { supabase } from '@/lib/supabaseClient';
+import { createClient } from '@/utils/supabase/client';
 import * as z from 'zod';
-import type { Activity, ActivityStatus, ActivityType, User } from '@/lib/types';
+import type { Activity, ActivityStatus, ActivityType, User, DbActivity } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
+import { mapDbActivityToActivity, mapActivityFormDataToDb } from '@/lib/mappers';
 
-// Zod schema for validating activity form data
+const supabase = createClient();
+
+// Zod schema for validating activity form data (camelCase)
 export const activityFormSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters long.'),
   thematic: z.string().min(3, 'Thematic must be at least 3 characters long.'),
   date: z.date(),
   level: z.enum(["national", "site", "small_group"]),
   status: z.enum(["planned", "in_progress", "delayed", "executed", "canceled"]).default('planned'),
-  site_id: z.string().optional(),
-  small_group_id: z.string().optional(),
-  activity_type_id: z.string().min(1, 'Activity type is required.'),
-  participants_count_planned: z.number().int().min(0).optional(),
-  created_by: z.string(),
-}).refine(data => data.level !== 'site' || !!data.site_id, {
+  siteId: z.string().optional(),
+  smallGroupId: z.string().optional(),
+  activityTypeId: z.string().min(1, 'Activity type is required.'),
+  participantsCountPlanned: z.number().int().min(0).optional(),
+  createdBy: z.string(),
+}).refine(data => data.level !== 'site' || !!data.siteId, {
   message: 'Site is required for site-level activities.',
-  path: ['site_id'],
-}).refine(data => data.level !== 'small_group' || !!data.small_group_id, {
+  path: ['siteId'],
+}).refine(data => data.level !== 'small_group' || !!data.smallGroupId, {
   message: 'Small group is required for small group level activities.',
-  path: ['small_group_id'],
+  path: ['smallGroupId'],
 });
 
 export type ActivityFormData = z.infer<typeof activityFormSchema>;
 
-// Converts frontend camelCase data to database snake_case format
-const toActivityDbData = (data: Partial<ActivityFormData>): any => {
-  const dbData: { [key: string]: any } = {};
-  Object.entries(data).forEach(([key, value]) => {
-    if (value !== undefined) {
-      const dbKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
-      dbData[dbKey] = value;
-    }
-  });
-  // Ensure date is in ISO format
-  if (data.date instanceof Date) {
-    dbData.date = data.date.toISOString();
-  }
-  return dbData;
-};
-
-// Converts database snake_case data to frontend Activity model (camelCase)
-const toActivityModel = (dbActivity: any): Activity => ({
-  id: dbActivity.id,
-  title: dbActivity.title,
-  thematic: dbActivity.thematic,
-  date: dbActivity.date,
-  level: dbActivity.level,
-  status: dbActivity.status,
-  site_id: dbActivity.site_id,
-  small_group_id: dbActivity.small_group_id,
-  activity_type_id: dbActivity.activity_type_id,
-  participants_count_planned: dbActivity.participants_count_planned,
-  created_by: dbActivity.created_by,
-  created_at: dbActivity.created_at,
-  // Enriched data from joins
-  siteName: dbActivity.sites?.name || null,
-  smallGroupName: dbActivity.small_groups?.name || null,
-  activityTypeName: dbActivity.activity_types?.name || null,
-  participantsCount: Array.isArray(dbActivity.activity_participants) ? dbActivity.activity_participants[0]?.count : 0,
-});
+const SELECT_ACTIVITY_WITH_DETAILS = '*, sites:site_id(name), small_groups:small_group_id(name), activity_types:activity_type_id(name), activity_participants(count)';
 
 const getFilteredActivities = async (filters: any): Promise<Activity[]> => {
   const { user, searchTerm, dateFilter, statusFilter, levelFilter } = filters;
-
   if (!user) throw new Error('User not authenticated.');
 
-  let query = supabase
-    .from('activities')
-    .select('*, sites:site_id(name), small_groups:small_group_id(name), activity_types:activity_type_id(name), activity_participants(count)');
+  let query = supabase.from('activities').select(SELECT_ACTIVITY_WITH_DETAILS);
 
-  // Role-based filtering
   if (user.role === ROLES.SITE_COORDINATOR && user.siteId) {
     query = query.or(`level.eq.national,and(level.eq.site,site_id.eq.${user.siteId})`);
   } else if (user.role === ROLES.SMALL_GROUP_LEADER && user.siteId && user.smallGroupId) {
     query = query.or(`level.eq.national,and(level.eq.site,site_id.eq.${user.siteId}),and(level.eq.small_group,small_group_id.eq.${user.smallGroupId})`);
   }
 
-  // Search term filter
-  if (searchTerm) {
-    query = query.ilike('title', `%${searchTerm}%`);
-  }
+  if (searchTerm) query = query.ilike('title', `%${searchTerm}%`);
+  if (dateFilter?.from) query = query.gte('date', dateFilter.from.toISOString());
+  if (dateFilter?.to) query = query.lte('date', dateFilter.to.toISOString());
 
-  // Date filter
-  if (dateFilter && dateFilter.from) {
-    query = query.gte('date', dateFilter.from.toISOString());
-  }
-  if (dateFilter && dateFilter.to) {
-    query = query.lte('date', dateFilter.to.toISOString());
-  }
+  const activeStatusFilters = Object.entries(statusFilter || {}).filter(([, v]) => v).map(([k]) => k);
+  if (activeStatusFilters.length > 0) query = query.in('status', activeStatusFilters);
 
-  // Status filter
-  const activeStatusFilters = Object.entries(statusFilter)
-    .filter(([, isActive]) => isActive)
-    .map(([status]) => status);
+  const activeLevelFilters = Object.entries(levelFilter || {}).filter(([, v]) => v).map(([k]) => k);
+  if (activeLevelFilters.length > 0) query = query.in('level', activeLevelFilters);
 
-  if (activeStatusFilters.length > 0) {
-    query = query.in('status', activeStatusFilters);
-  }
-
-  // Level filter
-  const activeLevelFilters = Object.entries(levelFilter)
-    .filter(([, isActive]) => isActive)
-    .map(([level]) => level);
-  
-  if (activeLevelFilters.length > 0) {
-    query = query.in('level', activeLevelFilters);
-  }
-
-  const { data: activitiesData, error } = await query.order('date', { ascending: false });
+  const { data, error } = await query.order('date', { ascending: false });
 
   if (error) {
     console.error('[ActivityService] Error in getFilteredActivities:', error.message);
     throw new Error(error.message);
   }
 
-  if (!activitiesData) return [];
-
-  // DEBUG: Log raw data from Supabase
-  console.log('[Debug] Raw data from Supabase in getFilteredActivities:', activitiesData);
-
-  return activitiesData.map(toActivityModel);
-};
-
-const getActivitiesByRole = async (user: User): Promise<Activity[]> => {
-  if (!user) throw new Error('User not authenticated.');
-
-  let query = supabase
-    .from('activities')
-    .select('*, sites:site_id(name), small_groups:small_group_id(name), activity_types:activity_type_id(name), activity_participants(count)');
-
-  // Role-based filtering
-  if (user.role === ROLES.SITE_COORDINATOR && user.siteId) {
-    query = query.or(`level.eq.national,and(level.eq.site,site_id.eq.${user.siteId})`);
-  } else if (user.role === ROLES.SMALL_GROUP_LEADER && user.siteId && user.smallGroupId) {
-    query = query.or(`level.eq.national,and(level.eq.site,site_id.eq.${user.siteId}),and(level.eq.small_group,small_group_id.eq.${user.smallGroupId})`);
-  }
-  // National coordinator sees all, so no .or() filter is needed.
-
-  const { data: activitiesData, error } = await query.order('date', { ascending: false });
-
-  if (error) {
-    console.error('[ActivityService] Error in getActivitiesByRole:', error.message);
-    throw new Error(error.message);
-  }
-
-  if (!activitiesData) return [];
-
-  return activitiesData.map(toActivityModel);
-};
-
-const getPlannedActivitiesForUser = async (user: User): Promise<Activity[]> => {
-  if (!user) throw new Error('User not authenticated.');
-
-  const allActivities = await getActivitiesByRole(user);
-  return allActivities.filter(activity => activity.status === 'planned');
+  return (data || []).map(item => mapDbActivityToActivity({
+    ...(item as DbActivity),
+    siteName: (item as any).sites?.name,
+    smallGroupName: (item as any).small_groups?.name,
+    activityTypeName: (item as any).activity_types?.name,
+    participantsCount: (item as any).activity_participants?.[0]?.count ?? 0,
+  }));
 };
 
 const getActivityById = async (id: string): Promise<Activity> => {
-  const { data, error } = await supabase
-    .from('activities')
-    .select('*, sites:site_id(name), small_groups:small_group_id(name), activity_types:activity_type_id(name), activity_participants(count)')
-    .eq('id', id)
-    .single();
+  const { data, error } = await supabase.from('activities').select(SELECT_ACTIVITY_WITH_DETAILS).eq('id', id).single();
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  if (!data) {
+  if (error || !data) {
+    console.error(`[ActivityService] Error fetching activity ${id}:`, error?.message);
     throw new Error('Activity not found');
   }
 
-  return toActivityModel(data);
+  return mapDbActivityToActivity({
+    ...(data as DbActivity),
+    siteName: (data as any).sites?.name,
+    smallGroupName: (data as any).small_groups?.name,
+    activityTypeName: (data as any).activity_types?.name,
+    participantsCount: (data as any).activity_participants?.[0]?.count ?? 0,
+  });
 };
 
-const createActivity = async (activityData: Omit<ActivityFormData, 'created_by'>, userId: string): Promise<Activity> => {
-  const dbData = toActivityDbData({ ...activityData, created_by: userId });
+const createActivity = async (activityData: ActivityFormData): Promise<Activity> => {
+  const dbData = mapActivityFormDataToDb(activityData);
 
-  const { data, error } = await supabase
-    .from('activities')
-    .insert(dbData)
-    .select('id')
-    .single();
+  const { data, error } = await supabase.from('activities').insert(dbData).select('id').single();
 
-  if (error) {
-    console.error('[ActivityService] Error in createActivity:', error.message);
-    throw new Error(error.message);
+  if (error || !data) {
+    console.error('[ActivityService] Error in createActivity:', error?.message);
+    throw new Error(error?.message || 'Failed to create activity.');
   }
   return getActivityById(data.id);
 };
 
 const updateActivity = async (id: string, updatedData: Partial<ActivityFormData | { status: ActivityStatus }>): Promise<Activity> => {
-  const dbData = toActivityDbData(updatedData as Partial<ActivityFormData>);
+  const dbData = mapActivityFormDataToDb(updatedData as Partial<ActivityFormData>);
 
-  const { error } = await supabase
-    .from('activities')
-    .update(dbData)
-    .eq('id', id);
+  const { error } = await supabase.from('activities').update(dbData).eq('id', id);
 
   if (error) {
     console.error(`[ActivityService] Error in updateActivity for id ${id}:`, error.message);
@@ -209,10 +111,7 @@ const updateActivity = async (id: string, updatedData: Partial<ActivityFormData 
 };
 
 const deleteActivity = async (id: string): Promise<void> => {
-  const { error } = await supabase
-    .from('activities')
-    .delete()
-    .eq('id', id);
+  const { error } = await supabase.from('activities').delete().eq('id', id);
   if (error) {
     console.error(`[ActivityService] Error in deleteActivity for id ${id}:`, error.message);
     throw new Error(error.message);
@@ -230,8 +129,6 @@ const getActivityTypes = async (): Promise<ActivityType[]> => {
 
 export const activityService = {
   getFilteredActivities,
-  getActivitiesByRole,
-  getPlannedActivitiesForUser,
   getActivityById,
   createActivity,
   updateActivity,

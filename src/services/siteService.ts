@@ -1,6 +1,8 @@
 // src/services/siteService.ts
-import { supabase } from '@/lib/supabaseClient';
-import type { ServiceResponse, Site, SiteFormData, SiteWithDetails, User } from '@/lib/types';
+import { createClient } from '@/utils/supabase/client';
+
+const supabase = createClient();
+import type { Site, SiteFormData, SiteWithDetails, User } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
 
 // Helper to convert frontend camelCase to DB snake_case for writing
@@ -23,6 +25,7 @@ interface SiteDetailsRPCResponse {
   coordinator_id: string;
   creation_date: string;
   coordinator_name: string | null;
+  coordinator_profile_picture: string | null;
   small_groups_count: number;
   members_count: number;
 }
@@ -33,14 +36,17 @@ const getSitesWithDetails = async (user: User | null): Promise<SiteWithDetails[]
     throw new Error('User not authenticated.');
   }
 
-  const { data, error } = await supabase.rpc('get_sites_with_details', {});
+    const { data, error } = await supabase.rpc('get_sites_with_details_for_user', {
+    p_user_id: user.id,
+    p_user_role: user.role,
+  });
 
   if (error) {
     console.error('[SiteService] Error in getSitesWithDetails (RPC):', error.message);
     throw new Error(error.message);
   }
 
-  const allSites: SiteWithDetails[] = (data as SiteDetailsRPCResponse[]).map((site: SiteDetailsRPCResponse) => ({
+    const sites: SiteWithDetails[] = (data as SiteDetailsRPCResponse[]).map((site: SiteDetailsRPCResponse) => ({
     id: site.id,
     name: site.name,
     city: site.city,
@@ -48,19 +54,12 @@ const getSitesWithDetails = async (user: User | null): Promise<SiteWithDetails[]
     coordinatorId: site.coordinator_id,
     creationDate: site.creation_date,
     coordinatorName: site.coordinator_name,
+    coordinatorProfilePicture: site.coordinator_profile_picture || undefined,
     smallGroupsCount: site.small_groups_count || 0,
     membersCount: site.members_count || 0,
   }));
 
-  switch (user.role) {
-    case ROLES.NATIONAL_COORDINATOR:
-      return allSites;
-    case ROLES.SITE_COORDINATOR:
-    case ROLES.SMALL_GROUP_LEADER:
-      return user.siteId ? allSites.filter(s => s.id === user.siteId) : [];
-    default:
-      return [];
-  }
+    return sites;
 };
 
 const getSiteDetails = async (siteId: string): Promise<{ site: Site; smallGroups: any[]; totalMembers: number }> => {
@@ -136,7 +135,7 @@ const updateSite = async (id: string, updatedData: Partial<SiteFormData>): Promi
   return data;
 };
 
-const deleteSite = async (id: string): Promise<{ id: string }> => {
+const deleteSite = async (id: string): Promise<void> => {
   const { error } = await supabase.from('sites').delete().eq('id', id);
 
   if (error) {
@@ -147,7 +146,6 @@ const deleteSite = async (id: string): Promise<{ id: string }> => {
     }
     throw new Error(error.message);
   }
-  return { id };
 };
 
 const siteService = {

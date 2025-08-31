@@ -6,7 +6,6 @@ import { useParams, useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { SmallGroupForm } from '@/app/dashboard/sites/components/SmallGroupForm';
 import type { SmallGroupFormData } from '@/lib/types';
-import { RoleBasedGuard } from '@/components/shared/RoleBasedGuard';
 import { ROLES } from '@/lib/constants';
 import { useSmallGroupDetails } from '@/hooks/useSmallGroupDetails';
 import { PageSkeleton } from '@/components/shared/skeletons/PageSkeleton';
@@ -33,22 +32,22 @@ export default function EditSmallGroupPage() {
 
   if (error || !smallGroup) {
     return (
-      <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR]}>
-        <PageHeader title="Small Group Not Found" icon={Info} />
-        <Card>
-          <CardContent className="pt-6">
-            <p>{error?.message || 'The small group you are looking for does not exist.'}</p>
-            <Button onClick={() => router.back()} className="mt-4">
-              Go Back
-            </Button>
-          </CardContent>
-        </Card>
-      </RoleBasedGuard>
+        <div>
+          <PageHeader title="Small Group Not Found" icon={Info} />
+          <Card>
+            <CardContent className="pt-6">
+              <p>{error?.message || 'The small group you are looking for does not exist.'}</p>
+              <Button onClick={() => router.back()} className="mt-4">
+                Go Back
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
     );
   }
 
   return (
-    <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR]}>
+    <div>
       <PageHeader
         title={`Edit Small Group: ${smallGroup.name}`}
         description={`Modifying details for "${smallGroup.name}" within ${smallGroup.site?.name}.`}
@@ -60,6 +59,6 @@ export default function EditSmallGroupPage() {
         onSubmitForm={handleUpdateSmallGroup}
         isSaving={isUpdating}
       />
-    </RoleBasedGuard>
+    </div>
   );
 }

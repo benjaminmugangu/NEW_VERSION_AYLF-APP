@@ -1,6 +1,8 @@
 // src/services/allocations.service.ts
-import { supabase } from '@/lib/supabaseClient';
-import type { FundAllocation, FundAllocationFormData, ServiceResponse } from '@/lib/types';
+import { createClient } from '@/utils/supabase/client';
+
+const supabase = createClient();
+import type { FundAllocation, FundAllocationFormData } from '@/lib/types';
 
 const baseSelectQuery = `
   *,
@@ -34,7 +36,7 @@ const toAllocationModel = (dbAllocation: any): FundAllocation => {
 };
 
 export const allocationService = {
-  getAllocations: async (filters?: { siteId?: string; smallGroupId?: string }): Promise<ServiceResponse<FundAllocation[]>> => {
+  getAllocations: async (filters?: { siteId?: string; smallGroupId?: string }): Promise<FundAllocation[]> => {
     let query = supabase
       .from('fund_allocations')
       .select(baseSelectQuery);
@@ -51,13 +53,13 @@ export const allocationService = {
     const { data, error } = await query;
 
     if (error) {
-      return { success: false, error: { message: error.message } };
+      throw new Error(error.message || 'Failed to fetch allocations.');
     }
 
-    return { success: true, data: data.map(toAllocationModel) };
+    return data.map(toAllocationModel);
   },
 
-  getAllocationById: async (id: string): Promise<ServiceResponse<FundAllocation>> => {
+  getAllocationById: async (id: string): Promise<FundAllocation> => {
     const { data, error } = await supabase
       .from('fund_allocations')
       .select(baseSelectQuery)
@@ -65,14 +67,13 @@ export const allocationService = {
       .single();
 
     if (error) {
-
-      return { success: false, error: { message: 'Allocation not found.' } };
+      throw new Error('Allocation not found.');
     }
 
-    return { success: true, data: toAllocationModel(data) };
+    return toAllocationModel(data);
   },
 
-    createAllocation: async (formData: FundAllocationFormData): Promise<ServiceResponse<FundAllocation>> => {
+    createAllocation: async (formData: FundAllocationFormData): Promise<FundAllocation> => {
     const { data, error } = await supabase
       .from('fund_allocations')
       .insert({
@@ -90,14 +91,13 @@ export const allocationService = {
       .single();
 
     if (error) {
-
-      return { success: false, error: { message: error.message } };
+      throw new Error(error.message || 'Failed to create allocation.');
     }
 
     return allocationService.getAllocationById(data.id);
   },
 
-    updateAllocation: async (id: string, formData: Partial<FundAllocationFormData>): Promise<ServiceResponse<FundAllocation>> => {
+    updateAllocation: async (id: string, formData: Partial<FundAllocationFormData>): Promise<FundAllocation> => {
     const { error } = await supabase
       .from('fund_allocations')
       .update({
@@ -113,22 +113,19 @@ export const allocationService = {
       .eq('id', id);
 
     if (error) {
-
-      return { success: false, error: { message: error.message } };
+      throw new Error(error.message || 'Failed to update allocation.');
     }
 
     return allocationService.getAllocationById(id);
   },
 
-  deleteAllocation: async (id: string): Promise<ServiceResponse<{ id: string }>> => {
+  deleteAllocation: async (id: string): Promise<void> => {
     const { error } = await supabase.from('fund_allocations').delete().eq('id', id);
 
     if (error) {
-
-      return { success: false, error: { message: error.message } };
+      throw new Error(error.message || 'Failed to delete allocation.');
     }
 
-    return { success: true, data: { id } };
   },
 };
 

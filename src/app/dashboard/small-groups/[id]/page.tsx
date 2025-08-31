@@ -11,7 +11,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ArrowLeft, Edit, UsersRound, MapPin, Clock, User, Building, Shield } from 'lucide-react';
-import { RoleBasedGuard } from '@/components/shared/RoleBasedGuard';
 import { ROLES } from '@/lib/constants';
 import { getInitials } from '@/lib/utils';
 import { PageSkeleton } from '../../../../components/shared/skeletons/PageSkeleton';
@@ -72,7 +71,7 @@ export default function SmallGroupDetailsPage() {
   };
 
   return (
-    <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER]}>
+    <>
       <PageHeader
         title={smallGroup.name}
         description={`Details for the small group.`}
@@ -172,6 +171,6 @@ export default function SmallGroupDetailsPage() {
           </Table>
         </CardContent>
       </Card>
-    </RoleBasedGuard>
+    </>
   );
 }

@@ -1,148 +1,57 @@
 // src/app/dashboard/activities/[activityId]/edit/page.tsx
-"use client";
+import { createClient } from '@/utils/supabase/server';
+import { redirect } from 'next/navigation';
+import { ROLES } from '@/lib/constants';
+import { activityService } from '@/services/activityService';
+import EditActivityClient from './EditActivityClient';
 
-import React, { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { PageHeader } from "@/components/shared/PageHeader";
-import { ActivityForm } from "../../components/ActivityForm";
-import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
-import { ROLES } from "@/lib/constants";
-import { activityService, type ActivityFormData } from '@/services/activityService';
-import type { Activity } from '@/lib/types';
-import { Edit, Info, ShieldAlert } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { useAuth } from "@/contexts/AuthContext";
-import { Skeleton } from "@/components/ui/skeleton";
-
-export default function EditActivityPage() {
-  const params = useParams();
-  const router = useRouter();
-  const { toast } = useToast();
-  const { currentUser, isLoading: authIsLoading } = useAuth();
-  const activityId = params.activityId as string;
-
-  const [activityToEdit, setActivityToEdit] = useState<Activity | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!activityId) {
-      setError("Activity ID is missing.");
-      setIsLoading(false);
-      return;
-    }
-
-    const fetchActivity = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const activity = await activityService.getActivityById(activityId);
-        setActivityToEdit(activity);
-      } catch (err: any) {
-        console.error("Fetch activity error:", err);
-        setError(err.message || "An unexpected error occurred while fetching the activity.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchActivity();
-  }, [activityId]);
-
-  const handleSuccessfulUpdate = (updatedActivity: Activity) => {
-    toast({
-      title: "Activity Updated!",
-      description: `Activity "${updatedActivity.title}" has been successfully updated.`,
-    });
-    router.push('/dashboard/activities');
-  };
-
-  const handleCancel = () => {
-    router.push('/dashboard/activities');
-  };
-
-  if (authIsLoading || isLoading) {
-    return (
-      <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER]}>
-        <PageHeader title="Loading Activity..." icon={Edit} />
-        <Card>
-          <CardHeader><Skeleton className="h-6 w-1/2" /></CardHeader>
-          <CardContent className="space-y-4">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-1/3" />
-          </CardContent>
-        </Card>
-      </RoleBasedGuard>
-    );
-  }
-
-  if (error || !activityToEdit) {
-    return (
-      <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER]}>
-        <PageHeader title="Activity Not Found" icon={Info} />
-        <Card>
-          <CardContent className="pt-6">
-            <p>{error || "The activity you are looking for does not exist or could not be found."}</p>
-            <Button onClick={() => router.push('/dashboard/activities')} className="mt-4">Back to Activities</Button>
-          </CardContent>
-        </Card>
-      </RoleBasedGuard>
-    );
-  }
-
-  let canEditThisSpecificActivity = false;
-  if (currentUser && activityToEdit) {
-    if (currentUser.role === ROLES.NATIONAL_COORDINATOR) {
-      canEditThisSpecificActivity = true;
-    } else if (currentUser.role === ROLES.SITE_COORDINATOR) {
-      // A Site Coordinator can edit site-level activities and small-group activities within their site.
-      if (activityToEdit.level === 'site' && activityToEdit.site_id === currentUser.siteId) {
-          canEditThisSpecificActivity = true;
-      } else if (activityToEdit.level === 'small_group') {
-          // We need to check if the small group belongs to the site coordinator's site.
-          // This logic requires access to small groups data, which should ideally be handled by the service or passed down.
-          // For now, we'll stick to the original logic for simplicity, assuming `activityToEdit.siteId` is available for SG activities.
-          canEditThisSpecificActivity = activityToEdit.site_id === currentUser.siteId;
-      }
-    } else if (currentUser.role === ROLES.SMALL_GROUP_LEADER) {
-      canEditThisSpecificActivity = activityToEdit.level === 'small_group' && activityToEdit.small_group_id === currentUser.smallGroupId;
-    }
-  }
-
-  if (!canEditThisSpecificActivity) {
-    return (
-      <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER]}>
-        <PageHeader title="Access Denied" icon={ShieldAlert} />
-        <Card className="border-destructive">
-          <CardHeader>
-            <CardTitle className="text-destructive">Unauthorized</CardTitle>
-            <CardDescription>You do not have permission to edit this activity.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p>
-              {currentUser?.role === ROLES.SITE_COORDINATOR && "Site Coordinators can only edit activities within their own site."}
-              {currentUser?.role === ROLES.SMALL_GROUP_LEADER && "Small Group Leaders can only edit activities for their own small group."}
-              {!currentUser && "You must be logged in to edit activities."}
-            </p>
-            <Button onClick={() => router.push('/dashboard/activities')} className="mt-4">Back to Activities</Button>
-          </CardContent>
-        </Card>
-      </RoleBasedGuard>
-    );
-  }
-
-  return (
-    <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER]}>
-      <PageHeader
-        title={`Edit Activity: ${activityToEdit.title}`}
-        description="Modify the details of the existing activity."
-        icon={Edit}
-      />
-      <ActivityForm initialActivity={activityToEdit} onSave={handleSuccessfulUpdate} onCancel={handleCancel} />
-    </RoleBasedGuard>
-  );
+interface EditActivityPageProps {
+  params: { activityId: string };
 }
+
+export default async function EditActivityPage(props: EditActivityPageProps) {
+  const { params } = props;
+  const supabase = createClient();
+  const { activityId } = params;
+
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return redirect('/login');
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role, site_id, small_group_id')
+    .eq('id', user.id)
+    .single();
+
+  if (!profile) {
+    return redirect('/dashboard?error=unauthorized');
+  }
+
+  try {
+    const activity = await activityService.getActivityById(activityId);
+
+    // Server-side authorization check
+    let canEdit = false;
+    if (profile.role === ROLES.NATIONAL_COORDINATOR) {
+      canEdit = true;
+    } else if (profile.role === ROLES.SITE_COORDINATOR) {
+      canEdit = activity.siteId === profile.site_id;
+    } else if (profile.role === ROLES.SMALL_GROUP_LEADER) {
+      canEdit = activity.smallGroupId === profile.small_group_id;
+    }
+
+    if (!canEdit) {
+      return redirect('/dashboard?error=permission-denied');
+    }
+
+    return <EditActivityClient activity={activity} />;
+
+  } catch (error) {
+    // This will catch errors from getActivityById if the activity is not found
+    return redirect('/dashboard?error=not-found');
+  }
+}
+

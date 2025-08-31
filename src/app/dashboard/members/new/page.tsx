@@ -3,7 +3,6 @@
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { MemberForm } from "../components/MemberForm";
-import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
 import { ROLES } from "@/lib/constants";
 import { UserPlus } from "lucide-react";
 import type { MemberFormData } from "@/lib/types";
@@ -35,13 +34,13 @@ export default function NewMemberPage() {
   };
 
   return (
-    <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER]}>
+    <>
       <PageHeader 
         title="Add New Member"
         description="Register a new participant in the AYLF network."
         icon={UserPlus}
       />
       <MemberForm onSubmitForm={handleCreateMember} />
-    </RoleBasedGuard>
+    </>
   );
 }

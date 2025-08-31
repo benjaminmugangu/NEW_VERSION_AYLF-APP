@@ -8,7 +8,6 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { User } from 'lucide-react';
 import { MembersPageSkeleton } from '@/components/shared/skeletons/MembersPageSkeleton';
 import { MemberDetails } from '../components/MemberDetails';
-import { RoleBasedGuard } from '@/components/shared/RoleBasedGuard';
 import { ROLES } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -46,7 +45,7 @@ export default function MemberDetailPage() {
   }
 
   return (
-    <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER]}>
+    <>
       <PageHeader 
         title="Member Details"
         description="Detailed information about the member."
@@ -64,6 +63,6 @@ export default function MemberDetailPage() {
           <p className="text-center">Member not found.</p>
         )}
       </div>
-    </RoleBasedGuard>
+    </>
   );
 }

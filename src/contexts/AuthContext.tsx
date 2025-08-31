@@ -1,17 +1,90 @@
 // src/contexts/AuthContext.tsx
 "use client";
 
-import type { User, AuthContextType } from "@/lib/types";
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { supabase } from '@/lib/supabaseClient';
-import authService from '@/services/auth.service';
-import { Session } from "@supabase/supabase-js";
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { User as SupabaseUser, Session } from "@supabase/supabase-js";
+import { profileService } from "@/services/profileService";
+import type { User, UserRole } from "@/lib/types";
 
-export const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-interface AuthProviderProps {
-  children: ReactNode;
+interface AuthContextType {
+  currentUser: User | null;
+  session: Session | null;
+  isLoading: boolean;
 }
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const supabase = createClientComponentClient();
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const updateUserAndSession = async (session: Session | null) => {
+      setSession(session);
+      if (session?.user) {
+        try {
+          const profile = await profileService.getProfile(session.user.id);
+          if (profile && session.user.email) {
+            const user: User = {
+              // Base from Supabase Auth
+              id: session.user.id,
+              email: session.user.email,
+              app_metadata: session.user.app_metadata,
+              user_metadata: session.user.user_metadata,
+              aud: session.user.aud,
+              created_at: session.user.created_at,
+              // Enriched from our 'profiles' table
+              name: profile.name,
+              role: profile.role,
+              site_id: profile.site_id,
+              small_group_id: profile.small_group_id,
+              mandateStartDate: profile.mandateStartDate,
+              mandateEndDate: profile.mandateEndDate,
+              status: profile.status,
+            };
+            setCurrentUser(user);
+          } else {
+            // If there's no profile or email, the user is not fully authenticated in our app's context
+            setCurrentUser(null);
+          }
+        } catch (error) {
+          console.error('Failed to fetch user profile:', error);
+          // In case of error, we consider the user not fully logged in
+          setCurrentUser(null); // Fallback
+        }
+      } else {
+        setCurrentUser(null);
+      }
+      setIsLoading(false);
+    };
+
+    const initializeAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      await updateUserAndSession(session);
+    };
+
+    initializeAuth();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      await updateUserAndSession(session);
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, [supabase.auth]);
+
+  const value = {
+    currentUser,
+    session,
+    isLoading,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -20,85 +93,3 @@ export const useAuth = () => {
   }
   return context;
 };
-
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null); // Keep session for other potential uses
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    // Check for an existing session on initial load
-    const checkCurrentUser = async () => {
-      const user = await authService.getCurrentUser();
-      setCurrentUser(user);
-      // Also get the session if needed, though currentUser is primary
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session);
-      setIsLoading(false);
-    };
-
-    checkCurrentUser();
-
-    // Listen for auth state changes (e.g., logout from another tab)
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        if (event === 'SIGNED_OUT') {
-          setCurrentUser(null);
-        } else if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
-          const user = await authService.getCurrentUser();
-          setCurrentUser(user);
-        }
-      }
-    );
-
-    return () => {
-      authListener?.subscription.unsubscribe();
-    };
-  }, []);
-
-    const login = async (email: string, password: string) => {
-    setIsLoading(true);
-    try {
-      const user = await authService.login({ email, password });
-      setCurrentUser(user);
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session);
-      return { success: true, error: null };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Login failed';
-      return { success: false, error: errorMessage };
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const logout = async () => {
-    setIsLoading(true);
-    try {
-      await authService.logout();
-    } catch (error) {
-      console.error("Logout failed:", error);
-      // Even if server logout fails, clear client state
-    } finally {
-      setCurrentUser(null);
-      setSession(null);
-      setIsLoading(false);
-    }
-  };
-
-  const value = {
-    currentUser,
-    session,
-    isLoading,
-    login,
-    logout,
-  };
-
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
-

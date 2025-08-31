@@ -1,7 +1,7 @@
 // src/services/dashboardService.ts
 'use client';
 
-import type { ServiceResponse, Activity, Member, Report, Site, SiteWithDetails, SmallGroup, User, Financials } from '@/lib/types';
+import type { Activity, Member, Report, Site, SiteWithDetails, SmallGroup, User, Financials, ServiceResponse } from '@/lib/types';
 import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
 import { activityService } from './activityService';
 import { memberService } from './memberService';
@@ -29,32 +29,20 @@ export interface DashboardStats {
 }
 
 const dashboardService = {
-  getDashboardStats: async (user: User | null, dateFilter: DateFilterValue): Promise<ServiceResponse<DashboardStats>> => {
+  getDashboardStats: async (user: User | null, dateFilter: DateFilterValue): Promise<DashboardStats> => {
     if (!user) {
-      return { success: false, error: { message: 'User not authenticated.' } };
+      throw new Error('User not authenticated.');
     }
 
     try {
       // Fetch all data in parallel for efficiency
-      // Helper to safely extract data from settled promises. Handles both direct data and ServiceResponse wrappers.
-      const getResultData = <T>(result: PromiseSettledResult<T | ServiceResponse<T>>): T | null => {
+      // Helper to safely extract data from settled promises.
+      const getResultData = <T>(result: PromiseSettledResult<T>): T | null => {
         if (result.status === 'rejected') {
           console.error('[DashboardService] A promise was rejected:', result.reason);
           return null;
         }
-
-        const value = result.value as any;
-        // Handle ServiceResponse wrapper for legacy services
-        if (typeof value === 'object' && value !== null && 'success' in value) {
-          if (value.success) {
-            return value.data || null;
-          }
-          console.error('[DashboardService] A service call failed:', value.error?.message);
-          return null;
-        }
-
-        // Handle direct data for refactored services
-        return value as T;
+        return result.value;
       };
 
       const results = await Promise.allSettled([
@@ -72,12 +60,26 @@ const dashboardService = {
         financialsService.getFinancials(user, dateFilter),
       ]);
 
-      const activities = getResultData<Activity[]>(results[0]) || [];
-      const members = getResultData<Member[]>(results[1]) || [];
-      const approvedReports = getResultData<Report[]>(results[2]) || [];
-      const sites = getResultData<SiteWithDetails[]>(results[3]) || [];
-      const smallGroups = getResultData<SmallGroup[]>(results[4]) || [];
-      const financials = getResultData<Financials>(results[5]);
+      // The services below still return ServiceResponse, so we need to handle that for now.
+      // This will be cleaned up as each service is refactored.
+      const extractLegacyData = <T>(result: PromiseSettledResult<ServiceResponse<T>>): T | null => {
+        if (result.status === 'rejected') {
+          console.error('[DashboardService] A promise was rejected:', result.reason);
+          return null;
+        }
+        if (result.value.success) {
+          return result.value.data as T;
+        }
+        console.error('[DashboardService] A service call failed:', result.value.error?.message);
+        return null;
+      };
+
+      const activities = extractLegacyData<Activity[]>(results[0] as PromiseSettledResult<ServiceResponse<Activity[]>>) || [];
+      const members = extractLegacyData<Member[]>(results[1] as PromiseSettledResult<ServiceResponse<Member[]>>) || [];
+      const approvedReports = extractLegacyData<Report[]>(results[2] as PromiseSettledResult<ServiceResponse<Report[]>>) || [];
+      const sites = extractLegacyData<SiteWithDetails[]>(results[3] as PromiseSettledResult<ServiceResponse<SiteWithDetails[]>>) || [];
+      const smallGroups = extractLegacyData<SmallGroup[]>(results[4] as PromiseSettledResult<ServiceResponse<SmallGroup[]>>) || [];
+      const financials = extractLegacyData<Financials>(results[5] as PromiseSettledResult<ServiceResponse<Financials>>);
 
       // --- Calculate Statistics ---
 
@@ -136,11 +138,11 @@ const dashboardService = {
         memberTypeData,
       };
 
-      return { success: true, data: stats };
+      return stats;
     } catch (error) {
       const e = error instanceof Error ? error : new Error('An unknown error occurred');
       console.error('[DashboardService] Unexpected error in getDashboardStats:', e.message);
-      return { success: false, error: { message: 'Failed to fetch dashboard stats' } };
+      throw new Error('Failed to fetch dashboard stats');
     }
   },
 };
