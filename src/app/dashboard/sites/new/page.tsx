@@ -4,7 +4,7 @@ import { ROLES } from '@/lib/constants';
 import NewSiteClient from './NewSiteClient';
 
 export default async function NewSitePage() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
 

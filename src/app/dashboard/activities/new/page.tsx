@@ -5,7 +5,7 @@ import { ROLES } from '@/lib/constants';
 import NewActivityClient from './NewActivityClient';
 
 export default async function NewActivityPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
 

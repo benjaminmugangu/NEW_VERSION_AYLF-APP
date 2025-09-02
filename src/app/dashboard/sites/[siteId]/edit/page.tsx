@@ -9,8 +9,8 @@ interface EditSitePageProps {
 }
 
 export default async function EditSitePage(props: any) {
-  const { params } = props;
-  const supabase = createClient();
+  const params = await props.params;
+  const supabase = await createClient();
   const { siteId } = params;
 
   const { data: { user } } = await supabase.auth.getUser();

@@ -10,8 +10,8 @@ interface EditActivityPageProps {
 }
 
 export default async function EditActivityPage(props: any) {
-  const { params } = props;
-  const supabase = createClient();
+  const params = await props.params;
+  const supabase = await createClient();
   const { activityId } = params;
 
   const { data: { user } } = await supabase.auth.getUser();
