@@ -1,5 +1,5 @@
 // src/app/dashboard/users/[userId]/edit/page.tsx
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 import { profileService } from '@/services/profileService';
@@ -15,7 +15,7 @@ interface EditUserPageProps {
 
 export default async function EditUserPage(props: any) {
   const { params } = props;
-  const supabase = createServerComponentClient({ cookies });
+  const supabase = await createSupabaseServerClient();
   const { data: { session } } = await supabase.auth.getSession();
 
   if (!session) {

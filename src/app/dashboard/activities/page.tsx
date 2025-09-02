@@ -1,5 +1,5 @@
 // src/app/dashboard/activities/page.tsx
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { profileService } from '@/services/profileService';
 import { activityService } from '@/services/activityService';
@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 const ALLOWED_ROLES = [ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER];
 
 export default async function ActivitiesPage() {
-  const supabase = createClient();
+  const supabase = await createSupabaseServerClient();
 
   const { data: { user }, error: authError } = await supabase.auth.getUser();
 

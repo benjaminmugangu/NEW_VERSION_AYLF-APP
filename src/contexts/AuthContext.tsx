@@ -2,7 +2,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { User as SupabaseUser, Session } from "@supabase/supabase-js";
 import { profileService } from "@/services/profileService";
 import type { User, UserRole } from "@/lib/types";
@@ -16,17 +16,23 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const supabase = createClientComponentClient();
+  const supabase = createSupabaseBrowserClient();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+
     const updateUserAndSession = async (session: Session | null) => {
+      if (!isMounted) return;
+      
       setSession(session);
       if (session?.user) {
         try {
           const profile = await profileService.getProfile(session.user.id);
+          if (!isMounted) return;
+          
           if (profile && session.user.email) {
             const user: User = {
               // Base from Supabase Auth
@@ -35,30 +41,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               app_metadata: session.user.app_metadata,
               user_metadata: session.user.user_metadata,
               aud: session.user.aud,
-              created_at: session.user.created_at,
+              createdAt: session.user.created_at,
               // Enriched from our 'profiles' table
               name: profile.name,
               role: profile.role,
-              site_id: profile.site_id,
-              small_group_id: profile.small_group_id,
+              siteId: profile.siteId,
+              smallGroupId: profile.smallGroupId,
               mandateStartDate: profile.mandateStartDate,
               mandateEndDate: profile.mandateEndDate,
               status: profile.status,
             };
             setCurrentUser(user);
           } else {
-            // If there's no profile or email, the user is not fully authenticated in our app's context
             setCurrentUser(null);
           }
         } catch (error) {
+          if (!isMounted) return;
           console.error('Failed to fetch user profile:', error);
-          // In case of error, we consider the user not fully logged in
-          setCurrentUser(null); // Fallback
+          setCurrentUser(null);
         }
       } else {
         setCurrentUser(null);
       }
-      setIsLoading(false);
+      if (isMounted) {
+        setIsLoading(false);
+      }
     };
 
     const initializeAuth = async () => {
@@ -73,9 +80,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return () => {
+      isMounted = false;
       authListener.subscription.unsubscribe();
     };
-  }, [supabase.auth]);
+  }, []);
 
   const value = {
     currentUser,

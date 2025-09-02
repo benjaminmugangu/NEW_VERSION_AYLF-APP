@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 
 export async function POST(request: Request) {
   const { fullName, email, password } = await request.json();
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
 
     // 5. If no users exist, proceed with signup for the first user
     const cookieStore = cookies();
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    const supabase = await createSupabaseServerClient();
 
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,

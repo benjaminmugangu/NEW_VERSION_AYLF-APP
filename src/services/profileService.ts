@@ -1,9 +1,9 @@
 // src/services/profileService.ts
-import { createClient } from '@/utils/supabase/client';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { DbUser, User } from '@/lib/types';
-import { mapDbUserToUser, mapUserToDb } from '@/lib/mappers';
+import { mapUserToDb } from '@/lib/mappers';
 
-const supabase = createClient();
+const supabase = createSupabaseBrowserClient();
 
 const profileService = {
   /**
@@ -12,7 +12,7 @@ const profileService = {
   async getProfile(userId: string): Promise<User> {
     const { data, error } = await supabase
       .from('profiles')
-      .select('*, site:site_id(name), small_group:small_group_id(name)')
+      .select('id, name, email, role, status, site_id, small_group_id, mandate_start_date, mandate_end_date, created_at')
       .eq('id', userId)
       .single();
 
@@ -22,13 +22,19 @@ const profileService = {
     }
     if (!data) throw new Error('Profile not found.');
 
-    const dbUserWithRelations = {
-      ...data,
-      siteName: data.site?.name || undefined,
-      smallGroupName: data.small_group?.name || undefined,
+    // Direct mapping without using mapDbUserToUser to avoid recursion
+    return {
+      id: data.id,
+      name: data.name || '',
+      email: data.email || '',
+      role: data.role as any,
+      status: data.status as any,
+      siteId: data.site_id || undefined,
+      smallGroupId: data.small_group_id || undefined,
+      mandateStartDate: data.mandate_start_date || undefined,
+      mandateEndDate: data.mandate_end_date || undefined,
+      createdAt: data.created_at || undefined,
     };
-
-    return mapDbUserToUser(dbUserWithRelations as any);
   },
 
   /**
@@ -60,7 +66,21 @@ const profileService = {
       smallGroupName: data.small_group?.name || undefined,
     };
 
-    return mapDbUserToUser(dbUserWithRelations as any);
+    // Direct mapping to avoid recursion
+    return {
+      id: data.id,
+      name: data.name || '',
+      email: data.email || '',
+      role: data.role as any,
+      status: data.status as any,
+      siteId: data.site_id || undefined,
+      smallGroupId: data.small_group_id || undefined,
+      mandateStartDate: data.mandate_start_date || undefined,
+      mandateEndDate: data.mandate_end_date || undefined,
+      createdAt: data.created_at || undefined,
+      siteName: dbUserWithRelations.siteName,
+      smallGroupName: dbUserWithRelations.smallGroupName,
+    };
   },
 
   /**
@@ -74,7 +94,21 @@ const profileService = {
       throw new Error(error.message);
     }
 
-    return (data as any[]).map(u => mapDbUserToUser(u)) ?? [];
+    // Direct mapping to avoid recursion
+    return (data as any[]).map(u => ({
+      id: u.id,
+      name: u.name || '',
+      email: u.email || '',
+      role: u.role as any,
+      status: u.status as any,
+      siteId: u.site_id || undefined,
+      smallGroupId: u.small_group_id || undefined,
+      mandateStartDate: u.mandate_start_date || undefined,
+      mandateEndDate: u.mandate_end_date || undefined,
+      createdAt: u.created_at || undefined,
+      siteName: u.site_name || undefined,
+      smallGroupName: u.small_group_name || undefined,
+    })) ?? [];
   },
 
   /**
@@ -103,7 +137,19 @@ const profileService = {
       throw new Error(error.message);
     }
 
-    return (data as DbUser[]).map(u => mapDbUserToUser(u)) ?? [];
+    // Direct mapping to avoid recursion
+    return (data as any[]).map(u => ({
+      id: u.id,
+      name: u.name || '',
+      email: u.email || '',
+      role: u.role as any,
+      status: u.status as any,
+      siteId: u.site_id || undefined,
+      smallGroupId: u.small_group_id || undefined,
+      mandateStartDate: u.mandate_start_date || undefined,
+      mandateEndDate: u.mandate_end_date || undefined,
+      createdAt: u.created_at || undefined,
+    })) ?? [];
   },
 
   /**
@@ -131,7 +177,19 @@ const profileService = {
       throw new Error(error.message);
     }
 
-    return (data as DbUser[]).map(u => mapDbUserToUser(u)) ?? [];
+    // Direct mapping to avoid recursion
+    return (data as any[]).map(u => ({
+      id: u.id,
+      name: u.name || '',
+      email: u.email || '',
+      role: u.role as any,
+      status: u.status as any,
+      siteId: u.site_id || undefined,
+      smallGroupId: u.small_group_id || undefined,
+      mandateStartDate: u.mandate_start_date || undefined,
+      mandateEndDate: u.mandate_end_date || undefined,
+      createdAt: u.created_at || undefined,
+    })) ?? [];
   },
 };
 

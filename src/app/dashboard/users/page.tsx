@@ -2,7 +2,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { cookies } from 'next/headers';
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -32,7 +32,7 @@ async function getUsers(): Promise<User[]> {
 
 export default async function ManageUsersPage() {
   const cookieStore = cookies();
-  const supabase = createServerComponentClient({ cookies: () => cookieStore });
+  const supabase = await createSupabaseServerClient();
 
   const { data: { session } } = await supabase.auth.getSession();
   const userRole = session?.user?.user_metadata?.role;

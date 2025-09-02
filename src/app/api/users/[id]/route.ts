@@ -1,5 +1,5 @@
 // src/app/api/users/[id]/route.ts
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
 import { type NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -9,7 +9,7 @@ export async function DELETE(request: NextRequest, context: any) {
   const { params } = context;
   const userIdToDelete = params.id;
   const cookieStore = cookies();
-  const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+  const supabase = await createSupabaseServerClient();
 
   // 1. Check for user session and role
   const { data: { session } } = await supabase.auth.getSession();

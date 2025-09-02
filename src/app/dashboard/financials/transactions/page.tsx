@@ -1,4 +1,4 @@
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { profileService } from '@/services/profileService';
@@ -9,7 +9,7 @@ import type { User, FinancialTransaction } from '@/lib/types';
 
 export default async function TransactionsPage(props: any) {
   const { searchParams } = props;
-  const supabase = createServerComponentClient({ cookies });
+  const supabase = await createSupabaseServerClient();
   const { data: { session } } = await supabase.auth.getSession();
 
   if (!session) {

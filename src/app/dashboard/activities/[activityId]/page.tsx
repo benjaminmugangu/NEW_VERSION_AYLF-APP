@@ -1,13 +1,14 @@
 // src/app/dashboard/activities/[activityId]/page.tsx
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { ROLES } from '@/lib/constants';
 import { activityService } from '@/services/activityService';
 import ActivityDetailClient from './ActivityDetailClient';
 
 export default async function ActivityDetailPage(props: any) {
-  const supabase = createClient();
-  const { activityId } = props.params;
+  const supabase = await createSupabaseServerClient();
+  const params = await props.params;
+  const { activityId } = params;
 
   const { data: { user } } = await supabase.auth.getUser();
 

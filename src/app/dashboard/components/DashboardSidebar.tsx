@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import type { User } from '@supabase/supabase-js';
+import type { User } from '@/lib/types';
 import {
   Sidebar, SidebarHeader, SidebarContent, SidebarFooter,
   SidebarMenu, SidebarMenuItem, SidebarMenuButton,
@@ -37,7 +37,7 @@ export function DashboardSidebar({ user }: DashboardSidebarProps) {
 
   const renderNavItems = (items: NavItem[]) => {
     if (!user) return null;
-    const userRole = user.user_metadata?.role;
+    const userRole = user.role;
 
     return items
       .filter(item => !item.allowedRoles || item.allowedRoles.includes(userRole))

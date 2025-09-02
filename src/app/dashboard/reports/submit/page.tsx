@@ -1,5 +1,5 @@
 // src/app/dashboard/reports/submit/page.tsx
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { profileService } from '@/services/profileService';
@@ -10,7 +10,7 @@ import { FilePlus2 } from 'lucide-react';
 import { User } from '@/lib/types';
 
 export default async function SubmitReportPage() {
-  const supabase = createServerComponentClient({ cookies });
+  const supabase = await createSupabaseServerClient();
   const { data: { session } } = await supabase.auth.getSession();
 
   if (!session) {

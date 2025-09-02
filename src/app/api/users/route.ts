@@ -1,5 +1,5 @@
 // src/app/api/users/route.ts
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -37,10 +37,7 @@ const userCreateSchema = z.object({
 export async function POST(request: Request) {
   const cookieStore = cookies();
   // Use createRouteHandlerClient for server-side operations with admin privileges
-  const supabase = createRouteHandlerClient({ cookies: () => cookieStore }, {
-    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    supabaseKey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  });
+  const supabase = await createSupabaseServerClient();
 
   try {
     const body = await request.json();

@@ -16,7 +16,7 @@ import {
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from "next/link";
-import type { User } from '@supabase/supabase-js';
+import type { User } from '@/lib/types';
 
 interface UserNavProps {
   user: User | null;
@@ -45,9 +45,9 @@ export function UserNav({ user }: UserNavProps) {
     return name.substring(0, 2).toUpperCase();
   };
 
-  const displayName = user.user_metadata?.full_name || user.email || 'User';
+  const displayName = user.name || user.email || 'User';
   const displayEmail = user.email || 'No email provided';
-  const displayRole = user.user_metadata?.role ? user.user_metadata.role.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) : 'No role assigned';
+  const displayRole = user.role ? user.role.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) : 'No role assigned';
 
   return (
     <DropdownMenu>

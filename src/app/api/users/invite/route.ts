@@ -1,4 +1,4 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -15,7 +15,7 @@ const generateRandomPassword = (length = 12) => {
 
 export const POST = async (request: Request) => {
   const cookieStore = cookies();
-  const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+  const supabase = await createSupabaseServerClient();
 
   // 1. Check if the user making the request is authenticated and is an admin
   const { data: { session } } = await supabase.auth.getSession();

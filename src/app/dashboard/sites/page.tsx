@@ -13,7 +13,7 @@ import siteService from '@/services/siteService';
 const ALLOWED_ROLES = [ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER];
 
 export default async function ManageSitesPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: { user }, error: authError } = await supabase.auth.getUser();
 

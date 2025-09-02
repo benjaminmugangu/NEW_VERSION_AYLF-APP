@@ -1,5 +1,5 @@
 // src/app/dashboard/members/page.tsx
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { profileService } from '@/services/profileService';
@@ -9,14 +9,14 @@ import { MembersClient } from './components/MembersClient';
 import type { User, MemberWithDetails } from '@/lib/types';
 
 export default async function MembersPage() {
-  const supabase = createServerComponentClient({ cookies });
-  const { data: { session } } = await supabase.auth.getSession();
+  const supabase = await createSupabaseServerClient();
+  const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (authError || !authUser) {
     redirect('/login');
   }
 
-  const user: User = await profileService.getProfile(session.user.id);
+  const user: User = await profileService.getProfile(authUser.id);
 
   if (!user || ![ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER].includes(user.role)) {
     // Or redirect to an unauthorized page
