@@ -1,40 +1,81 @@
-# 5. Recommandations et Améliorations
+# 4. Standards de Codage
 
-Sur la base de l'analyse du code et de la logique métier, voici plusieurs recommandations pour renforcer la qualité, la maintenabilité et la sécurité du projet AYLF Group Tracker.
+Pour garantir la qualité, la cohérence et la maintenabilité du projet, tous les contributeurs doivent adhérer de manière stricte et systématique aux règles suivantes. Ces standards ne sont pas des recommandations, mais des exigences.
 
-## 1. Gestion des Erreurs
+## 1. Gestion des Erreurs Backend
 
--   **Problème identifié** : La gestion des erreurs dans la couche de services est incohérente. Certaines fonctions lèvent une exception (`throw new Error()`) en cas d'échec, tandis que d'autres retournent un objet avec une propriété `error` (ex: `{ success: false, error: ... }`).
--   **Recommandation** : Standardiser la gestion des erreurs. Adopter une seule approche (par exemple, toujours lever une exception) et s'assurer que tous les appels de service dans les hooks sont enveloppés dans des blocs `try...catch`.
--   **Bénéfice** : Réduit la complexité, évite les bugs liés à des vérifications manquantes et rend le code plus prévisible.
+-   **Règle** : Tous les services (dans `src/services`) doivent impérativement `throw new Error()` en cas d'échec d'une opération avec la base de données. Le pattern `ServiceResponse` (`{ success: boolean, data?: T, error?: ... }`) est proscrit.
+-   **Justification** : Cette approche unifie la gestion des erreurs et force la couche appelante (généralement les hooks ou les Server Actions) à gérer explicitement les cas d'erreur avec des blocs `try/catch`. Cela rend le code plus robuste et prévisible.
+-   **Exemple** :
+    ```typescript
+    // Dans un service
+    if (error) {
+      console.error('Service Error:', error.message);
+      throw new Error('Impossible de récupérer les données.');
+    }
+    
+    // Dans un hook ou un composant
+    try {
+      const data = await activityService.getActivities();
+      // ...
+    } catch (error) {
+      // Afficher une notification à l'utilisateur
+    }
+    ```
 
-## 2. Tests Automatisés
+## 2. Validation Stricte des Entrées API
 
--   **Problème identifié** : Le projet ne semble pas avoir de suite de tests automatisés (unitaires, intégration, ou de bout en bout).
--   **Recommandation** : Mettre en place une stratégie de test.
-    -   **Tests unitaires** avec Vitest ou Jest pour les fonctions utilitaires et la logique métier pure dans les services.
-    -   **Tests d'intégration** avec React Testing Library pour vérifier que les composants, les hooks et les services fonctionnent correctement ensemble.
--   **Bénéfice** : Permet de détecter les régressions rapidement, de valider les fonctionnalités et de faciliter les refactorings futurs en toute confiance.
+-   **Règle** : Chaque route API (`src/app/api`) qui reçoit des données (via `POST`, `PUT`, `PATCH`, ou `DELETE` avec des paramètres d'URL) doit utiliser un schéma **Zod** pour une validation rigoureuse des entrées.
+-   **Justification** : La validation côté serveur est une couche de sécurité essentielle qui protège l'application contre les données malformées ou malveillantes, même si des validations existent déjà côté client.
+-   **Implémentation** : En cas d'échec de la validation, la route doit retourner une `NextResponse` avec un statut `400` (Bad Request) et un message d'erreur clair.
+-   **Exemple Concret** : Validation dans une route API pour inviter un utilisateur.
 
-## 3. Automatisation des Tâches Périodiques (Cron Jobs)
+    ```typescript
+    // Dans src/app/api/users/invite/route.ts
+    import { z } from 'zod';
+    import { NextResponse } from 'next/server';
 
--   **Problème identifié** : Certaines logiques métier nécessitent une exécution périodique, comme la mise à jour du statut des activités en `Delayed` ou l'envoi de notifications de rappel.
--   **Recommandation** : Utiliser les **Supabase Edge Functions** avec un ordonnanceur (cron) pour automatiser ces tâches.
--   **Bénéfice** : Assure l'exécution fiable et ponctuelle de la logique métier sans dépendre d'une action manuelle ou d'un déclenchement côté client.
+    // 1. Définir le schéma de validation
+    const inviteUserSchema = z.object({
+      email: z.string().email({ message: 'Adresse email invalide.' }),
+      role: z.enum(['national_coordinator', 'site_coordinator', 'small_group_leader']),
+      site_id: z.string().uuid().optional(), // Optionnel, mais doit être un UUID si présent
+    });
 
-## 4. Sécurité
+    export async function POST(request: Request) {
+      try {
+        const body = await request.json();
+        
+        // 2. Valider le corps de la requête
+        const validatedData = inviteUserSchema.parse(body);
 
--   **Point fort** : L'utilisation des politiques RLS est une excellente base pour la sécurité des données.
--   **Recommandation** : Planifier des audits réguliers des politiques RLS pour s'assurer qu'elles couvrent tous les cas d'usage et qu'il n'y a pas de fuites de données possibles, surtout à mesure que de nouvelles fonctionnalités sont ajoutées.
--   **Recommandation** : Renforcer la validation des entrées sur les API routes internes (`src/app/api`). Bien que Zod soit utilisé côté client, une validation côté serveur est une couche de sécurité supplémentaire essentielle.
+        // ... logique pour inviter l'utilisateur avec les données validées
+        
+        return NextResponse.json({ message: 'Invitation envoyée avec succès.' });
 
-## 5. Documentation du Code
+      } catch (error) {
+        // 3. Gérer les erreurs de validation
+        if (error instanceof z.ZodError) {
+          return new NextResponse(JSON.stringify({ errors: error.errors }), { status: 400 });
+        }
 
--   **Problème identifié** : Le code lui-même manque de commentaires pour expliquer les décisions complexes ou la logique métier.
--   **Recommandation** : Adopter **JSDoc** pour documenter les fonctions, les types et les composants directement dans le code. Décrire les paramètres, les valeurs de retour et le but des fonctions complexes.
--   **Bénéfice** : Améliore considérablement la maintenabilité et facilite l'intégration de nouveaux développeurs dans le projet.
+        // Gérer les autres erreurs
+        return new NextResponse('Erreur interne du serveur.', { status: 500 });
+      }
+    }
+    ```
 
-## 6. Gestion des Dépendances
+## 3. Documentation JSDoc Exhaustive
 
--   **Problème identifié** : L'environnement de développement de l'utilisateur a des contraintes qui empêchent l'installation facile de nouvelles dépendances (`npm install`).
--   **Recommandation** : Documenter clairement cette contrainte (liée à la politique d'exécution PowerShell) dans un fichier `CONTRIBUTING.md` ou `README.md` pour que tout futur intervenant soit au courant de la procédure à suivre (`Set-ExecutionPolicy RemoteSigned -Scope Process`).
+-   **Règle** : Tous les composants React, hooks personnalisés, services, fonctions utilitaires complexes et types de données doivent être documentés avec **JSDoc**.
+-   **Justification** : Une bonne documentation dans le code est cruciale pour la maintenabilité et facilite l'intégration de nouveaux développeurs. Elle permet de comprendre rapidement le rôle de chaque partie du code sans avoir à en lire toute l'implémentation.
+-   **Exigences minimales** :
+    -   Une description du but de la fonction ou du composant.
+    -   `@param` pour chaque paramètre, avec son type et sa description.
+    -   `@returns` pour décrire la valeur de retour.
+
+## 4. Cohérence du Code et Conventions
+
+-   **Règle** : Maintenir une cohérence stricte dans tout le code, en particulier pour la conversion des noms de champs entre la base de données (**snake_case**) et le frontend (**camelCase**).
+-   **Justification** : Cette convention évite la confusion et les erreurs lors de la manipulation des objets de données à travers les différentes couches de l'application.
+-   **Implémentation** : Utiliser systématiquement les fonctions de mappage (dans `lib/mappers.ts`) au sein des services pour effectuer cette conversion. Le reste de l'application (hooks, composants) ne doit manipuler que des objets en `camelCase`.
