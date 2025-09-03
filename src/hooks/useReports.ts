@@ -31,12 +31,32 @@ export const useReports = () => {
   const [rejectionNotes, setRejectionNotes] = useState('');
   const [isRejectingReport, setIsRejectingReport] = useState<ReportWithDetails | null>(null);
 
-  const filters = useMemo(() => ({
+  // Build UI filters (keeps DateFilterValue) for query keys and components
+  const uiFilters = useMemo(() => ({
+    searchTerm: searchTerm || undefined,
+    dateFilter,
+    statusFilter,
+  }), [searchTerm, dateFilter, statusFilter]);
+
+  // Convert DateFilterValue -> { from?: Date; to?: Date } for service layer
+  const serverDateFilter = useMemo(() => {
+    if (!dateFilter) return undefined;
+    const fromDate = (dateFilter as any).from ? new Date((dateFilter as any).from) : undefined;
+    const toDate = (dateFilter as any).to ? new Date((dateFilter as any).to) : undefined;
+    return {
+      rangeKey: (dateFilter as any).rangeKey,
+      from: fromDate,
+      to: toDate,
+    } as { rangeKey?: string; from?: Date; to?: Date };
+  }, [dateFilter]);
+
+  // Build service filters expected by reportService
+  const serviceFilters: ReportFilters = useMemo(() => ({
     user: currentUser,
     searchTerm: searchTerm || undefined,
-    dateFilter: dateFilter,
+    dateFilter: serverDateFilter,
     statusFilter: statusFilter,
-  }), [currentUser, searchTerm, dateFilter, statusFilter]);
+  }), [currentUser, searchTerm, serverDateFilter, statusFilter]);
 
   const { 
     data: reports = [], 
@@ -44,13 +64,10 @@ export const useReports = () => {
     error, 
     refetch 
   } = useQuery<ReportWithDetails[], Error>({
-    queryKey: ['reports', filters],
+    queryKey: ['reports', uiFilters],
     queryFn: async () => {
-      const response = await reportService.getFilteredReports(filters);
-      if (response.success && response.data) {
-        return response.data;
-      }
-      throw new Error(response.error?.message || 'Failed to fetch reports.');
+      const reports = await reportService.getFilteredReports(serviceFilters);
+      return reports;
     },
     enabled: !!currentUser, // Only run the query if the user is loaded
   });
@@ -89,7 +106,7 @@ export const useReports = () => {
     mutationFn: ({ reportId, newStatus, notes }: { reportId: string; newStatus: ReportStatus; notes?: string }) => 
       reportService.updateReport(reportId, { status: newStatus, reviewNotes: notes }),
     onSuccess: (updatedReport) => {
-      queryClient.invalidateQueries({ queryKey: ['reports', filters] });
+      queryClient.invalidateQueries({ queryKey: ['reports', uiFilters] });
       toast({ title: 'Success', description: `Report has been ${updatedReport.status}.` });
       // Close modals and reset state
       setIsModalOpen(false);

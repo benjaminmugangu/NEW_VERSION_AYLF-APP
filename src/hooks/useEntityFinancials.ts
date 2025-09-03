@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { financialsService } from '@/services/financialsService';
-import type { Financials, ServiceResponse } from '@/lib/types';
+import type { Financials } from '@/lib/types';
 import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
 
 interface FinancialOptions {

@@ -1,5 +1,4 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { profileService } from '@/services/profileService';
 import { transactionService } from '@/services/transactionService';
@@ -10,15 +9,15 @@ import type { User, FinancialTransaction } from '@/lib/types';
 export default async function TransactionsPage(props: any) {
   const { searchParams } = props;
   const supabase = await createSupabaseServerClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user: authUser }, error } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (error || !authUser) {
     redirect('/login');
   }
 
-  const user: User = await profileService.getProfile(session.user.id);
+  const currentUser: User = await profileService.getProfile(authUser.id);
 
-  if (!user || user.role !== ROLES.NATIONAL_COORDINATOR) {
+  if (!currentUser || currentUser.role !== ROLES.NATIONAL_COORDINATOR) {
     return (
       <div className="p-4">
         <p>You do not have permission to view this page.</p>
@@ -34,7 +33,7 @@ export default async function TransactionsPage(props: any) {
   }
 
   const initialFilters = {
-    user,
+    user: currentUser,
     typeFilter,
   };
 
@@ -46,5 +45,5 @@ export default async function TransactionsPage(props: any) {
     // The client component will show an error state
   }
 
-  return <TransactionsClient initialTransactions={initialTransactions} user={user} />;
+  return <TransactionsClient initialTransactions={initialTransactions} user={currentUser} />;
 }

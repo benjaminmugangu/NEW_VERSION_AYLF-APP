@@ -109,7 +109,7 @@ export function UsersList({ initialUsers }: UsersListProps) {
                           {getRoleDisplayName(user.role)}
                         </Badge>
                       </TableCell>
-                      <TableCell>{user.assignment}</TableCell>
+                      <TableCell>{user.smallGroupName || user.siteName || '—'}</TableCell>
                       <TableCell>
                        <Badge variant={getUserStatusBadgeVariant(user.status)} className="gap-1 items-center text-xs px-1.5 py-0.5">
                         {getUserStatusIcon(user.status)}

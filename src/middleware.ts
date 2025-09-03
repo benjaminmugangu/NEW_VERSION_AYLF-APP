@@ -30,15 +30,15 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user }, error } = await supabase.auth.getUser();
 
   // if user is not signed in and the current path is not /login, redirect the user to /login
-  if (!session && request.nextUrl.pathname !== '/login') {
+  if ((error || !user) && request.nextUrl.pathname !== '/login') {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
   // if user is signed in and the current path is /login, redirect the user to /dashboard
-  if (session && request.nextUrl.pathname === '/login') {
+  if (user && request.nextUrl.pathname === '/login') {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 

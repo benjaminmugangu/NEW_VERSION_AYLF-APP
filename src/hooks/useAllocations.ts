@@ -12,11 +12,8 @@ export const useAllocations = () => {
     queryFn: async () => {
       if (!user) return [];
       // Assuming getAllocations fetches all allocations relevant to the user's role and entity
-      const response = await allocationService.getAllocations(); 
-      if (response.success) {
-        return response.data;
-      }
-      throw new Error(response.error?.message || 'Failed to fetch allocations');
+      const allocations = await allocationService.getAllocations();
+      return allocations;
     },
     enabled: !!user, // Only run the query if the user is loaded
   });

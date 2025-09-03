@@ -1,19 +1,19 @@
 // src/app/api/sites/[id]/route.ts
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { cookies } from 'next/headers';
 import { type NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { ROLES } from '@/lib/constants';
 
-export async function DELETE(request: NextRequest, context: any) {
-  const { params } = context;
-  const siteId = params.id;
-  const cookieStore = cookies();
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id: siteId } = await params;
   const supabase = await createSupabaseServerClient();
 
-  // 1. Check for user session and role
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session || session.user.user_metadata.role !== ROLES.NATIONAL_COORDINATOR) {
+  // 1. Check for authenticated user and role
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user || user.user_metadata.role !== ROLES.NATIONAL_COORDINATOR) {
     return NextResponse.json({ error: 'Forbidden: You do not have permission to perform this action.' }, { status: 403 });
   }
 

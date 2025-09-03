@@ -6,19 +6,17 @@ import { TransactionForm } from '@/components/financials/TransactionForm';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { transactionService } from '@/services/transactionService';
 
 import { useRouter } from 'next/navigation';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { TransactionFormData } from '@/lib/types';
 
 const NewTransactionPage = () => {
   const { currentUser } = useAuth();
   const router = useRouter();
-  const { toast } = useToast();
   
   const [isSaving, setIsSaving] = useState(false);
   
@@ -36,20 +34,14 @@ const NewTransactionPage = () => {
       // Logic to set siteId or smallGroupId based on user role would go here
     };
 
-    const result = await transactionService.createTransaction(transactionData);
-
-    setIsSaving(false);
-
-    if (result.success) {
-
+    try {
+      await transactionService.createTransaction(transactionData);
       alert('Transaction created successfully!');
       router.push('/dashboard/financials');
-    } else {
-      if (result.error) {
-        alert(`Failed to create transaction: ${result.error.message}`);
-      } else {
-        alert('An unknown error occurred while creating the transaction.');
-      }
+    } catch (error) {
+      alert('Failed to create transaction.');
+    } finally {
+      setIsSaving(false);
     }
   };
 

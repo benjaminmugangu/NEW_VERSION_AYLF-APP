@@ -157,7 +157,7 @@ export default function SmallGroupsPage() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Avatar>
-                              <AvatarImage src={sg.leader?.profilePicture} />
+                              <AvatarImage src={(sg.leader?.user_metadata as any)?.avatar_url as string | undefined} />
                               <AvatarFallback>{getInitials(leaderName)}</AvatarFallback>
                             </Avatar>
                             <span>{leaderName}</span>

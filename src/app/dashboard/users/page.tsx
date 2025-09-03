@@ -1,7 +1,6 @@
 // src/app/dashboard/users/page.tsx
 import React from 'react';
 import Link from 'next/link';
-import { cookies } from 'next/headers';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 
@@ -12,6 +11,7 @@ import { UsersRound, UserPlus } from 'lucide-react';
 import { ROLES } from '@/lib/constants';
 import type { User } from '@/lib/types';
 import { createClient } from '@supabase/supabase-js';
+import { profileService } from '@/services/profileService';
 
 async function getUsers(): Promise<User[]> {
   // Note: We create a temporary admin client here to fetch all users.
@@ -31,14 +31,16 @@ async function getUsers(): Promise<User[]> {
 }
 
 export default async function ManageUsersPage() {
-  const cookieStore = cookies();
   const supabase = await createSupabaseServerClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
 
-  const { data: { session } } = await supabase.auth.getSession();
-  const userRole = session?.user?.user_metadata?.role;
+  if (error || !user) {
+    redirect('/login');
+  }
 
-  if (userRole !== ROLES.NATIONAL_COORDINATOR) {
-    redirect('/dashboard'); 
+  const profile = await profileService.getProfile(user.id);
+  if (!profile || profile.role !== ROLES.NATIONAL_COORDINATOR) {
+    redirect('/dashboard');
   }
 
   const users = await getUsers();

@@ -6,6 +6,7 @@ import { UserNav } from '@/components/shared/UserNav';
 import { APP_NAME } from '@/lib/constants';
 import { DashboardSidebar } from './components/DashboardSidebar';
 import { ClientOnly } from '@/components/shared/ClientOnly';
+import type { User, UserRole } from '@/lib/types';
 
 export default async function DashboardLayout({
   children,
@@ -17,7 +18,7 @@ export default async function DashboardLayout({
   const { data: { user } } = await supabase.auth.getUser();
 
   // Get user profile for sidebar
-  let userProfile = null;
+  let userProfile: User | null = null;
   if (user) {
     const { data: profile } = await supabase
       .from('profiles')
@@ -30,7 +31,7 @@ export default async function DashboardLayout({
         id: user.id,
         name: profile.name || user.email || 'Unknown User',
         email: user.email || '',
-        role: profile.role,
+        role: (profile.role ?? 'member') as UserRole,
         siteId: profile.site_id,
         smallGroupId: profile.small_group_id,
       };

@@ -48,10 +48,6 @@ interface MemberFormProps {
 export function MemberForm({ member, onSubmitForm }: MemberFormProps) {
   const { currentUser } = useAuth();
 
-  if (!currentUser) {
-    return <div>Loading...</div>; // Or some other loading state
-  }
-
   const [sites, setSites] = useState<Site[]>([]);
   const [smallGroups, setSmallGroups] = useState<SmallGroup[]>([]);
 
@@ -119,9 +115,25 @@ export function MemberForm({ member, onSubmitForm }: MemberFormProps) {
 
     if (watchedLevel === 'small_group' || watchedLevel === 'site') {
       fetchSmallGroups();
-        fetchSmallGroups();
     }
   }, [watchedSiteId, watchedLevel, currentUser]);
+
+  // When currentUser loads after first render, reset defaults for new member form
+  useEffect(() => {
+    if (!member && currentUser) {
+      reset({
+        name: '',
+        gender: 'male',
+        phone: '',
+        email: '',
+        joinDate: new Date(),
+        type: 'student',
+        level: getInitialLevel(),
+        siteId: currentUser.siteId ?? undefined,
+        smallGroupId: currentUser.smallGroupId ?? undefined,
+      });
+    }
+  }, [currentUser, member, reset]);
 
   const processSubmit = async (data: MemberFormData) => {
     const finalData = {

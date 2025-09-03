@@ -46,9 +46,10 @@ export function ReportCard({ report, onViewDetails }: ReportCardProps) {
           <Image 
             src={report.images[0].url} 
             alt={report.images[0].name} 
-            layout="fill" 
-            objectFit="cover" 
-            className="transition-transform duration-300 group-hover:scale-105"
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            priority
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
             data-ai-hint="report image"
           />
         </div>

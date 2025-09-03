@@ -1,7 +1,8 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { cookies } from 'next/headers';
 
 export const createClient = async (serviceRoleKey?: string) => {
+  // Dynamic import to avoid pulling next/headers into client bundles
+  const { cookies } = await import('next/headers');
   const cookieStore = await cookies();
 
   return createServerClient(

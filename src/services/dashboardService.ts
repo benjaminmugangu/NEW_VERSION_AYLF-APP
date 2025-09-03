@@ -1,12 +1,13 @@
 // src/services/dashboardService.ts
 'use client';
 
-import type { Activity, Member, Report, Site, SiteWithDetails, SmallGroup, User, Financials, ServiceResponse } from '@/lib/types';
+import type { Activity, Member, Report, Site, SiteWithDetails, SmallGroup, User, Financials } from '@/lib/types';
 import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
+import { getDateRangeFromFilterValue } from '@/components/shared/DateRangeFilter';
 import { activityService } from './activityService';
 import { memberService } from './memberService';
 import siteService from './siteService';
-import smallGroupService from './smallGroupService';
+import { smallGroupService } from './smallGroupService';
 import { reportService } from './reportService';
 import { financialsService } from './financialsService';
 
@@ -35,6 +36,13 @@ const dashboardService = {
     }
 
     try {
+      // Convert client DateFilterValue (strings/client state) into server-safe filter with Date objects
+      type ServerDateFilter = { rangeKey?: string; from?: Date; to?: Date };
+      const { startDate, endDate } = getDateRangeFromFilterValue(dateFilter);
+      const serverDateFilter: ServerDateFilter | undefined = (startDate || endDate || dateFilter.rangeKey)
+        ? { rangeKey: dateFilter.rangeKey, from: startDate, to: endDate }
+        : undefined;
+
       // Fetch all data in parallel for efficiency
       // Helper to safely extract data from settled promises.
       const getResultData = <T>(result: PromiseSettledResult<T>): T | null => {
@@ -48,38 +56,24 @@ const dashboardService = {
       const results = await Promise.allSettled([
         activityService.getFilteredActivities({
           user,
-          dateFilter,
+          dateFilter: serverDateFilter,
           searchTerm: '',
           statusFilter: { planned: true, executed: true, in_progress: true, delayed: true, canceled: true },
           levelFilter: { national: true, site: true, small_group: true },
         }),
-        memberService.getFilteredMembers({ user, dateFilter, searchTerm: '' }),
-        reportService.getFilteredReports({ user, dateFilter, statusFilter: { approved: true, pending: true, rejected: true, submitted: true } }),
+        memberService.getFilteredMembers({ user, dateFilter: serverDateFilter, searchTerm: '' }),
+        reportService.getFilteredReports({ user, dateFilter: serverDateFilter, statusFilter: { approved: true, pending: true, rejected: true, submitted: true } }),
         siteService.getSitesWithDetails(user),
         smallGroupService.getFilteredSmallGroups({ user }),
         financialsService.getFinancials(user, dateFilter),
       ]);
 
-      // The services below still return ServiceResponse, so we need to handle that for now.
-      // This will be cleaned up as each service is refactored.
-      const extractLegacyData = <T>(result: PromiseSettledResult<ServiceResponse<T>>): T | null => {
-        if (result.status === 'rejected') {
-          console.error('[DashboardService] A promise was rejected:', result.reason);
-          return null;
-        }
-        if (result.value.success) {
-          return result.value.data as T;
-        }
-        console.error('[DashboardService] A service call failed:', result.value.error?.message);
-        return null;
-      };
-
-      const activities = extractLegacyData<Activity[]>(results[0] as PromiseSettledResult<ServiceResponse<Activity[]>>) || [];
-      const members = extractLegacyData<Member[]>(results[1] as PromiseSettledResult<ServiceResponse<Member[]>>) || [];
-      const approvedReports = extractLegacyData<Report[]>(results[2] as PromiseSettledResult<ServiceResponse<Report[]>>) || [];
-      const sites = extractLegacyData<SiteWithDetails[]>(results[3] as PromiseSettledResult<ServiceResponse<SiteWithDetails[]>>) || [];
-      const smallGroups = extractLegacyData<SmallGroup[]>(results[4] as PromiseSettledResult<ServiceResponse<SmallGroup[]>>) || [];
-      const financials = extractLegacyData<Financials>(results[5] as PromiseSettledResult<ServiceResponse<Financials>>);
+      const activities = getResultData<Activity[]>(results[0] as PromiseSettledResult<Activity[]>) || [];
+      const members = getResultData<Member[]>(results[1] as PromiseSettledResult<Member[]>) || [];
+      const approvedReports = getResultData<Report[]>(results[2] as PromiseSettledResult<Report[]>) || [];
+      const sites = getResultData<SiteWithDetails[]>(results[3] as PromiseSettledResult<SiteWithDetails[]>) || [];
+      const smallGroups = getResultData<SmallGroup[]>(results[4] as PromiseSettledResult<SmallGroup[]>) || [];
+      const financials = getResultData<Financials>(results[5] as PromiseSettledResult<Financials>);
 
       // --- Calculate Statistics ---
 

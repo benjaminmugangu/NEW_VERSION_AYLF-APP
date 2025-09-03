@@ -25,15 +25,16 @@ export function DataTableRowActions<TData>({ row }: DataTableRowActionsProps<TDa
 
   const handleDelete = async () => {
     if (window.confirm('Are you sure you want to delete this transaction?')) {
-      const response = await transactionService.deleteTransaction(transaction.id);
-      if (response.success) {
+      try {
+        await transactionService.deleteTransaction(transaction.id);
         toast({ title: 'Success', description: 'Transaction deleted successfully.' });
         // This requires a way to trigger a refetch in the parent component, 
         // which can be done via a passed prop or a global state management solution.
         // For now, we'll rely on the user to manually refresh.
         window.location.reload();
-      } else {
-        toast({ title: 'Error', description: response.error?.message || 'Failed to delete transaction.', variant: 'destructive' });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to delete transaction.';
+        toast({ title: 'Error', description: message, variant: 'destructive' });
       }
     }
   };

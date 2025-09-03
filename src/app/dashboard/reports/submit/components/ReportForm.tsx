@@ -46,7 +46,7 @@ const reportFormSchema = z.object({
   totalExpenses: z.number().min(0).optional(),
   currency: z.string().optional(),
   content: z.string().min(20, "Content must be at least 20 characters long."),
-  images: z.instanceof(FileList).optional(),
+  images: z.any().optional(),
   financialSummary: z.string().optional(),
 }).refine(data => {
   if (data.level === 'site' || data.level === 'small_group') {
@@ -103,7 +103,10 @@ export function ReportForm({ onSubmitSuccess, user }: ReportFormProps) {
       if (!user) return;
       try {
         const [activities, types] = await Promise.all([
-          activityService.getPlannedActivitiesForUser(user),
+          activityService.getFilteredActivities({
+            user,
+            statusFilter: { planned: true },
+          }),
           getAllActivityTypes()
         ]);
         setPlannedActivities(activities);
@@ -129,15 +132,15 @@ export function ReportForm({ onSubmitSuccess, user }: ReportFormProps) {
       setValue("title", activity.title);
       setValue("activityDate", new Date(activity.date));
       setValue("level", activity.level);
-      setValue("siteId", activity.site_id || undefined);
-      setValue("smallGroupId", activity.small_group_id || undefined);
-      setValue("activityTypeId", activity.activity_type_id);
+      setValue("siteId", activity.siteId || undefined);
+      setValue("smallGroupId", activity.smallGroupId || undefined);
+      setValue("activityTypeId", activity.activityTypeId);
       setValue("thematic", activity.thematic);
       // Reset fields that are report-specific
       setValue("content", "");
       setValue("girlsCount", 0);
       setValue("boysCount", 0);
-      setValue("participantsCountReported", activity.participants_count_planned || 0);
+      setValue("participantsCountReported", activity.participantsCountPlanned || 0);
       setValue("totalExpenses", 0);
       setValue("financialSummary", "");
       setSelectedFiles([]);

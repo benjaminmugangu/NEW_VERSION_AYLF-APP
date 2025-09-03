@@ -1,5 +1,4 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { profileService } from '@/services/profileService';
 import { reportService } from '@/services/reportService';
@@ -9,24 +8,21 @@ import { ROLES } from '@/lib/constants';
 
 const FinancialReportsPage = async () => {
   const supabase = await createSupabaseServerClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user }, error } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (error || !user) {
     redirect('/login');
   }
 
-  const profile: User = await profileService.getProfile(session.user.id);
+  const profile: User = await profileService.getProfile(user.id);
   if (!profile || ![ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR].includes(profile.role)) {
     // Or redirect to an unauthorized page
     return <p>You do not have permission to view this page.</p>;
   }
 
   try {
-    const response = await reportService.getFilteredReports({ user: profile });
-    if (!response.success || !response.data) {
-      throw new Error(response.error?.message || 'Failed to fetch reports.');
-    }
-    return <FinancialReportsClient reports={response.data} />;
+    const reports = await reportService.getFilteredReports({ user: profile });
+    return <FinancialReportsClient reports={reports} />;
   } catch (error) {
     console.error('Error fetching reports:', error);
     // Handle error state appropriately

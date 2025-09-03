@@ -2,7 +2,7 @@
 import { createClient } from '@/utils/supabase/client';
 
 const supabase = createClient();
-import type { FinancialTransaction, ServiceResponse, User, TransactionFormData } from '@/lib/types';
+import type { FinancialTransaction, User, TransactionFormData } from '@/lib/types';
 import { getDateRangeFromFilterValue, type DateFilterValue } from '@/components/shared/DateRangeFilter';
 
 // Helper to convert DB snake_case to frontend camelCase

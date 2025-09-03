@@ -1,7 +1,13 @@
 // src/services/siteService.ts
-import { createClient } from '@/utils/supabase/client';
-
-const supabase = createClient();
+import { createClient as createBrowserClient } from '@/utils/supabase/client';
+// Select appropriate Supabase client for environment
+const getSupabase = async () => {
+  if (typeof window === 'undefined') {
+    const { createSupabaseServerClient } = await import('@/lib/supabase/server');
+    return await createSupabaseServerClient();
+  }
+  return createBrowserClient();
+};
 import type { Site, SiteFormData, SiteWithDetails, User } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
 
@@ -14,6 +20,30 @@ const toSiteDbData = (siteData: Partial<SiteFormData>): any => {
   if (siteData.coordinatorId !== undefined) dbData.coordinator_id = siteData.coordinatorId;
 
   return dbData;
+};
+
+// Map DB row to strict Site type (ensure creationDate present)
+const mapDbSiteToSite = (row: any): Site => {
+  return {
+    id: row.id,
+    name: row.name,
+    city: row.city,
+    country: row.country,
+    creationDate: row.creation_date ?? row.created_at ?? new Date().toISOString(),
+    coordinatorId: row.coordinator_id ?? undefined,
+    // Enriched data if present
+    coordinator: row.coordinator ? {
+      id: row.coordinator.id,
+      name: row.coordinator.name,
+      email: row.coordinator.email,
+      role: row.coordinator.role,
+      status: row.coordinator.status,
+      siteId: row.coordinator.site_id,
+      smallGroupId: row.coordinator.small_group_id,
+      mandateStartDate: row.coordinator.mandate_start_date,
+      mandateEndDate: row.coordinator.mandate_end_date,
+    } : undefined,
+  } as Site;
 };
 
 // Define the shape of the data returned by the RPC function
@@ -36,10 +66,14 @@ const getSitesWithDetails = async (user: User | null): Promise<SiteWithDetails[]
     throw new Error('User not authenticated.');
   }
 
-    const { data, error } = await supabase.rpc('get_sites_with_details_for_user', {
+    const supabase = await getSupabase();
+  let query = (supabase as any)
+    .rpc('get_sites_with_details_for_user', {
     p_user_id: user.id,
     p_user_role: user.role,
-  });
+  }) as any;
+
+  const { data, error } = await query;
 
   if (error) {
     console.error('[SiteService] Error in getSitesWithDetails (RPC):', error.message);
@@ -64,6 +98,7 @@ const getSitesWithDetails = async (user: User | null): Promise<SiteWithDetails[]
 
 const getSiteDetails = async (siteId: string): Promise<{ site: Site; smallGroups: any[]; totalMembers: number }> => {
   // Step 1: Fetch site details including the coordinator's name via a join.
+  const supabase = await getSupabase();
   const { data: siteData, error: siteError } = await supabase
     .from('sites')
     .select('*, coordinator:coordinator_id (id, name, email)')
@@ -90,19 +125,20 @@ const getSiteDetails = async (siteId: string): Promise<{ site: Site; smallGroups
   const totalMembers = smallGroupsData.reduce((acc: number, group: any) => acc + (group.members_count || 0), 0);
 
   return {
-    site: siteData as Site,
+    site: mapDbSiteToSite(siteData),
     smallGroups: smallGroupsData,
     totalMembers,
   };
 };
 
 const getSiteById = async (id: string): Promise<Site> => {
+  const supabase = await getSupabase();
   const { data, error } = await supabase.from('sites').select('*').eq('id', id).single();
   if (error) {
     console.error(`[SiteService] Error in getSiteById for id ${id}:`, error.message);
     throw new Error('Site not found.');
   }
-  return data;
+  return mapDbSiteToSite(data);
 };
 
 const createSite = async (siteData: SiteFormData): Promise<Site> => {
@@ -111,13 +147,14 @@ const createSite = async (siteData: SiteFormData): Promise<Site> => {
   }
   const dbData = toSiteDbData(siteData);
 
+  const supabase = await getSupabase();
   const { data, error } = await supabase.from('sites').insert(dbData).select().single();
 
   if (error) {
     console.error('[SiteService] Error in createSite:', error.message);
     throw new Error(error.message);
   }
-  return data;
+  return mapDbSiteToSite(data);
 };
 
 const updateSite = async (id: string, updatedData: Partial<SiteFormData>): Promise<Site> => {
@@ -126,16 +163,18 @@ const updateSite = async (id: string, updatedData: Partial<SiteFormData>): Promi
   }
   const dbData = toSiteDbData(updatedData);
 
+  const supabase = await getSupabase();
   const { data, error } = await supabase.from('sites').update(dbData).eq('id', id).select().single();
 
   if (error) {
     console.error(`[SiteService] Error in updateSite for id ${id}:`, error.message);
     throw new Error(error.message);
   }
-  return data;
+  return mapDbSiteToSite(data);
 };
 
 const deleteSite = async (id: string): Promise<void> => {
+  const supabase = await getSupabase();
   const { error } = await supabase.from('sites').delete().eq('id', id);
 
   if (error) {

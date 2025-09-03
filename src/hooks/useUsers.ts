@@ -3,7 +3,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { profileService } from '@/services/profileService';
-import type { User, UserFormData } from '@/lib/types';
+import type { User } from '@/lib/types';
 import { useToast } from './use-toast';
 
 const USERS_QUERY_KEY = 'users';
@@ -26,8 +26,19 @@ export const useUsers = () => {
     });
   };
 
+  /**
+   * Payload for inviting a user (matches /api/users/invite route expectations)
+   */
+  type InviteUserPayload = {
+    email: string;
+    name: string; // full name
+    role: User['role'];
+    siteId?: string | null;
+    smallGroupId?: string | null;
+  };
+
   const { mutateAsync: createUser, isPending: isCreatingUser } = useMutation({
-    mutationFn: async (userData: UserFormData) => {
+    mutationFn: async (userData: InviteUserPayload) => {
       const response = await fetch('/api/users/invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

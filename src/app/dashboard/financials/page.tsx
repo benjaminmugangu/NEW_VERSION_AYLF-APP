@@ -3,6 +3,7 @@
 
 import React, { useState } from 'react';
 import { useFinancials } from "@/hooks/useFinancials";
+import { useAuth } from '@/contexts/AuthContext';
 import { Landmark, TrendingUp, TrendingDown, ArrowRightLeft, DollarSign, PlusCircle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -19,8 +20,9 @@ import { ROLES } from '@/lib/constants';
 import { RecentTransactionsTable } from '@/components/financials/RecentTransactionsTable';
 
 const FinancialsPage = () => {
+  const { currentUser } = useAuth();
   const [dateFilter, setDateFilter] = useState<DateFilterValue>({ rangeKey: 'all_time', display: 'All Time' });
-  const { stats: financials, isLoading, error, currentUser } = useFinancials(dateFilter);
+  const { stats: financials, isLoading, error } = useFinancials(currentUser, dateFilter);
 
   if (isLoading) return <DashboardSkeleton />;
   if (error) return <div className="text-red-500">Error: {error}</div>;

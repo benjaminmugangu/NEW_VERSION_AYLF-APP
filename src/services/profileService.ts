@@ -1,15 +1,21 @@
 // src/services/profileService.ts
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { createClient as createBrowserClient } from '@/utils/supabase/client';
 import { DbUser, User } from '@/lib/types';
-import { mapUserToDb } from '@/lib/mappers';
 
-const supabase = createSupabaseBrowserClient();
+const getSupabase = async () => {
+  if (typeof window === 'undefined') {
+    const { createSupabaseServerClient } = await import('@/lib/supabase/server');
+    return await createSupabaseServerClient();
+  }
+  return createBrowserClient();
+};
 
 const profileService = {
   /**
    * Retrieves a user's profile by their ID, including enriched data.
    */
   async getProfile(userId: string): Promise<User> {
+    const supabase = await getSupabase();
     const { data, error } = await supabase
       .from('profiles')
       .select('id, name, email, role, status, site_id, small_group_id, mandate_start_date, mandate_end_date, created_at')
@@ -46,8 +52,23 @@ const profileService = {
       delete updates.role;
     }
 
+    // Local mapper to avoid importing from lib/mappers (prevents circular deps)
+    const mapUserToDb = (u: Partial<User>): Partial<DbUser> => {
+      const dbUpdates: Partial<DbUser> = {};
+      if (u.name !== undefined) dbUpdates.name = u.name;
+      if (u.email !== undefined) dbUpdates.email = u.email;
+      if (u.role !== undefined) dbUpdates.role = u.role as any;
+      if (u.status !== undefined) dbUpdates.status = u.status as any;
+      if (u.siteId !== undefined) dbUpdates.site_id = u.siteId;
+      if (u.smallGroupId !== undefined) dbUpdates.small_group_id = u.smallGroupId;
+      if (u.mandateStartDate !== undefined) dbUpdates.mandate_start_date = u.mandateStartDate as any;
+      if (u.mandateEndDate !== undefined) dbUpdates.mandate_end_date = u.mandateEndDate as any;
+      return dbUpdates;
+    };
+
     const dbUpdates = mapUserToDb(updates);
 
+    const supabase = await getSupabase();
     const { data, error } = await supabase
       .from('profiles')
       .update(dbUpdates)
@@ -87,6 +108,7 @@ const profileService = {
    * Retrieves all users with their assignment details.
    */
   async getUsers(): Promise<User[]> {
+    const supabase = await getSupabase();
     const { data, error } = await supabase.rpc('get_users_with_details');
 
     if (error) {
@@ -115,6 +137,7 @@ const profileService = {
    * Retrieves users eligible for leadership roles.
    */
   async getEligiblePersonnel(siteId: string, smallGroupId?: string): Promise<User[]> {
+    const supabase = await getSupabase();
     let query = supabase.from('profiles').select('*').neq('status', 'inactive');
 
     const leaderFilterParts = ['small_group_id.is.null'];
@@ -156,6 +179,7 @@ const profileService = {
    * Permanently deletes a user.
    */
   async deleteUser(userId: string): Promise<void> {
+    const supabase = await getSupabase();
     const { error } = await supabase.rpc('delete_user_permanently', { user_id: userId });
 
     if (error) {
@@ -170,6 +194,7 @@ const profileService = {
   async getUsersByIds(userIds: string[]): Promise<User[]> {
     if (!userIds || userIds.length === 0) return [];
 
+    const supabase = await getSupabase();
     const { data, error } = await supabase.from('profiles').select('*').in('id', userIds);
 
     if (error) {

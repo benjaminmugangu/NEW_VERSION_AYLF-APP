@@ -1,6 +1,5 @@
 // src/app/dashboard/reports/submit/page.tsx
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { profileService } from '@/services/profileService';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -11,13 +10,13 @@ import { User } from '@/lib/types';
 
 export default async function SubmitReportPage() {
   const supabase = await createSupabaseServerClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user }, error } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (error || !user) {
     redirect('/login');
   }
 
-  const profile: User = await profileService.getProfile(session.user.id);
+  const profile: User = await profileService.getProfile(user.id);
 
   if (!profile || ![ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER].includes(profile.role)) {
     return (

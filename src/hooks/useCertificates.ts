@@ -21,15 +21,11 @@ export const useCertificates = () => {
     queryKey: ['certificateRoster', dateFilter],
     queryFn: async () => {
       const { startDate, endDate } = getDateRangeFromFilterValue(dateFilter);
-      const response = await certificateService.getCertificateRoster({ 
+      const data = await certificateService.getCertificateRoster({ 
         startDate: startDate ?? null,
         endDate: endDate ?? null,
       });
-
-      if (!response.success || !response.data) {
-        throw new Error(response.error?.message || 'Failed to fetch certificate roster.');
-      }
-      return response.data;
+      return data;
     },
     placeholderData: (previousData) => previousData, // Show previous data while fetching new data
   });

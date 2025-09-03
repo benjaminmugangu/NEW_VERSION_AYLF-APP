@@ -12,7 +12,7 @@ import type {
   Report
 } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
-import { applyDateFilter, type DateFilterValue } from '@/components/shared/DateRangeFilter';
+import { applyDateFilter, getDateRangeFromFilterValue, type DateFilterValue } from '@/components/shared/DateRangeFilter';
 
 /**
  * A centralized function to fetch and calculate financial statistics based on user context and date filters.
@@ -21,7 +21,9 @@ const getFinancials = async (user: User, dateFilter: DateFilterValue): Promise<F
   try {
     // 1. Define filters based on user role
     const transactionFilters: TransactionFilters = { user, dateFilter };
-    const reportFilters = { user, dateFilter };
+    // Convert client DateFilterValue to server-safe filter expected by reportService (uses Date objects)
+    const { startDate, endDate } = getDateRangeFromFilterValue(dateFilter);
+    const reportFilters = { user, dateFilter: { rangeKey: dateFilter.rangeKey, from: startDate, to: endDate } } as const;
     let allocationFilters: { siteId?: string; smallGroupId?: string } = {};
 
     switch (user.role) {

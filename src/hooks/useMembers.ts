@@ -1,7 +1,7 @@
 // src/hooks/useMembers.ts
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { memberService } from '@/services/memberService';
@@ -21,7 +21,27 @@ export const useMembers = () => {
   const [dateFilter, setDateFilter] = useState<DateFilterValue>({ rangeKey: 'all_time', display: "All Time" });
   const [typeFilter, setTypeFilter] = useState<Record<Member['type'], boolean>>({ student: true, "non-student": true });
 
-  const filters = { searchTerm, dateFilter, typeFilter };
+  // Adapt dateFilter to use Date instances expected by the service layer
+  const serverDateFilter = useMemo(() => {
+    if (!dateFilter) return undefined;
+    const fromDate = (dateFilter as any).from ? new Date((dateFilter as any).from) : undefined;
+    const toDate = (dateFilter as any).to ? new Date((dateFilter as any).to) : undefined;
+    return {
+      rangeKey: (dateFilter as any).rangeKey,
+      from: fromDate,
+      to: toDate,
+    } as { rangeKey?: string; from?: Date; to?: Date };
+  }, [dateFilter]);
+
+  // UI filters keep DateFilterValue for components and query keys
+  const uiFilters = { searchTerm, dateFilter, typeFilter };
+  // Service filters use serverDateFilter typed with Date
+  const serviceFilters = {
+    user: currentUser!,
+    searchTerm,
+    dateFilter: serverDateFilter,
+    typeFilter,
+  } as const;
 
   const { 
     data: members,
@@ -29,11 +49,11 @@ export const useMembers = () => {
     error,
     refetch
   } = useQuery({
-    queryKey: ['members', currentUser?.id, filters],
+    queryKey: ['members', currentUser?.id, uiFilters],
     queryFn: () => {
       if (!currentUser) return [];
       // The service now throws on error, and react-query will catch it automatically.
-      return memberService.getFilteredMembers({ user: currentUser, ...filters });
+      return memberService.getFilteredMembers(serviceFilters);
     },
     enabled: !!currentUser, // Only run query if user is logged in
   });
@@ -42,7 +62,7 @@ export const useMembers = () => {
     mutationFn: (memberId: string) => memberService.deleteMember(memberId),
     onSuccess: () => {
       // On success, invalidate the members query to refetch the list
-      queryClient.invalidateQueries({ queryKey: ['members', currentUser?.id, filters] });
+      queryClient.invalidateQueries({ queryKey: ['members', currentUser?.id, uiFilters] });
     },
     // onError is handled by the component calling deleteMember
   });
@@ -52,7 +72,7 @@ export const useMembers = () => {
     isLoading,
     isDeleting,
     error: error instanceof Error ? error.message : null,
-    filters,
+    filters: uiFilters,
     setSearchTerm,
     setDateFilter,
     setTypeFilter,

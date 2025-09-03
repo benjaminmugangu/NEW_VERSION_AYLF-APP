@@ -4,12 +4,7 @@
 import { createClient } from '@/utils/supabase/client';
 
 const supabase = createClient();
-import type { ServiceResponse, User, Site, SmallGroup } from '@/lib/types';
-import { ROLES } from '@/lib/constants';
-import { startOfDay, endOfDay, parseISO, isValid } from 'date-fns';
-import { profileService } from "@/services/profileService";
-import siteService from './siteService';
-import smallGroupService from './smallGroupService';
+import type { User, Site, SmallGroup } from '@/lib/types';
 
 export interface CertificateRosterFilters {
   startDate: Date | null;
@@ -27,28 +22,19 @@ const getRoleDisplayName = (role: User['role']) => {
 };
 
 export const certificateService = {
-  getCertificateRoster: async (filters: CertificateRosterFilters): Promise<ServiceResponse<RosterMember[]>> => {
-    try {
-      const { startDate, endDate } = filters;
+  getCertificateRoster: async (filters: CertificateRosterFilters): Promise<RosterMember[]> => {
+    const { startDate, endDate } = filters;
 
-      const { data, error } = await supabase.rpc('get_certificate_roster', {
-        start_date_filter: startDate ? startDate.toISOString().split('T')[0] : null,
-        end_date_filter: endDate ? endDate.toISOString().split('T')[0] : null,
-      });
+    const { data, error } = await supabase.rpc('get_certificate_roster', {
+      start_date_filter: startDate ? startDate.toISOString().split('T')[0] : null,
+      end_date_filter: endDate ? endDate.toISOString().split('T')[0] : null,
+    });
 
-      if (error) {
-        console.error('[CertificateService] Error fetching certificate roster:', error.message);
-        return { success: false, error: { message: error.message } };
-      }
-
-      // The data from RPC should match the RosterMember structure.
-      // We might need to cast it to ensure type safety if RPC doesn't infer it perfectly.
-      return { success: true, data: data as RosterMember[] };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-      console.error(`[CertificateService] Failed to fetch roster: ${errorMessage}`);
-      return { success: false, error: { message: `Failed to fetch roster: ${errorMessage}` } };
+    if (error) {
+      throw new Error(error.message || 'Failed to fetch certificate roster.');
     }
+
+    return data as RosterMember[];
   },
 };
 

@@ -30,14 +30,8 @@ const EditTransactionPage = () => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const transactionRes = await transactionService.getTransactionById(id);
-
-        if (transactionRes.success && transactionRes.data) {
-          setTransaction(transactionRes.data);
-        } else {
-          toast({ title: 'Error', description: 'Transaction not found.', variant: 'destructive' });
-          router.push('/dashboard/financials');
-        }
+        const transaction = await transactionService.getTransactionById(id);
+        setTransaction(transaction);
 
         
 
@@ -53,14 +47,14 @@ const EditTransactionPage = () => {
 
   const handleUpdate = async (data: TransactionFormData) => {
     setIsSaving(true);
-    const response = await transactionService.updateTransaction(id, data);
-    setIsSaving(false);
-
-    if (response.success) {
+    try {
+      await transactionService.updateTransaction(id, data);
       toast({ title: 'Success', description: 'Transaction updated successfully.' });
       router.push('/dashboard/financials');
-    } else {
-      toast({ title: 'Error', description: response.error?.message || 'Failed to update transaction.', variant: 'destructive' });
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to update transaction.', variant: 'destructive' });
+    } finally {
+      setIsSaving(false);
     }
   };
 

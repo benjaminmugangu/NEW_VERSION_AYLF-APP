@@ -54,16 +54,16 @@ export const useActivities = ({ initialData = [], user }: UseActivitiesParams) =
       case ROLES.NATIONAL_COORDINATOR:
         return true;
       case ROLES.SITE_COORDINATOR:
-        return activity.site_id === user.siteId;
+        return activity.siteId === user.siteId;
       case ROLES.SMALL_GROUP_LEADER:
-        return activity.small_group_id === user.smallGroupId;
+        return activity.smallGroupId === user.smallGroupId;
       default:
         return false;
     }
   }, [user]);
 
   const createActivityMutation = useMutation<any, Error, Omit<ActivityFormData, 'createdBy'>>({
-    mutationFn: (activityData) => activityService.createActivity(activityData, user!.id),
+    mutationFn: (activityData) => activityService.createActivity({ ...activityData, createdBy: user!.id }),
     onSuccess: () => {
       toast({ title: 'Success', description: 'Activity created successfully.' });
       queryClient.invalidateQueries({ queryKey: ['activities'] });

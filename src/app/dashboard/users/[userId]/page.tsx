@@ -1,6 +1,5 @@
 // src/app/dashboard/users/[userId]/page.tsx
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { cookies } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 import { profileService } from '@/services/profileService';
 import { UserDetailClient } from './components/UserDetailClient';
@@ -13,18 +12,21 @@ interface UserDetailPageProps {
   };
 }
 
-export default async function UserDetailPage(props: any) {
+export default async function UserDetailPage(
+  props: { params: Promise<{ userId: string }> }
+) {
   const { params } = props;
+  const { userId } = await params;
   const supabase = await createSupabaseServerClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user }, error } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (error || !user) {
     redirect('/login');
   }
 
   const [currentUserProfile, targetUser] = await Promise.all([
-    profileService.getProfile(session.user.id),
-    profileService.getProfile(params.userId)
+    profileService.getProfile(user.id),
+    profileService.getProfile(userId)
   ]);
 
   if (!currentUserProfile) {

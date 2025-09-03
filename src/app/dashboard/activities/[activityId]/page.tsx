@@ -43,7 +43,7 @@ export default async function ActivityDetailPage(props: any) {
       return redirect('/dashboard?error=permission-denied');
     }
 
-    return <ActivityDetailClient activity={activity} userRole={profile.role} />;
+    return <ActivityDetailClient activity={activity} userRole={profile.role as any} />;
 
   } catch (error) {
     return redirect('/dashboard?error=not-found');

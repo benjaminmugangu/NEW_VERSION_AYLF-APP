@@ -25,12 +25,13 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
 
   const handleDelete = async () => {
     if (window.confirm('Are you sure you want to delete this allocation?')) {
-      const response = await allocationService.deleteAllocation(allocation.id);
-      if (response.success) {
+      try {
+        await allocationService.deleteAllocation(allocation.id);
         toast({ title: 'Success', description: 'Allocation deleted successfully.' });
         window.location.reload(); // Simple refresh for now
-      } else {
-        toast({ title: 'Error', description: response.error?.message || 'Failed to delete allocation.', variant: 'destructive' });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to delete allocation.';
+        toast({ title: 'Error', description: message, variant: 'destructive' });
       }
     }
   };

@@ -33,7 +33,7 @@ const DetailItem = ({ icon, label, value }: { icon: React.ElementType; label: st
 const UserCard = ({ user, role }: { user?: UserType; role: string }) => (
   <div className="flex items-center space-x-4 p-4 border rounded-lg">
     <Avatar className="h-12 w-12">
-      <AvatarImage src={user?.profilePicture} />
+      <AvatarImage src={(user?.user_metadata as any)?.avatar_url as string | undefined} />
       <AvatarFallback>{getInitials(user?.name || 'N/A')}</AvatarFallback>
     </Avatar>
     <div>

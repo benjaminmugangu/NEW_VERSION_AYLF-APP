@@ -1,7 +1,7 @@
 // src/app/dashboard/activities/page.tsx
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { profileService } from '@/services/profileService';
+// Avoid using profileService here because it relies on a browser client; use server client directly.
 import { activityService } from '@/services/activityService';
 import { ActivitiesClient } from './components/ActivitiesClient';
 import { ROLES } from '@/lib/constants';
@@ -21,7 +21,36 @@ export default async function ActivitiesPage() {
     redirect('/login');
   }
 
-  const userProfile = await profileService.getProfile(user.id);
+  const { data: profileData, error: profileError } = await supabase
+    .from('profiles')
+    .select('id, name, email, role, status, site_id, small_group_id, mandate_start_date, mandate_end_date, created_at')
+    .eq('id', user.id)
+    .single();
+
+  if (profileError || !profileData) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center p-8">
+        <h2 className="text-2xl font-semibold text-destructive mb-2">Failed to load profile</h2>
+        <p className="text-muted-foreground">{profileError?.message || 'Profile not found.'}</p>
+        <Button asChild className="mt-4">
+          <a href="/dashboard">Go to Dashboard</a>
+        </Button>
+      </div>
+    );
+  }
+
+  const userProfile = {
+    id: profileData.id,
+    name: profileData.name || '',
+    email: profileData.email || '',
+    role: profileData.role as any,
+    status: profileData.status as any,
+    siteId: profileData.site_id || undefined,
+    smallGroupId: profileData.small_group_id || undefined,
+    mandateStartDate: profileData.mandate_start_date || undefined,
+    mandateEndDate: profileData.mandate_end_date || undefined,
+    createdAt: profileData.created_at || undefined,
+  } as const;
 
   if (!userProfile || !ALLOWED_ROLES.includes(userProfile.role)) {
     return (

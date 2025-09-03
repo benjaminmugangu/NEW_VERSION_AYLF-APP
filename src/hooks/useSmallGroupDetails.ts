@@ -40,9 +40,8 @@ export const useSmallGroupDetails = (groupId: string | null) => {
       memberService.getFilteredMembers({ user: currentUser, smallGroupId: groupId, searchTerm: '' }),
     ]);
 
-    const usersMap = (usersResponse.success && usersResponse.data)
-      ? new Map(usersResponse.data.map((u: User) => [u.id, u]))
-      : new Map();
+    const users = usersResponse as User[];
+    const usersMap = new Map(users.map((u: User) => [u.id, u]));
 
     const groupMembers = membersResponse || [];
 

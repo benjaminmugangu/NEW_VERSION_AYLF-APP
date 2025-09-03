@@ -18,16 +18,16 @@ export const POST = async (request: Request) => {
   const supabase = await createSupabaseServerClient();
 
   // 1. Check if the user making the request is authenticated and is an admin
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user }, error } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (error || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('role')
-    .eq('id', session.user.id)
+    .eq('id', user.id)
     .single();
 
   if (profileError || !profile || profile.role !== 'national_coordinator') {
