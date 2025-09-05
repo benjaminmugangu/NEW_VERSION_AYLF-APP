@@ -4,13 +4,15 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
+  const tokenHash = searchParams.get('token_hash');
+  const type = searchParams.get('type');
   const next = searchParams.get('next') ?? '/dashboard';
 
+  const supabase = await createSupabaseServerClient();
+
+  // Case 1: OAuth/code flow
   if (code) {
-    const supabase = await createSupabaseServerClient();
-    
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-    
     if (!error && data.user) {
       // Check if this is a new user accepting an invitation
       const { data: profile, error: profileError } = await supabase
@@ -43,6 +45,48 @@ export async function GET(request: NextRequest) {
 
       // Existing users go to dashboard
       return NextResponse.redirect(`${origin}${next}`);
+    }
+  }
+
+  // Case 2: Email link flow (invite, signup, recovery, email_change)
+  if (tokenHash && type) {
+    const validTypes = ['invite', 'signup', 'recovery', 'email_change'] as const;
+    if (validTypes.includes(type as any)) {
+      const { data, error } = await supabase.auth.verifyOtp({
+        type: type as any,
+        token_hash: tokenHash,
+      });
+
+      if (!error && data.user) {
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+
+        if (profileError || !profile) {
+          const userData = data.user.user_metadata as any;
+          await supabase
+            .from('profiles')
+            .upsert({
+              id: data.user.id,
+              email: data.user.email,
+              name: userData?.full_name || data.user.email?.split('@')[0] || 'User',
+              role: userData?.role || 'small_group_leader',
+              site_id: userData?.site_id || null,
+              small_group_id: userData?.small_group_id || null,
+              status: 'active',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
+
+          // New invited users must set their password
+          return NextResponse.redirect(`${origin}/auth/setup`);
+        }
+
+        // Existing users go to dashboard
+        return NextResponse.redirect(`${origin}${next}`);
+      }
     }
   }
 
