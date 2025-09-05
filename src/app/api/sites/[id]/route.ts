@@ -6,9 +6,9 @@ import { ROLES } from '@/lib/constants';
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
-  const { id: siteId } = await params;
+  const { id: siteId } = params;
   const supabase = await createSupabaseServerClient();
 
   // 1. Check for authenticated user and role
