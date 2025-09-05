@@ -13,7 +13,7 @@ export const smallGroupService = {
       .eq('site_id', siteId)
       .order('name', { ascending: true });
 
-    if (!error && data) {
+    if (!error && data && Array.isArray(data) && data.length > 0) {
       return data.map(mapDbSmallGroupToSmallGroup);
     }
 

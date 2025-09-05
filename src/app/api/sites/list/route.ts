@@ -35,7 +35,8 @@ export async function GET() {
   try {
     let query = admin.from('sites').select('id,name,city,country,creation_date,coordinator_id');
 
-    if (profile.role === ROLES.SITE_COORDINATOR || profile.role === ROLES.SMALL_GROUP_LEADER) {
+    const role = String(profile.role || '').toLowerCase();
+    if (role === ROLES.SITE_COORDINATOR || role === ROLES.SMALL_GROUP_LEADER) {
       if (profile.site_id) {
         query = query.eq('id', profile.site_id);
       } else {
