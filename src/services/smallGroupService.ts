@@ -81,7 +81,12 @@ export const smallGroupService = {
   },
 
   createSmallGroup: async (siteId: string, formData: SmallGroupFormData): Promise<SmallGroup> => {
-    const dbData = { ...mapSmallGroupFormDataToDb(formData), site_id: siteId };
+    // Construire un objet d'insertion avec 'name' requis pour satisfaire le typage Supabase
+    const dbData = {
+      name: formData.name,
+      ...mapSmallGroupFormDataToDb(formData),
+      site_id: siteId,
+    } as { site_id: string; name: string } & Partial<DbSmallGroup>;
 
     const { data: newGroup, error: createError } = await supabase
       .from('small_groups')
