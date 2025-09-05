@@ -17,7 +17,7 @@ Le module d'authentification est la pierre angulaire de l'application, contrôla
 Le processus d'inscription a une logique particulière pour "amorcer" l'application :
 
 -   **Première Inscription** : La page `/signup` est accessible publiquement **uniquement si la table `auth.users` de Supabase est vide**. Le premier utilisateur qui s'inscrit devient de fait le premier administrateur (probablement un `NATIONAL_COORDINATOR`).
--   **Inscriptions suivantes (par invitation)** : Une fois qu'au moins un utilisateur existe, l'inscription publique via `/signup` est désactivée. Les nouveaux utilisateurs ne peuvent être créés que par un administrateur via un système d'invitation.
+-   **Inscriptions suivantes (par invitation)** : Une fois qu'au moins un utilisateur existe, l'inscription publique via `/signup` est désactivée. Les nouveaux utilisateurs ne peuvent être créés que par un administrateur via un système d'invitation par mail.
 
 ### 2. Connexion (Login)
 

@@ -3,16 +3,6 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Function to generate a random password
-const generateRandomPassword = (length = 12) => {
-  const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()';
-  let password = '';
-  for (let i = 0; i < length; i++) {
-    password += charset.charAt(Math.floor(Math.random() * charset.length));
-  }
-  return password;
-};
-
 export const POST = async (request: Request) => {
   const cookieStore = cookies();
   const supabase = await createSupabaseServerClient();
@@ -54,15 +44,14 @@ export const POST = async (request: Request) => {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const password = generateRandomPassword();
-
-  const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-    email: email,
-    password: password,
-    email_confirm: true, // Auto-confirm the email
-    user_metadata: {
+  // Use Supabase's invite user functionality which sends an email automatically
+  const { data: authData, error: authError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+    redirectTo: 'https://new-version-aylf-app-yzwe-git-8f7981-benjamin-mugangus-projects.vercel.app/dashboard',
+    data: {
       full_name: fullName,
       role: role,
+      site_id: siteId,
+      small_group_id: smallGroupId,
     },
   });
 
@@ -75,25 +64,8 @@ export const POST = async (request: Request) => {
     return NextResponse.json({ error: 'Could not create user.' }, { status: 500 });
   }
 
-  // 3. Update the profile for the newly created user
-  const { error: updateProfileError } = await supabaseAdmin
-    .from('profiles')
-    .update({
-      role: role,
-      site_id: siteId,
-      small_group_id: smallGroupId,
-      name: fullName,
-    })
-    .eq('id', authData.user.id);
-
-  if (updateProfileError) {
-    console.error('Error updating profile:', updateProfileError);
-    return NextResponse.json({ error: `User created, but failed to set profile: ${updateProfileError.message}` }, { status: 500 });
-  }
-
   return NextResponse.json({
-    message: 'User created successfully. Please share the generated password with them.',
+    message: 'User invitation sent successfully. The user will receive an email with instructions to set up their account.',
     user: authData.user,
-    password: password,
   });
 };
