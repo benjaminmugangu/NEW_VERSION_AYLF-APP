@@ -12,7 +12,7 @@ import { UserCheck } from 'lucide-react';
 
 export default function SetupPage() {
   const router = useRouter();
-  const { currentUser, refreshUser } = useAuth();
+  const { currentUser } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [password, setPassword] = useState('');
@@ -72,8 +72,7 @@ export default function SetupPage() {
         description: 'Your account setup is complete!',
       });
 
-      // Refresh user data and redirect
-      await refreshUser();
+      // Redirect to dashboard
       router.push('/dashboard');
 
     } catch (error) {

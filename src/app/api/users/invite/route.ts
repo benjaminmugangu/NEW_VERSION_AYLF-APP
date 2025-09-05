@@ -1,7 +1,8 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { z } from 'zod';
 
 export const POST = async (request: Request) => {
   const cookieStore = cookies();
@@ -24,12 +25,24 @@ export const POST = async (request: Request) => {
     return NextResponse.json({ error: 'Forbidden: You do not have permission to create users.' }, { status: 403 });
   }
 
-  // 2. Proceed with creating the new user
-  let { email, name: fullName, role, siteId, smallGroupId } = await request.json();
+  // 2. Validate input with Zod
+  const inviteSchema = z.object({
+    email: z.string().email(),
+    name: z.string().min(2),
+    role: z.enum(['national_coordinator', 'site_coordinator', 'small_group_leader']),
+    siteId: z.string().nullable().optional(),
+    smallGroupId: z.string().nullable().optional(),
+    mandateStartDate: z.any().optional(),
+    mandateEndDate: z.any().optional(),
+    status: z.enum(['active','inactive']).optional(),
+  });
 
-  if (!email || !fullName || !role) {
-    return NextResponse.json({ error: 'Email, full name, and role are required.' }, { status: 400 });
+  const parseResult = inviteSchema.safeParse(await request.json());
+  if (!parseResult.success) {
+    return NextResponse.json({ error: 'Invalid request body', details: parseResult.error.format() }, { status: 400 });
   }
+
+  let { email, name: fullName, role, siteId, smallGroupId } = parseResult.data;
 
   // Enforce business logic for assignments based on role
   if (role === 'national_coordinator') {
@@ -44,9 +57,14 @@ export const POST = async (request: Request) => {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
+  // Determine site URL for redirect (prefer env, then request origin, then fallback)
+  const headersList = await headers();
+  const originHeader = headersList.get('origin') || '';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || originHeader || 'https://new-version-aylf-app-yzwe-git-8f7981-benjamin-mugangus-projects.vercel.app';
+
   // Use Supabase's invite user functionality which sends an email automatically
   const { data: authData, error: authError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-    redirectTo: 'https://new-version-aylf-app-yzwe-git-8f7981-benjamin-mugangus-projects.vercel.app/dashboard',
+    redirectTo: `${siteUrl}/auth/callback`,
     data: {
       full_name: fullName,
       role: role,
@@ -56,7 +74,6 @@ export const POST = async (request: Request) => {
   });
 
   if (authError) {
-    console.error('Error creating auth user:', authError);
     return NextResponse.json({ error: authError.message }, { status: 400 });
   }
 
