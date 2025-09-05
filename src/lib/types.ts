@@ -93,12 +93,12 @@ export interface DbSmallGroup {
   id: string;
   name: string;
   site_id: string;
-  leader_id?: string;
-  logistics_assistant_id?: string;
-  finance_assistant_id?: string;
-  meeting_day?: 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday' | 'Sunday';
-  meeting_time?: string;
-  meeting_location?: string;
+  leader_id?: string | null;
+  logistics_assistant_id?: string | null;
+  finance_assistant_id?: string | null;
+  meeting_day?: 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday' | 'Sunday' | null;
+  meeting_time?: string | null;
+  meeting_location?: string | null;
 }
 
 export interface Member extends BaseEntity {
