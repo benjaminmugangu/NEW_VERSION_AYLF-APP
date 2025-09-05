@@ -77,7 +77,7 @@ export interface SmallGroup {
   leaderId?: string;
   logisticsAssistantId?: string;
   financeAssistantId?: string;
-  meetingDay?: 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday' | 'Sunday';
+  meetingDay?: string; // assoupli: la BD peut renvoyer n'importe quelle chaîne
   meetingTime?: string; // e.g., '18:00'
   meetingLocation?: string;
   // Enriched data for UI
@@ -96,7 +96,7 @@ export interface DbSmallGroup {
   leader_id?: string | null;
   logistics_assistant_id?: string | null;
   finance_assistant_id?: string | null;
-  meeting_day?: 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday' | 'Sunday' | null;
+  meeting_day?: string | null; // assoupli: valeur libre côté BD
   meeting_time?: string | null;
   meeting_location?: string | null;
 }
