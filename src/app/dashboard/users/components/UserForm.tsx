@@ -69,8 +69,8 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
         const sites = await siteService.getSitesWithDetails(currentUser);
         setAvailableSites(sites);
       } catch (error) {
-        console.error('Failed to fetch sites:', error);
-        toast({ title: 'Error', description: 'Could not load sites.', variant: 'destructive' });
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        toast({ title: 'Error loading sites', description: message, variant: 'destructive' });
       }
     };
     fetchSites();
@@ -94,8 +94,8 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
           const smallGroups = await smallGroupService.getSmallGroupsBySite(watchedSiteId);
           setAvailableSmallGroups(smallGroups);
         } catch (error) {
-          console.error('Failed to fetch small groups:', error);
-          toast({ title: 'Error', description: 'Could not load small groups for the selected site.', variant: 'destructive' });
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          toast({ title: 'Error loading small groups', description: message, variant: 'destructive' });
           setAvailableSmallGroups([]);
         }
 

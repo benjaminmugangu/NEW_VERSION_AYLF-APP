@@ -75,7 +75,7 @@ const getSitesWithDetails = async (user: User | null): Promise<SiteWithDetails[]
 
   const { data, error } = await query;
 
-  if (!error && data) {
+  if (!error && data && Array.isArray(data) && data.length > 0) {
     const sites: SiteWithDetails[] = (data as SiteDetailsRPCResponse[]).map((site: SiteDetailsRPCResponse) => ({
       id: site.id,
       name: site.name,

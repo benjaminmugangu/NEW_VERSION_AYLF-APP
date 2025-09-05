@@ -28,6 +28,10 @@ export async function GET() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return NextResponse.json({ error: 'Missing SUPABASE_SERVICE_ROLE_KEY on server. Set it in Vercel env (Preview & Production).' }, { status: 500 });
+  }
+
   try {
     let query = admin.from('sites').select('id,name,city,country,creation_date,coordinator_id');
 
