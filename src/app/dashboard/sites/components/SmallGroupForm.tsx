@@ -29,6 +29,7 @@ const smallGroupFormSchema = z.object({
 });
 
 const UNASSIGNED_VALUE = "__UNASSIGNED__"; // Represents no selection
+const ALLOWED_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const;
 
 interface SmallGroupFormProps {
   smallGroup?: SmallGroup; // For editing
@@ -48,7 +49,7 @@ export function SmallGroupForm({ smallGroup, siteId, onSubmitForm, isSaving }: S
       leaderId: smallGroup.leaderId || undefined,
       logisticsAssistantId: smallGroup.logisticsAssistantId || undefined,
       financeAssistantId: smallGroup.financeAssistantId || undefined,
-      meetingDay: smallGroup.meetingDay,
+      meetingDay: ALLOWED_DAYS.includes((smallGroup.meetingDay as any) || '') ? (smallGroup.meetingDay as any) : undefined,
       meetingTime: smallGroup.meetingTime,
       meetingLocation: smallGroup.meetingLocation,
     } : {
