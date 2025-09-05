@@ -1,5 +1,5 @@
 // src/services/profileService.ts
-import { createClient as createBrowserClient } from '@/utils/supabase/client';
+import { createSupabaseBrowserClient as createBrowserClient } from '@/lib/supabase/client';
 import { DbUser, User } from '@/lib/types';
 
 const getSupabase = async () => {

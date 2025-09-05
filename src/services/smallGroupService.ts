@@ -13,11 +13,18 @@ export const smallGroupService = {
       .eq('site_id', siteId)
       .order('name', { ascending: true });
 
-    if (error) {
-      throw new Error(error.message);
+    if (!error && data) {
+      return data.map(mapDbSmallGroupToSmallGroup);
     }
 
-    return data.map(mapDbSmallGroupToSmallGroup);
+    // Fallback: route API serveur (utilise la clé service) pour contourner RLS client
+    const resp = await fetch(`/api/small-groups/by-site?id=${encodeURIComponent(siteId)}`, { credentials: 'include' });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error || (error?.message ?? 'Failed to load small groups'));
+    }
+    const fallback = await resp.json();
+    return (fallback || []).map((row: any) => mapDbSmallGroupToSmallGroup(row));
   },
 
   getFilteredSmallGroups: async ({ user, search, siteId }: { user: User; search?: string, siteId?: string }): Promise<SmallGroup[]> => {

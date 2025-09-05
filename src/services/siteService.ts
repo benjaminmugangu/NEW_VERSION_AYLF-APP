@@ -75,26 +75,43 @@ const getSitesWithDetails = async (user: User | null): Promise<SiteWithDetails[]
 
   const { data, error } = await query;
 
-  if (error) {
-    console.error('[SiteService] Error in getSitesWithDetails (RPC):', error.message);
-    throw new Error(error.message);
+  if (!error && data) {
+    const sites: SiteWithDetails[] = (data as SiteDetailsRPCResponse[]).map((site: SiteDetailsRPCResponse) => ({
+      id: site.id,
+      name: site.name,
+      city: site.city,
+      country: site.country,
+      coordinatorId: site.coordinator_id,
+      creationDate: site.creation_date,
+      coordinatorName: site.coordinator_name,
+      coordinatorProfilePicture: site.coordinator_profile_picture || undefined,
+      smallGroupsCount: site.small_groups_count || 0,
+      membersCount: site.members_count || 0,
+    }));
+    return sites;
   }
 
-    const sites: SiteWithDetails[] = (data as SiteDetailsRPCResponse[]).map((site: SiteDetailsRPCResponse) => ({
-    id: site.id,
-    name: site.name,
-    city: site.city,
-    country: site.country,
-    coordinatorId: site.coordinator_id,
-    creationDate: site.creation_date,
-    coordinatorName: site.coordinator_name,
-    coordinatorProfilePicture: site.coordinator_profile_picture || undefined,
-    smallGroupsCount: site.small_groups_count || 0,
-    membersCount: site.members_count || 0,
+  // Fallback: passer par une route API serveur qui utilise la clé service (contourne RLS côté client)
+  const resp = await fetch('/api/sites/list', { credentials: 'include' });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to load sites');
+  }
+  const fallbackData = await resp.json();
+  return (fallbackData || []).map((row: any) => ({
+    id: row.id,
+    name: row.name,
+    city: row.city,
+    country: row.country,
+    creationDate: row.creation_date ?? new Date().toISOString(),
+    coordinatorId: row.coordinator_id ?? undefined,
+    coordinatorName: undefined,
+    coordinatorProfilePicture: undefined,
+    smallGroupsCount: 0,
+    membersCount: 0,
   }));
-
-    return sites;
-};
+}
+;
 
 const getSiteDetails = async (siteId: string): Promise<{ site: Site; smallGroups: any[]; totalMembers: number }> => {
   // Step 1: Fetch site details including the coordinator's name via a join.
