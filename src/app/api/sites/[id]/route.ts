@@ -1,14 +1,14 @@
 // src/app/api/sites/[id]/route.ts
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { type NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { ROLES } from '@/lib/constants';
 
 export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: Request,
+  { params }: any,
 ) {
-  const { id: siteId } = params;
+  const { id: siteId } = params as { id: string };
   const supabase = await createSupabaseServerClient();
 
   // 1. Check for authenticated user and role
