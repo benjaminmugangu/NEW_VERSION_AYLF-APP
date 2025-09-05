@@ -1,5 +1,5 @@
 // src/services/siteService.ts
-import { createClient as createBrowserClient } from '@/utils/supabase/client';
+import { createSupabaseBrowserClient as createBrowserClient } from '@/lib/supabase/client';
 // Select appropriate Supabase client for environment
 const getSupabase = async () => {
   if (typeof window === 'undefined') {

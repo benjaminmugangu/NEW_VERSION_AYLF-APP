@@ -1,9 +1,9 @@
-import { createClient } from '@/utils/supabase/client';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import type { SmallGroup, SmallGroupFormData, User, DbSmallGroup } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
 import { mapDbSmallGroupToSmallGroup, mapSmallGroupFormDataToDb } from '@/lib/mappers';
 
-const supabase = createClient();
+const supabase = createSupabaseBrowserClient();
 
 export const smallGroupService = {
   getSmallGroupsBySite: async (siteId: string): Promise<SmallGroup[]> => {
