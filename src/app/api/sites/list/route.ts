@@ -33,7 +33,8 @@ export async function GET() {
   }
 
   try {
-    let query = admin.from('sites').select('id,name,city,country,creation_date,coordinator_id');
+    // created_at existe en base; on le renvoie sous l'alias creation_date pour compat frontend
+    let query = admin.from('sites').select('id,name,city,country,creation_date:created_at,coordinator_id');
 
     const role = String(profile.role || '').toLowerCase();
     if (role === ROLES.SITE_COORDINATOR || role === ROLES.SMALL_GROUP_LEADER) {

@@ -64,10 +64,27 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
   // Fetch sites when component mounts or user changes
   useEffect(() => {
     const fetchSites = async () => {
-      if (!currentUser) return;
       try {
-        const sites = await siteService.getSitesWithDetails(currentUser);
-        setAvailableSites(sites);
+        if (currentUser) {
+          const sites = await siteService.getSitesWithDetails(currentUser);
+          setAvailableSites(sites);
+        } else {
+          // Fallback: appeler directement l'API serveur (clé service) même si le contexte user n'est pas encore prêt
+          const resp = await fetch('/api/sites/list', { credentials: 'include' });
+          if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            throw new Error(err.error || 'Failed to load sites');
+          }
+          const data = await resp.json();
+          setAvailableSites((data || []).map((row: any) => ({
+            id: row.id,
+            name: row.name,
+            city: row.city,
+            country: row.country,
+            creationDate: row.creation_date ?? new Date().toISOString(),
+            coordinatorId: row.coordinator_id ?? undefined,
+          })) as any);
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         toast({ title: 'Error loading sites', description: message, variant: 'destructive' });
@@ -149,7 +166,7 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
                 name="role"
                 control={control}
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <SelectTrigger id="role" className="mt-1">
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
@@ -169,7 +186,7 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
                 name="status"
                 control={control}
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} defaultValue={field.value || "active"}>
+                  <Select onValueChange={field.onChange} value={field.value || "active"}>
                     <SelectTrigger id="status" className="mt-1">
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
@@ -191,7 +208,7 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
                 name="siteId"
                 control={control}
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} defaultValue={field.value ?? undefined} disabled={availableSites.length === 0}>
+                  <Select onValueChange={field.onChange} value={field.value ?? undefined} disabled={availableSites.length === 0}>
                     <SelectTrigger id="siteId" className="mt-1">
                       <SelectValue placeholder="Select a site" />
                     </SelectTrigger>
@@ -212,7 +229,7 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
                 name="smallGroupId"
                 control={control}
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} defaultValue={field.value ?? undefined} disabled={!watchedSiteId || availableSmallGroups.length === 0}>
+                  <Select onValueChange={field.onChange} value={field.value ?? undefined} disabled={!watchedSiteId || availableSmallGroups.length === 0}>
                     <SelectTrigger id="smallGroupId" className="mt-1">
                       <SelectValue placeholder={watchedSiteId ? "Select small group" : "Select a site first"} />
                     </SelectTrigger>
