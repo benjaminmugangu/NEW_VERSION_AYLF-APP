@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -10,16 +12,16 @@ import type { FundAllocationFormData, Site, SmallGroup } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { allocationService } from '@/services/allocations.service';
-import siteService from '@/services/siteService';
-import { smallGroupService } from '@/services/smallGroupService';
+import * as allocationService from '@/services/allocations.service';
+import * as siteService from '@/services/siteService';
+import * as smallGroupService from '@/services/smallGroupService';
 
 export default function NewAllocationPage() {
   const { currentUser: user } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [recipients, setRecipients] = useState<Array<{id: string, name: string}>>([]);
+  const [recipients, setRecipients] = useState<Array<{ id: string, name: string }>>([]);
   const [isDataLoading, setIsDataLoading] = useState(true);
 
   const recipientType = user?.role === ROLES.NATIONAL_COORDINATOR ? 'site' : 'smallGroup';

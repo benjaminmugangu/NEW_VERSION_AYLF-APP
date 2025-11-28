@@ -6,7 +6,7 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { SiteForm } from '../components/SiteForm';
 import type { SiteFormData } from '@/lib/types';
 import { PlusCircle } from 'lucide-react';
-import siteService from '@/services/siteService';
+import * as siteService from '@/services/siteService';
 
 export default function NewSiteClient() {
   const router = useRouter();

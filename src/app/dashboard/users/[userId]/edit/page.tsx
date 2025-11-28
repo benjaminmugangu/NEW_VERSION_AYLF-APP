@@ -1,48 +1,65 @@
-// src/app/dashboard/users/[userId]/edit/page.tsx
-import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { notFound, redirect } from 'next/navigation';
-import { profileService } from '@/services/profileService';
-import { EditUserClient } from './components/EditUserClient';
-import { ROLES } from '@/lib/constants';
-import { UnauthorizedMessage } from '@/components/shared/UnauthorizedMessage';
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { redirect, notFound } from "next/navigation";
+import { prisma } from "@/lib/prisma";
+import EditUserForm from "../../components/EditUserForm";
+
+export const dynamic = 'force-dynamic';
 
 interface EditUserPageProps {
-  params: {
+  params: Promise<{
     userId: string;
-  };
+  }>;
 }
 
-export default async function EditUserPage(
-  props: { params: Promise<{ userId: string }> }
-) {
-  const { params } = props;
+export default async function EditUserPage({ params }: EditUserPageProps) {
   const { userId } = await params;
-  const supabase = await createSupabaseServerClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
+  const { isAuthenticated, getUser } = getKindeServerSession();
+  const isAuth = await isAuthenticated();
 
-  if (error || !user) {
-    redirect('/login');
+  if (!isAuth) {
+    redirect("/login");
   }
 
-  const [currentUserProfile, userToEdit] = await Promise.all([
-    profileService.getProfile(user.id),
-    profileService.getProfile(userId)
-  ]);
-
-  if (!currentUserProfile) {
-    console.error("Failed to retrieve current user's profile.");
-    redirect('/login');
-  }
-  
-  // Security check: Only national coordinators can edit users.
-  if (currentUserProfile.role !== ROLES.NATIONAL_COORDINATOR) {
-    return <UnauthorizedMessage />;
+  const user = await getUser();
+  if (!user) {
+    redirect("/login");
   }
 
-  if (!userToEdit) {
+  const currentUser = await prisma.profile.findUnique({
+    where: { id: user.id },
+  });
+
+  if (!currentUser || currentUser.role !== 'national_coordinator') {
+    redirect("/dashboard");
+  }
+
+  const targetUser = await prisma.profile.findUnique({
+    where: { id: userId },
+  });
+
+  if (!targetUser) {
     notFound();
   }
 
-  return <EditUserClient userToEdit={userToEdit} />;
-}
+  const sites = await prisma.site.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+  });
 
+  const smallGroups = await prisma.smallGroup.findMany({
+    select: { id: true, name: true, siteId: true },
+    orderBy: { name: 'asc' },
+  });
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Edit User</h1>
+        <p className="text-muted-foreground">
+          Update user role and assignments.
+        </p>
+      </div>
+      <EditUserForm user={targetUser} sites={sites} smallGroups={smallGroups} />
+    </div>
+  );
+}

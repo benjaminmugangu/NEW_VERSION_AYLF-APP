@@ -4,7 +4,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
-import { memberService } from '@/services/memberService';
+import * as memberService from '@/services/memberService';
 import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
 import { ROLES } from '@/lib/constants';
 import type { Member, MemberWithDetails } from '@/lib/types';
@@ -43,7 +43,7 @@ export const useMembers = () => {
     typeFilter,
   } as const;
 
-  const { 
+  const {
     data: members,
     isLoading,
     error,
@@ -58,7 +58,7 @@ export const useMembers = () => {
     enabled: !!currentUser, // Only run query if user is logged in
   });
 
-  const { mutateAsync: deleteMember, isPending: isDeleting } = useMutation<void, Error, string> ({
+  const { mutateAsync: deleteMember, isPending: isDeleting } = useMutation<void, Error, string>({
     mutationFn: (memberId: string) => memberService.deleteMember(memberId),
     onSuccess: () => {
       // On success, invalidate the members query to refetch the list

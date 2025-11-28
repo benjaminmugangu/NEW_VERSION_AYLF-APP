@@ -1,63 +1,37 @@
-// src/app/dashboard/users/page.tsx
-import React from 'react';
-import Link from 'next/link';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { redirect } from 'next/navigation';
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
+import UsersClient from "./components/UsersClient";
 
-import { PageHeader } from '@/components/shared/PageHeader';
-import { UsersList } from './components/UsersList';
-import { Button } from '@/components/ui/button';
-import { UsersRound, UserPlus } from 'lucide-react';
-import { ROLES } from '@/lib/constants';
-import type { User } from '@/lib/types';
-import { createClient } from '@supabase/supabase-js';
-import { profileService } from '@/services/profileService';
+export const dynamic = 'force-dynamic';
 
-async function getUsers(): Promise<User[]> {
-  // Note: We create a temporary admin client here to fetch all users.
-  // This should be handled with care and proper security policies.
-  const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+export default async function UsersPage() {
+  const { isAuthenticated, getUser } = getKindeServerSession();
+  const isAuth = await isAuthenticated();
 
-  const { data, error } = await supabaseAdmin.rpc('get_users_with_details');
-
-  if (error) {
-    console.error('Error fetching users:', error);
-    return [];
-  }
-  return data as User[];
-}
-
-export default async function ManageUsersPage() {
-  const supabase = await createSupabaseServerClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-
-  if (error || !user) {
-    redirect('/login');
+  if (!isAuth) {
+    redirect("/login");
   }
 
-  const profile = await profileService.getProfile(user.id);
-  if (!profile || profile.role !== ROLES.NATIONAL_COORDINATOR) {
-    redirect('/dashboard');
+  const user = await getUser();
+  if (!user) {
+    redirect("/login");
+  }
+  const currentUser = await prisma.profile.findUnique({
+    where: { id: user.id },
+  });
+
+  if (!currentUser || currentUser.role !== 'national_coordinator') {
+    redirect("/dashboard");
   }
 
-  const users = await getUsers();
+  const users = await prisma.profile.findMany({
+    include: {
+      site: { select: { name: true } },
+      smallGroup: { select: { name: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
 
-  return (
-    <>
-      <PageHeader 
-        title="User Management"
-        description="Administer user accounts, roles, and permissions."
-        icon={UsersRound}
-        actions={
-          <Link href="/dashboard/users/new">
-            <Button><UserPlus className="mr-2 h-4 w-4" /> Add New User</Button>
-          </Link>
-        }
-      />
-      <UsersList initialUsers={users} />
-    </>
-  );
+  return <UsersClient initialUsers={users} />;
 }

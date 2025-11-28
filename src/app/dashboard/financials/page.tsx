@@ -14,7 +14,7 @@ import { DateRangeFilter, type DateFilterValue } from '@/components/shared/DateR
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { DashboardSkeleton } from '@/components/shared/skeletons/DashboardSkeleton';
-import { transactionService } from '@/services/transactionService';
+import * as transactionService from '@/services/transactionService';
 import { useToast } from '@/hooks/use-toast';
 import { ROLES } from '@/lib/constants';
 import { RecentTransactionsTable } from '@/components/financials/RecentTransactionsTable';
@@ -36,7 +36,7 @@ const FinancialsPage = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader 
+      <PageHeader
         title="Financials Dashboard"
         description="An overview of your entity's financial health."
         actions={<DateRangeFilter onFilterChange={setDateFilter} />}

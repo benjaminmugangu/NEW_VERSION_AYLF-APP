@@ -3,10 +3,10 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/components/ui/use-toast';
-import { smallGroupService } from '@/services/smallGroupService';
-import siteService from '@/services/siteService';
-import { profileService } from '@/services/profileService';
-import { memberService } from '@/services/memberService';
+import * as smallGroupService from '@/services/smallGroupService';
+import * as siteService from '@/services/siteService';
+import * as profileService from '@/services/profileService';
+import * as memberService from '@/services/memberService';
 import { SmallGroup, Site, User, MemberWithDetails, SmallGroupFormData } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -82,7 +82,7 @@ export const useSmallGroupDetails = (groupId: string | null) => {
 
   const { mutateAsync: updateSmallGroup, isPending: isUpdating } = useMutation({
     ...mutationOptions,
-        mutationFn: (data: SmallGroupFormData) => {
+    mutationFn: (data: SmallGroupFormData) => {
       if (!groupId) throw new Error('Group ID is missing');
       return smallGroupService.updateSmallGroup(groupId, data);
     },

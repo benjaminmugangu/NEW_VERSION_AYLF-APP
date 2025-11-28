@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { SmallGroupForm } from '@/app/dashboard/sites/components/SmallGroupForm';
 import type { SmallGroupFormData, SmallGroup } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
-import { smallGroupService } from '@/services/smallGroupService';
+import * as smallGroupService from '@/services/smallGroupService';
 import { useToast } from '@/hooks/use-toast';
 import { Users as UsersIcon, PlusCircle } from 'lucide-react';
 

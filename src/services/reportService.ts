@@ -1,19 +1,9 @@
-// src/services/reportService.ts
-import { createClient as createBrowserClient } from '@/utils/supabase/client';
-import type { Report, ReportWithDetails, ReportFormData, User, DbReport } from '@/lib/types';
-import { mapDbReportToReport, mapReportFormDataToDb } from '@/lib/mappers';
-import { ROLES } from '@/lib/constants';
+'use server';
 
-// Select appropriate Supabase client for environment
-const getSupabase = async () => {
-  if (typeof window === 'undefined') {
-    const { createSupabaseServerClient } = await import('@/lib/supabase/server');
-    return await createSupabaseServerClient();
-  }
-  return createBrowserClient();
-};
+import { prisma } from '@/lib/prisma';
+import { Report, ReportWithDetails, ReportFormData, User, UserRole } from '@/lib/types';
 
-// Normalize Supabase JSON fields to expected shapes
+// Helper to normalize images from JSON
 const normalizeImages = (images: any): Array<{ name: string; url: string }> | undefined => {
   if (!images) return undefined;
   if (!Array.isArray(images)) return undefined;
@@ -33,7 +23,7 @@ const normalizeAttachments = (attachments: any): string[] | undefined => {
   return attachments.filter((x: any) => typeof x === 'string') as string[];
 };
 
-// Server-safe date filter (avoid importing client component)
+// Server-safe date filter
 type ServerDateFilter = {
   rangeKey?: string;
   from?: Date;
@@ -98,152 +88,194 @@ export interface ReportFilters {
   statusFilter?: Record<Report['status'], boolean>;
 }
 
-const reportService = {
-  async getReportById(id: string): Promise<Report> {
-    const supabase = await getSupabase();
-    const { data, error } = await supabase
-      .from('reports')
-      .select('*, profiles:submitted_by(name), sites:site_id(name), small_groups:small_group_id(name), activity_types:activity_type_id(name)')
-      .eq('id', id)
-      .single();
+// Helper to map Prisma result to Report type
+const mapPrismaReportToModel = (report: any): ReportWithDetails => {
+  return {
+    id: report.id,
+    title: report.title,
+    activityDate: report.activityDate ? report.activityDate.toISOString() : '',
+    submissionDate: report.submissionDate ? report.submissionDate.toISOString() : '',
+    level: report.level,
+    status: report.status,
+    content: report.content,
+    thematic: report.thematic,
+    speaker: report.speaker || undefined,
+    moderator: report.moderator || undefined,
+    girlsCount: report.girlsCount || undefined,
+    boysCount: report.boysCount || undefined,
+    participantsCountReported: report.participantsCountReported || undefined,
+    totalExpenses: report.totalExpenses || undefined,
+    currency: report.currency || undefined,
+    financialSummary: report.financialSummary || undefined,
+    reviewNotes: report.reviewNotes || undefined,
+    images: normalizeImages(report.images),
+    attachments: normalizeAttachments(report.attachments),
+    submittedBy: report.submittedById,
+    siteId: report.siteId || undefined,
+    smallGroupId: report.smallGroupId || undefined,
+    activityTypeId: report.activityTypeId,
 
-    if (error) {
-      console.error('[ReportService] Error in getReportById:', error.message);
-      throw new Error('Report not found.');
-    }
-
-    const dbReportWithRelations = {
-      ...data,
-      submittedByName: (data as any).profiles?.name,
-      siteName: (data as any).sites?.name,
-      smallGroupName: (data as any).small_groups?.name,
-      activityTypeName: (data as any).activity_types?.name,
-    };
-
-    return mapDbReportToReport(dbReportWithRelations as any);
-  },
-
-  async createReport(reportData: ReportFormData): Promise<Report> {
-    const reportForDb = mapReportFormDataToDb(reportData);
-
-    const supabase = await getSupabase();
-    const { data, error } = await supabase
-      .from('reports')
-      .insert(reportForDb)
-      .select('*, profiles:submitted_by(name), sites:site_id(name), small_groups:small_group_id(name), activity_types:activity_type_id(name)')
-      .single();
-
-    if (error) {
-      console.error('[ReportService] Error in createReport:', error.message);
-      throw new Error(error.message);
-    }
-
-    const dbReportWithRelations = {
-      ...data,
-      submittedByName: (data as any).profiles?.name,
-      siteName: (data as any).sites?.name,
-      smallGroupName: (data as any).small_groups?.name,
-      activityTypeName: (data as any).activity_types?.name,
-    };
-
-    return mapDbReportToReport(dbReportWithRelations as any);
-  },
-
-  async updateReport(reportId: string, updatedData: Partial<ReportFormData>): Promise<ReportWithDetails> {
-    const reportForDb = mapReportFormDataToDb(updatedData);
-
-    const supabase = await getSupabase();
-    const { data, error } = await supabase
-      .from('reports')
-      .update(reportForDb)
-      .eq('id', reportId)
-      .select('*, profiles:submitted_by(name), sites:site_id(name), small_groups:small_group_id(name), activity_types:activity_type_id(name)')
-      .single();
-
-    if (error) {
-      console.error('[ReportService] Error in updateReport:', error.message);
-      throw new Error(error.message);
-    }
-
-    const dbReportWithRelations = {
-      ...data,
-      submittedByName: (data as any).profiles?.name,
-      siteName: (data as any).sites?.name,
-      smallGroupName: (data as any).small_groups?.name,
-      activityTypeName: (data as any).activity_types?.name,
-    };
-
-    return mapDbReportToReport(dbReportWithRelations as any) as ReportWithDetails;
-  },
-
-  async deleteReport(id: string): Promise<void> {
-    const supabase = await getSupabase();
-    const { error } = await supabase.from('reports').delete().eq('id', id);
-    if (error) {
-      console.error('[ReportService] Error in deleteReport:', error.message);
-      throw new Error(error.message);
-    }
-  },
-
-  async getFilteredReports(filters: ReportFilters): Promise<ReportWithDetails[]> {
-    const { user, entity, searchTerm, dateFilter, statusFilter } = filters;
-    if (!user && !entity) {
-      throw new Error('User or entity is required to fetch reports.');
-    }
-
-    const supabase = await getSupabase();
-    let query = supabase.from('reports').select('*, profiles:submitted_by(name), sites:site_id(name), small_groups:small_group_id(name), activity_types:activity_type_id(name)');
-
-    if (entity) {
-      query = entity.type === 'site' ? query.eq('site_id', entity.id) : query.eq('small_group_id', entity.id);
-    } else if (user) {
-      switch (user.role) {
-        case ROLES.SITE_COORDINATOR:
-          if (user.siteId) query = query.eq('site_id', user.siteId);
-          else return [];
-          break;
-        case ROLES.SMALL_GROUP_LEADER:
-          if (user.smallGroupId) query = query.eq('small_group_id', user.smallGroupId);
-          else return [];
-          break;
-      }
-    }
-
-    if (dateFilter) {
-      const { startDate, endDate } = computeDateRange(dateFilter);
-      if (startDate) query = query.gte('activity_date', startDate.toISOString());
-      if (endDate) query = query.lte('activity_date', endDate.toISOString());
-    }
-
-    if (searchTerm) {
-      query = query.ilike('title', `%${searchTerm}%`);
-    }
-
-    if (statusFilter) {
-      const activeStatuses = Object.entries(statusFilter).filter(([, isActive]) => isActive).map(([status]) => status);
-      if (activeStatuses.length > 0) query = query.in('status', activeStatuses);
-    }
-
-    const { data, error } = await query.order('submission_date', { ascending: false });
-
-    if (error) {
-      console.error('[ReportService] Error in getFilteredReports:', error.message);
-      throw new Error(error.message);
-    }
-
-    return data.map(dbReport => {
-      const dbReportWithRelations = {
-        ...dbReport,
-        images: normalizeImages((dbReport as any).images),
-        attachments: normalizeAttachments((dbReport as any).attachments),
-        submittedByName: (dbReport as any).profiles?.name,
-        siteName: (dbReport as any).sites?.name,
-        smallGroupName: (dbReport as any).small_groups?.name,
-        activityTypeName: (dbReport as any).activity_types?.name,
-      } as any;
-      return mapDbReportToReport(dbReportWithRelations as any);
-    }) as ReportWithDetails[];
-  },
+    // Enriched fields
+    submittedByName: report.submittedBy?.name,
+    siteName: report.site?.name,
+    smallGroupName: report.smallGroup?.name,
+  };
 };
 
-export { reportService };
+export async function getReportById(id: string): Promise<Report> {
+  const report = await prisma.report.findUnique({
+    where: { id },
+    include: {
+      submittedBy: true,
+      site: true,
+      smallGroup: true,
+      activityType: true,
+    }
+  });
+
+  if (!report) {
+    throw new Error('Report not found.');
+  }
+
+  return mapPrismaReportToModel(report);
+}
+
+export async function createReport(reportData: ReportFormData): Promise<Report> {
+  const report = await prisma.report.create({
+    data: {
+      title: reportData.title,
+      activityDate: reportData.activityDate,
+      level: reportData.level,
+      status: reportData.status,
+      content: reportData.content,
+      thematic: reportData.thematic,
+      speaker: reportData.speaker,
+      moderator: reportData.moderator,
+      girlsCount: reportData.girlsCount,
+      boysCount: reportData.boysCount,
+      participantsCountReported: reportData.participantsCountReported,
+      totalExpenses: reportData.totalExpenses,
+      currency: reportData.currency,
+      financialSummary: reportData.financialSummary,
+      images: reportData.images as any, // Prisma handles JSON
+      attachments: reportData.attachments as any,
+      submittedById: reportData.submittedBy,
+      siteId: reportData.siteId,
+      smallGroupId: reportData.smallGroupId,
+      activityTypeId: reportData.activityTypeId,
+      activityId: reportData.activityId,
+    },
+    include: {
+      submittedBy: true,
+      site: true,
+      smallGroup: true,
+      activityType: true,
+    }
+  });
+
+  return mapPrismaReportToModel(report);
+}
+
+export async function updateReport(reportId: string, updatedData: Partial<ReportFormData>): Promise<ReportWithDetails> {
+  const updateData: any = {};
+  // Map fields
+  if (updatedData.title !== undefined) updateData.title = updatedData.title;
+  if (updatedData.activityDate !== undefined) updateData.activityDate = updatedData.activityDate;
+  if (updatedData.level !== undefined) updateData.level = updatedData.level;
+  if (updatedData.status !== undefined) updateData.status = updatedData.status;
+  if (updatedData.content !== undefined) updateData.content = updatedData.content;
+  if (updatedData.thematic !== undefined) updateData.thematic = updatedData.thematic;
+  if (updatedData.speaker !== undefined) updateData.speaker = updatedData.speaker;
+  if (updatedData.moderator !== undefined) updateData.moderator = updatedData.moderator;
+  if (updatedData.girlsCount !== undefined) updateData.girlsCount = updatedData.girlsCount;
+  if (updatedData.boysCount !== undefined) updateData.boysCount = updatedData.boysCount;
+  if (updatedData.participantsCountReported !== undefined) updateData.participantsCountReported = updatedData.participantsCountReported;
+  if (updatedData.totalExpenses !== undefined) updateData.totalExpenses = updatedData.totalExpenses;
+  if (updatedData.currency !== undefined) updateData.currency = updatedData.currency;
+  if (updatedData.financialSummary !== undefined) updateData.financialSummary = updatedData.financialSummary;
+  if (updatedData.images !== undefined) updateData.images = updatedData.images;
+  if (updatedData.attachments !== undefined) updateData.attachments = updatedData.attachments;
+  if (updatedData.siteId !== undefined) updateData.siteId = updatedData.siteId;
+  if (updatedData.smallGroupId !== undefined) updateData.smallGroupId = updatedData.smallGroupId;
+  if (updatedData.activityTypeId !== undefined) updateData.activityTypeId = updatedData.activityTypeId;
+  if (updatedData.activityId !== undefined) updateData.activityId = updatedData.activityId;
+
+  const report = await prisma.report.update({
+    where: { id: reportId },
+    data: updateData,
+    include: {
+      submittedBy: true,
+      site: true,
+      smallGroup: true,
+      activityType: true,
+    }
+  });
+
+  return mapPrismaReportToModel(report);
+}
+
+export async function deleteReport(id: string): Promise<void> {
+  await prisma.report.delete({
+    where: { id },
+  });
+}
+
+export async function getFilteredReports(filters: ReportFilters): Promise<ReportWithDetails[]> {
+  const { user, entity, searchTerm, dateFilter, statusFilter } = filters;
+  if (!user && !entity) {
+    throw new Error('User or entity is required to fetch reports.');
+  }
+
+  const where: any = {};
+
+  if (entity) {
+    if (entity.type === 'site') where.siteId = entity.id;
+    else where.smallGroupId = entity.id;
+  } else if (user) {
+    switch (user.role) {
+      case 'site_coordinator':
+        if (user.siteId) where.siteId = user.siteId;
+        else return [];
+        break;
+      case 'small_group_leader':
+        if (user.smallGroupId) where.smallGroupId = user.smallGroupId;
+        else return [];
+        break;
+    }
+  }
+
+  if (dateFilter) {
+    const { startDate, endDate } = computeDateRange(dateFilter);
+    if (startDate || endDate) {
+      where.activityDate = {};
+      if (startDate) where.activityDate.gte = startDate;
+      if (endDate) where.activityDate.lte = endDate;
+    }
+  }
+
+  if (searchTerm) {
+    where.title = { contains: searchTerm, mode: 'insensitive' };
+  }
+
+  if (statusFilter) {
+    const activeStatuses = Object.entries(statusFilter)
+      .filter(([, isActive]) => isActive)
+      .map(([status]) => status);
+    if (activeStatuses.length > 0) {
+      where.status = { in: activeStatuses };
+    }
+  }
+
+  const reports = await prisma.report.findMany({
+    where,
+    include: {
+      submittedBy: true,
+      site: true,
+      smallGroup: true,
+      activityType: true,
+    },
+    orderBy: { submissionDate: 'desc' }
+  });
+
+  return reports.map(mapPrismaReportToModel);
+}

@@ -1,221 +1,205 @@
-// src/services/profileService.ts
-import { createSupabaseBrowserClient as createBrowserClient } from '@/lib/supabase/client';
-import { DbUser, User } from '@/lib/types';
+'use server';
 
-const getSupabase = async () => {
-  if (typeof window === 'undefined') {
-    const { createSupabaseServerClient } = await import('@/lib/supabase/server');
-    return await createSupabaseServerClient();
+import { prisma } from '@/lib/prisma';
+import { User, UserRole } from '@/lib/types';
+
+/**
+ * Retrieves a user's profile by their ID, including enriched data.
+ */
+export async function getProfile(userId: string): Promise<User> {
+  const data = await prisma.profile.findUnique({
+    where: { id: userId },
+    include: {
+      site: true,
+      smallGroup: true,
+    },
+  });
+
+  if (!data) throw new Error('Profile not found.');
+
+  return {
+    id: data.id,
+    name: data.name || '',
+    email: data.email || '',
+    role: data.role as UserRole,
+    status: data.status as any,
+    siteId: data.siteId || undefined,
+    smallGroupId: data.smallGroupId || undefined,
+    mandateStartDate: data.mandateStartDate ? data.mandateStartDate.toISOString() : undefined,
+    mandateEndDate: data.mandateEndDate ? data.mandateEndDate.toISOString() : undefined,
+    createdAt: data.createdAt ? new Date(data.createdAt).toISOString() : undefined,
+    siteName: data.site?.name || undefined,
+    smallGroupName: data.smallGroup?.name || undefined,
+  };
+}
+
+/**
+ * Updates a user's profile.
+ */
+export async function updateProfile(userId: string, updates: Partial<User>): Promise<User> {
+  if ('role' in updates) {
+    console.warn(`[ProfileService] Attempted to change role for user ${userId}. This is not allowed.`);
+    delete updates.role;
   }
-  return createBrowserClient();
-};
 
-const profileService = {
-  /**
-   * Retrieves a user's profile by their ID, including enriched data.
-   */
-  async getProfile(userId: string): Promise<User> {
-    const supabase = await getSupabase();
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, name, email, role, status, site_id, small_group_id, mandate_start_date, mandate_end_date, created_at')
-      .eq('id', userId)
-      .single();
+  // Map User type (frontend) to Prisma input
+  const dbUpdates: any = {};
+  if (updates.name !== undefined) dbUpdates.name = updates.name;
+  if (updates.email !== undefined) dbUpdates.email = updates.email;
+  if (updates.role !== undefined) dbUpdates.role = updates.role;
+  if (updates.status !== undefined) dbUpdates.status = updates.status;
+  if (updates.siteId !== undefined) dbUpdates.siteId = updates.siteId;
+  if (updates.smallGroupId !== undefined) dbUpdates.smallGroupId = updates.smallGroupId;
+  if (updates.mandateStartDate !== undefined) dbUpdates.mandateStartDate = updates.mandateStartDate;
+  if (updates.mandateEndDate !== undefined) dbUpdates.mandateEndDate = updates.mandateEndDate;
 
-    if (error) {
-      console.error('[ProfileService] Error in getProfile:', error.message);
-      throw new Error(error.message);
+  const data = await prisma.profile.update({
+    where: { id: userId },
+    data: dbUpdates,
+    include: {
+      site: true,
+      smallGroup: true,
+    },
+  });
+
+  return {
+    id: data.id,
+    name: data.name || '',
+    email: data.email || '',
+    role: data.role as UserRole,
+    status: data.status as any,
+    siteId: data.siteId || undefined,
+    smallGroupId: data.smallGroupId || undefined,
+    mandateStartDate: data.mandateStartDate ? data.mandateStartDate.toISOString() : undefined,
+    mandateEndDate: data.mandateEndDate ? data.mandateEndDate.toISOString() : undefined,
+    createdAt: data.createdAt ? new Date(data.createdAt).toISOString() : undefined,
+    siteName: data.site?.name || undefined,
+    smallGroupName: data.smallGroup?.name || undefined,
+  };
+}
+
+/**
+ * Retrieves all users with their assignment details.
+ */
+export async function getUsers(): Promise<User[]> {
+  const users = await prisma.profile.findMany({
+    include: {
+      site: true,
+      smallGroup: true,
+    },
+    orderBy: {
+      name: 'asc',
+    },
+  });
+
+  return users.map(u => ({
+    id: u.id,
+    name: u.name || '',
+    email: u.email || '',
+    role: u.role as UserRole,
+    status: u.status as any,
+    siteId: u.siteId || undefined,
+    smallGroupId: u.smallGroupId || undefined,
+    mandateStartDate: u.mandateStartDate ? u.mandateStartDate.toISOString() : undefined,
+    mandateEndDate: u.mandateEndDate ? u.mandateEndDate.toISOString() : undefined,
+    createdAt: u.createdAt ? new Date(u.createdAt).toISOString() : undefined,
+    siteName: u.site?.name || undefined,
+    smallGroupName: u.smallGroup?.name || undefined,
+  }));
+}
+
+/**
+ * Retrieves users eligible for leadership roles.
+ */
+export async function getEligiblePersonnel(siteId: string, smallGroupId?: string): Promise<User[]> {
+  const whereClause: any = {
+    status: { not: 'inactive' },
+    OR: [
+      { role: 'national_coordinator' },
+      { role: 'site_coordinator', siteId: siteId },
+    ]
+  };
+
+  if (smallGroupId) {
+    whereClause.OR.push({
+      role: 'small_group_leader',
+      OR: [
+        { smallGroupId: null },
+        { smallGroupId: smallGroupId }
+      ]
+    });
+  } else {
+    whereClause.OR.push({
+      role: 'small_group_leader',
+      smallGroupId: null
+    });
+  }
+
+  const users = await prisma.profile.findMany({
+    where: whereClause,
+    include: {
+      site: true,
+      smallGroup: true,
     }
-    if (!data) throw new Error('Profile not found.');
+  });
 
-    // Direct mapping without using mapDbUserToUser to avoid recursion
-    return {
-      id: data.id,
-      name: data.name || '',
-      email: data.email || '',
-      role: data.role as any,
-      status: data.status as any,
-      siteId: data.site_id || undefined,
-      smallGroupId: data.small_group_id || undefined,
-      mandateStartDate: data.mandate_start_date || undefined,
-      mandateEndDate: data.mandate_end_date || undefined,
-      createdAt: data.created_at || undefined,
-    };
-  },
+  return users.map(u => ({
+    id: u.id,
+    name: u.name || '',
+    email: u.email || '',
+    role: u.role as UserRole,
+    status: u.status as any,
+    siteId: u.siteId || undefined,
+    smallGroupId: u.smallGroupId || undefined,
+    mandateStartDate: u.mandateStartDate ? u.mandateStartDate.toISOString() : undefined,
+    mandateEndDate: u.mandateEndDate ? u.mandateEndDate.toISOString() : undefined,
+    createdAt: u.createdAt ? new Date(u.createdAt).toISOString() : undefined,
+    siteName: u.site?.name || undefined,
+    smallGroupName: u.smallGroup?.name || undefined,
+  }));
+}
 
-  /**
-   * Updates a user's profile.
-   */
-  async updateProfile(userId: string, updates: Partial<User>): Promise<User> {
-    if ('role' in updates) {
-      console.warn(`[ProfileService] Attempted to change role for user ${userId}. This is not allowed.`);
-      delete updates.role;
+/**
+ * Permanently deletes a user.
+ */
+export async function deleteUser(userId: string): Promise<void> {
+  // Note: This only deletes the Prisma profile. 
+  // Kinde user deletion requires Kinde Management API.
+  await prisma.profile.delete({
+    where: { id: userId },
+  });
+}
+
+/**
+ * Retrieves multiple user profiles by their IDs.
+ */
+export async function getUsersByIds(userIds: string[]): Promise<User[]> {
+  if (!userIds || userIds.length === 0) return [];
+
+  const users = await prisma.profile.findMany({
+    where: {
+      id: { in: userIds },
+    },
+    include: {
+      site: true,
+      smallGroup: true,
     }
+  });
 
-    // Local mapper to avoid importing from lib/mappers (prevents circular deps)
-    const mapUserToDb = (u: Partial<User>): Partial<DbUser> => {
-      const dbUpdates: Partial<DbUser> = {};
-      if (u.name !== undefined) dbUpdates.name = u.name;
-      if (u.email !== undefined) dbUpdates.email = u.email;
-      if (u.role !== undefined) dbUpdates.role = u.role as any;
-      if (u.status !== undefined) dbUpdates.status = u.status as any;
-      if (u.siteId !== undefined) dbUpdates.site_id = u.siteId;
-      if (u.smallGroupId !== undefined) dbUpdates.small_group_id = u.smallGroupId;
-      if (u.mandateStartDate !== undefined) dbUpdates.mandate_start_date = u.mandateStartDate as any;
-      if (u.mandateEndDate !== undefined) dbUpdates.mandate_end_date = u.mandateEndDate as any;
-      return dbUpdates;
-    };
+  return users.map(u => ({
+    id: u.id,
+    name: u.name || '',
+    email: u.email || '',
+    role: u.role as UserRole,
+    status: u.status as any,
+    siteId: u.siteId || undefined,
+    smallGroupId: u.smallGroupId || undefined,
+    mandateStartDate: u.mandateStartDate ? u.mandateStartDate.toISOString() : undefined,
+    mandateEndDate: u.mandateEndDate ? u.mandateEndDate.toISOString() : undefined,
+    createdAt: u.createdAt ? new Date(u.createdAt).toISOString() : undefined,
+    siteName: u.site?.name || undefined,
+    smallGroupName: u.smallGroup?.name || undefined,
+  }));
+}
 
-    const dbUpdates = mapUserToDb(updates);
 
-    const supabase = await getSupabase();
-    const { data, error } = await supabase
-      .from('profiles')
-      .update(dbUpdates)
-      .eq('id', userId)
-      .select('*, site:site_id(name), small_group:small_group_id(name)')
-      .single();
-
-    if (error) {
-      console.error('[ProfileService] Error in updateProfile:', error.message);
-      throw new Error(error.message);
-    }
-
-    const dbUserWithRelations = {
-      ...data,
-      siteName: data.site?.name || undefined,
-      smallGroupName: data.small_group?.name || undefined,
-    };
-
-    // Direct mapping to avoid recursion
-    return {
-      id: data.id,
-      name: data.name || '',
-      email: data.email || '',
-      role: data.role as any,
-      status: data.status as any,
-      siteId: data.site_id || undefined,
-      smallGroupId: data.small_group_id || undefined,
-      mandateStartDate: data.mandate_start_date || undefined,
-      mandateEndDate: data.mandate_end_date || undefined,
-      createdAt: data.created_at || undefined,
-      siteName: dbUserWithRelations.siteName,
-      smallGroupName: dbUserWithRelations.smallGroupName,
-    };
-  },
-
-  /**
-   * Retrieves all users with their assignment details.
-   */
-  async getUsers(): Promise<User[]> {
-    const supabase = await getSupabase();
-    const { data, error } = await supabase.rpc('get_users_with_details');
-
-    if (error) {
-      console.error('[ProfileService] Error in getUsers:', error.message);
-      throw new Error(error.message);
-    }
-
-    // Direct mapping to avoid recursion
-    return (data as any[]).map(u => ({
-      id: u.id,
-      name: u.name || '',
-      email: u.email || '',
-      role: u.role as any,
-      status: u.status as any,
-      siteId: u.site_id || undefined,
-      smallGroupId: u.small_group_id || undefined,
-      mandateStartDate: u.mandate_start_date || undefined,
-      mandateEndDate: u.mandate_end_date || undefined,
-      createdAt: u.created_at || undefined,
-      siteName: u.site_name || undefined,
-      smallGroupName: u.small_group_name || undefined,
-    })) ?? [];
-  },
-
-  /**
-   * Retrieves users eligible for leadership roles.
-   */
-  async getEligiblePersonnel(siteId: string, smallGroupId?: string): Promise<User[]> {
-    const supabase = await getSupabase();
-    let query = supabase.from('profiles').select('*').neq('status', 'inactive');
-
-    const leaderFilterParts = ['small_group_id.is.null'];
-    if (smallGroupId) {
-      leaderFilterParts.push(`small_group_id.eq.${smallGroupId}`);
-    }
-
-    const roleFilter = [
-      `role.eq.NATIONAL_COORDINATOR`,
-      `and(role.eq.SITE_COORDINATOR,site_id.eq.${siteId})`,
-      `and(role.eq.SMALL_GROUP_LEADER,or(${leaderFilterParts.join(',')}))`
-    ].join(',');
-
-    query = query.or(roleFilter);
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error('[ProfileService] Error in getEligiblePersonnel:', error.message);
-      throw new Error(error.message);
-    }
-
-    // Direct mapping to avoid recursion
-    return (data as any[]).map(u => ({
-      id: u.id,
-      name: u.name || '',
-      email: u.email || '',
-      role: u.role as any,
-      status: u.status as any,
-      siteId: u.site_id || undefined,
-      smallGroupId: u.small_group_id || undefined,
-      mandateStartDate: u.mandate_start_date || undefined,
-      mandateEndDate: u.mandate_end_date || undefined,
-      createdAt: u.created_at || undefined,
-    })) ?? [];
-  },
-
-  /**
-   * Permanently deletes a user.
-   */
-  async deleteUser(userId: string): Promise<void> {
-    const supabase = await getSupabase();
-    const { error } = await supabase.rpc('delete_user_permanently', { user_id: userId });
-
-    if (error) {
-      console.error('[ProfileService] Error in deleteUser:', error.message);
-      throw new Error(error.message);
-    }
-  },
-
-  /**
-   * Retrieves multiple user profiles by their IDs.
-   */
-  async getUsersByIds(userIds: string[]): Promise<User[]> {
-    if (!userIds || userIds.length === 0) return [];
-
-    const supabase = await getSupabase();
-    const { data, error } = await supabase.from('profiles').select('*').in('id', userIds);
-
-    if (error) {
-      console.error('[ProfileService] Error in getUsersByIds:', error.message);
-      throw new Error(error.message);
-    }
-
-    // Direct mapping to avoid recursion
-    return (data as any[]).map(u => ({
-      id: u.id,
-      name: u.name || '',
-      email: u.email || '',
-      role: u.role as any,
-      status: u.status as any,
-      siteId: u.site_id || undefined,
-      smallGroupId: u.small_group_id || undefined,
-      mandateStartDate: u.mandate_start_date || undefined,
-      mandateEndDate: u.mandate_end_date || undefined,
-      createdAt: u.created_at || undefined,
-    })) ?? [];
-  },
-};
-
-export { profileService };

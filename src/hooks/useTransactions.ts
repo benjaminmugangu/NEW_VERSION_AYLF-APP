@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { transactionService, type TransactionFilters } from '@/services/transactionService';
+import * as transactionService from '@/services/transactionService';
+import type { TransactionFilters } from '@/services/transactionService';
 import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
 import type { FinancialTransaction, TransactionFormData, User } from '@/lib/types';
 
@@ -22,13 +23,13 @@ export const useTransactions = ({ user, initialData, initialFilters = {} }: UseT
   const [dateFilter, setDateFilter] = useState<DateFilterValue>(initialFilters.dateFilter || defaultDateFilter);
   const [typeFilter, setTypeFilter] = useState<'income' | 'expense' | 'all'>(initialFilters.typeFilter || 'all');
 
-      const filters: TransactionFilters = { user: user!, searchTerm, dateFilter, typeFilter: typeFilter === 'all' ? undefined : typeFilter, entity: initialFilters.entity };
+  const filters: TransactionFilters = { user: user!, searchTerm, dateFilter, typeFilter: typeFilter === 'all' ? undefined : typeFilter, entity: initialFilters.entity };
 
-  const { 
+  const {
     data: transactions,
     isLoading,
     error,
-    refetch 
+    refetch
   } = useQuery({
     queryKey: ['transactions', user?.id, filters],
     queryFn: () => transactionService.getFilteredTransactions(filters),
@@ -54,7 +55,7 @@ export const useTransactions = ({ user, initialData, initialFilters = {} }: UseT
 
   const { mutateAsync: updateTransaction, isPending: isUpdating } = useMutation({
     ...mutationOptions,
-    mutationFn: ({ id, formData }: { id: string, formData: Partial<TransactionFormData> }) => 
+    mutationFn: ({ id, formData }: { id: string, formData: Partial<TransactionFormData> }) =>
       transactionService.updateTransaction(id, formData),
   });
 

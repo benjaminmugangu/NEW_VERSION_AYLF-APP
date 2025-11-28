@@ -1,188 +1,263 @@
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
-import type { SmallGroup, SmallGroupFormData, User, DbSmallGroup } from '@/lib/types';
+'use server';
+
+import { prisma } from '@/lib/prisma';
+import { SmallGroup, SmallGroupFormData, User, UserRole } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
-import { mapDbSmallGroupToSmallGroup, mapSmallGroupFormDataToDb } from '@/lib/mappers';
 
-const supabase = createSupabaseBrowserClient();
+// Helper to map Prisma result to SmallGroup type
+const mapPrismaGroupToSmallGroup = (group: any): SmallGroup => {
+  return {
+    id: group.id,
+    name: group.name,
+    siteId: group.siteId,
+    leaderId: group.leaderId || undefined,
+    logisticsAssistantId: group.logisticsAssistantId || undefined,
+    financeAssistantId: group.financeAssistantId || undefined,
+    meetingDay: group.meetingDay || undefined,
+    meetingTime: group.meetingTime || undefined,
+    meetingLocation: group.meetingLocation || undefined,
+    // createdAt: group.createdAt ? group.createdAt.toISOString() : undefined, // Removed as it's not in SmallGroup type
+    // Enriched fields
+    siteName: group.site?.name,
+    leaderName: group.leader?.name,
+    memberCount: group._count?.registeredMembers || 0,
 
-export const smallGroupService = {
-  getSmallGroupsBySite: async (siteId: string): Promise<SmallGroup[]> => {
-    const { data, error } = await supabase
-      .from('small_groups')
-      .select('*, leader:leader_id(name), members:small_group_members(count)')
-      .eq('site_id', siteId)
-      .order('name', { ascending: true });
+  };
+};
 
-    if (!error && data && Array.isArray(data) && data.length > 0) {
-      return data.map(mapDbSmallGroupToSmallGroup);
+export async function getSmallGroupsBySite(siteId: string): Promise<SmallGroup[]> {
+  const groups = await prisma.smallGroup.findMany({
+    where: { siteId },
+    include: {
+      leader: true,
+      _count: {
+        select: { registeredMembers: true }
+      }
+    },
+    orderBy: { name: 'asc' }
+  });
+
+  return groups.map(mapPrismaGroupToSmallGroup);
+}
+
+export async function getFilteredSmallGroups({ user, search, siteId }: { user: User; search?: string, siteId?: string }): Promise<SmallGroup[]> {
+  if (!user) {
+    throw new Error('User not authenticated.');
+  }
+
+  const whereClause: any = {};
+
+  switch (user.role) {
+    case 'national_coordinator':
+      if (siteId) whereClause.siteId = siteId;
+      break;
+    case 'site_coordinator':
+      if (!user.siteId) return [];
+      whereClause.siteId = user.siteId;
+      break;
+    case 'small_group_leader':
+      if (!user.smallGroupId) return [];
+      whereClause.id = user.smallGroupId;
+      break;
+    default:
+      return [];
+  }
+
+  if (search) {
+    whereClause.name = { contains: search, mode: 'insensitive' };
+  }
+
+  const groups = await prisma.smallGroup.findMany({
+    where: whereClause,
+    include: {
+      site: true,
+      leader: true,
+      _count: {
+        select: { registeredMembers: true }
+      }
     }
+  });
 
-    // Fallback: route API serveur (utilise la clé service) pour contourner RLS client
-    const resp = await fetch(`/api/small-groups/by-site?id=${encodeURIComponent(siteId)}`, { credentials: 'include' });
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({}));
-      throw new Error(err.error || (error?.message ?? 'Failed to load small groups'));
+  return groups.map(mapPrismaGroupToSmallGroup);
+}
+
+export async function getSmallGroupById(groupId: string): Promise<SmallGroup> {
+  const group = await prisma.smallGroup.findUnique({
+    where: { id: groupId },
+    include: {
+      leader: true,
+      _count: {
+        select: { registeredMembers: true }
+      }
     }
-    const fallback = await resp.json();
-    return (fallback || []).map((row: any) => mapDbSmallGroupToSmallGroup(row));
-  },
+  });
 
-  getFilteredSmallGroups: async ({ user, search, siteId }: { user: User; search?: string, siteId?: string }): Promise<SmallGroup[]> => {
-    if (!user) {
-      throw new Error('User not authenticated.');
+  if (!group) {
+    throw new Error('Small group not found.');
+  }
+
+  return mapPrismaGroupToSmallGroup(group);
+}
+
+export async function getSmallGroupDetails(groupId: string): Promise<SmallGroup> {
+  const group = await prisma.smallGroup.findUnique({
+    where: { id: groupId },
+    include: {
+      site: true,
+      leader: true,
+      logisticsAssistant: true,
+      financeAssistant: true,
+      _count: {
+        select: { registeredMembers: true }
+      }
     }
+  });
 
-    let query = supabase.from('small_groups').select('*, sites(name), leader:leader_id(name)');
+  if (!group) {
+    throw new Error('Small group not found.');
+  }
 
-    switch (user.role) {
-      case ROLES.NATIONAL_COORDINATOR:
-        if (siteId) query = query.eq('site_id', siteId);
-        break;
-      case ROLES.SITE_COORDINATOR:
-        if (!user.siteId) return [];
-        query = query.eq('site_id', user.siteId);
-        break;
-      case ROLES.SMALL_GROUP_LEADER:
-        if (!user.smallGroupId) return [];
-        query = query.eq('id', user.smallGroupId);
-        break;
-      default:
-        return [];
-    }
+  return mapPrismaGroupToSmallGroup(group);
+}
 
-    if (search) {
-      query = query.ilike('name', `%${search}%`);
-    }
+export async function createSmallGroup(siteId: string, formData: SmallGroupFormData): Promise<SmallGroup> {
+  return await prisma.$transaction(async (tx) => {
+    // 1. Create the group
+    const newGroup = await tx.smallGroup.create({
+      data: {
+        name: formData.name,
+        siteId: siteId,
+        meetingDay: formData.meetingDay,
+        meetingTime: formData.meetingTime,
+        meetingLocation: formData.meetingLocation,
+        leaderId: formData.leaderId,
+        logisticsAssistantId: formData.logisticsAssistantId,
+        financeAssistantId: formData.financeAssistantId,
+      }
+    });
 
-    const { data, error } = await query;
-
-    if (error) {
-      throw new Error(`Failed to fetch small groups: ${error.message}`);
-    }
-
-    return data.map(mapDbSmallGroupToSmallGroup);
-  },
-
-  getSmallGroupById: async (groupId: string): Promise<SmallGroup> => {
-    const { data, error } = await supabase.from('small_groups').select('*').eq('id', groupId).single();
-
-    if (error || !data) {
-      throw new Error('Small group not found.');
-    }
-
-    return mapDbSmallGroupToSmallGroup(data);
-  },
-
-  getSmallGroupDetails: async (groupId: string): Promise<SmallGroup> => {
-    const { data, error } = await supabase
-      .from('small_groups')
-      .select('*, sites(id, name), leader:leader_id(id, name, email), logisticsAssistant:logistics_assistant_id(id, name, email), financeAssistant:finance_assistant_id(id, name, email), small_group_members(count)')
-      .eq('id', groupId)
-      .single();
-
-    if (error || !data) {
-      throw new Error('Small group not found.');
-    }
-
-    return mapDbSmallGroupToSmallGroup(data);
-  },
-
-  createSmallGroup: async (siteId: string, formData: SmallGroupFormData): Promise<SmallGroup> => {
-    // Construire un objet d'insertion avec 'name' requis pour satisfaire le typage Supabase
-    const dbData = {
-      name: formData.name,
-      ...mapSmallGroupFormDataToDb(formData),
-      site_id: siteId,
-    } as { site_id: string; name: string } & Partial<DbSmallGroup>;
-
-    const { data: newGroup, error: createError } = await supabase
-      .from('small_groups')
-      .insert(dbData)
-      .select()
-      .single();
-
-    if (createError) {
-      throw new Error(`Failed to create small group: ${createError.message}`);
-    }
-
+    // 2. Update profiles for assigned users
     const assignments = [
-      { userId: formData.leaderId, role: ROLES.SMALL_GROUP_LEADER },
+      { userId: formData.leaderId, role: 'small_group_leader' },
       { userId: formData.logisticsAssistantId, role: null },
       { userId: formData.financeAssistantId, role: null },
     ];
 
     for (const { userId, role } of assignments) {
       if (userId) {
-        const updatePayload: { small_group_id: string; site_id: string; role?: string } = {
-          small_group_id: newGroup.id,
-          site_id: siteId,
+        const updateData: any = {
+          smallGroupId: newGroup.id,
+          siteId: siteId,
         };
-        if (role) updatePayload.role = role;
+        if (role) updateData.role = role;
 
-        const { error: profileError } = await supabase.from('profiles').update(updatePayload).eq('id', userId);
-        if (profileError) {
-          throw new Error(`Failed to assign user ${userId} to new group ${newGroup.id}: ${profileError.message}`);
-        }
+        await tx.profile.update({
+          where: { id: userId },
+          data: updateData
+        });
       }
     }
 
-    return mapDbSmallGroupToSmallGroup(newGroup);
-  },
+    // Return the created group with details
+    const createdGroup = await tx.smallGroup.findUnique({
+      where: { id: newGroup.id },
+      include: {
+        site: true,
+        leader: true,
+        logisticsAssistant: true,
+        financeAssistant: true,
+        _count: { select: { registeredMembers: true } }
+      }
+    });
 
-  updateSmallGroup: async (groupId: string, formData: SmallGroupFormData): Promise<SmallGroup> => {
-    const { data: oldGroup, error: fetchError } = await supabase.from('small_groups').select('*').eq('id', groupId).single();
-    if (fetchError || !oldGroup) {
-      throw new Error('Small group not found.');
-    }
+    if (!createdGroup) throw new Error('Failed to retrieve created group');
+    return mapPrismaGroupToSmallGroup(createdGroup);
+  });
+}
 
-    const dbData = mapSmallGroupFormDataToDb(formData);
-    const { data: updatedGroup, error: updateError } = await supabase
-      .from('small_groups')
-      .update(dbData)
-      .eq('id', groupId)
-      .select()
-      .single();
+export async function updateSmallGroup(groupId: string, formData: SmallGroupFormData): Promise<SmallGroup> {
+  return await prisma.$transaction(async (tx) => {
+    // 1. Fetch old group to check previous assignments
+    const oldGroup = await tx.smallGroup.findUnique({
+      where: { id: groupId }
+    });
 
-    if (updateError) {
-      throw new Error(updateError.message);
-    }
+    if (!oldGroup) throw new Error('Small group not found.');
 
+    // 2. Update the group
+    const updatedGroup = await tx.smallGroup.update({
+      where: { id: groupId },
+      data: {
+        name: formData.name,
+        meetingDay: formData.meetingDay,
+        meetingTime: formData.meetingTime,
+        meetingLocation: formData.meetingLocation,
+        leaderId: formData.leaderId,
+        logisticsAssistantId: formData.logisticsAssistantId,
+        financeAssistantId: formData.financeAssistantId,
+      }
+    });
+
+    // 3. Handle assignments (Old vs New)
     const assignments = [
-      { oldUserId: oldGroup.leader_id, newUserId: formData.leaderId, role: ROLES.SMALL_GROUP_LEADER },
-      { oldUserId: oldGroup.logistics_assistant_id, newUserId: formData.logisticsAssistantId, role: null },
-      { oldUserId: oldGroup.finance_assistant_id, newUserId: formData.financeAssistantId, role: null },
+      { oldUserId: oldGroup.leaderId, newUserId: formData.leaderId, role: 'small_group_leader' },
+      { oldUserId: oldGroup.logisticsAssistantId, newUserId: formData.logisticsAssistantId, role: null },
+      { oldUserId: oldGroup.financeAssistantId, newUserId: formData.financeAssistantId, role: null },
     ];
 
     for (const { oldUserId, newUserId, role } of assignments) {
       if (oldUserId !== newUserId) {
+        // Unassign old user
         if (oldUserId) {
-          const { error: unassignError } = await supabase.from('profiles').update({ small_group_id: null }).eq('id', oldUserId);
-          if (unassignError) throw new Error(`Failed to unassign user ${oldUserId}: ${unassignError.message}`);
+          await tx.profile.update({
+            where: { id: oldUserId },
+            data: { smallGroupId: null }
+          });
         }
+        // Assign new user
         if (newUserId) {
-          const updatePayload: { small_group_id: string; site_id: string; role?: string } = {
-            small_group_id: groupId,
-            site_id: oldGroup.site_id,
+          const updateData: any = {
+            smallGroupId: groupId,
+            siteId: oldGroup.siteId,
           };
-          if (role) updatePayload.role = role;
-          const { error: assignError } = await supabase.from('profiles').update(updatePayload).eq('id', newUserId);
-          if (assignError) throw new Error(`Failed to assign user ${newUserId}: ${assignError.message}`);
+          if (role) updateData.role = role;
+
+          await tx.profile.update({
+            where: { id: newUserId },
+            data: updateData
+          });
         }
       }
     }
 
-    return mapDbSmallGroupToSmallGroup(updatedGroup);
-  },
+    // Return updated group
+    const result = await tx.smallGroup.findUnique({
+      where: { id: groupId },
+      include: {
+        site: true,
+        leader: true,
+        logisticsAssistant: true,
+        financeAssistant: true,
+        _count: { select: { registeredMembers: true } }
+      }
+    });
 
-  deleteSmallGroup: async (groupId: string): Promise<void> => {
-    const { error: unassignError } = await supabase.from('profiles').update({ small_group_id: null }).eq('small_group_id', groupId);
-    if (unassignError) {
-      throw new Error(`Failed to unassign members: ${unassignError.message}`);
-    }
+    if (!result) throw new Error('Failed to retrieve updated group');
+    return mapPrismaGroupToSmallGroup(result);
+  });
+}
 
-    const { error: deleteError } = await supabase.from('small_groups').delete().eq('id', groupId);
-    if (deleteError) {
-      throw new Error(`Failed to delete small group: ${deleteError.message}`);
-    }
-  },
-};
+export async function deleteSmallGroup(groupId: string): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    // 1. Unassign all members (profiles)
+    await tx.profile.updateMany({
+      where: { smallGroupId: groupId },
+      data: { smallGroupId: null }
+    });
+
+    // 2. Delete the group
+    await tx.smallGroup.delete({
+      where: { id: groupId }
+    });
+  });
+}

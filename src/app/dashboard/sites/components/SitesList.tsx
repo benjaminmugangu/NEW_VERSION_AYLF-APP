@@ -50,14 +50,8 @@ export function SitesList({ initialSites, canEditSite, canDeleteSite }: SitesLis
     if (!siteToDelete) return;
     setIsDeleting(true);
     try {
-      const response = await fetch(`/api/sites/${siteToDelete.id}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete the site.');
-      }
+      const { deleteSite } = await import('@/services/siteService');
+      await deleteSite(siteToDelete.id);
 
       setSites(prevSites => prevSites.filter(s => s.id !== siteToDelete.id));
       toast({ title: 'Success', description: 'Site deleted successfully.' });
@@ -128,10 +122,10 @@ export function SitesList({ initialSites, canEditSite, canDeleteSite }: SitesLis
                             </Link>
                           )}
                           {canDeleteSite && (
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              title="Delete Site" 
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Delete Site"
                               className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
                               onClick={() => setSiteToDelete(site)}
                             >

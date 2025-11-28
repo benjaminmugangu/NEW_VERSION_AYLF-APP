@@ -1,22 +1,23 @@
 // src/app/dashboard/members/page.tsx
-import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { cookies } from 'next/headers';
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { redirect } from 'next/navigation';
-import { profileService } from '@/services/profileService';
-import { memberService } from '@/services/memberService';
+import * as profileService from '@/services/profileService';
+import * as memberService from '@/services/memberService';
 import { ROLES } from '@/lib/constants';
 import { MembersClient } from './components/MembersClient';
 import type { User, MemberWithDetails } from '@/lib/types';
 
-export default async function MembersPage() {
-  const supabase = await createSupabaseServerClient();
-  const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+export const dynamic = 'force-dynamic';
 
-  if (authError || !authUser) {
-    redirect('/login');
+export default async function MembersPage() {
+  const { getUser } = getKindeServerSession();
+  const kindeUser = await getUser();
+
+  if (!kindeUser || !kindeUser.id) {
+    redirect('/api/auth/login');
   }
 
-  const user: User = await profileService.getProfile(authUser.id);
+  const user: User = await profileService.getProfile(kindeUser.id);
 
   if (!user || ![ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER].includes(user.role)) {
     // Or redirect to an unauthorized page

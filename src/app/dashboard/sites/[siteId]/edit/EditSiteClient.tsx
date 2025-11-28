@@ -6,7 +6,7 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { SiteForm } from '../../components/SiteForm';
 import type { Site, SiteFormData } from '@/lib/types';
 import { Edit } from 'lucide-react';
-import siteService from '@/services/siteService';
+import * as siteService from '@/services/siteService';
 
 interface EditSiteClientProps {
   site: Site;

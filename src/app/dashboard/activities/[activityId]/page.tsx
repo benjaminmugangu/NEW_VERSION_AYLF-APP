@@ -1,26 +1,24 @@
 // src/app/dashboard/activities/[activityId]/page.tsx
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { redirect } from 'next/navigation';
 import { ROLES } from '@/lib/constants';
-import { activityService } from '@/services/activityService';
+import * as activityService from '@/services/activityService';
 import ActivityDetailClient from './ActivityDetailClient';
 
+export const dynamic = 'force-dynamic';
+
 export default async function ActivityDetailPage(props: any) {
-  const supabase = await createSupabaseServerClient();
   const params = await props.params;
   const { activityId } = params;
+  const { getUser } = getKindeServerSession();
+  const user = await getUser();
 
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return redirect('/login');
+  if (!user || !user.id) {
+    return redirect('/api/auth/login');
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role, site_id, small_group_id')
-    .eq('id', user.id)
-    .single();
+  const profileService = await import('@/services/profileService');
+  const profile = await profileService.getProfile(user.id);
 
   if (!profile) {
     return redirect('/dashboard?error=unauthorized');
@@ -34,9 +32,9 @@ export default async function ActivityDetailPage(props: any) {
     if (profile.role === ROLES.NATIONAL_COORDINATOR) {
       canView = true;
     } else if (profile.role === ROLES.SITE_COORDINATOR) {
-      canView = activity.siteId === profile.site_id;
+      canView = activity.siteId === profile.siteId;
     } else if (profile.role === ROLES.SMALL_GROUP_LEADER) {
-      canView = activity.smallGroupId === profile.small_group_id;
+      canView = activity.smallGroupId === profile.smallGroupId;
     }
 
     if (!canView) {

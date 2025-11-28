@@ -1,7 +1,7 @@
 // src/app/dashboard/users/[userId]/page.tsx
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { notFound, redirect } from 'next/navigation';
-import { profileService } from '@/services/profileService';
+// import { profileService } from '@/services/profileService'; // Removed unused static import
 import { UserDetailClient } from './components/UserDetailClient';
 import { ROLES } from '@/lib/constants';
 import { UnauthorizedMessage } from '../../../../components/shared/UnauthorizedMessage';
@@ -12,18 +12,21 @@ interface UserDetailPageProps {
   };
 }
 
+export const dynamic = 'force-dynamic';
+
 export default async function UserDetailPage(
   props: { params: Promise<{ userId: string }> }
 ) {
   const { params } = props;
   const { userId } = await params;
-  const supabase = await createSupabaseServerClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
+  const { getUser } = getKindeServerSession();
+  const user = await getUser();
 
-  if (error || !user) {
-    redirect('/login');
+  if (!user || !user.id) {
+    redirect('/api/auth/login');
   }
 
+  const profileService = await import('@/services/profileService');
   const [currentUserProfile, targetUser] = await Promise.all([
     profileService.getProfile(user.id),
     profileService.getProfile(userId)
@@ -31,9 +34,9 @@ export default async function UserDetailPage(
 
   if (!currentUserProfile) {
     console.error("Failed to retrieve current user's profile.");
-    redirect('/login');
+    redirect('/dashboard');
   }
-  
+
   const { role: currentUserRole } = currentUserProfile;
 
   // Security check: Only national and site coordinators can view user details.

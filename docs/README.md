@@ -30,3 +30,15 @@ Bienvenue dans la documentation technique du projet AYLF Group Tracker. Ce docum
 
 7.  **[Limitations et Améliorations Futures](./07-limitations-et-ameliorations.md)**
     -   Consultez une liste transparente des faiblesses actuelles et une feuille de route pour les développements futurs.
+
+    ---
+
+## Architecture de Communication
+
+L'application utilise une architecture de communication robuste et sécurisée :
+
+1.  **API REST et RPC de Supabase :** Pour les opérations de base et les requêtes complexes, en s'appuyant sur la Row-Level Security (RLS) pour la sécurité.
+2.  **API Routes Internes (Next.js) :** Pour les actions privilégiées nécessitant des clés d'administration (ex: inviter un utilisateur).
+3.  **Stratégie de Chargement Hybride :** Pour garantir la fiabilité de l'affichage, les données critiques sont d'abord demandées via le client. En cas d'échec, une route API interne côté serveur prend le relais en utilisant des droits élevés pour récupérer les données, assurant ainsi que l'interface ne soit jamais bloquée.
+
+Pour plus de détails, consultez la [documentation sur la communication et l'API](./docs/03-communication-api.md).

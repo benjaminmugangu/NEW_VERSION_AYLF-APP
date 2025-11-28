@@ -8,13 +8,13 @@ import { UserPlus } from "lucide-react";
 import type { MemberFormData } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import { memberService } from "@/services/memberService";
+import * as memberService from "@/services/memberService";
 
 export default function NewMemberPage() {
   const { toast } = useToast();
   const router = useRouter();
 
-    const handleCreateMember = async (data: MemberFormData) => {
+  const handleCreateMember = async (data: MemberFormData) => {
     try {
       await memberService.createMember(data);
 
@@ -35,7 +35,7 @@ export default function NewMemberPage() {
 
   return (
     <>
-      <PageHeader 
+      <PageHeader
         title="Add New Member"
         description="Register a new participant in the AYLF network."
         icon={UserPlus}

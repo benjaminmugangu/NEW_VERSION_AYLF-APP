@@ -12,7 +12,7 @@ import {
 import { MoreHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import { FundAllocation } from '@/lib/types';
-import { allocationService } from "@/services/allocations.service";
+import * as allocationService from "@/services/allocations.service";
 import { useToast } from '@/hooks/use-toast';
 
 interface DataTableRowActionsProps {

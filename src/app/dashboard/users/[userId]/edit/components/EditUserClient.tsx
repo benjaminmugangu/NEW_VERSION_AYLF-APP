@@ -8,7 +8,7 @@ import { UserForm } from "../../../components/UserForm";
 import type { UserFormData } from '@/schemas/user';
 import type { User } from "@/lib/types";
 import { Edit } from "lucide-react";
-import { profileService } from '@/services/profileService';
+import * as profileService from '@/services/profileService';
 import { useToast } from "@/hooks/use-toast";
 
 interface EditUserClientProps {
@@ -47,7 +47,7 @@ export function EditUserClient({ userToEdit }: EditUserClientProps) {
       if (Object.keys(profileUpdates).length > 0) {
         await profileService.updateProfile(userId, profileUpdates as Partial<User>);
       }
-      
+
       toast({
         title: "Success",
         description: "User has been updated successfully.",
@@ -57,8 +57,8 @@ export function EditUserClient({ userToEdit }: EditUserClientProps) {
       router.refresh();
     } catch (error) {
       setIsUpdatingUser(false);
-       console.error("Failed to update user:", error);
-       toast({
+      console.error("Failed to update user:", error);
+      toast({
         title: "Error",
         description: (error as Error).message || "An unexpected error occurred.",
         variant: "destructive",

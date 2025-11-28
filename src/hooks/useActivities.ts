@@ -5,7 +5,8 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/components/ui/use-toast';
 
-import { activityService, type ActivityFormData } from '@/services/activityService';
+import * as activityService from '@/services/activityService';
+import type { ActivityFormData } from '@/schemas/activity';
 import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
 import type { Activity, ActivityStatus, User } from '@/lib/types';
 import { ROLES } from '@/lib/constants';

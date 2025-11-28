@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { mapDbActivityToActivity, mapActivityFormDataToDb } from './mappers';
 import type { DbActivity, Activity } from './types';
-import type { ActivityFormData } from '@/services/activityService';
+import type { ActivityFormData } from '@/schemas/activity';
 
 describe('Activity Mappers', () => {
   it('mapDbActivityToActivity should convert snake_case to camelCase', () => {

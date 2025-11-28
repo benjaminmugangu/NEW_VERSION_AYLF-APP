@@ -1,17 +1,19 @@
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { redirect } from 'next/navigation';
-import { profileService } from '@/services/profileService';
-import { reportService } from '@/services/reportService';
+import * as profileService from '@/services/profileService';
+import * as reportService from '@/services/reportService';
 import FinancialReportsClient from './components/FinancialReportsClient';
 import { User } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
 
-const FinancialReportsPage = async () => {
-  const supabase = await createSupabaseServerClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
+export const dynamic = 'force-dynamic';
 
-  if (error || !user) {
-    redirect('/login');
+const FinancialReportsPage = async () => {
+  const { getUser } = getKindeServerSession();
+  const user = await getUser();
+
+  if (!user || !user.id) {
+    redirect('/api/auth/login');
   }
 
   const profile: User = await profileService.getProfile(user.id);

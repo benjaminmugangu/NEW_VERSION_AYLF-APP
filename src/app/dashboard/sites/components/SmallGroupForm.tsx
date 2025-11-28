@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { SmallGroup, User, SmallGroupFormData } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { profileService } from "@/services/profileService";
+import * as profileService from "@/services/profileService";
 import { ROLES } from "@/lib/constants";
 import { Users, Save } from "lucide-react";
 
@@ -33,7 +33,7 @@ const ALLOWED_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'S
 
 interface SmallGroupFormProps {
   smallGroup?: SmallGroup; // For editing
-  siteId: string; 
+  siteId: string;
   onSubmitForm: (data: SmallGroupFormData) => Promise<void>;
   isSaving?: boolean;
 }
@@ -44,8 +44,8 @@ export function SmallGroupForm({ smallGroup, siteId, onSubmitForm, isSaving }: S
   const [isLoadingPersonnel, setIsLoadingPersonnel] = useState(true);
   const { control, handleSubmit, register, formState: { errors, isSubmitting }, reset } = useForm<SmallGroupFormData>({
     resolver: zodResolver(smallGroupFormSchema),
-    defaultValues: smallGroup ? { 
-      name: smallGroup.name, 
+    defaultValues: smallGroup ? {
+      name: smallGroup.name,
       leaderId: smallGroup.leaderId || undefined,
       logisticsAssistantId: smallGroup.logisticsAssistantId || undefined,
       financeAssistantId: smallGroup.financeAssistantId || undefined,
@@ -71,7 +71,7 @@ export function SmallGroupForm({ smallGroup, siteId, onSubmitForm, isSaving }: S
         setAvailablePersonnel(users);
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        toast({ title: "Error", description: `Failed to load personnel: ${message}` , variant: 'destructive' });
+        toast({ title: "Error", description: `Failed to load personnel: ${message}`, variant: 'destructive' });
       } finally {
         setIsLoadingPersonnel(false);
       }
@@ -83,7 +83,7 @@ export function SmallGroupForm({ smallGroup, siteId, onSubmitForm, isSaving }: S
   const processSubmit = async (data: SmallGroupFormData) => {
     await onSubmitForm(data);
     if (!smallGroup) {
-      reset(); 
+      reset();
     }
   };
 
@@ -131,8 +131,8 @@ export function SmallGroupForm({ smallGroup, siteId, onSubmitForm, isSaving }: S
               name="leaderId"
               control={control}
               render={({ field }) => (
-                <Select 
-                  onValueChange={(value) => field.onChange(value === UNASSIGNED_VALUE ? undefined : value)} 
+                <Select
+                  onValueChange={(value) => field.onChange(value === UNASSIGNED_VALUE ? undefined : value)}
                   value={field.value || UNASSIGNED_VALUE}
                 >
                   <SelectTrigger id="leaderId" className="mt-1" disabled={isLoadingPersonnel}>
@@ -158,8 +158,8 @@ export function SmallGroupForm({ smallGroup, siteId, onSubmitForm, isSaving }: S
               name="logisticsAssistantId"
               control={control}
               render={({ field }) => (
-                <Select 
-                  onValueChange={(value) => field.onChange(value === UNASSIGNED_VALUE ? undefined : value)} 
+                <Select
+                  onValueChange={(value) => field.onChange(value === UNASSIGNED_VALUE ? undefined : value)}
                   value={field.value || UNASSIGNED_VALUE}
                 >
                   <SelectTrigger id="logisticsAssistantId" className="mt-1" disabled={isLoadingPersonnel}>
@@ -185,8 +185,8 @@ export function SmallGroupForm({ smallGroup, siteId, onSubmitForm, isSaving }: S
               name="financeAssistantId"
               control={control}
               render={({ field }) => (
-                <Select 
-                  onValueChange={(value) => field.onChange(value === UNASSIGNED_VALUE ? undefined : value)} 
+                <Select
+                  onValueChange={(value) => field.onChange(value === UNASSIGNED_VALUE ? undefined : value)}
                   value={field.value || UNASSIGNED_VALUE}
                 >
                   <SelectTrigger id="financeAssistantId" className="mt-1" disabled={isLoadingPersonnel}>
@@ -207,7 +207,7 @@ export function SmallGroupForm({ smallGroup, siteId, onSubmitForm, isSaving }: S
           </div>
 
           <p className="text-xs text-muted-foreground mt-1">
-              Leaders and assistants can be chosen from unassigned Small Group Leaders, the Site Coordinator of this site, or National Coordinators. Ensure gender considerations for assistants if applicable.
+            Leaders and assistants can be chosen from unassigned Small Group Leaders, the Site Coordinator of this site, or National Coordinators. Ensure gender considerations for assistants if applicable.
           </p>
 
           <Button type="submit" className="w-full py-3 text-base" disabled={isSubmitting || isSaving}>

@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { transactionService } from '@/services/transactionService';
+import * as transactionService from '@/services/transactionService';
 
 import { useRouter } from 'next/navigation';
 
@@ -17,9 +17,9 @@ import type { TransactionFormData } from '@/lib/types';
 const NewTransactionPage = () => {
   const { currentUser } = useAuth();
   const router = useRouter();
-  
+
   const [isSaving, setIsSaving] = useState(false);
-  
+
 
   const handleSave = async (data: TransactionFormData) => {
     if (!currentUser) {

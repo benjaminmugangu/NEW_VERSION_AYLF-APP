@@ -22,8 +22,10 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Building, Users, Eye, Edit, Trash2, PlusCircle } from 'lucide-react';
 import type { Site, SmallGroup } from '@/lib/types';
-import siteService from '@/services/siteService';
-import { smallGroupService } from '@/services/smallGroupService';
+import * as siteService from '@/services/siteService';
+import * as smallGroupService from '@/services/smallGroupService';
+import { Breadcrumbs } from '@/components/ui-custom/Breadcrumbs';
+import { EmptyState } from '@/components/ui-custom/EmptyState';
 
 interface SiteDetailClientProps {
   site: Site;
@@ -35,7 +37,7 @@ interface SiteDetailClientProps {
 export default function SiteDetailClient({ site, initialSmallGroups, totalMembers, canManageSite }: SiteDetailClientProps) {
   const router = useRouter();
   const { toast } = useToast();
-  
+
   const [smallGroups, setSmallGroups] = useState(initialSmallGroups);
   const [groupToDelete, setGroupToDelete] = useState<SmallGroup | null>(null);
   const [isDeletingSite, setIsDeletingSite] = useState(false);
@@ -71,17 +73,25 @@ export default function SiteDetailClient({ site, initialSmallGroups, totalMember
 
   return (
     <>
-      <PageHeader 
-        title={site.name} 
+      <Breadcrumbs
+        items={[
+          { label: 'Sites', href: '/dashboard/sites' },
+          { label: site.name },
+        ]}
+        className="mb-6"
+      />
+
+      <PageHeader
+        title={site.name}
         description={`Detailed view of the ${site.name} site.`}
         icon={Building}
         actions={
           canManageSite && (
             <div className="flex items-center gap-2">
               <Link href={`/dashboard/sites/${site.id}/edit`}>
-                <Button variant="outline"><Edit className="mr-2 h-4 w-4"/> Edit Site</Button>
+                <Button variant="outline"><Edit className="mr-2 h-4 w-4" /> Edit Site</Button>
               </Link>
-              <Button variant="destructive" onClick={() => setIsDeletingSite(true)}><Trash2 className="mr-2 h-4 w-4"/> Delete Site</Button>
+              <Button variant="destructive" onClick={() => setIsDeletingSite(true)}><Trash2 className="mr-2 h-4 w-4" /> Delete Site</Button>
             </div>
           )
         }
@@ -127,7 +137,7 @@ export default function SiteDetailClient({ site, initialSmallGroups, totalMember
             </div>
             {canManageSite && (
               <Link href={`/dashboard/sites/${site.id}/small-groups/new`}>
-                <Button><PlusCircle className="mr-2 h-4 w-4"/> Add Small Group</Button>
+                <Button><PlusCircle className="mr-2 h-4 w-4" /> Add Small Group</Button>
               </Link>
             )}
           </div>
@@ -173,12 +183,18 @@ export default function SiteDetailClient({ site, initialSmallGroups, totalMember
               </TableBody>
             </Table>
           ) : (
-            <p className="text-muted-foreground text-center py-4">No small groups found for this site.</p>
+            <EmptyState
+              title="No Small Groups"
+              description="There are no small groups assigned to this site yet."
+              icon={Users}
+              actionLabel={canManageSite ? "Add Small Group" : undefined}
+              onAction={canManageSite ? () => router.push(`/dashboard/sites/${site.id}/small-groups/new`) : undefined}
+              className="border-none shadow-none min-h-[200px]"
+            />
           )}
         </CardContent>
       </Card>
-      <Button onClick={() => router.push('/dashboard/sites')} className="mt-6">Back to Sites List</Button>
-      
+
       <AlertDialog open={!!groupToDelete} onOpenChange={(open) => !open && setGroupToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

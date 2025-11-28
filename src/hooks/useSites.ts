@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import siteService from '@/services/siteService';
+import * as siteService from '@/services/siteService';
 import { useAuth } from '@/contexts/AuthContext';
 
 export const useSites = () => {

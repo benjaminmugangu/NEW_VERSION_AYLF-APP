@@ -1,59 +1,22 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { NextResponse, type NextRequest } from 'next/server';
+import { withAuth } from '@kinde-oss/kinde-auth-nextjs/middleware';
+import { NextRequest } from 'next/server';
 
-export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  });
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          request.cookies.set({ name, value, ...options });
-          response = NextResponse.next({ request: { headers: request.headers } });
-          response.cookies.set({ name, value, ...options });
-        },
-        remove(name: string, options: CookieOptions) {
-          request.cookies.set({ name, value: '', ...options });
-          response = NextResponse.next({ request: { headers: request.headers } });
-          response.cookies.set({ name, value: '', ...options });
-        },
-      },
-    }
-  );
-
-  const { data: { user }, error } = await supabase.auth.getUser();
-
-  // if user is not signed in and the current path is not /login, redirect the user to /login
-  if ((error || !user) && request.nextUrl.pathname !== '/login') {
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
-
-  // if user is signed in and the current path is /login, redirect the user to /dashboard
-  if (user && request.nextUrl.pathname === '/login') {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
-  }
-
-  return response;
-}
+export default withAuth(
+  async function middleware(req: NextRequest) {
+    // Optionnel : tu peux inspecter req.kindeAuth ici
+    // const { user } = req.kindeAuth || {};
+    // console.log('Kinde user in middleware:', user);
+  },
+  {
+    // Routes publiques (pas besoin d'être connecté)
+    publicPaths: ['/', '/login', '/signup', '/auth/auth-code-error'],
+    // Tu pourras retirer /login et /signup quand on les aura remplacées par Kinde
+  },
+);
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * Feel free to modify this pattern to include more paths.
-     */
-    '/((?!_next/static|_next/image|favicon.ico|.*\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // Protéger toutes les routes sauf les internals Next.js et les assets statiques
+    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
   ],
 };

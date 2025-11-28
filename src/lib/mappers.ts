@@ -5,7 +5,7 @@ import type {
   SmallGroup, DbSmallGroup, SmallGroupFormData
 } from './types';
 import type { UserFormData } from '@/schemas/user';
-import type { ActivityFormData } from '@/services/activityService';
+import type { ActivityFormData } from '@/schemas/activity';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 
 // --- User Mappers ---

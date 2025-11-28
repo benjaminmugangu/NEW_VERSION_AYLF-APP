@@ -1,9 +1,11 @@
 // src/app/dashboard/activities/page.tsx
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { redirect } from 'next/navigation';
 // Avoid using profileService here because it relies on a browser client; use server client directly.
-import { activityService } from '@/services/activityService';
+import * as activityService from '@/services/activityService';
 import { ActivitiesClient } from './components/ActivitiesClient';
+
+export const dynamic = 'force-dynamic';
 import { ROLES } from '@/lib/constants';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Activity } from 'lucide-react';
@@ -13,25 +15,22 @@ import { Button } from '@/components/ui/button';
 const ALLOWED_ROLES = [ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER];
 
 export default async function ActivitiesPage() {
-  const supabase = await createSupabaseServerClient();
+  const { getUser } = getKindeServerSession();
+  const user = await getUser();
 
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    redirect('/login');
+  if (!user || !user.id) {
+    redirect('/api/auth/login');
   }
 
-  const { data: profileData, error: profileError } = await supabase
-    .from('profiles')
-    .select('id, name, email, role, status, site_id, small_group_id, mandate_start_date, mandate_end_date, created_at')
-    .eq('id', user.id)
-    .single();
+  // Fetch profile using Prisma service
+  const profileService = await import('@/services/profileService');
+  const userProfile = await profileService.getProfile(user.id);
 
-  if (profileError || !profileData) {
+  if (!userProfile) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-8">
-        <h2 className="text-2xl font-semibold text-destructive mb-2">Failed to load profile</h2>
-        <p className="text-muted-foreground">{profileError?.message || 'Profile not found.'}</p>
+        <h2 className="text-2xl font-semibold text-destructive mb-2">Profile not found</h2>
+        <p className="text-muted-foreground">Please contact your administrator.</p>
         <Button asChild className="mt-4">
           <a href="/dashboard">Go to Dashboard</a>
         </Button>
@@ -39,20 +38,7 @@ export default async function ActivitiesPage() {
     );
   }
 
-  const userProfile = {
-    id: profileData.id,
-    name: profileData.name || '',
-    email: profileData.email || '',
-    role: profileData.role as any,
-    status: profileData.status as any,
-    siteId: profileData.site_id || undefined,
-    smallGroupId: profileData.small_group_id || undefined,
-    mandateStartDate: profileData.mandate_start_date || undefined,
-    mandateEndDate: profileData.mandate_end_date || undefined,
-    createdAt: profileData.created_at || undefined,
-  } as const;
-
-  if (!userProfile || !ALLOWED_ROLES.includes(userProfile.role)) {
+  if (!ALLOWED_ROLES.includes(userProfile.role as any)) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-8">
         <h2 className="text-2xl font-semibold text-destructive mb-2">Access Denied</h2>
@@ -67,7 +53,7 @@ export default async function ActivitiesPage() {
   const initialFilters = {
     user: userProfile,
     searchTerm: '',
-    dateFilter: { rangeKey: 'all_time', display: 'All Time' },
+    dateFilter: { rangeKey: 'all_time', display: 'All Time' } as const,
     statusFilter: { planned: true, in_progress: true, delayed: true, executed: true, canceled: true },
     levelFilter: { national: true, site: true, small_group: true },
   };

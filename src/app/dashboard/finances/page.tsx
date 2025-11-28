@@ -1,5 +1,8 @@
 "use client";
 
+// Force dynamic rendering since this uses client hooks
+export const dynamic = 'force-dynamic';
+
 import React from 'react';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useFinancials } from '@/hooks/useFinancials';
@@ -7,46 +10,27 @@ import { useTransactions } from '@/hooks/useTransactions';
 import FinancialDashboard from "./components/FinancialDashboard";
 import { RecentTransactions } from './components/RecentTransactions';
 import { DateRangeFilter, type DateFilterValue } from "@/components/shared/DateRangeFilter";
-import { Skeleton } from "@/components/ui/skeleton";
+import { PageSkeleton } from "@/components/ui-custom/PageSkeleton";
 import { Button } from "@/components/ui/button";
-
-const FinancesPageSkeleton = () => (
-  <div className="space-y-4 p-4 md:p-8 pt-6">
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <Skeleton className="h-[126px]" />
-      <Skeleton className="h-[126px]" />
-      <Skeleton className="h-[126px]" />
-      <Skeleton className="h-[126px]" />
-    </div>
-    <div className="grid gap-4 grid-cols-1 lg:grid-cols-3 mt-4">
-      <div className="lg:col-span-2">
-        <Skeleton className="h-[450px]" />
-      </div>
-      <div>
-        <Skeleton className="h-[450px]" />
-      </div>
-    </div>
-  </div>
-);
 
 export default function FinancesPage() {
   const [dateFilter, setDateFilter] = React.useState<DateFilterValue>({ rangeKey: 'this_year', display: 'This Year' });
   const { currentUser, isLoading: isLoadingUser } = useCurrentUser();
 
-  const { 
-    stats, 
-    isLoading: isLoadingFinancials, 
-    error, 
-    refetch 
+  const {
+    stats,
+    isLoading: isLoadingFinancials,
+    error,
+    refetch
   } = useFinancials(currentUser, dateFilter);
 
-  const { 
-    transactions, 
-    isLoading: isLoadingTransactions 
+  const {
+    transactions,
+    isLoading: isLoadingTransactions
   } = useTransactions({ user: currentUser });
 
   if (isLoadingUser || isLoadingFinancials || isLoadingTransactions) {
-    return <FinancesPageSkeleton />;
+    return <PageSkeleton type="card" />;
   }
 
   if (error || !stats) {
@@ -66,16 +50,16 @@ export default function FinancesPage() {
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight">Finances Dashboard</h2>
         <div className="flex items-center space-x-2">
-          <DateRangeFilter 
-            onFilterChange={setDateFilter} 
-            initialRangeKey={dateFilter.rangeKey} 
+          <DateRangeFilter
+            onFilterChange={setDateFilter}
+            initialRangeKey={dateFilter.rangeKey}
           />
         </div>
       </div>
       <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <FinancialDashboard 
-            stats={stats} 
+          <FinancialDashboard
+            stats={stats}
             currentUser={currentUser}
             linkGenerator={(type, id) => `/dashboard/finances/${type}/${id}`}
           />

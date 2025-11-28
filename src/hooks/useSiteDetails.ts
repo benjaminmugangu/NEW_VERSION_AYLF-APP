@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/components/ui/use-toast';
-import siteService from '@/services/siteService';
-import { smallGroupService } from '@/services/smallGroupService';
+import * as siteService from '@/services/siteService';
+import * as smallGroupService from '@/services/smallGroupService';
 import { useAuth } from '@/contexts/AuthContext';
 import { ROLES } from '@/lib/constants';
 import { useMemo } from 'react';
@@ -33,7 +33,7 @@ export const useSiteDetails = (siteId: string) => {
   });
 
   const updateSiteMutation = useMutation({
-        mutationFn: (data: Partial<SiteFormData>) => siteService.updateSite(siteId, data),
+    mutationFn: (data: Partial<SiteFormData>) => siteService.updateSite(siteId, data),
     onSuccess: () => {
       toast({ title: 'Success', description: 'Site updated successfully.' });
       queryClient.invalidateQueries({ queryKey: [SITE_DETAILS_QUERY_KEY, siteId] });

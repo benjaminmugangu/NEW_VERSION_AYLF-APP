@@ -1,29 +1,27 @@
 // src/services/financialsService.ts
-'use client';
 
-import { allocationService } from './allocations.service';
-import { transactionService, type TransactionFilters } from './transactionService';
-import { reportService } from './reportService';
+import * as allocationService from './allocations.service';
+import * as transactionService from './transactionService';
+import type { TransactionFilters } from './transactionService';
+import * as reportService from './reportService';
 import type {
   User,
   Financials,
-  FinancialTransaction,
-  FundAllocation,
-  Report
 } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
-import { applyDateFilter, getDateRangeFromFilterValue, type DateFilterValue } from '@/components/shared/DateRangeFilter';
+import { applyDateFilter, type DateFilterValue } from '@/lib/dateUtils';
 
 /**
  * A centralized function to fetch and calculate financial statistics based on user context and date filters.
+ * NOTE: This is a 'use client' service that aggregates data from server actions
  */
-const getFinancials = async (user: User, dateFilter: DateFilterValue): Promise<Financials> => {
+export const getFinancials = async (user: User, dateFilter: DateFilterValue): Promise<Financials> => {
   try {
     // 1. Define filters based on user role
     const transactionFilters: TransactionFilters = { user, dateFilter };
-    // Convert client DateFilterValue to server-safe filter expected by reportService (uses Date objects)
-    const { startDate, endDate } = getDateRangeFromFilterValue(dateFilter);
-    const reportFilters = { user, dateFilter: { rangeKey: dateFilter.rangeKey, from: startDate, to: endDate } } as const;
+
+    // For reports, don't pass dateFilter to avoid type mismatch - we filter client-side
+    const reportFilters = { user };
     let allocationFilters: { siteId?: string; smallGroupId?: string } = {};
 
     switch (user.role) {
@@ -43,7 +41,7 @@ const getFinancials = async (user: User, dateFilter: DateFilterValue): Promise<F
       reportService.getFilteredReports(reportFilters),
     ]);
 
-    // Filter allocations and reports by date locally
+    // Filter allocations and reports by date locally using client-side applyDateFilter
     const filteredAllocations = applyDateFilter(allocations || [], 'allocationDate', dateFilter);
     const filteredReports = applyDateFilter(reports || [], 'submissionDate', dateFilter);
 
@@ -80,9 +78,3 @@ const getFinancials = async (user: User, dateFilter: DateFilterValue): Promise<F
     throw new Error(error.message || 'An unexpected error occurred while fetching financials.');
   }
 };
-
-const financialsService = {
-  getFinancials,
-};
-
-export { financialsService };

@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { User } from '@/lib/types';
-import { financialsService } from '@/services/financialsService';
+import * as financialsService from '@/services/financialsService';
 import type { Financials } from '@/lib/types';
 import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
 
@@ -28,15 +28,15 @@ const defaultDateFilter: DateFilterValue = {
 export const useFinancials = (user: User | null, initialDateFilter?: DateFilterValue) => {
   const [dateFilter, setDateFilter] = useState<DateFilterValue>(initialDateFilter || defaultDateFilter);
 
-  const { 
+  const {
     data: financials,
     isLoading,
     isError,
     error,
-    refetch 
+    refetch
   } = useQuery<Financials, Error>({
     queryKey: ['financials', user?.id, dateFilter],
-        queryFn: () => {
+    queryFn: () => {
       if (!user) throw new Error("User not authenticated");
       return financialsService.getFinancials(user, dateFilter);
     },

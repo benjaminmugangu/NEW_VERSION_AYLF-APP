@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { mapDbSmallGroupToSmallGroup, mapSmallGroupFormDataToDb } from './mappers';
 import type { DbSmallGroup, SmallGroup, DbUser } from './types';
-import type { SmallGroupFormData } from '@/services/smallGroupService';
+import type { SmallGroupFormData } from '@/lib/types';
 
 describe('SmallGroup Mappers', () => {
   it('mapDbSmallGroupToSmallGroup should convert snake_case to camelCase and handle relations', () => {

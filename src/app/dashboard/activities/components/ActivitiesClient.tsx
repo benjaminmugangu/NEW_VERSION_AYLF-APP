@@ -6,10 +6,9 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Activity as ActivityIcon, ListFilter, Search, Eye, Edit, PlusCircle, Trash2 } from "lucide-react";
+import { Activity as ActivityIcon, ListFilter, Eye, Edit, PlusCircle, Trash2 } from "lucide-react";
 import { DateRangeFilter } from "@/components/shared/DateRangeFilter";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
@@ -17,7 +16,9 @@ import { ActivityChart } from "./ActivityChart";
 import { useActivities } from "@/hooks/useActivities";
 import { type User } from "@/lib/types";
 import { useRouter } from "next/navigation";
-import { ActivitiesPageSkeleton } from "@/components/shared/skeletons/ActivitiesPageSkeleton";
+import { PageSkeleton } from "@/components/ui-custom/PageSkeleton";
+import { DataFilter } from "@/components/ui-custom/DataFilter";
+import { EmptyState } from "@/components/ui-custom/EmptyState";
 import type { Activity } from "@/lib/types";
 
 interface ActivitiesClientProps {
@@ -26,7 +27,7 @@ interface ActivitiesClientProps {
 }
 
 export function ActivitiesClient({ initialActivities, user }: ActivitiesClientProps) {
-    const {
+  const {
     activities,
     isLoading,
     error,
@@ -90,26 +91,26 @@ export function ActivitiesClient({ initialActivities, user }: ActivitiesClientPr
   };
 
   if (isLoading) {
-    return <ActivitiesPageSkeleton />;
+    return <PageSkeleton type="table" />;
   }
 
   if (error) {
     return (
-        <Card className="mt-6">
-          <CardContent className="pt-6">
-            <p className="text-center text-red-500">{error.message}</p>
-            <div className="text-center mt-4">
-              <Button onClick={() => refetch()}>Try Again</Button>
-            </div>
-          </CardContent>
-        </Card>
+      <Card className="mt-6">
+        <CardContent className="pt-6">
+          <p className="text-center text-red-500">{error.message}</p>
+          <div className="text-center mt-4">
+            <Button onClick={() => refetch()}>Try Again</Button>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
     <>
-      <PageHeader 
-        title="Activities" 
+      <PageHeader
+        title="Activities"
         description="Track, manage, and analyze all activities across different levels."
         icon={ActivityIcon}
         actions={
@@ -122,8 +123,8 @@ export function ActivitiesClient({ initialActivities, user }: ActivitiesClientPr
         }
       />
 
-      <ActivityChart 
-        activities={activities} 
+      <ActivityChart
+        activities={activities}
         title="Activity Overview"
         description="A summary of activity statuses based on the current filters."
       />
@@ -134,17 +135,12 @@ export function ActivitiesClient({ initialActivities, user }: ActivitiesClientPr
           <CardDescription>A comprehensive list of all activities you have access to.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap items-center gap-2 mb-4">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search by activity name..."
-                className="pl-8 w-full"
-                value={filters.searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
+          <DataFilter
+            searchPlaceholder="Search by activity name..."
+            searchValue={filters.searchTerm}
+            onSearchChange={setSearchTerm}
+            className="mb-4"
+          >
             <DateRangeFilter onFilterChange={setDateFilter} initialRangeKey={filters.dateFilter.rangeKey} />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -184,7 +180,7 @@ export function ActivitiesClient({ initialActivities, user }: ActivitiesClientPr
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
+          </DataFilter>
 
           <div className="overflow-x-auto">
             <Table>
@@ -234,8 +230,15 @@ export function ActivitiesClient({ initialActivities, user }: ActivitiesClientPr
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center h-24">
-                      No activities found matching your criteria.
+                    <TableCell colSpan={6} className="h-24">
+                      <EmptyState
+                        title="No activities found"
+                        description="Try adjusting your filters or create a new activity."
+                        icon={ActivityIcon}
+                        actionLabel="Create Activity"
+                        onAction={() => router.push('/dashboard/activities/new')}
+                        className="border-none shadow-none min-h-[200px]"
+                      />
                     </TableCell>
                   </TableRow>
                 )}

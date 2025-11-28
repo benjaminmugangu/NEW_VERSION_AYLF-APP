@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { transactionService } from '@/services/transactionService';
+import * as transactionService from '@/services/transactionService';
 
 import { TransactionForm } from '@/components/financials/TransactionForm';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -33,7 +33,7 @@ const EditTransactionPage = () => {
         const transaction = await transactionService.getTransactionById(id);
         setTransaction(transaction);
 
-        
+
 
       } catch (error) {
         toast({ title: 'Error', description: 'Failed to load transaction data.', variant: 'destructive' });
@@ -78,7 +78,7 @@ const EditTransactionPage = () => {
         initialData={transaction}
         onSave={handleUpdate}
         isSaving={isSaving}
-        
+
       />
     </div>
   );

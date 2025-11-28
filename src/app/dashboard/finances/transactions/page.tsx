@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React, { useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTransactions } from '@/hooks/useTransactions';
@@ -16,7 +18,7 @@ import { FinancialTransaction, TransactionFormData } from '@/lib/types';
 
 export default function TransactionsPage() {
   const { currentUser } = useAuth();
-  const { 
+  const {
     transactions,
     isLoading,
     error,
@@ -81,7 +83,7 @@ export default function TransactionsPage() {
           </Button>
         </div>
       </div>
-      
+
       <Card>
         <CardHeader>
           <CardTitle>All Transactions</CardTitle>
@@ -100,7 +102,7 @@ export default function TransactionsPage() {
               </SelectContent>
             </Select>
           </div>
-          <TransactionTable 
+          <TransactionTable
             columns={memoizedColumns}
             data={transactions}
             searchTerm={filters.searchTerm}

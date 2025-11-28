@@ -1,19 +1,21 @@
 // src/app/dashboard/reports/submit/page.tsx
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { redirect } from 'next/navigation';
-import { profileService } from '@/services/profileService';
+import * as profileService from '@/services/profileService';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { ReportForm } from './components/ReportForm';
 import { ROLES } from '@/lib/constants';
 import { FilePlus2 } from 'lucide-react';
 import { User } from '@/lib/types';
 
-export default async function SubmitReportPage() {
-  const supabase = await createSupabaseServerClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
+export const dynamic = 'force-dynamic';
 
-  if (error || !user) {
-    redirect('/login');
+export default async function SubmitReportPage() {
+  const { getUser } = getKindeServerSession();
+  const user = await getUser();
+
+  if (!user || !user.id) {
+    redirect('/api/auth/login');
   }
 
   const profile: User = await profileService.getProfile(user.id);
@@ -28,7 +30,7 @@ export default async function SubmitReportPage() {
 
   return (
     <>
-      <PageHeader 
+      <PageHeader
         title="Submit New Report"
         description="Document activities and outcomes for national, site, or small group levels."
         icon={FilePlus2}

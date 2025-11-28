@@ -13,7 +13,6 @@ import { LogOut, ChevronDown, ChevronUp } from 'lucide-react';
 import Image from 'next/image';
 import { NAVIGATION_LINKS } from '@/lib/constants';
 import type { NavItem } from '@/lib/types';
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
 interface DashboardSidebarProps {
   user: User | null;
@@ -25,10 +24,8 @@ export function DashboardSidebar({ user }: DashboardSidebarProps) {
   const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>({});
 
   const handleLogout = async () => {
-    const supabase = createSupabaseBrowserClient();
-    await supabase.auth.signOut();
-    router.push('/login');
-    router.refresh();
+    // Redirection vers l'API de logout Kinde
+    window.location.href = '/api/auth/logout';
   };
 
   const toggleSubmenu = (label: string) => {

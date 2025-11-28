@@ -2,7 +2,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { profileService } from '@/services/profileService';
+import * as profileService from '@/services/profileService';
 
 const USER_DETAILS_QUERY_KEY = 'userDetails';
 
@@ -12,11 +12,11 @@ const USER_DETAILS_QUERY_KEY = 'userDetails';
  * @returns The user data, loading state, and error state.
  */
 export const useUser = (userId: string) => {
-  const { 
-    data: user, 
-    isLoading, 
-    isError, 
-    error 
+  const {
+    data: user,
+    isLoading,
+    isError,
+    error
   } = useQuery({
     queryKey: [USER_DETAILS_QUERY_KEY, userId],
     queryFn: () => profileService.getProfile(userId),

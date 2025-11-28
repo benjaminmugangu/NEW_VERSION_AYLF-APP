@@ -20,10 +20,10 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getAllActivityTypes } from "@/services/activityTypeService";
-import siteService from '@/services/siteService';
-import { reportService } from '@/services/reportService';
-import { smallGroupService } from '@/services/smallGroupService';
-import { activityService } from '@/services/activityService'; // Import activity service
+import * as siteService from '@/services/siteService';
+import * as reportService from '@/services/reportService';
+import * as smallGroupService from '@/services/smallGroupService';
+import * as activityService from '@/services/activityService'; // Import activity service
 import { storageService } from '@/services/storageService';
 import { ROLES } from "@/lib/constants";
 
@@ -98,7 +98,7 @@ export function ReportForm({ onSubmitSuccess, user }: ReportFormProps) {
     },
   });
 
-    useEffect(() => {
+  useEffect(() => {
     const fetchData = async () => {
       if (!user) return;
       try {
@@ -145,8 +145,8 @@ export function ReportForm({ onSubmitSuccess, user }: ReportFormProps) {
       setValue("financialSummary", "");
       setSelectedFiles([]);
     } else {
-        setSelectedActivity(null);
-        reset(); // Or reset to default values if an activity is deselected
+      setSelectedActivity(null);
+      reset(); // Or reset to default values if an activity is deselected
     }
   }, [plannedActivities, setValue, reset]);
 
@@ -176,9 +176,9 @@ export function ReportForm({ onSubmitSuccess, user }: ReportFormProps) {
         // Use the consistent 'report-images' bucket
         const uploadPromises = selectedFiles.map(file => storageService.uploadFile(file, 'report-images'));
         const uploadedFiles = await Promise.all(uploadPromises);
-        imageUrls = uploadedFiles.map(uploadedFile => ({ 
-          name: uploadedFile.filePath, 
-          url: uploadedFile.publicUrl 
+        imageUrls = uploadedFiles.map(uploadedFile => ({
+          name: uploadedFile.filePath,
+          url: uploadedFile.publicUrl
         }));
       }
 
@@ -204,7 +204,7 @@ export function ReportForm({ onSubmitSuccess, user }: ReportFormProps) {
         onSubmitSuccess(newReport);
       }
 
-    } catch (error) { 
+    } catch (error) {
       console.error("Submission Error:", error);
       const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
       toast({ title: "Submission Failed", description: errorMessage, variant: "destructive" });
@@ -221,7 +221,7 @@ export function ReportForm({ onSubmitSuccess, user }: ReportFormProps) {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(processSubmit)} className="space-y-8">
-          
+
           {/* Activity Selector */}
           <div>
             <Label htmlFor="activityId">Select a Planned Activity</Label>
@@ -354,7 +354,7 @@ export function ReportForm({ onSubmitSuccess, user }: ReportFormProps) {
                 <Textarea id="content" {...register("content")} placeholder="Detailed description of the activity..." rows={6} />
                 {errors.content && <p className="text-sm text-destructive mt-1">{errors.content.message}</p>}
               </div>
-              
+
               <div>
                 <Label htmlFor="financialSummary">Financial Summary (Optional)</Label>
                 <Textarea id="financialSummary" {...register("financialSummary")} placeholder="Brief summary of finances..." rows={3} />
@@ -416,7 +416,7 @@ export function ReportForm({ onSubmitSuccess, user }: ReportFormProps) {
             ) : (
               <>
                 <Send className="mr-2 h-5 w-5" /> Submit Report
-              </> 
+              </>
             )}
           </Button>
         </form>

@@ -16,7 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { DateRangeFilter, type DateFilterValue } from '@/components/shared/DateRangeFilter';
 import { MemberStatsChart } from './MemberStatsChart';
 import { MembersPageSkeleton } from '@/components/shared/skeletons/MembersPageSkeleton';
-import { memberService } from '@/services/memberService';
+import * as memberService from '@/services/memberService';
 import { ROLES } from '@/lib/constants';
 import type { Member, MemberWithDetails, User } from '@/lib/types';
 
@@ -110,8 +110,8 @@ export function MembersClient({ initialMembers, user }: MembersClientProps) {
         <CardContent>
           {error && (
             <div className='text-center text-red-500 p-4'>
-                <p>Error loading members: {error.message}</p>
-                <Button onClick={() => refetch()} className='mt-2'>Try Again</Button>
+              <p>Error loading members: {error.message}</p>
+              <Button onClick={() => refetch()} className='mt-2'>Try Again</Button>
             </div>
           )}
           <div className="flex flex-wrap items-center gap-2 mb-4">

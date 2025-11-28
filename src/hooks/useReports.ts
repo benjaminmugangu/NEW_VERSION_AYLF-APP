@@ -6,7 +6,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useToast } from '@/hooks/use-toast';
-import { reportService, type ReportFilters } from '@/services/reportService';
+import * as reportService from '@/services/reportService';
+import type { ReportFilters } from '@/services/reportService';
 import { ROLES } from '@/lib/constants';
 import type { ReportStatus, ReportWithDetails } from '@/lib/types';
 import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
@@ -16,8 +17,6 @@ export const useReports = () => {
   const { currentUser } = useAuth();
   const { toast } = useToast();
   const isMobile = useIsMobile();
-
-
 
   // Filters and view mode
   const [searchTerm, setSearchTerm] = useState('');
@@ -58,11 +57,11 @@ export const useReports = () => {
     statusFilter: statusFilter,
   }), [currentUser, searchTerm, serverDateFilter, statusFilter]);
 
-  const { 
-    data: reports = [], 
-    isLoading, 
-    error, 
-    refetch 
+  const {
+    data: reports = [],
+    isLoading,
+    error,
+    refetch
   } = useQuery<ReportWithDetails[], Error>({
     queryKey: ['reports', uiFilters],
     queryFn: async () => {
@@ -71,10 +70,6 @@ export const useReports = () => {
     },
     enabled: !!currentUser, // Only run the query if the user is loaded
   });
-
-
-
-
 
   useEffect(() => {
     const hash = window.location.hash.substring(1);
@@ -103,7 +98,7 @@ export const useReports = () => {
   };
 
   const updateReportMutation = useMutation({
-    mutationFn: ({ reportId, newStatus, notes }: { reportId: string; newStatus: ReportStatus; notes?: string }) => 
+    mutationFn: ({ reportId, newStatus, notes }: { reportId: string; newStatus: ReportStatus; notes?: string }) =>
       reportService.updateReport(reportId, { status: newStatus, reviewNotes: notes }),
     onSuccess: (updatedReport) => {
       queryClient.invalidateQueries({ queryKey: ['reports', uiFilters] });

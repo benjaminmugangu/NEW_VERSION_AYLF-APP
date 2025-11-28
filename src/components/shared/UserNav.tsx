@@ -13,8 +13,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
+// import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+// import { useRouter } from 'next/navigation';
 import Link from "next/link";
 import type { User } from '@/lib/types';
 
@@ -23,13 +23,11 @@ interface UserNavProps {
 }
 
 export function UserNav({ user }: UserNavProps) {
-  const router = useRouter();
+  // const router = useRouter();
 
   const handleLogout = async () => {
-    const supabase = createSupabaseBrowserClient();
-    await supabase.auth.signOut();
-    router.push('/login');
-    router.refresh(); // Force a refresh to update server components
+    // Redirection vers l'API de logout Kinde
+    window.location.href = "/api/auth/logout";
   };
 
   if (!user) {

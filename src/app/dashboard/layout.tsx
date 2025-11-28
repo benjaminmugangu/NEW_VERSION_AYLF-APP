@@ -1,40 +1,65 @@
 // src/app/dashboard/layout.tsx
 import React from 'react';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { prisma } from "@/lib/prisma";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { UserNav } from '@/components/shared/UserNav';
 import { APP_NAME } from '@/lib/constants';
 import { DashboardSidebar } from './components/DashboardSidebar';
 import { ClientOnly } from '@/components/shared/ClientOnly';
-import type { User, UserRole } from '@/lib/types';
+import type { User } from '@/lib/types';
+import { UserRole } from '@prisma/client';
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createSupabaseServerClient();
+  const { getUser, isAuthenticated } = getKindeServerSession();
+  const isAuth = await isAuthenticated();
+  const kindeUser = await getUser();
 
-  const { data: { user } } = await supabase.auth.getUser();
-
-  // Get user profile for sidebar
   let userProfile: User | null = null;
-  if (user) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role, name, site_id, small_group_id')
-      .eq('id', user.id)
-      .single();
-    
+
+  if (isAuth && kindeUser) {
+    // Récupérer le profil depuis notre DB Prisma
+    const profile = await prisma.profile.findUnique({
+      where: { id: kindeUser.id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        siteId: true,
+        smallGroupId: true,
+        status: true,
+        mandateStartDate: true,
+        mandateEndDate: true,
+      }
+    });
+
     if (profile) {
       userProfile = {
-        id: user.id,
-        name: profile.name || user.email || 'Unknown User',
-        email: user.email || '',
-        role: (profile.role ?? 'member') as UserRole,
-        siteId: profile.site_id,
-        smallGroupId: profile.small_group_id,
+        id: profile.id,
+        name: profile.name,
+        email: profile.email,
+        role: profile.role as UserRole, // Cast Prisma Enum -> App Type Enum
+        siteId: profile.siteId,
+        smallGroupId: profile.smallGroupId,
+        status: profile.status,
+        mandateStartDate: profile.mandateStartDate?.toISOString(),
+        mandateEndDate: profile.mandateEndDate?.toISOString(),
       };
+    } else {
+        // Fallback si l'utilisateur est auth Kinde mais pas encore sync en DB
+        // Note: Normalement /api/auth/me s'en charge, ou on pourrait l'auto-créer ici aussi par sécurité
+        userProfile = {
+            id: kindeUser.id,
+            name: `${kindeUser.given_name ?? ''} ${kindeUser.family_name ?? ''}`.trim() || kindeUser.email || 'User',
+            email: kindeUser.email || '',
+            role: 'member', // Rôle par défaut temporaire
+            status: 'active'
+        }
     }
   }
 

@@ -19,7 +19,7 @@ import { DateRangeFilter, DateFilterValue } from '@/components/shared/DateRangeF
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
-import { reportService } from '@/services/reportService';
+import * as reportService from '@/services/reportService';
 
 interface ViewReportsClientProps {
   initialReports: ReportWithDetails[];
@@ -50,10 +50,10 @@ export default function ViewReportsClient({ initialReports, user }: ViewReportsC
     // For full server-side filtering, this logic would trigger API calls.
     return reports.filter(report => {
       const lowerSearchTerm = searchTerm.toLowerCase();
-      const matchesSearch = lowerSearchTerm === '' || 
+      const matchesSearch = lowerSearchTerm === '' ||
         report.title?.toLowerCase().includes(lowerSearchTerm) ||
         report.submittedByName?.toLowerCase().includes(lowerSearchTerm);
-      
+
       const activeStatuses = Object.entries(statusFilter).filter(([, v]) => v).map(([k]) => k);
       const matchesStatus = activeStatuses.length === 0 || activeStatuses.includes(report.status);
 
@@ -136,7 +136,7 @@ export default function ViewReportsClient({ initialReports, user }: ViewReportsC
 
   return (
     <>
-      <PageHeader 
+      <PageHeader
         title="View Submitted Reports"
         description={pageDescription}
         icon={FileSearch}
@@ -144,40 +144,40 @@ export default function ViewReportsClient({ initialReports, user }: ViewReportsC
 
       <Card>
         <CardHeader>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                    <CardTitle>Reports</CardTitle>
-                    <CardDescription>Browse and manage all submitted reports.</CardDescription>
-                </div>
-                <div className="flex items-center gap-2">
-                    <Button variant={viewMode === 'grid' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('grid')}> <LayoutGrid className="h-4 w-4"/> </Button>
-                    <Button variant={viewMode === 'table' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('table')} className="hidden sm:flex"> <List className="h-4 w-4"/> </Button>
-                </div>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <CardTitle>Reports</CardTitle>
+              <CardDescription>Browse and manage all submitted reports.</CardDescription>
             </div>
+            <div className="flex items-center gap-2">
+              <Button variant={viewMode === 'grid' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('grid')}> <LayoutGrid className="h-4 w-4" /> </Button>
+              <Button variant={viewMode === 'table' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('table')} className="hidden sm:flex"> <List className="h-4 w-4" /> </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-            <div className="space-y-4">
-                <div className="relative w-full">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                    <Input placeholder="Search by title, author..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 w-full" />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <p className="text-sm font-medium mb-2">Status</p>
-                        <div className="flex flex-wrap gap-2">
-                        {(['pending', 'submitted', 'approved', 'rejected'] as ReportStatus[]).map(status => (
-                            <Button key={status} variant={statusFilter[status] ? "default" : "outline"} size="sm" onClick={() => setStatusFilter(prev => ({ ...prev, [status]: !prev[status] }))} className="capitalize text-xs h-8">
-                            {status}
-                            </Button>
-                        ))}
-                        </div>
-                    </div>
-                    <div>
-                        <p className="text-sm font-medium mb-2">Date Range</p>
-                        <DateRangeFilter onFilterChange={setDateFilter} initialRangeKey={dateFilter.rangeKey} />
-                    </div>
-                </div>
+          <div className="space-y-4">
+            <div className="relative w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Input placeholder="Search by title, author..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 w-full" />
             </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm font-medium mb-2">Status</p>
+                <div className="flex flex-wrap gap-2">
+                  {(['pending', 'submitted', 'approved', 'rejected'] as ReportStatus[]).map(status => (
+                    <Button key={status} variant={statusFilter[status] ? "default" : "outline"} size="sm" onClick={() => setStatusFilter(prev => ({ ...prev, [status]: !prev[status] }))} className="capitalize text-xs h-8">
+                      {status}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-medium mb-2">Date Range</p>
+                <DateRangeFilter onFilterChange={setDateFilter} initialRangeKey={dateFilter.rangeKey} />
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -194,10 +194,10 @@ export default function ViewReportsClient({ initialReports, user }: ViewReportsC
                   <DialogTitle className="text-2xl font-bold">{selectedReport.title}</DialogTitle>
                   <DialogDescription>{getReportContextName(selectedReport)}</DialogDescription>
                 </DialogHeader>
-                                {selectedReport.reviewNotes && (
+                {selectedReport.reviewNotes && (
                   <div className="p-3 rounded-md bg-destructive/10 border border-destructive/30">
                     <div className="flex items-start gap-3">
-                      <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5"/>
+                      <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
                       <div>
                         <h4 className="font-semibold text-destructive">Rejection Notes</h4>
                         <p className="text-sm text-destructive/80 whitespace-pre-wrap">{selectedReport.reviewNotes}</p>
@@ -220,7 +220,7 @@ export default function ViewReportsClient({ initialReports, user }: ViewReportsC
                       <h4 className="font-semibold text-lg mb-2">Author</h4>
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                          <UserIcon className="w-6 h-6 text-muted-foreground"/>
+                          <UserIcon className="w-6 h-6 text-muted-foreground" />
                         </div>
                         <div>
                           <p className="font-semibold">{selectedReport.submittedByName || 'N/A'}</p>
@@ -260,9 +260,9 @@ export default function ViewReportsClient({ initialReports, user }: ViewReportsC
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                       {selectedReport.images.map((image, index) => (
                         <div key={index} className="relative aspect-video rounded-lg overflow-hidden border group shadow-sm">
-                          <Image src={image.url} alt={image.name} fill style={{objectFit: 'cover'}} className="group-hover:scale-105 transition-transform duration-300"/>
+                          <Image src={image.url} alt={image.name} fill style={{ objectFit: 'cover' }} className="group-hover:scale-105 transition-transform duration-300" />
                           <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                              <a href={image.url} target="_blank" rel="noopener noreferrer" className="text-white text-xs bg-black/70 px-2 py-1 rounded-sm hover:bg-black/90">View Full Image</a>
+                            <a href={image.url} target="_blank" rel="noopener noreferrer" className="text-white text-xs bg-black/70 px-2 py-1 rounded-sm hover:bg-black/90">View Full Image</a>
                           </div>
                         </div>
                       ))}
@@ -275,12 +275,12 @@ export default function ViewReportsClient({ initialReports, user }: ViewReportsC
               {user?.role === ROLES.NATIONAL_COORDINATOR && selectedReport.status === 'pending' && (
                 <div className="mr-auto flex gap-2">
                   <Button variant="outline" className="border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700" onClick={() => handleReportStatusUpdate(selectedReport!.id, "approved")}>
-                      <ThumbsUp className="mr-2 h-4 w-4"/> Approve
+                    <ThumbsUp className="mr-2 h-4 w-4" /> Approve
                   </Button>
                   <AlertDialog onOpenChange={(open) => !open && setIsRejectingReport(null)}>
                     <AlertDialogTrigger asChild>
                       <Button variant="outline" className="border-red-500 text-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => setIsRejectingReport(selectedReport)} >
-                        <ThumbsDown className="mr-2 h-4 w-4"/> Reject
+                        <ThumbsDown className="mr-2 h-4 w-4" /> Reject
                       </Button>
                     </AlertDialogTrigger>
                     {isRejectingReport && (

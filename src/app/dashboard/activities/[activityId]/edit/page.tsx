@@ -1,9 +1,11 @@
 // src/app/dashboard/activities/[activityId]/edit/page.tsx
-import { createClient } from '@/utils/supabase/server';
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { redirect } from 'next/navigation';
 import { ROLES } from '@/lib/constants';
-import { activityService } from '@/services/activityService';
+import * as activityService from '@/services/activityService';
 import EditActivityClient from './EditActivityClient';
+
+export const dynamic = 'force-dynamic';
 
 interface EditActivityPageProps {
   params: { activityId: string };
@@ -11,20 +13,16 @@ interface EditActivityPageProps {
 
 export default async function EditActivityPage(props: any) {
   const params = await props.params;
-  const supabase = await createClient();
   const { activityId } = params;
+  const { getUser } = getKindeServerSession();
+  const user = await getUser();
 
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return redirect('/login');
+  if (!user || !user.id) {
+    return redirect('/api/auth/login');
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role, site_id, small_group_id')
-    .eq('id', user.id)
-    .single();
+  const profileService = await import('@/services/profileService');
+  const profile = await profileService.getProfile(user.id);
 
   if (!profile) {
     return redirect('/dashboard?error=unauthorized');
@@ -38,9 +36,9 @@ export default async function EditActivityPage(props: any) {
     if (profile.role === ROLES.NATIONAL_COORDINATOR) {
       canEdit = true;
     } else if (profile.role === ROLES.SITE_COORDINATOR) {
-      canEdit = activity.siteId === profile.site_id;
+      canEdit = activity.siteId === profile.siteId;
     } else if (profile.role === ROLES.SMALL_GROUP_LEADER) {
-      canEdit = activity.smallGroupId === profile.small_group_id;
+      canEdit = activity.smallGroupId === profile.smallGroupId;
     }
 
     if (!canEdit) {

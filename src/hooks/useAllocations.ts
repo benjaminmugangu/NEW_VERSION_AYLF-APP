@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { allocationService } from '@/services/allocations.service';
+import * as allocationService from '@/services/allocations.service';
 import { useAuth } from '@/contexts/AuthContext';
 
 export const useAllocations = () => {

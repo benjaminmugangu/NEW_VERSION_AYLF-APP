@@ -4,12 +4,12 @@
 import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { activityFormSchema, type ActivityFormData } from '@/services/activityService';
+import { activityFormSchema, type ActivityFormData } from '@/schemas/activity';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
-import { activityService } from '@/services/activityService';
-import siteService from '@/services/siteService';
-import { smallGroupService } from '@/services/smallGroupService';
+import * as activityService from '@/services/activityService';
+import * as siteService from '@/services/siteService';
+import * as smallGroupService from '@/services/smallGroupService';
 import type { Activity, Site, SmallGroup, ActivityType } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -60,7 +60,7 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
 
   useEffect(() => {
     const determinedLevel = currentUser?.role === ROLES.NATIONAL_COORDINATOR ? 'national' : currentUser?.role === ROLES.SITE_COORDINATOR ? 'site' : 'small_group';
-    
+
     if (isEditMode && initialActivity) {
       form.reset({
         ...initialActivity,
@@ -92,7 +92,7 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
           setSmallGroups(smallGroupsData);
         } else if (currentUser.role === ROLES.SITE_COORDINATOR && currentUser.siteId) {
           const siteData = await siteService.getSiteById(currentUser.siteId);
-          if(siteData) setSites([siteData]);
+          if (siteData) setSites([siteData]);
           const smallGroupsData = await smallGroupService.getSmallGroupsBySite(currentUser.siteId);
           setSmallGroups(smallGroupsData);
         } else if (currentUser.role === ROLES.SMALL_GROUP_LEADER && currentUser.smallGroupId) {
@@ -100,7 +100,7 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
           if (smallGroupData) {
             setSmallGroups([smallGroupData]);
             const siteData = await siteService.getSiteById(smallGroupData.siteId);
-            if(siteData) setSites([siteData]);
+            if (siteData) setSites([siteData]);
           }
         }
       } catch (error) {
@@ -142,13 +142,13 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
         savedActivity = await activityService.createActivity(payload);
       }
       toast({ title: 'Success', description: `Activity ${isEditMode ? 'updated' : 'created'} successfully.` });
-      if(savedActivity) onSave(savedActivity);
+      if (savedActivity) onSave(savedActivity);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
       toast({ title: 'Error', description: `Failed to save activity: ${errorMessage}`, variant: 'destructive' });
     }
   };
-  
+
   const handleStartActivity = async () => {
     if (!initialActivity) return;
     try {
@@ -253,7 +253,7 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
                 )} />
                 {form.formState.errors.siteId && <p className="text-sm text-destructive mt-1">{form.formState.errors.siteId.message}</p>}
               </div>
-            ) : <div />} 
+            ) : <div />}
 
             {selectedLevel === 'small_group' ? (
               <div>
@@ -268,7 +268,7 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
                 )} />
                 {form.formState.errors.smallGroupId && <p className="text-sm text-destructive mt-1">{form.formState.errors.smallGroupId.message}</p>}
               </div>
-            ) : <div />} 
+            ) : <div />}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -292,24 +292,24 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
           </div>
         </CardContent>
         <CardFooter className="flex justify-between items-center">
-            <div>
-              {isEditMode && initialActivity?.status === 'planned' && (
-                <Button type="button" variant="secondary" onClick={handleStartActivity}>
-                  <ActivityIconLucide className="mr-2 h-5 w-5" />
-                  Mark as Executed
-                </Button>
-              )}
-            </div>
-            <div className="flex space-x-4">
-              <Button type="button" variant="outline" onClick={onCancel}>
-                  <XCircle className="mr-2 h-5 w-5" />
-                  Cancel
+          <div>
+            {isEditMode && initialActivity?.status === 'planned' && (
+              <Button type="button" variant="secondary" onClick={handleStartActivity}>
+                <ActivityIconLucide className="mr-2 h-5 w-5" />
+                Mark as Executed
               </Button>
-              <Button type="submit" className="text-base" disabled={form.formState.isSubmitting}>
-                  <Save className="mr-2 h-5 w-5" />
-                  {form.formState.isSubmitting ? 'Saving...' : (initialActivity ? 'Save Changes' : 'Create Activity')}
-              </Button>
-            </div>
+            )}
+          </div>
+          <div className="flex space-x-4">
+            <Button type="button" variant="outline" onClick={onCancel}>
+              <XCircle className="mr-2 h-5 w-5" />
+              Cancel
+            </Button>
+            <Button type="submit" className="text-base" disabled={form.formState.isSubmitting}>
+              <Save className="mr-2 h-5 w-5" />
+              {form.formState.isSubmitting ? 'Saving...' : (initialActivity ? 'Save Changes' : 'Create Activity')}
+            </Button>
+          </div>
         </CardFooter>
       </form>
     </Card>

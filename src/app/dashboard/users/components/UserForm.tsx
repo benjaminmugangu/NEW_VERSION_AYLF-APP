@@ -13,8 +13,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "../../../../contexts/AuthContext";
 import type { User, UserRole, Site, SmallGroup } from "@/lib/types";
 import { ROLES } from "@/lib/constants";
-import siteService from '@/services/siteService';
-import { smallGroupService } from '@/services/smallGroupService';
+import * as siteService from '@/services/siteService';
+import * as smallGroupService from '@/services/smallGroupService';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, Save, UserPlus, UsersRound } from "lucide-react";
@@ -33,7 +33,7 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
   const { currentUser } = useAuth();
   const [availableSites, setAvailableSites] = useState<Site[]>([]);
   const [availableSmallGroups, setAvailableSmallGroups] = useState<SmallGroup[]>([]);
-  
+
   const defaultValues: Partial<UserFormData> = user ? {
     ...user,
     mandateStartDate: user.mandateStartDate ? parseISO(user.mandateStartDate) : undefined,
@@ -49,7 +49,7 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
     smallGroupId: null,
   };
 
-    const { control, handleSubmit, register, watch, formState: { errors, isSubmitting: isFormSubmitting }, reset, setValue } = useForm<UserFormData>({
+  const { control, handleSubmit, register, watch, formState: { errors, isSubmitting: isFormSubmitting }, reset, setValue } = useForm<UserFormData>({
     resolver: zodResolver(refinedUserFormSchema),
     defaultValues,
   });
@@ -68,22 +68,6 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
         if (currentUser) {
           const sites = await siteService.getSitesWithDetails(currentUser);
           setAvailableSites(sites);
-        } else {
-          // Fallback: appeler directement l'API serveur (clé service) même si le contexte user n'est pas encore prêt
-          const resp = await fetch('/api/sites/list', { credentials: 'include' });
-          if (!resp.ok) {
-            const err = await resp.json().catch(() => ({}));
-            throw new Error(err.error || 'Failed to load sites');
-          }
-          const data = await resp.json();
-          setAvailableSites((data || []).map((row: any) => ({
-            id: row.id,
-            name: row.name,
-            city: row.city,
-            country: row.country,
-            creationDate: row.creation_date ?? new Date().toISOString(),
-            coordinatorId: row.coordinator_id ?? undefined,
-          })) as any);
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
@@ -158,7 +142,7 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
             <Input id="email" type="email" {...register("email")} placeholder="user@example.com" className="mt-1" />
             {errors.email && <p className="text-sm text-destructive mt-1">{errors.email.message}</p>}
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <Label htmlFor="role">Role</Label>
@@ -180,7 +164,7 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
               />
               {errors.role && <p className="text-sm text-destructive mt-1">{errors.role.message}</p>}
             </div>
-             <div>
+            <div>
               <Label htmlFor="status">Status</Label>
               <Controller
                 name="status"
@@ -242,11 +226,11 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
               {errors.smallGroupId && <p className="text-sm text-destructive mt-1">{errors.smallGroupId.message}</p>}
             </div>
           )}
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <Label htmlFor="mandateStartDate">Mandate Start Date (Optional)</Label>
-               <Controller
+              <Controller
                 name="mandateStartDate"
                 control={control}
                 render={({ field }) => (
@@ -295,9 +279,9 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
           </div>
 
 
-                    <Button type="submit" className="w-full py-3 text-base" disabled={isFormSubmitting || isSubmittingProp}>
+          <Button type="submit" className="w-full py-3 text-base" disabled={isFormSubmitting || isSubmittingProp}>
             <Save className="mr-2 h-5 w-5" />
-                        {(isFormSubmitting || isSubmittingProp) ? (user ? 'Saving...' : 'Sending Invitation...') : (user ? 'Save Changes' : 'Send Invitation')}
+            {(isFormSubmitting || isSubmittingProp) ? (user ? 'Saving...' : 'Sending Invitation...') : (user ? 'Save Changes' : 'Send Invitation')}
           </Button>
         </form>
       </CardContent>

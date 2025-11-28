@@ -45,7 +45,7 @@ export interface User {
   siteName?: string;
   smallGroupName?: string;
 
-  // Supabase specific fields
+  // Supabase specific fields (kept for compatibility if needed, but likely unused)
   app_metadata?: Record<string, any>;
   user_metadata?: Record<string, any>;
   aud?: string;
@@ -118,7 +118,7 @@ export interface Member extends BaseEntity {
 export type MemberWithDetails = Member & {
   siteName: string;
   smallGroupName: string;
-};
+}
 
 // =============================================================================
 // FEATURE-SPECIFIC TYPES
@@ -235,7 +235,7 @@ export type ReportWithDetails = Report & {
   smallGroup?: SmallGroup;
   submittedByUser?: User;
   activityType?: ActivityType;
-};
+}
 
 export interface FinancialTransaction extends BaseEntity {
   date: string; // ISO date string
@@ -394,10 +394,8 @@ export interface UserContext {
 
 export interface AuthContextType {
   currentUser: User | null;
-  session: import('@supabase/supabase-js').Session | null;
+  session: any | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error: string | null }>;
-  logout: () => Promise<void>;
 }
 
 export interface ServiceResponse<T> {
@@ -406,5 +404,3 @@ export interface ServiceResponse<T> {
   error?: { message: string };
   details?: any;
 }
-
-

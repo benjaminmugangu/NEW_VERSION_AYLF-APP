@@ -1,8 +1,7 @@
 // src/app/dashboard/financials/allocations/new/page.tsx
 'use client';
 
-// src/app/dashboard/financials/allocations/new/page.tsx
-'use client';
+export const dynamic = 'force-dynamic';
 
 import React, { useState, useEffect } from 'react';
 import { AllocationForm } from '@/components/financials/AllocationForm';
@@ -10,9 +9,9 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { allocationService } from '@/services/allocations.service';
-import siteService from '@/services/siteService';
-import { smallGroupService } from '@/services/smallGroupService';
+import * as allocationService from '@/services/allocations.service';
+import * as siteService from '@/services/siteService';
+import * as smallGroupService from '@/services/smallGroupService';
 import { useRouter } from 'next/navigation';
 import type { FundAllocationFormData, Site, SmallGroup } from '@/lib/types';
 
@@ -20,9 +19,9 @@ const NewAllocationPage = () => {
   const { currentUser } = useAuth();
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
-  
 
-    const handleSave = async (data: FundAllocationFormData) => {
+
+  const handleSave = async (data: FundAllocationFormData) => {
     if (!currentUser) {
       alert('You must be logged in to create an allocation.');
       return;

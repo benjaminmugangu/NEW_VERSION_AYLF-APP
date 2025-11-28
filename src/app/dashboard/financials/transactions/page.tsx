@@ -1,18 +1,20 @@
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { redirect } from 'next/navigation';
-import { profileService } from '@/services/profileService';
-import { transactionService } from '@/services/transactionService';
+import * as profileService from '@/services/profileService';
+import * as transactionService from '@/services/transactionService';
 import { ROLES } from '@/lib/constants';
 import { TransactionsClient } from './components/TransactionsClient';
 import type { User, FinancialTransaction } from '@/lib/types';
 
-export default async function TransactionsPage(props: any) {
-  const { searchParams } = props;
-  const supabase = await createSupabaseServerClient();
-  const { data: { user: authUser }, error } = await supabase.auth.getUser();
+export const dynamic = 'force-dynamic';
 
-  if (error || !authUser) {
-    redirect('/login');
+export default async function TransactionsPage(props: any) {
+  const { searchParams } = await props;
+  const { getUser } = getKindeServerSession();
+  const authUser = await getUser();
+
+  if (!authUser || !authUser.id) {
+    redirect('/api/auth/login');
   }
 
   const currentUser: User = await profileService.getProfile(authUser.id);

@@ -2,7 +2,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { profileService } from '@/services/profileService';
+import * as profileService from '@/services/profileService';
 import type { User } from '@/lib/types';
 import { useToast } from './use-toast';
 
