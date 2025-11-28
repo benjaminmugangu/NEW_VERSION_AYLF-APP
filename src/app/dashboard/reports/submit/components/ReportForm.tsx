@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import type { Report, ReportFormData, ActivityType, Site, SmallGroup, Activity } from "@/lib/types";
+import type { Report, ReportFormData, ActivityType, Site, SmallGroup, Activity, User } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { UploadCloud, Send, CalendarIcon, X } from "lucide-react";
 import Image from "next/image";
@@ -19,13 +19,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { getActivityTypes } from '@/services/activityTypeService';
-import siteService from '@/services/siteService';
-import reportService from '@/services/reportService';
-import smallGroupService from '@/services/smallGroupService';
-import activityService from '@/services/activityService'; // Import activity service
-import storage from '@/services/storageService';
-import { useCurrentUser } from "../../../../../hooks/use-current-user";
+import { getAllActivityTypes } from "@/services/activityTypeService";
+import * as siteService from '@/services/siteService';
+import * as reportService from '@/services/reportService';
+import * as smallGroupService from '@/services/smallGroupService';
+import * as activityService from '@/services/activityService'; // Import activity service
+import { storageService } from '@/services/storageService';
 import { ROLES } from "@/lib/constants";
 
 const CURRENCIES = ["USD", "CDF"];
@@ -47,7 +46,7 @@ const reportFormSchema = z.object({
   totalExpenses: z.number().min(0).optional(),
   currency: z.string().optional(),
   content: z.string().min(20, "Content must be at least 20 characters long."),
-  images: z.instanceof(FileList).optional(),
+  images: z.any().optional(),
   financialSummary: z.string().optional(),
 }).refine(data => {
   if (data.level === 'site' || data.level === 'small_group') {
@@ -71,11 +70,11 @@ type ReportFormSchema = z.infer<typeof reportFormSchema>;
 
 interface ReportFormProps {
   onSubmitSuccess?: (data: Report) => void;
+  user: User;
 }
 
-export function ReportForm({ onSubmitSuccess }: ReportFormProps) {
+export function ReportForm({ onSubmitSuccess, user }: ReportFormProps) {
   const { toast } = useToast();
-  const currentUser = useCurrentUser();
   const [plannedActivities, setPlannedActivities] = useState<Activity[]>([]);
   const [activityTypes, setActivityTypes] = useState<ActivityType[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -99,28 +98,31 @@ export function ReportForm({ onSubmitSuccess }: ReportFormProps) {
     },
   });
 
-  const fetchData = async () => {
-    if (!currentUser) return;
-    try {
-      const [activities, types] = await Promise.all([
-        activityService.getPlannedActivitiesForUser(currentUser),
-        getActivityTypes()
-      ]);
-      setPlannedActivities(activities);
-      setActivityTypes(types);
-    } catch (error) {
-      console.error("Failed to fetch initial data:", error);
-      toast({
-        title: "Error",
-        description: "Could not load necessary data. Please try again later.",
-        variant: "destructive",
-      });
-    }
-  };
-
   useEffect(() => {
+    const fetchData = async () => {
+      if (!user) return;
+      try {
+        const [activities, types] = await Promise.all([
+          activityService.getFilteredActivities({
+            user,
+            statusFilter: { planned: true },
+          }),
+          getAllActivityTypes()
+        ]);
+        setPlannedActivities(activities);
+        setActivityTypes(types);
+      } catch (error) {
+        console.error("Failed to fetch initial data:", error);
+        toast({
+          title: "Error",
+          description: "Could not load necessary data. Please try again later.",
+          variant: "destructive",
+        });
+      }
+    };
+
     fetchData();
-  }, [currentUser, toast]);
+  }, [user, toast]);
 
   const handleActivitySelection = useCallback((activityId: string) => {
     const activity = plannedActivities.find(a => a.id === activityId);
@@ -130,21 +132,21 @@ export function ReportForm({ onSubmitSuccess }: ReportFormProps) {
       setValue("title", activity.title);
       setValue("activityDate", new Date(activity.date));
       setValue("level", activity.level);
-      setValue("siteId", activity.site_id || undefined);
-      setValue("smallGroupId", activity.small_group_id || undefined);
-      setValue("activityTypeId", activity.activity_type_id);
+      setValue("siteId", activity.siteId || undefined);
+      setValue("smallGroupId", activity.smallGroupId || undefined);
+      setValue("activityTypeId", activity.activityTypeId);
       setValue("thematic", activity.thematic);
       // Reset fields that are report-specific
       setValue("content", "");
       setValue("girlsCount", 0);
       setValue("boysCount", 0);
-      setValue("participantsCountReported", activity.participants_count_planned || 0);
+      setValue("participantsCountReported", activity.participantsCountPlanned || 0);
       setValue("totalExpenses", 0);
       setValue("financialSummary", "");
       setSelectedFiles([]);
     } else {
-        setSelectedActivity(null);
-        reset(); // Or reset to default values if an activity is deselected
+      setSelectedActivity(null);
+      reset(); // Or reset to default values if an activity is deselected
     }
   }, [plannedActivities, setValue, reset]);
 
@@ -162,8 +164,8 @@ export function ReportForm({ onSubmitSuccess }: ReportFormProps) {
   };
 
   const processSubmit = async (data: ReportFormSchema) => {
-    if (!currentUser) {
-      toast({ title: "Error", description: "You must be logged in to submit a report.", variant: "destructive" });
+    if (!user) {
+      toast({ title: "Error", description: "User data is missing.", variant: "destructive" });
       return;
     }
     setIsSubmitting(true);
@@ -174,9 +176,9 @@ export function ReportForm({ onSubmitSuccess }: ReportFormProps) {
         // Use the consistent 'report-images' bucket
         const uploadPromises = selectedFiles.map(file => storageService.uploadFile(file, 'report-images'));
         const uploadedFiles = await Promise.all(uploadPromises);
-        imageUrls = uploadedFiles.map(uploadedFile => ({ 
-          name: uploadedFile.filePath, 
-          url: uploadedFile.publicUrl 
+        imageUrls = uploadedFiles.map(uploadedFile => ({
+          name: uploadedFile.filePath,
+          url: uploadedFile.publicUrl
         }));
       }
 
@@ -186,7 +188,7 @@ export function ReportForm({ onSubmitSuccess }: ReportFormProps) {
       const reportPayload: ReportFormData = {
         ...data,
         activityDate: format(data.activityDate, 'yyyy-MM-dd'),
-        submittedBy: currentUser.id,
+        submittedBy: user.id,
         images: imageUrls,
         status: 'submitted',
         // No longer need manual mapping, Zod schema provides `activityId`
@@ -202,7 +204,7 @@ export function ReportForm({ onSubmitSuccess }: ReportFormProps) {
         onSubmitSuccess(newReport);
       }
 
-    } catch (error) { 
+    } catch (error) {
       console.error("Submission Error:", error);
       const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
       toast({ title: "Submission Failed", description: errorMessage, variant: "destructive" });
@@ -219,7 +221,7 @@ export function ReportForm({ onSubmitSuccess }: ReportFormProps) {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(processSubmit)} className="space-y-8">
-          
+
           {/* Activity Selector */}
           <div>
             <Label htmlFor="activityId">Select a Planned Activity</Label>
@@ -352,7 +354,7 @@ export function ReportForm({ onSubmitSuccess }: ReportFormProps) {
                 <Textarea id="content" {...register("content")} placeholder="Detailed description of the activity..." rows={6} />
                 {errors.content && <p className="text-sm text-destructive mt-1">{errors.content.message}</p>}
               </div>
-              
+
               <div>
                 <Label htmlFor="financialSummary">Financial Summary (Optional)</Label>
                 <Textarea id="financialSummary" {...register("financialSummary")} placeholder="Brief summary of finances..." rows={3} />
@@ -414,7 +416,7 @@ export function ReportForm({ onSubmitSuccess }: ReportFormProps) {
             ) : (
               <>
                 <Send className="mr-2 h-5 w-5" /> Submit Report
-              </> 
+              </>
             )}
           </Button>
         </form>

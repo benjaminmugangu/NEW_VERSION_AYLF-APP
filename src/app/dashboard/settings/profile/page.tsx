@@ -3,16 +3,15 @@
 
 import React from "react";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
 import { ROLES } from "@/lib/constants";
-import { useAuth } from "@/contexts/AuthContext";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import { ProfileForm } from "./components/ProfileForm";
 import { Card, CardContent } from "@/components/ui/card";
 import { UserCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ProfileSettingsPage() {
-  const { currentUser, isLoading } = useAuth();
+  const { currentUser, isLoading } = useCurrentUser();
 
   if (isLoading || !currentUser) {
     return (
@@ -36,7 +35,7 @@ export default function ProfileSettingsPage() {
   const canEdit = currentUser.role === ROLES.SITE_COORDINATOR || currentUser.role === ROLES.SMALL_GROUP_LEADER || currentUser.role === ROLES.NATIONAL_COORDINATOR;
 
   return (
-    <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER]}>
+    <>
       <PageHeader 
         title="My Profile" 
         description="View and update your personal information." 
@@ -46,6 +45,6 @@ export default function ProfileSettingsPage() {
         currentUser={currentUser} 
         canEdit={canEdit}
       />
-    </RoleBasedGuard>
+    </>
   );
 }

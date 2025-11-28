@@ -3,19 +3,18 @@
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { MemberForm } from "../components/MemberForm";
-import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
 import { ROLES } from "@/lib/constants";
 import { UserPlus } from "lucide-react";
 import type { MemberFormData } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import memberService from "@/services/memberService";
+import * as memberService from "@/services/memberService";
 
 export default function NewMemberPage() {
   const { toast } = useToast();
   const router = useRouter();
 
-    const handleCreateMember = async (data: MemberFormData) => {
+  const handleCreateMember = async (data: MemberFormData) => {
     try {
       await memberService.createMember(data);
 
@@ -35,13 +34,13 @@ export default function NewMemberPage() {
   };
 
   return (
-    <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER]}>
-      <PageHeader 
+    <>
+      <PageHeader
         title="Add New Member"
         description="Register a new participant in the AYLF network."
         icon={UserPlus}
       />
       <MemberForm onSubmitForm={handleCreateMember} />
-    </RoleBasedGuard>
+    </>
   );
 }

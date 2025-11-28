@@ -21,7 +21,7 @@ Le module "Membres" (`/dashboard/members`) offre une vue axée sur la consultati
     -   Ses informations de base (nom, photo).
     -   Son site et son petit groupe d'appartenance.
     -   La liste des activités auxquelles il a participé.
-    -   Les certificats qu'il a obtenus.
+    -   Les certificats qu'il a obtenus. (les membres n'obtiennent pas de certificats putain! les certificats sont reservees uniquement aux users du module users)
 
 ### 3. Distinction avec le Module "Utilisateurs"
 

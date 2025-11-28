@@ -1,28 +1,27 @@
 // src/services/financialsService.ts
-'use client';
 
-import { allocationService } from './allocations.service';
-import transactionService, { type TransactionFilters } from './transactionService';
-import reportService from './reportService';
+import * as allocationService from './allocations.service';
+import * as transactionService from './transactionService';
+import type { TransactionFilters } from './transactionService';
+import * as reportService from './reportService';
 import type {
   User,
   Financials,
-
-  FinancialTransaction,
-  FundAllocation,
-  Report
 } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
-import { applyDateFilter, type DateFilterValue } from '@/components/shared/DateRangeFilter';
+import { applyDateFilter, type DateFilterValue } from '@/lib/dateUtils';
 
 /**
  * A centralized function to fetch and calculate financial statistics based on user context and date filters.
+ * NOTE: This is a 'use client' service that aggregates data from server actions
  */
-const getFinancials = async (user: User, dateFilter: DateFilterValue): Promise<Financials> => {
+export const getFinancials = async (user: User, dateFilter: DateFilterValue): Promise<Financials> => {
   try {
     // 1. Define filters based on user role
     const transactionFilters: TransactionFilters = { user, dateFilter };
-    const reportFilters = { user, dateFilter };
+
+    // For reports, don't pass dateFilter to avoid type mismatch - we filter client-side
+    const reportFilters = { user };
     let allocationFilters: { siteId?: string; smallGroupId?: string } = {};
 
     switch (user.role) {
@@ -35,16 +34,16 @@ const getFinancials = async (user: User, dateFilter: DateFilterValue): Promise<F
       // NATIONAL_COORDINATOR sees all, so no specific filter needed
     }
 
-    // 2. Fetch all data concurrently with the correct filters
+    // 2. Fetch all data concurrently. Promise.all will reject if any of the services fail.
     const [transactions, allocations, reports] = await Promise.all([
       transactionService.getFilteredTransactions(transactionFilters),
       allocationService.getAllocations(allocationFilters),
       reportService.getFilteredReports(reportFilters),
     ]);
 
-    // Filter allocations and reports by date locally
-    const filteredAllocations = applyDateFilter(allocations, 'allocationDate', dateFilter);
-    const filteredReports = applyDateFilter(reports, 'submissionDate', dateFilter);
+    // Filter allocations and reports by date locally using client-side applyDateFilter
+    const filteredAllocations = applyDateFilter(allocations || [], 'allocationDate', dateFilter);
+    const filteredReports = applyDateFilter(reports || [], 'submissionDate', dateFilter);
 
     const income = transactions
       .filter(t => t.type === 'income')
@@ -60,26 +59,22 @@ const getFinancials = async (user: User, dateFilter: DateFilterValue): Promise<F
     const totalSpent = filteredReports.reduce((acc, r) => acc + (r.totalExpenses || 0), 0);
     const allocationBalance = totalAllocated - totalSpent;
 
-    return {
+    const data: Financials = {
       income,
       expenses,
       netBalance,
       totalAllocated,
       totalSpent,
       allocationBalance,
-      transactions: transactions,
+      transactions: transactions || [],
       allocations: filteredAllocations,
       reports: filteredReports,
     };
 
+    return data;
+
   } catch (error: any) {
-    console.error('[FinancialsService] Error in getFinancials:', error.message);
-    throw new Error(error.message || 'An unexpected error occurred while fetching financial data.');
+    console.error('[FinancialsService] Unexpected error in getFinancials:', error.message);
+    throw new Error(error.message || 'An unexpected error occurred while fetching financials.');
   }
 };
-
-const financialsService = {
-  getFinancials,
-};
-
-export default financialsService;

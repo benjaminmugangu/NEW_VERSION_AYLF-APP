@@ -1,56 +1,50 @@
-// src/app/dashboard/users/new/page.tsx
-"use client";
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
+import InviteUserForm from "../components/InviteUserForm";
 
-import { PageHeader } from "@/components/shared/PageHeader";
-import { UserForm } from "../components/UserForm";
-import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
-import { ROLES } from "@/lib/constants";
-import { UserPlus } from "lucide-react";
-import { type UserFormData } from "../components/UserForm";
-import { useToast } from "@/hooks/use-toast";
-import { useRouter } from "next/navigation";
-import { useUsers } from "@/hooks/useUsers";
+export const dynamic = 'force-dynamic';
 
-interface InviteResponse {
-  password?: string;
-  error?: { message: string } | string;
-}
+export default async function InviteUserPage() {
+  const { isAuthenticated, getUser } = getKindeServerSession();
+  const isAuth = await isAuthenticated();
 
-export default function NewUserPage() {
-  const { toast } = useToast();
-  const router = useRouter();
-  const { createUser, isCreatingUser } = useUsers();
+  if (!isAuth) {
+    redirect("/login");
+  }
 
-  const handleInviteUser = async (data: UserFormData) => {
-    createUser(data, {
-      onSuccess: (newUser) => {
-        toast({
-          title: "User Invited Successfully!",
-          description: `An invitation has been sent to ${newUser.email}.`,
-        });
-        router.push('/dashboard/users');
-        router.refresh(); // To ensure the list is updated
-      },
-      onError: (error) => {
-        toast({
-          title: "Error Creating User",
-          description: error.message || "An unknown error occurred. Please try again.",
-          variant: "destructive",
-        });
-      },
-    });
-  };
+  const user = await getUser();
+  if (!user) {
+    redirect("/login");
+  }
 
-  
+  const currentUser = await prisma.profile.findUnique({
+    where: { id: user.id },
+  });
+
+  if (!currentUser || currentUser.role !== 'national_coordinator') {
+    redirect("/dashboard");
+  }
+
+  const sites = await prisma.site.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+  });
+
+  const smallGroups = await prisma.smallGroup.findMany({
+    select: { id: true, name: true, siteId: true },
+    orderBy: { name: 'asc' },
+  });
 
   return (
-    <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR]}>
-      <PageHeader 
-        title="Invite New User"
-        description="Create a new user account. An invitation email will be sent to them to set their password."
-        icon={UserPlus}
-      />
-      <UserForm onSubmitForm={handleInviteUser} />
-    </RoleBasedGuard>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Invite User</h1>
+        <p className="text-muted-foreground">
+          Invite a new user to the platform and assign their role.
+        </p>
+      </div>
+      <InviteUserForm sites={sites} smallGroups={smallGroups} />
+    </div>
   );
 }

@@ -1,28 +1,28 @@
-// src/app/dashboard/certificates/components/PrintableCertificate.tsx
-"use client";
+// src/app/dashboard/certificates/components/PrintableCertificate.tsx  
+'use client';
 
-import React from "react";
-import type { User } from "@/lib/types";
-import { ROLES } from "@/lib/constants";
-import Image from "next/image";
-import { format } from "date-fns";
+import React from 'react';
+import Image from 'next/image';
+import { format } from 'date-fns';
+import type { RosterMember } from '@/services/certificateService';
+import { ROLES } from '@/lib/constants';
 
-interface PrintableCertificateProps {
-  user: User;
+interface Props {
+  user: RosterMember;
   entityName: string;
   appName: string;
 }
 
-export function PrintableCertificate({ user, entityName, appName }: PrintableCertificateProps) {
-  
+export function PrintableCertificate({ user, entityName, appName }: Props) {
+
   const getRoleDescription = () => {
     let roleDesc = "";
-    if (user.role === ROLES.SITE_COORDINATOR) {
+    if (user.role === 'site_coordinator') {
       roleDesc = `Site Coordinator of ${entityName}`;
-    } else if (user.role === ROLES.SMALL_GROUP_LEADER) {
+    } else if (user.role === 'small_group_leader') {
       roleDesc = `Small Group Leader for ${entityName}`;
     } else {
-      roleDesc = user.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      roleDesc = user.role.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
     }
     return roleDesc;
   };
@@ -53,11 +53,11 @@ export function PrintableCertificate({ user, entityName, appName }: PrintableCer
         {/* Content - Layer 3 */}
         <div className="relative z-20 flex flex-col h-full">
           <div className="flex justify-center my-4 md:my-6">
-            <Image 
+            <Image
               src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcROsJ0oRg8RYoAuUWm025MBmI5tjiHUI-Pcgw&s"
-              alt={`${appName} Logo`} 
-              width={100} 
-              height={100} 
+              alt={`${appName} Logo`}
+              width={100}
+              height={100}
               className="rounded-full logo"
               data-ai-hint="organization logo"
             />
@@ -100,4 +100,3 @@ export function PrintableCertificate({ user, entityName, appName }: PrintableCer
     </div>
   );
 }
-

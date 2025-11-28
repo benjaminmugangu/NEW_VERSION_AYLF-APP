@@ -15,12 +15,13 @@ export default function HomePage() {
       if (currentUser) {
         router.replace("/dashboard");
       } else {
-        router.replace("/login");
+        // Redirection vers l'API de login Kinde
+        router.replace("/api/auth/login");
       }
     }
   }, [currentUser, isLoading, router]);
 
-  if (isLoading || (!currentUser && typeof window !== 'undefined' && window.location.pathname !== '/login') || (currentUser && typeof window !== 'undefined' && window.location.pathname !== '/dashboard')) {
+  if (isLoading || (!currentUser && typeof window !== 'undefined' && !window.location.pathname.startsWith('/api/auth')) || (currentUser && typeof window !== 'undefined' && window.location.pathname !== '/dashboard')) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
         <div className="space-y-4 w-full max-w-md">

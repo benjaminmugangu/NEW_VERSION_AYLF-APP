@@ -11,8 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Member, MemberFormData, Site, SmallGroup } from "@/lib/types";
-import siteService from '@/services/siteService';
-import smallGroupService from '@/services/smallGroupService';
+import * as siteService from '@/services/siteService';
+import * as smallGroupService from '@/services/smallGroupService';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, Save, UserPlus } from "lucide-react";
@@ -35,10 +35,10 @@ const memberFormSchema = z.object({
   if (data.level === 'site' && !data.siteId) return false;
   return true;
 }, { message: "Site is required for site-level members.", path: ["siteId"] })
-.refine(data => {
-  if (data.level === 'small_group' && !data.smallGroupId) return false;
-  return true;
-}, { message: "Small group is required for small group level members.", path: ["smallGroupId"] });
+  .refine(data => {
+    if (data.level === 'small_group' && !data.smallGroupId) return false;
+    return true;
+  }, { message: "Small group is required for small group level members.", path: ["smallGroupId"] });
 
 interface MemberFormProps {
   member?: Member;
@@ -47,10 +47,6 @@ interface MemberFormProps {
 
 export function MemberForm({ member, onSubmitForm }: MemberFormProps) {
   const { currentUser } = useAuth();
-
-  if (!currentUser) {
-    return <div>Loading...</div>; // Or some other loading state
-  }
 
   const [sites, setSites] = useState<Site[]>([]);
   const [smallGroups, setSmallGroups] = useState<SmallGroup[]>([]);
@@ -119,15 +115,31 @@ export function MemberForm({ member, onSubmitForm }: MemberFormProps) {
 
     if (watchedLevel === 'small_group' || watchedLevel === 'site') {
       fetchSmallGroups();
-        fetchSmallGroups();
     }
   }, [watchedSiteId, watchedLevel, currentUser]);
 
+  // When currentUser loads after first render, reset defaults for new member form
+  useEffect(() => {
+    if (!member && currentUser) {
+      reset({
+        name: '',
+        gender: 'male',
+        phone: '',
+        email: '',
+        joinDate: new Date(),
+        type: 'student',
+        level: getInitialLevel(),
+        siteId: currentUser.siteId ?? undefined,
+        smallGroupId: currentUser.smallGroupId ?? undefined,
+      });
+    }
+  }, [currentUser, member, reset]);
+
   const processSubmit = async (data: MemberFormData) => {
     const finalData = {
-        ...data,
-        siteId: data.siteId === '' ? undefined : data.siteId,
-        smallGroupId: data.smallGroupId === '' ? undefined : data.smallGroupId
+      ...data,
+      siteId: data.siteId === '' ? undefined : data.siteId,
+      smallGroupId: data.smallGroupId === '' ? undefined : data.smallGroupId
     }
     await onSubmitForm(finalData);
     if (!member) {
@@ -220,7 +232,7 @@ export function MemberForm({ member, onSubmitForm }: MemberFormProps) {
                   <PopoverTrigger asChild>
                     <Button
                       variant={"outline"}
-                      className={cn("w-full justify-start text-left font-normal mt-1",!field.value && "text-muted-foreground")}
+                      className={cn("w-full justify-start text-left font-normal mt-1", !field.value && "text-muted-foreground")}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}

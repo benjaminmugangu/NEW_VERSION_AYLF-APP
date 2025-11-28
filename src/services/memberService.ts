@@ -1,208 +1,222 @@
 // src/services/memberService.ts
-'use client';
+'use server';
 
-import { createClient } from '@/utils/supabase/client';
+import { prisma } from '@/lib/prisma';
 import type { User, Member, MemberWithDetails, MemberFormData } from '@/lib/types';
-import { getDateRangeFromFilterValue, type DateFilterValue } from '@/components/shared/DateRangeFilter';
+
+// Server-safe date filter definition (avoid importing client component module)
+type ServerDateFilter = {
+  rangeKey?: string;
+  from?: Date;
+  to?: Date;
+};
+
+const computeDateRange = (dateFilter?: ServerDateFilter): { startDate?: Date; endDate?: Date } => {
+  if (!dateFilter) return {};
+  if (dateFilter.from || dateFilter.to) return { startDate: dateFilter.from, endDate: dateFilter.to };
+  const key = dateFilter.rangeKey;
+  if (!key || key === 'all_time') return {};
+  const now = new Date();
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  switch (key) {
+    case 'today': {
+      const s = startOfDay(now);
+      const e = new Date(s);
+      e.setDate(e.getDate() + 1);
+      return { startDate: s, endDate: e };
+    }
+    case 'this_week': {
+      const s = startOfDay(now);
+      const day = s.getDay();
+      const diff = (day + 6) % 7; // Monday as start
+      s.setDate(s.getDate() - diff);
+      const e = new Date(s);
+      e.setDate(e.getDate() + 7);
+      return { startDate: s, endDate: e };
+    }
+    case 'this_month': {
+      const s = new Date(now.getFullYear(), now.getMonth(), 1);
+      const e = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      return { startDate: s, endDate: e };
+    }
+    case 'last_30_days': {
+      const e = startOfDay(now);
+      const s = new Date(e);
+      s.setDate(s.getDate() - 30);
+      return { startDate: s, endDate: e };
+    }
+    case 'last_90_days': {
+      const e = startOfDay(now);
+      const s = new Date(e);
+      s.setDate(s.getDate() - 90);
+      return { startDate: s, endDate: e };
+    }
+    case 'this_year': {
+      const s = new Date(now.getFullYear(), 0, 1);
+      const e = new Date(now.getFullYear() + 1, 0, 1);
+      return { startDate: s, endDate: e };
+    }
+    default:
+      return {};
+  }
+};
 
 export interface MemberFilters {
   user: User | null;
   searchTerm?: string;
   smallGroupId?: string;
-  dateFilter?: DateFilterValue;
+  dateFilter?: ServerDateFilter;
   typeFilter?: Record<Member['type'], boolean>;
 }
 
-const getFilteredMembers = async (filters: MemberFilters): Promise<MemberWithDetails[]> => {
-  const supabase = createClient();
+// Helpers to normalize Prisma row -> frontend types
+const normalizeGender = (g: any): Member['gender'] => (g === 'female' ? 'female' : 'male');
+const normalizeTypeFromPrisma = (t: any): Member['type'] =>
+  t === 'non_student' || t === 'non-student' ? 'non-student' : 'student';
+const normalizeLevel = (l: any): Member['level'] =>
+  l === 'site' || l === 'small_group' || l === 'national' ? l : 'national';
+
+const mapPrismaMemberToBase = (m: any): Member => {
+  const gender = normalizeGender(m.gender);
+  const type = normalizeTypeFromPrisma(m.type);
+  const level = normalizeLevel(m.level);
+  const joinDate =
+    m.joinDate instanceof Date
+      ? m.joinDate.toISOString().substring(0, 10)
+      : m.joinDate ?? new Date().toISOString().substring(0, 10);
+  const siteId: string | null | undefined = m.siteId;
+  if (!siteId) {
+    throw new Error('Invalid member data: missing siteId');
+  }
+  return {
+    id: m.id,
+    name: m.name,
+    gender,
+    type,
+    joinDate,
+    phone: m.phone ?? undefined,
+    email: m.email ?? undefined,
+    level,
+    siteId,
+    smallGroupId: m.smallGroupId ?? undefined,
+    userId: m.userId ?? undefined,
+  };
+};
+
+const mapPrismaMemberToWithDetails = (m: any): MemberWithDetails => {
+  const base = mapPrismaMemberToBase(m);
+  return {
+    ...base,
+    siteName: m.site?.name || 'N/A',
+    smallGroupName: m.smallGroup?.name || 'N/A',
+  };
+};
+
+export async function getFilteredMembers(filters: MemberFilters): Promise<MemberWithDetails[]> {
   const { user, searchTerm, dateFilter, typeFilter, smallGroupId } = filters;
 
   if (!user) {
     throw new Error('Authentication required.');
   }
 
-  let query = supabase
-    .from('members')
-    .select(`
-      id,
-      name,
-      gender,
-      type,
-      join_date,
-      phone,
-      email,
-      level,
-      site_id,
-      small_group_id,
-      user_id,
-      sites(name),
-      small_groups(name)
-    `);
+  const where: any = {};
 
   if (smallGroupId) {
-    query = query.eq('small_group_id', smallGroupId);
+    where.smallGroupId = smallGroupId;
   }
 
   if (dateFilter) {
-    const { startDate, endDate } = getDateRangeFromFilterValue(dateFilter);
-    if (startDate) {
-      query = query.gte('join_date', startDate.toISOString().substring(0, 10));
-    }
-    if (endDate) {
-      query = query.lte('join_date', endDate.toISOString().substring(0, 10));
+    const { startDate, endDate } = computeDateRange(dateFilter);
+    if (startDate || endDate) {
+      where.joinDate = {};
+      if (startDate) where.joinDate.gte = startDate;
+      if (endDate) where.joinDate.lte = endDate;
     }
   }
 
-  const activeTypeFilters = typeFilter ? Object.entries(typeFilter).filter(([, value]) => value).map(([key]) => key) : [];
-  if (activeTypeFilters.length > 0) {
-      query = query.in('type', activeTypeFilters);
+  if (typeFilter) {
+    const activeTypes = Object.entries(typeFilter)
+      .filter(([, value]) => value)
+      .map(([key]) => key as Member['type']);
+    if (activeTypes.length > 0) {
+      const prismaTypes = activeTypes.map((t) => (t === 'non-student' ? 'non_student' : 'student'));
+      where.type = { in: prismaTypes };
+    }
   }
 
   if (searchTerm) {
-      query = query.ilike('name', `%${searchTerm}%`);
+    where.name = { contains: searchTerm, mode: 'insensitive' };
   }
 
-  const { data, error } = await query;
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return data.map((m: any) => {
-    const site = Array.isArray(m.sites) ? m.sites[0] : m.sites;
-    const small_group = Array.isArray(m.small_groups) ? m.small_groups[0] : m.small_groups;
-    return {
-      id: m.id,
-      name: m.name,
-      gender: m.gender,
-      type: m.type,
-      joinDate: m.join_date,
-      phone: m.phone,
-      email: m.email,
-      level: m.level,
-      siteId: m.site_id,
-      smallGroupId: m.small_group_id,
-      userId: m.user_id,
-      siteName: site?.name || 'N/A',
-      smallGroupName: small_group?.name || 'N/A',
-    };
+  const members = await prisma.member.findMany({
+    where,
+    include: {
+      site: true,
+      smallGroup: true,
+    },
+    orderBy: { joinDate: 'desc' },
   });
-};
 
-const getMemberById = async (memberId: string): Promise<MemberWithDetails> => {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from('members')
-    .select(`
-      id, name, gender, type, join_date, phone, email, level, site_id, small_group_id, user_id,
-      sites(name),
-      small_groups(name)
-    `)
-    .eq('id', memberId)
-    .single();
+  return members.map(mapPrismaMemberToWithDetails);
+}
 
-  if (error) {
-    throw new Error(error.message);
-  }
-  if (!data) {
+export async function getMemberById(memberId: string): Promise<MemberWithDetails> {
+  const member = await prisma.member.findUnique({
+    where: { id: memberId },
+    include: {
+      site: true,
+      smallGroup: true,
+    },
+  });
+
+  if (!member) {
     throw new Error('Member not found.');
   }
 
-  const site = Array.isArray(data.sites) ? data.sites[0] : data.sites;
-  const small_group = Array.isArray(data.small_groups) ? data.small_groups[0] : data.small_groups;
+  return mapPrismaMemberToWithDetails(member);
+}
 
-  return {
-    id: data.id,
-    name: data.name,
-    gender: data.gender,
-    type: data.type,
-    joinDate: data.join_date,
-    phone: data.phone,
-    email: data.email,
-    level: data.level,
-    siteId: data.site_id,
-    smallGroupId: data.small_group_id,
-    userId: data.user_id,
-    siteName: site?.name || 'N/A',
-    smallGroupName: small_group?.name || 'N/A',
+export async function updateMember(memberId: string, formData: MemberFormData): Promise<Member> {
+  const updateData: any = {
+    name: formData.name,
+    gender: formData.gender === 'female' ? 'female' : 'male',
+    type: formData.type === 'non-student' ? 'non_student' : 'student',
+    joinDate: new Date(formData.joinDate),
+    phone: formData.phone,
+    email: formData.email,
+    level: formData.level,
+    siteId: formData.siteId,
+    smallGroupId: formData.smallGroupId,
   };
-};
 
-const updateMember = async (memberId: string, formData: MemberFormData): Promise<Member> => {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from('members')
-    .update({
+  const member = await prisma.member.update({
+    where: { id: memberId },
+    data: updateData,
+  });
+
+  return mapPrismaMemberToBase(member);
+}
+
+export async function deleteMember(memberId: string): Promise<void> {
+  await prisma.member.delete({
+    where: { id: memberId },
+  });
+}
+
+export async function createMember(formData: MemberFormData): Promise<Member> {
+  const member = await prisma.member.create({
+    data: {
       name: formData.name,
-      gender: formData.gender,
-      type: formData.type,
-      join_date: new Date(formData.joinDate).toISOString().substring(0, 10),
+      gender: formData.gender === 'female' ? 'female' : 'male',
+      type: formData.type === 'non-student' ? 'non_student' : 'student',
+      joinDate: new Date(formData.joinDate),
       phone: formData.phone,
       email: formData.email,
       level: formData.level,
-      site_id: formData.siteId,
-      small_group_id: formData.smallGroupId,
-    })
-    .eq('id', memberId)
-    .select()
-    .single();
+      siteId: formData.siteId!,
+      smallGroupId: formData.smallGroupId,
+    },
+  });
 
-  if (error) {
-    throw new Error(error.message);
-  }
-  if (!data) {
-    throw new Error('Failed to update member: Member not found or no changes made.');
-  }
-
-  return data;
-};
-
-const deleteMember = async (memberId: string): Promise<void> => {
-  const supabase = createClient();
-  const { error } = await supabase
-    .from('members')
-    .delete()
-    .eq('id', memberId);
-
-  if (error) {
-    throw new Error(error.message);
-  }
-};
-
-const createMember = async (formData: MemberFormData): Promise<Member> => {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from('members')
-    .insert({
-      name: formData.name,
-      gender: formData.gender,
-      type: formData.type,
-      join_date: new Date(formData.joinDate).toISOString().substring(0, 10),
-      phone: formData.phone,
-      email: formData.email,
-      level: formData.level,
-      site_id: formData.siteId,
-      small_group_id: formData.smallGroupId,
-    })
-    .select()
-    .single();
-
-  if (error) {
-    throw new Error(error.message);
-  }
-  if (!data) {
-    throw new Error('Failed to create member.');
-  }
-
-  return data;
-};
-
-const memberService = {
-  createMember,
-  getFilteredMembers,
-  getMemberById,
-  updateMember,
-  deleteMember,
-};
-
-export default memberService;
+  return mapPrismaMemberToBase(member);
+}

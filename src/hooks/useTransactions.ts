@@ -2,15 +2,20 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import transactionService, { type TransactionFilters } from '@/services/transactionService';
-import { useAuth } from '@/contexts/AuthContext';
+import * as transactionService from '@/services/transactionService';
+import type { TransactionFilters } from '@/services/transactionService';
 import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
-import type { TransactionFormData } from '@/lib/types';
+import type { FinancialTransaction, TransactionFormData, User } from '@/lib/types';
 
 const defaultDateFilter: DateFilterValue = { rangeKey: 'all_time', display: 'All Time' };
 
-export const useTransactions = (initialFilters: Partial<TransactionFilters> = {}) => {
-  const { currentUser: user } = useAuth();
+interface UseTransactionsOptions {
+  user: User | null;
+  initialData?: FinancialTransaction[];
+  initialFilters?: Partial<Omit<TransactionFilters, 'user'>>;
+}
+
+export const useTransactions = ({ user, initialData, initialFilters = {} }: UseTransactionsOptions) => {
   const queryClient = useQueryClient();
 
   // Filter states
@@ -18,32 +23,28 @@ export const useTransactions = (initialFilters: Partial<TransactionFilters> = {}
   const [dateFilter, setDateFilter] = useState<DateFilterValue>(initialFilters.dateFilter || defaultDateFilter);
   const [typeFilter, setTypeFilter] = useState<'income' | 'expense' | 'all'>(initialFilters.typeFilter || 'all');
 
-    const filters: TransactionFilters = { user, searchTerm, dateFilter, typeFilter: typeFilter === 'all' ? undefined : typeFilter, entity: initialFilters.entity };
+  const filters: TransactionFilters = { user: user!, searchTerm, dateFilter, typeFilter: typeFilter === 'all' ? undefined : typeFilter, entity: initialFilters.entity };
 
-  const { 
+  const {
     data: transactions,
     isLoading,
     error,
-    refetch 
+    refetch
   } = useQuery({
     queryKey: ['transactions', user?.id, filters],
-    queryFn: async () => {
-      if (!user) return [];
-      const response = await transactionService.getFilteredTransactions(filters);
-      if (response.success && response.data) {
-        return response.data;
-      }
-      throw new Error(response.error?.message || 'Failed to fetch transactions');
-    },
+    queryFn: () => transactionService.getFilteredTransactions(filters),
+    initialData: initialData,
     enabled: !!user,
   });
 
   const mutationOptions = {
     onSuccess: () => {
-      // Invalidate the specific query for the transaction list
-      queryClient.invalidateQueries({ queryKey: ['transactions', user?.id, filters] });
-      // Invalidate financials which likely depend on the user
-      queryClient.invalidateQueries({ queryKey: ['financials', user?.id] }); 
+      if (user) {
+        // Invalidate the specific query for the transaction list
+        queryClient.invalidateQueries({ queryKey: ['transactions', user.id, filters] });
+        // Invalidate financials which likely depend on the user
+        queryClient.invalidateQueries({ queryKey: ['financials', user.id] });
+      }
     },
   };
 
@@ -54,7 +55,7 @@ export const useTransactions = (initialFilters: Partial<TransactionFilters> = {}
 
   const { mutateAsync: updateTransaction, isPending: isUpdating } = useMutation({
     ...mutationOptions,
-    mutationFn: ({ id, formData }: { id: string, formData: Partial<TransactionFormData> }) => 
+    mutationFn: ({ id, formData }: { id: string, formData: Partial<TransactionFormData> }) =>
       transactionService.updateTransaction(id, formData),
   });
 

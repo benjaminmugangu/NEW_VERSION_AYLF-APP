@@ -1,0 +1,365 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Enums
+
+enum UserRole {
+  national_coordinator
+  site_coordinator
+  small_group_leader
+  member
+}
+
+enum UserStatus {
+  active
+  inactive
+}
+
+enum MemberGender {
+  male
+  female
+}
+
+enum MemberType {
+  student
+  non_student
+}
+
+enum ActivityStatus {
+  planned
+  in_progress
+  delayed
+  executed
+  canceled
+}
+
+enum ActivityLevel {
+  national
+  site
+  small_group
+}
+
+enum ReportStatus {
+  pending
+  submitted
+  approved
+  rejected
+}
+
+enum TransactionType {
+  income
+  expense
+}
+
+enum AllocationStatus {
+  planned
+  completed
+}
+
+enum ActivityCategory {
+  spiritual
+  outreach
+  community
+  training
+}
+
+// Models
+
+model Profile {
+  id                String    @id // Kinde User ID
+  email             String    @unique
+  name              String
+  role              UserRole
+  status            UserStatus @default(active)
+  
+  // Relations
+  siteId            String?   @map("site_id")
+  site              Site?     @relation("SiteMembers", fields: [siteId], references: [id])
+  
+  smallGroupId      String?   @map("small_group_id")
+  smallGroup        SmallGroup? @relation("GroupMembers", fields: [smallGroupId], references: [id])
+  
+  // Leadership roles
+  ledSmallGroup     SmallGroup? @relation("GroupLeader")
+  logisticForGroup  SmallGroup? @relation("GroupLogistics")
+  financeForGroup   SmallGroup? @relation("GroupFinance")
+  
+  managedSite       Site?     @relation("SiteCoordinator")
+
+  // Content ownership
+  createdActivities Activity[]
+  submittedReports  Report[] @relation("ReportSubmitter")
+  reviewedReports   Report[] @relation("ReportReviewer")
+  recordedTransactions FinancialTransaction[] @relation("RecordedBy")
+  allocatedFunds    FundAllocation[]
+
+  mandateStartDate  DateTime? @map("mandate_start_date")
+  mandateEndDate    DateTime? @map("mandate_end_date")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@map("profiles")
+}
+
+model Site {
+  id             String   @id @default(uuid())
+  name           String
+  city           String
+  country        String
+  
+  coordinatorId  String?  @unique @map("coordinator_id")
+  coordinator    Profile? @relation("SiteCoordinator", fields: [coordinatorId], references: [id])
+  
+  // Relations
+  members        Profile[] @relation("SiteMembers") // Staff members
+  registeredMembers Member[] // Regular members
+  smallGroups    SmallGroup[]
+  activities     Activity[]
+  transactions   FinancialTransaction[]
+  allocations    FundAllocation[]
+  reports        Report[]
+  invitations    UserInvitation[]
+
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("sites")
+}
+
+model SmallGroup {
+  id                   String   @id @default(uuid())
+  name                 String
+  
+  siteId               String   @map("site_id")
+  site                 Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  // Leadership
+  leaderId             String?  @unique @map("leader_id")
+  leader               Profile? @relation("GroupLeader", fields: [leaderId], references: [id])
+  
+  logisticsAssistantId String?  @unique @map("logistics_assistant_id")
+  logisticsAssistant   Profile? @relation("GroupLogistics", fields: [logisticsAssistantId], references: [id])
+  
+  financeAssistantId   String?  @unique @map("finance_assistant_id")
+  financeAssistant     Profile? @relation("GroupFinance", fields: [financeAssistantId], references: [id])
+
+  // Meeting details
+  meetingDay           String?  @map("meeting_day")
+  meetingTime          String?  @map("meeting_time")
+  meetingLocation      String?  @map("meeting_location")
+
+  // Relations
+  members              Profile[] @relation("GroupMembers") // Staff members
+  registeredMembers    Member[] // Regular members
+  activities           Activity[]
+  transactions         FinancialTransaction[]
+  allocations          FundAllocation[]
+  reports              Report[]
+  invitations          UserInvitation[]
+
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  @@map("small_groups")
+}
+
+model Member {
+  id             String       @id @default(uuid())
+  name           String
+  gender         MemberGender
+  type           MemberType
+  phone          String?
+  email          String?
+  joinDate       DateTime     @map("join_date")
+  
+  level          ActivityLevel 
+  
+  siteId         String       @map("site_id")
+  site           Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  
+  smallGroupId   String?      @map("small_group_id")
+  smallGroup     SmallGroup?  @relation(fields: [smallGroupId], references: [id])
+
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  @@map("members")
+}
+
+model ActivityType {
+  id          String           @id @default(uuid())
+  name        String
+  category    ActivityCategory
+  description String?
+  
+  activities  Activity[]
+  reports     Report[]
+
+  @@map("activity_types")
+}
+
+model Activity {
+  id                 String         @id @default(uuid())
+  title              String
+  thematic           String
+  date               DateTime
+  status             ActivityStatus @default(planned)
+  level              ActivityLevel
+  
+  siteId             String?        @map("site_id")
+  site               Site?          @relation(fields: [siteId], references: [id])
+  
+  smallGroupId       String?        @map("small_group_id")
+  smallGroup         SmallGroup?    @relation(fields: [smallGroupId], references: [id])
+  
+  activityTypeId     String         @map("activity_type_id")
+  activityType       ActivityType   @relation(fields: [activityTypeId], references: [id])
+  
+  participantsCountPlanned Int?     @map("participants_count_planned")
+  
+  createdById        String         @map("created_by")
+  createdBy          Profile        @relation(fields: [createdById], references: [id])
+
+  // Relations
+  reports            Report[]
+  
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+
+  @@map("activities")
+}
+
+model Report {
+  id                        String       @id @default(uuid())
+  title                     String
+  activityDate              DateTime     @map("activity_date")
+  submissionDate            DateTime     @default(now()) @map("submission_date")
+  level                     ActivityLevel
+  status                    ReportStatus @default(pending)
+  
+  content                   String       @db.Text
+  thematic                  String
+  speaker                   String?
+  moderator                 String?
+  girlsCount                Int?         @map("girls_count")
+  boysCount                 Int?         @map("boys_count")
+  participantsCountReported Int?         @map("participants_count_reported")
+  totalExpenses             Float?       @map("total_expenses")
+  currency                  String?
+  financialSummary          String?      @map("financial_summary") @db.Text
+  reviewNotes               String?      @map("review_notes") @db.Text
+  
+  // JSON fields for arrays
+  images                    Json?        // Array<{ name: string; url: string }>
+  attachments               Json?        // string[]
+
+  // Relations
+  submittedById             String       @map("submitted_by")
+  submittedBy               Profile      @relation("ReportSubmitter", fields: [submittedById], references: [id])
+  
+  reviewedById              String?      @map("reviewed_by")
+  reviewedBy                Profile?     @relation("ReportReviewer", fields: [reviewedById], references: [id])
+  reviewedAt                DateTime?    @map("reviewed_at")
+  
+  siteId                    String?      @map("site_id")
+  site                      Site?        @relation(fields: [siteId], references: [id])
+  
+  smallGroupId              String?      @map("small_group_id")
+  smallGroup                SmallGroup?  @relation(fields: [smallGroupId], references: [id])
+  
+  activityTypeId            String       @map("activity_type_id")
+  activityType              ActivityType @relation(fields: [activityTypeId], references: [id])
+  
+  activityId                String?      @map("activity_id")
+  activity                  Activity?    @relation(fields: [activityId], references: [id])
+
+  linkedTransactions        FinancialTransaction[]
+
+  createdAt                 DateTime     @default(now()) @map("created_at")
+  updatedAt                 DateTime     @updatedAt @map("updated_at")
+
+  @@map("reports")
+}
+
+model FinancialTransaction {
+  id              String          @id @default(uuid())
+  date            DateTime
+  description     String
+  amount          Float
+  type            TransactionType
+  category        String
+  
+  siteId          String?         @map("site_id")
+  site            Site?           @relation(fields: [siteId], references: [id])
+  
+  smallGroupId    String?         @map("small_group_id")
+  smallGroup      SmallGroup?     @relation(fields: [smallGroupId], references: [id])
+  
+  recordedById    String          @map("recorded_by")
+  recordedBy      Profile         @relation("RecordedBy", fields: [recordedById], references: [id])
+  
+  attachments     Json?           // string[]
+
+  relatedReportId String?         @map("related_report_id")
+  relatedReport   Report?         @relation(fields: [relatedReportId], references: [id])
+
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  @@map("transactions")
+}
+
+model FundAllocation {
+  id              String           @id @default(uuid())
+  amount          Float
+  allocationDate  DateTime         @map("allocation_date")
+  goal            String
+  source          String
+  status          AllocationStatus
+  notes           String?
+  
+  allocatedById   String           @map("allocated_by_id")
+  allocatedBy     Profile          @relation(fields: [allocatedById], references: [id])
+  
+  siteId          String?          @map("site_id")
+  site            Site?            @relation(fields: [siteId], references: [id])
+  
+  smallGroupId    String?          @map("small_group_id")
+  smallGroup      SmallGroup?      @relation(fields: [smallGroupId], references: [id])
+
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  @@map("fund_allocations")
+}
+
+
+
+model UserInvitation {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  role         UserRole
+  
+  siteId       String?  @map("site_id")
+  site         Site?    @relation(fields: [siteId], references: [id])
+  
+  smallGroupId String?  @map("small_group_id")
+  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id])
+  
+  token        String   @unique @default(uuid())
+  status       String   @default("pending") // pending, accepted
+  
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("user_invitations")
+}

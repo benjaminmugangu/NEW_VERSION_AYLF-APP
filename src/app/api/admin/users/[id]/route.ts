@@ -1,0 +1,105 @@
+import { NextResponse } from 'next/server';
+import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
+import { prisma } from '@/lib/prisma';
+import { z } from 'zod';
+import { UserRole } from '@prisma/client';
+
+const updateUserSchema = z.object({
+    role: z.nativeEnum(UserRole).optional(),
+    siteId: z.string().optional().nullable(),
+    smallGroupId: z.string().optional().nullable(),
+});
+
+export async function PATCH(
+    request: Request,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const { id } = await params;
+        const { isAuthenticated, getUser } = getKindeServerSession();
+        const isAuth = await isAuthenticated();
+
+        if (!isAuth) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const user = await getUser();
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const currentUser = await prisma.profile.findUnique({
+            where: { id: user.id },
+        });
+
+        if (!currentUser || currentUser.role !== 'national_coordinator') {
+            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
+
+        const body = await request.json();
+        const validatedData = updateUserSchema.parse(body);
+
+        const updatedUser = await prisma.profile.update({
+            where: { id },
+            data: {
+                role: validatedData.role,
+                siteId: validatedData.siteId,
+                smallGroupId: validatedData.smallGroupId,
+            },
+        });
+
+        return NextResponse.json(updatedUser);
+    } catch (error) {
+        console.error('Error updating user:', error);
+        if (error instanceof z.ZodError) {
+            return NextResponse.json({ error: error.errors }, { status: 400 });
+        }
+        return NextResponse.json(
+            { error: 'Internal Server Error' },
+            { status: 500 }
+        );
+    }
+}
+
+export async function DELETE(
+    request: Request,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const { id } = await params;
+        const { isAuthenticated, getUser } = getKindeServerSession();
+        const isAuth = await isAuthenticated();
+
+        if (!isAuth) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const user = await getUser();
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const currentUser = await prisma.profile.findUnique({
+            where: { id: user.id },
+        });
+
+        if (!currentUser || currentUser.role !== 'national_coordinator') {
+            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
+
+        // Optional: Check if user can be deleted (e.g., has no related data)
+        // For now, we'll just delete the profile. Kinde user deletion is separate.
+
+        await prisma.profile.delete({
+            where: { id },
+        });
+
+        return NextResponse.json({ message: 'User deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        return NextResponse.json(
+            { error: 'Internal Server Error' },
+            { status: 500 }
+        );
+    }
+}

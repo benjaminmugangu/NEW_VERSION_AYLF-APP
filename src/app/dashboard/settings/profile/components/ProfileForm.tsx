@@ -11,8 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import type { User, Site, SmallGroup } from "@/lib/types";
-import siteService from '@/services/siteService';
-import smallGroupService from "@/services/smallGroupService";
+import * as siteService from '@/services/siteService';
+import * as smallGroupService from '@/services/smallGroupService';
 import { ROLES } from "@/lib/constants";
 
 import { Save, CalendarIcon } from "lucide-react";
@@ -27,8 +27,8 @@ const profileFormSchema = z.object({
   mandateStartDate: z.date().optional().nullable(),
   mandateEndDate: z.date().optional().nullable(),
 }).refine(data => !data.mandateEndDate || !data.mandateStartDate || (data.mandateEndDate >= data.mandateStartDate), {
-    message: "Mandate end date cannot be before start date.",
-    path: ["mandateEndDate"],
+  message: "Mandate end date cannot be before start date.",
+  path: ["mandateEndDate"],
 });
 
 type ProfileFormData = z.infer<typeof profileFormSchema>;
@@ -43,7 +43,7 @@ export function ProfileForm({ currentUser, onUpdateProfile, canEdit }: ProfileFo
   const [sites, setSites] = useState<Site[]>([]);
   const [smallGroups, setSmallGroups] = useState<SmallGroup[]>([]);
   const [isLoadingAssignment, setIsLoadingAssignment] = useState(true);
-    const { toast } = useToast();
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchAssignments = async () => {
@@ -109,7 +109,7 @@ export function ProfileForm({ currentUser, onUpdateProfile, canEdit }: ProfileFo
   const getRoleDisplayName = (role: User["role"]) => {
     return role.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
   };
-  
+
   const getAssignmentName = () => {
     if (isLoadingAssignment) return "Loading assignment...";
 
@@ -141,10 +141,10 @@ export function ProfileForm({ currentUser, onUpdateProfile, canEdit }: ProfileFo
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div>
             <Label htmlFor="name">Full Name</Label>
-            <Input 
-              id="name" 
-              {...register("name")} 
-              disabled={!canEdit || isSubmitting} 
+            <Input
+              id="name"
+              {...register("name")}
+              disabled={!canEdit || isSubmitting}
               className="mt-1"
             />
             {errors.name && <p className="text-sm text-destructive mt-1">{errors.name.message}</p>}
@@ -152,11 +152,11 @@ export function ProfileForm({ currentUser, onUpdateProfile, canEdit }: ProfileFo
 
           <div>
             <Label htmlFor="email">Email Address</Label>
-            <Input 
-              id="email" 
-              type="email" 
-              {...register("email")} 
-              disabled={!canEdit || isSubmitting} 
+            <Input
+              id="email"
+              type="email"
+              {...register("email")}
+              disabled={!canEdit || isSubmitting}
               className="mt-1"
             />
             {errors.email && <p className="text-sm text-destructive mt-1">{errors.email.message}</p>}
@@ -164,10 +164,10 @@ export function ProfileForm({ currentUser, onUpdateProfile, canEdit }: ProfileFo
 
           <div>
             <Label htmlFor="role">Role</Label>
-            <Input 
-              id="role" 
-              value={getRoleDisplayName(currentUser.role)} 
-              disabled 
+            <Input
+              id="role"
+              value={getRoleDisplayName(currentUser.role)}
+              disabled
               className="mt-1 bg-muted/50"
             />
           </div>
@@ -175,15 +175,15 @@ export function ProfileForm({ currentUser, onUpdateProfile, canEdit }: ProfileFo
           {(currentUser.role === ROLES.SITE_COORDINATOR || currentUser.role === ROLES.SMALL_GROUP_LEADER) && (
             <div>
               <Label htmlFor="assignment">Assignment</Label>
-              <Input 
-                id="assignment" 
-                value={getAssignmentName()} 
-                disabled 
+              <Input
+                id="assignment"
+                value={getAssignmentName()}
+                disabled
                 className="mt-1 bg-muted/50"
               />
             </div>
           )}
-          
+
           <div>
             <Label htmlFor="mandateStartDate">Mandate Start Date</Label>
             <Controller
@@ -198,7 +198,7 @@ export function ProfileForm({ currentUser, onUpdateProfile, canEdit }: ProfileFo
                       disabled={!isMandateDateEditingAllowed || isSubmitting}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {field.value ? format(field.value, "PPP") : 
+                      {field.value ? format(field.value, "PPP") :
                         (isMandateDateEditingAllowed ? <span>Pick a date</span> : <span>N/A</span>)
                       }
                     </Button>
@@ -216,7 +216,7 @@ export function ProfileForm({ currentUser, onUpdateProfile, canEdit }: ProfileFo
 
           <div>
             <Label htmlFor="mandateEndDate">Mandate End Date</Label>
-             <Controller
+            <Controller
               name="mandateEndDate"
               control={control}
               render={({ field }) => (
@@ -228,16 +228,16 @@ export function ProfileForm({ currentUser, onUpdateProfile, canEdit }: ProfileFo
                       disabled={!isMandateDateEditingAllowed || isSubmitting}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {field.value ? format(field.value, "PPP") : 
+                      {field.value ? format(field.value, "PPP") :
                         (isMandateDateEditingAllowed ? <span>Pick a date (Optional)</span> : <span>N/A</span>)
                       }
                     </Button>
                   </PopoverTrigger>
-                   {isMandateDateEditingAllowed && (
+                  {isMandateDateEditingAllowed && (
                     <PopoverContent className="w-auto p-0">
                       <Calendar mode="single" selected={field.value ?? undefined} onSelect={field.onChange} />
                     </PopoverContent>
-                   )}
+                  )}
                 </Popover>
               )}
             />
