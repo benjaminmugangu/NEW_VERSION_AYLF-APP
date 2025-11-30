@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import * as z from 'zod';
-import smallGroupService from '@/services/smallGroupService';
+import * as smallGroupService from '@/services/smallGroupService';
 import { createClient } from '@/utils/supabase/server';
 
 const smallGroupUpdateSchema = z.object({
@@ -13,9 +13,10 @@ const smallGroupUpdateSchema = z.object({
   meetingLocation: z.string().optional(),
 }).partial();
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-        const supabase = createClient();
+    const { id } = await params;
+    const supabase = await createClient();
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
@@ -29,7 +30,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     }
 
     // The service handles the complex logic of updating the group and re-assigning roles
-    const updatedGroup = await smallGroupService.updateSmallGroup(params.id, parsedData.data);
+    const updatedGroup = await smallGroupService.updateSmallGroup(id, parsedData.data);
     return NextResponse.json(updatedGroup);
 
   } catch (error) {
@@ -38,16 +39,17 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-        const supabase = createClient();
+    const { id } = await params;
+    const supabase = await createClient();
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
     }
 
     // The service handles un-assigning members before deleting the group
-    await smallGroupService.deleteSmallGroup(params.id);
+    await smallGroupService.deleteSmallGroup(id);
     return new NextResponse(null, { status: 204 });
 
   } catch (error) {

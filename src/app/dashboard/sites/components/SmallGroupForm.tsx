@@ -20,9 +20,9 @@ import { Users, Save } from "lucide-react";
 
 const smallGroupFormSchema = z.object({
   name: z.string().min(3, "Small group name must be at least 3 characters."),
-  leaderId: z.string().optional(),
-  logisticsAssistantId: z.string().optional(),
-  financeAssistantId: z.string().optional(),
+  leaderId: z.string().optional().nullable(),
+  logisticsAssistantId: z.string().optional().nullable(),
+  financeAssistantId: z.string().optional().nullable(),
   meetingDay: z.enum(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']).optional(),
   meetingTime: z.string().optional(), // You might want to add a regex for time format
   meetingLocation: z.string().optional(),

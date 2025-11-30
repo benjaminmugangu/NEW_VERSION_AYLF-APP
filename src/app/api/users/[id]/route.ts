@@ -1,18 +1,14 @@
 // src/app/api/users/[id]/route.ts
 import { NextResponse } from 'next/server';
-import { z } from 'zod';
 import { createClient } from '@/utils/supabase/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 
-const paramsSchema = z.object({
-  id: z.string().uuid({ message: 'Invalid User ID format.' }),
-});
-
 export async function DELETE(
   request: Request,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
-  const supabase = createClient();
+  const { id: userId } = await context.params;
+  const supabase = await createClient();
   const { data: { session } } = await supabase.auth.getSession();
 
   if (!session) {
@@ -28,14 +24,6 @@ export async function DELETE(
   if (profile?.role !== 'national_coordinator') {
     return NextResponse.json({ error: 'Forbidden: You do not have permission to archive users.' }, { status: 403 });
   }
-
-  const validation = paramsSchema.safeParse(context.params);
-
-  if (!validation.success) {
-    return NextResponse.json({ error: 'Invalid input', details: validation.error.flatten() }, { status: 400 });
-  }
-
-  const { id: userId } = validation.data;
 
   if (userId === session.user.id) {
     return NextResponse.json({ error: 'You cannot archive your own account.' }, { status: 403 });
@@ -64,7 +52,7 @@ export async function DELETE(
     });
 
     if (authError) {
-        return NextResponse.json({ error: `Failed to disable user in authentication system: ${authError.message}` }, { status: 500 });
+      return NextResponse.json({ error: `Failed to disable user in authentication system: ${authError.message}` }, { status: 500 });
     }
 
     return NextResponse.json({ message: 'User archived successfully' }, { status: 200 });

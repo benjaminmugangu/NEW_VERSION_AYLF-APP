@@ -17,7 +17,7 @@ const siteFormSchema = z.object({
   city: z.string().min(2, "City must be at least 2 characters."),
   country: z.string().min(2, "Country must be at least 2 characters."),
   creationDate: z.string().refine((date) => !isNaN(Date.parse(date)), { message: "Invalid date format." }),
-  coordinatorId: z.string().optional().or(z.literal("")),
+  coordinatorId: z.string().optional().or(z.literal("")).nullable(),
 });
 
 interface SiteFormProps {
@@ -27,7 +27,7 @@ interface SiteFormProps {
 }
 
 export function SiteForm({ site, onSubmitForm, isSubmitting: isParentSubmitting }: SiteFormProps) {
-    const { handleSubmit, register, formState: { errors, isSubmitting: isFormSubmitting }, reset } = useForm<SiteFormData>({
+  const { handleSubmit, register, formState: { errors, isSubmitting: isFormSubmitting }, reset } = useForm<SiteFormData>({
     resolver: zodResolver(siteFormSchema),
     defaultValues: site ? {
       name: site.name,
@@ -47,8 +47,8 @@ export function SiteForm({ site, onSubmitForm, isSubmitting: isParentSubmitting 
   const processSubmit = async (data: SiteFormData) => {
     // Ensure optional coordinatorId is undefined if empty string after validation
     const dataToSubmit: SiteFormData = {
-        ...data,
-        coordinatorId: data.coordinatorId === "" ? undefined : data.coordinatorId,
+      ...data,
+      coordinatorId: data.coordinatorId === "" ? undefined : data.coordinatorId,
     };
     await onSubmitForm(dataToSubmit);
     if (!site) {
@@ -103,11 +103,11 @@ export function SiteForm({ site, onSubmitForm, isSubmitting: isParentSubmitting 
 
           <div>
             <Label htmlFor="coordinatorId">Site Coordinator Name (Optional)</Label>
-            <Input 
-              id="coordinatorId" 
-              {...register("coordinatorId")} 
-              placeholder="Enter coordinator's full name" 
-              className="mt-1" 
+            <Input
+              id="coordinatorId"
+              {...register("coordinatorId")}
+              placeholder="Enter coordinator's full name"
+              className="mt-1"
             />
             {errors.coordinatorId && <p className="text-sm text-destructive mt-1">{errors.coordinatorId.message}</p>}
             <p className="text-xs text-muted-foreground mt-1">
@@ -115,9 +115,9 @@ export function SiteForm({ site, onSubmitForm, isSubmitting: isParentSubmitting 
             </p>
           </div>
 
-                    <Button type="submit" className="w-full py-3 text-base" disabled={isParentSubmitting || isFormSubmitting}>
+          <Button type="submit" className="w-full py-3 text-base" disabled={isParentSubmitting || isFormSubmitting}>
             <Save className="mr-2 h-5 w-5" />
-                        {(isParentSubmitting || isFormSubmitting) ? "Saving..." : (site ? "Save Changes" : "Add Site")}
+            {(isParentSubmitting || isFormSubmitting) ? "Saving..." : (site ? "Save Changes" : "Add Site")}
           </Button>
         </form>
       </CardContent>

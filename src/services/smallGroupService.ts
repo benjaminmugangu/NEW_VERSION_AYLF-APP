@@ -175,7 +175,7 @@ export async function createSmallGroup(siteId: string, formData: SmallGroupFormD
   });
 }
 
-export async function updateSmallGroup(groupId: string, formData: SmallGroupFormData): Promise<SmallGroup> {
+export async function updateSmallGroup(groupId: string, formData: Partial<SmallGroupFormData>): Promise<SmallGroup> {
   return await prisma.$transaction(async (tx) => {
     // 1. Fetch old group to check previous assignments
     const oldGroup = await tx.smallGroup.findUnique({

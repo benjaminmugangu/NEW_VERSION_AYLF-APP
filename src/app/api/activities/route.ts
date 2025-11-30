@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as z from 'zod';
-import activityService from '@/services/activityService';
+import * as activityService from '@/services/activityService';
 import { createClient } from '@/utils/supabase/server';
 
 // Zod schema for validating incoming activity creation data (without created_by)
@@ -39,11 +39,19 @@ export async function POST(request: NextRequest) {
     }
 
     const activityDataForService = {
-        ...parsedData.data,
-        date: new Date(parsedData.data.date),
+      title: parsedData.data.title,
+      thematic: parsedData.data.thematic,
+      date: new Date(parsedData.data.date),
+      level: parsedData.data.level,
+      status: parsedData.data.status,
+      activityTypeId: parsedData.data.activity_type_id,
+      createdBy: session.user.id,
+      siteId: parsedData.data.site_id,
+      smallGroupId: parsedData.data.small_group_id,
+      participantsCountPlanned: parsedData.data.participants_count_planned,
     };
 
-    const newActivity = await activityService.createActivity(activityDataForService, session.user.id);
+    const newActivity = await activityService.createActivity(activityDataForService);
     return NextResponse.json(newActivity, { status: 201 });
 
   } catch (error) {

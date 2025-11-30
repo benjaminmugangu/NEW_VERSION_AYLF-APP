@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
-import { certificateService } from '@/services/certificateService';
+import * as certificateService from '@/services/certificateService';
 import { parseISO, isValid } from 'date-fns';
 
 export async function GET(request: NextRequest) {

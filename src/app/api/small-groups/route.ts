@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import * as z from 'zod';
-import smallGroupService from '@/services/smallGroupService';
+import * as smallGroupService from '@/services/smallGroupService';
 import { createClient } from '@/utils/supabase/server';
 
 const smallGroupCreateSchema = z.object({
@@ -16,7 +16,7 @@ const smallGroupCreateSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-        const supabase = createClient();
+    const supabase = await createClient();
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {
