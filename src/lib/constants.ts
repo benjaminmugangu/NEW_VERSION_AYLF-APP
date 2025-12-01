@@ -36,13 +36,13 @@ export const NAVIGATION_LINKS: NavItem[] = [
       {
         href: "/dashboard/reports/submit",
         label: "Submit Report",
-        icon: FileText, 
+        icon: FileText,
         allowedRoles: [ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER],
       },
       {
         href: "/dashboard/reports/view",
         label: "View Reports",
-        icon: FileText, 
+        icon: FileText,
         allowedRoles: [ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER],
       },
     ],
@@ -51,11 +51,11 @@ export const NAVIGATION_LINKS: NavItem[] = [
     href: "/dashboard/suggestions",
     label: "AI Suggestions",
     icon: Lightbulb,
-    allowedRoles: [ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER], 
+    allowedRoles: [ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER],
   },
   {
     href: "/dashboard/sites",
-    label: "Manage Sites", // This will now list sites, and clicking a site goes to its details (including SGs)
+    label: "Sites", // More neutral label - NC sees all, SC sees their own
     icon: Building,
     allowedRoles: [ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR], // Site coordinators might see their own site details
   },
@@ -65,10 +65,16 @@ export const NAVIGATION_LINKS: NavItem[] = [
     icon: UsersRound,
     allowedRoles: [ROLES.NATIONAL_COORDINATOR],
   },
-   {
+  {
+    href: "/dashboard/invitations",
+    label: "Invitations",
+    icon: UsersRound,
+    allowedRoles: [ROLES.NATIONAL_COORDINATOR],
+  },
+  {
     href: "/dashboard/finances",
     label: "Finances",
-    icon: Briefcase, 
+    icon: Briefcase,
     allowedRoles: [ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER],
   },
   {

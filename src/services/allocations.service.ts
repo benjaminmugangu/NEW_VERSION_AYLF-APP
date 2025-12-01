@@ -1,136 +1,141 @@
 // src/services/allocations.service.ts
-import { createClient } from '@/utils/supabase/client';
+'use server';
+
+import { prisma } from '@/lib/prisma';
 import type { FundAllocation, FundAllocationFormData } from '@/lib/types';
 
-const baseSelectQuery = `
-  *,
-  sender:sender_id(name),
-  recipient_site:recipient_site_id(name),
-  recipient_small_group:recipient_small_group_id(name),
-  creator:created_by(name)
-`;
+export async function getAllocations(filters?: { siteId?: string; smallGroupId?: string }): Promise<FundAllocation[]> {
+  const where: any = {};
 
-const toAllocationModel = (dbAllocation: any): FundAllocation => {
-  // This function now needs to be flexible to handle both old and new fields
-  // until the data model is fully migrated.
+  if (filters?.siteId) {
+    where.siteId = filters.siteId;
+  }
+  if (filters?.smallGroupId) {
+    where.smallGroupId = filters.smallGroupId;
+  }
+
+  const allocations = await prisma.fundAllocation.findMany({
+    where,
+    include: {
+      allocatedBy: true,
+      site: true,
+      smallGroup: true,
+    },
+    orderBy: {
+      allocationDate: 'desc'
+    }
+  });
+
+  return allocations.map(allocation => ({
+    id: allocation.id,
+    amount: allocation.amount,
+    allocationDate: allocation.allocationDate.toISOString(),
+    goal: allocation.goal,
+    source: allocation.source,
+    status: allocation.status,
+    allocatedById: allocation.allocatedById,
+    siteId: allocation.siteId,
+    smallGroupId: allocation.smallGroupId,
+    notes: allocation.notes,
+    allocatedByName: allocation.allocatedBy.name,
+    siteName: allocation.site?.name,
+    smallGroupName: allocation.smallGroup?.name,
+    sourceTransactionId: null, // Legacy field, not in new schema
+  } as FundAllocation));
+}
+
+export async function getAllocationById(id: string): Promise<FundAllocation> {
+  const allocation = await prisma.fundAllocation.findUnique({
+    where: { id },
+    include: {
+      allocatedBy: true,
+      site: true,
+      smallGroup: true,
+    }
+  });
+
+  if (!allocation) {
+    throw new Error('Allocation not found.');
+  }
+
   return {
-    id: dbAllocation.id,
-    amount: dbAllocation.amount,
-    allocationDate: dbAllocation.allocation_date,
-    goal: dbAllocation.goal, // NEW
-    source: dbAllocation.source, // NEW
-    status: dbAllocation.status, // NEW
-    allocatedById: dbAllocation.allocated_by_id, // NEW
-    siteId: dbAllocation.site_id, // NEW mapping
-    smallGroupId: dbAllocation.small_group_id, // NEW mapping
-    notes: dbAllocation.notes, // NEW
-    // Enriched data - assuming new relations might not exist yet
-    allocatedByName: dbAllocation.creator?.name, // Map from creator
-    siteName: dbAllocation.recipient_site?.name, // Map from recipient_site
-    smallGroupName: dbAllocation.recipient_small_group?.name, // Map from recipient_small_group
-    // Legacy fields for compatibility, will be undefined in new records
-    sourceTransactionId: dbAllocation.source_transaction_id,
+    id: allocation.id,
+    amount: allocation.amount,
+    allocationDate: allocation.allocationDate.toISOString(),
+    goal: allocation.goal,
+    source: allocation.source,
+    status: allocation.status,
+    allocatedById: allocation.allocatedById,
+    siteId: allocation.siteId,
+    smallGroupId: allocation.smallGroupId,
+    notes: allocation.notes,
+    allocatedByName: allocation.allocatedBy.name,
+    siteName: allocation.site?.name,
+    smallGroupName: allocation.smallGroup?.name,
+    sourceTransactionId: null,
   } as FundAllocation;
-};
+}
 
-export const allocationService = {
-    getAllocations: async (filters?: { siteId?: string; smallGroupId?: string }): Promise<FundAllocation[]> => {
-    const supabase = createClient();
-    let query = supabase
-      .from('fund_allocations')
-      .select(baseSelectQuery);
-
-    if (filters) {
-      if (filters.siteId) {
-        query = query.eq('site_id', filters.siteId);
-      }
-      if (filters.smallGroupId) {
-        query = query.eq('small_group_id', filters.smallGroupId);
-      }
+export async function createAllocation(formData: FundAllocationFormData): Promise<FundAllocation> {
+  const allocation = await prisma.fundAllocation.create({
+    data: {
+      amount: formData.amount,
+      allocationDate: new Date(formData.allocationDate),
+      goal: formData.goal,
+      source: formData.source,
+      status: formData.status,
+      allocatedById: formData.allocatedById,
+      siteId: formData.siteId || null,
+      smallGroupId: formData.smallGroupId || null,
+      notes: formData.notes,
+    },
+    include: {
+      allocatedBy: true,
+      site: true,
+      smallGroup: true,
     }
+  });
 
-    const { data, error } = await query;
+  return {
+    id: allocation.id,
+    amount: allocation.amount,
+    allocationDate: allocation.allocationDate.toISOString(),
+    goal: allocation.goal,
+    source: allocation.source,
+    status: allocation.status,
+    allocatedById: allocation.allocatedById,
+    siteId: allocation.siteId,
+    smallGroupId: allocation.smallGroupId,
+    notes: allocation.notes,
+    allocatedByName: allocation.allocatedBy.name,
+    siteName: allocation.site?.name,
+    smallGroupName: allocation.smallGroup?.name,
+    sourceTransactionId: null,
+  } as FundAllocation;
+}
 
-    if (error) {
-      throw new Error(error.message);
-    }
+export async function updateAllocation(id: string, formData: Partial<FundAllocationFormData>): Promise<FundAllocation> {
+  const updateData: any = {};
 
-    return data.map(toAllocationModel);
-  },
+  if (formData.amount !== undefined) updateData.amount = formData.amount;
+  if (formData.allocationDate) updateData.allocationDate = new Date(formData.allocationDate);
+  if (formData.goal !== undefined) updateData.goal = formData.goal;
+  if (formData.source !== undefined) updateData.source = formData.source;
+  if (formData.status !== undefined) updateData.status = formData.status;
+  if (formData.siteId !== undefined) updateData.siteId = formData.siteId;
+  if (formData.smallGroupId !== undefined) updateData.smallGroupId = formData.smallGroupId;
+  if (formData.notes !== undefined) updateData.notes = formData.notes;
 
-    getAllocationById: async (id: string): Promise<FundAllocation> => {
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from('fund_allocations')
-      .select(baseSelectQuery)
-      .eq('id', id)
-      .single();
+  await prisma.fundAllocation.update({
+    where: { id },
+    data: updateData,
+  });
 
-    if (error || !data) {
-      throw new Error('Allocation not found.');
-    }
+  return getAllocationById(id);
+}
 
-    return toAllocationModel(data);
-  },
-
-    createAllocation: async (formData: FundAllocationFormData): Promise<FundAllocation> => {
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from('fund_allocations')
-      .insert({
-        amount: formData.amount,
-        allocation_date: formData.allocationDate,
-        goal: formData.goal,
-        source: formData.source,
-        status: formData.status,
-        allocated_by_id: formData.allocatedById,
-        site_id: formData.siteId,
-        small_group_id: formData.smallGroupId,
-        notes: formData.notes,
-      })
-      .select('id')
-      .single();
-
-    if (error || !data) {
-      throw new Error(error?.message || 'Failed to create allocation.');
-    }
-
-    return allocationService.getAllocationById(data.id);
-  },
-
-    updateAllocation: async (id: string, formData: Partial<FundAllocationFormData>): Promise<FundAllocation> => {
-    const supabase = createClient();
-    const { error } = await supabase
-      .from('fund_allocations')
-      .update({
-        amount: formData.amount,
-        allocation_date: formData.allocationDate,
-        goal: formData.goal,
-        source: formData.source,
-        status: formData.status,
-        site_id: formData.siteId,
-        small_group_id: formData.smallGroupId,
-        notes: formData.notes,
-      })
-      .eq('id', id);
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    return allocationService.getAllocationById(id);
-  },
-
-    deleteAllocation: async (id: string): Promise<void> => {
-    const supabase = createClient();
-    const { error } = await supabase.from('fund_allocations').delete().eq('id', id);
-
-    if (error) {
-      throw new Error(error.message);
-    }
-  },
-};
-
-
-
-
+export async function deleteAllocation(id: string): Promise<void> {
+  await prisma.fundAllocation.delete({
+    where: { id }
+  });
+}

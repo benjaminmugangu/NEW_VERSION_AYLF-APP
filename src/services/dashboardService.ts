@@ -1,14 +1,14 @@
 // src/services/dashboardService.ts
-'use client';
+
 
 import type { Activity, Member, Report, Site, SiteWithDetails, SmallGroup, User, Financials } from '@/lib/types';
-import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
-import activityService from './activityService';
-import memberService from './memberService';
-import siteService from './siteService';
-import smallGroupService from './smallGroupService';
-import reportService from './reportService';
-import financialsService from './financialsService';
+import type { DateFilterValue } from '@/lib/dateUtils';
+import * as activityService from './activityService';
+import * as memberService from './memberService';
+import * as siteService from './siteService';
+import * as smallGroupService from './smallGroupService';
+import * as reportService from './reportService';
+import * as financialsService from './financialsService';
 
 export interface DashboardStats {
   totalActivities: number;
@@ -35,20 +35,37 @@ const dashboardService = {
     }
 
     try {
-      const [activities, members, reports, sites, smallGroups, financials] = await Promise.all([
+      // Fetch all data in parallel for efficiency
+      // Helper to safely extract data from settled promises.
+      const getResultData = <T>(result: PromiseSettledResult<T>): T | null => {
+        if (result.status === 'rejected') {
+          console.error('[DashboardService] A promise was rejected:', result.reason);
+          return null;
+        }
+        return result.value;
+      };
+
+      const results = await Promise.allSettled([
         activityService.getFilteredActivities({
           user,
-          dateFilter,
+          dateFilter: undefined, // Dashboard doesn't filter activities by date
           searchTerm: '',
           statusFilter: { planned: true, executed: true, in_progress: true, delayed: true, canceled: true },
           levelFilter: { national: true, site: true, small_group: true },
         }),
-        memberService.getFilteredMembers({ user, dateFilter, searchTerm: '' }),
-        reportService.getFilteredReports({ user, dateFilter, statusFilter: { approved: true, pending: true, rejected: true, submitted: true } }),
+        memberService.getFilteredMembers({ user, dateFilter: undefined, searchTerm: '' }),
+        reportService.getFilteredReports({ user, dateFilter: undefined, statusFilter: { approved: true, pending: true, rejected: true, submitted: true } }),
         siteService.getSitesWithDetails(user),
         smallGroupService.getFilteredSmallGroups({ user }),
-        financialsService.getFinancials(user, dateFilter),
+        financialsService.getFinancials(user, dateFilter), // Only financials uses date filter
       ]);
+
+      const activities = getResultData<Activity[]>(results[0] as PromiseSettledResult<Activity[]>) || [];
+      const members = getResultData<Member[]>(results[1] as PromiseSettledResult<Member[]>) || [];
+      const approvedReports = getResultData<Report[]>(results[2] as PromiseSettledResult<Report[]>) || [];
+      const sites = getResultData<SiteWithDetails[]>(results[3] as PromiseSettledResult<SiteWithDetails[]>) || [];
+      const smallGroups = getResultData<SmallGroup[]>(results[4] as PromiseSettledResult<SmallGroup[]>) || [];
+      const financials = getResultData<Financials>(results[5] as PromiseSettledResult<Financials>);
 
       // --- Calculate Statistics ---
 
@@ -66,7 +83,7 @@ const dashboardService = {
       const nonStudentMembers = members.filter(m => m.type === 'non-student').length;
 
       // Other totals
-      const totalReports = reports.length;
+      const totalReports = approvedReports.length;
       const totalSites = sites.length;
       const totalSmallGroups = smallGroups.length;
 
@@ -89,7 +106,7 @@ const dashboardService = {
         { type: 'Non-Students', count: nonStudentMembers, fill: 'hsl(var(--chart-4))' },
       ];
 
-      return {
+      const stats: DashboardStats = {
         totalActivities,
         plannedActivities,
         executedActivities,
@@ -107,10 +124,11 @@ const dashboardService = {
         memberTypeData,
       };
 
+      return stats;
     } catch (error) {
       const e = error instanceof Error ? error : new Error('An unknown error occurred');
       console.error('[DashboardService] Unexpected error in getDashboardStats:', e.message);
-      throw new Error(`Failed to fetch dashboard stats: ${e.message}`);
+      throw new Error('Failed to fetch dashboard stats');
     }
   },
 };

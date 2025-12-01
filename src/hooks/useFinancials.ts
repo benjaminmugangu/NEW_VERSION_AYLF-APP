@@ -3,8 +3,8 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '@/contexts/AuthContext';
-import financialsService from '@/services/financialsService';
+import type { User } from '@/lib/types';
+import * as financialsService from '@/services/financialsService';
 import type { Financials } from '@/lib/types';
 import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
 
@@ -25,24 +25,19 @@ const defaultDateFilter: DateFilterValue = {
   display: 'This Year (Current)',
 };
 
-export const useFinancials = (initialDateFilter?: DateFilterValue) => {
-  const { currentUser: user } = useAuth();
+export const useFinancials = (user: User | null, initialDateFilter?: DateFilterValue) => {
   const [dateFilter, setDateFilter] = useState<DateFilterValue>(initialDateFilter || defaultDateFilter);
 
-  const { 
+  const {
     data: financials,
     isLoading,
     isError,
     error,
-    refetch 
+    refetch
   } = useQuery<Financials, Error>({
     queryKey: ['financials', user?.id, dateFilter],
     queryFn: () => {
-      if (!user) {
-        // This should not happen if `enabled` is set correctly, but as a safeguard:
-        return Promise.resolve(defaultFinancials);
-      }
-      // The service now throws an error, which react-query will handle automatically.
+      if (!user) throw new Error("User not authenticated");
       return financialsService.getFinancials(user, dateFilter);
     },
     enabled: !!user, // Only run the query if the user is logged in
@@ -57,6 +52,5 @@ export const useFinancials = (initialDateFilter?: DateFilterValue) => {
     refetch,
     dateFilter,
     setDateFilter,
-    currentUser: user,
   };
 };

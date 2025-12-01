@@ -3,6 +3,7 @@
 
 import React, { useState } from 'react';
 import { useFinancials } from "@/hooks/useFinancials";
+import { useAuth } from '@/contexts/AuthContext';
 import { Landmark, TrendingUp, TrendingDown, ArrowRightLeft, DollarSign, PlusCircle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -13,14 +14,15 @@ import { DateRangeFilter, type DateFilterValue } from '@/components/shared/DateR
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { DashboardSkeleton } from '@/components/shared/skeletons/DashboardSkeleton';
-import { transactionService } from '@/services/transactionService';
+import * as transactionService from '@/services/transactionService';
 import { useToast } from '@/hooks/use-toast';
 import { ROLES } from '@/lib/constants';
 import { RecentTransactionsTable } from '@/components/financials/RecentTransactionsTable';
 
 const FinancialsPage = () => {
+  const { currentUser } = useAuth();
   const [dateFilter, setDateFilter] = useState<DateFilterValue>({ rangeKey: 'all_time', display: 'All Time' });
-  const { stats: financials, isLoading, error, currentUser } = useFinancials(dateFilter);
+  const { stats: financials, isLoading, error } = useFinancials(currentUser, dateFilter);
 
   if (isLoading) return <DashboardSkeleton />;
   if (error) return <div className="text-red-500">Error: {error}</div>;
@@ -34,7 +36,7 @@ const FinancialsPage = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader 
+      <PageHeader
         title="Financials Dashboard"
         description="An overview of your entity's financial health."
         actions={<DateRangeFilter onFilterChange={setDateFilter} />}

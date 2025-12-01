@@ -1,246 +1,269 @@
-// src/services/activityService.ts
-import { createClient } from '@/utils/supabase/client';
-import * as z from 'zod';
-import type { Activity, ActivityStatus, ActivityType, User } from '@/lib/types';
+'use server';
+
+import { prisma } from '@/lib/prisma';
+import { Activity, ActivityStatus, ActivityType, User, UserRole } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
+import { activityFormSchema, type ActivityFormData } from '@/schemas/activity';
 
-// Zod schema for validating activity form data
-export const activityFormSchema = z.object({
-  title: z.string().min(3, 'Title must be at least 3 characters long.'),
-  thematic: z.string().min(3, 'Thematic must be at least 3 characters long.'),
-  date: z.date(),
-  level: z.enum(["national", "site", "small_group"]),
-  status: z.enum(["planned", "in_progress", "delayed", "executed", "canceled"]).default('planned'),
-  site_id: z.string().optional(),
-  small_group_id: z.string().optional(),
-  activity_type_id: z.string().min(1, 'Activity type is required.'),
-  participants_count_planned: z.number().int().min(0).optional(),
-  created_by: z.string(),
-}).refine(data => data.level !== 'site' || !!data.site_id, {
-  message: 'Site is required for site-level activities.',
-  path: ['site_id'],
-}).refine(data => data.level !== 'small_group' || !!data.small_group_id, {
-  message: 'Small group is required for small group level activities.',
-  path: ['small_group_id'],
-});
 
-export type ActivityFormData = z.infer<typeof activityFormSchema>;
+// Helper to map Prisma result to Activity type
+const mapPrismaActivityToActivity = (item: any): Activity => {
+  // Try to determine participants count.
+  // If reports exist, use the reported count from the latest report.
+  // Otherwise use planned count.
+  let participantsCount = item.participantsCountPlanned || 0;
+  if (item.reports && item.reports.length > 0) {
+    // Assuming the last report is the relevant one or summing them up?
+    // Usually 1 activity = 1 report.
+    const report = item.reports[0];
+    if (report.participantsCountReported) {
+      participantsCount = report.participantsCountReported;
+    }
+  }
 
-// Converts frontend camelCase data to database snake_case format
-const toActivityDbData = (data: Partial<ActivityFormData>): any => {
-  const dbData: { [key: string]: any } = {};
-  Object.entries(data).forEach(([key, value]) => {
-    if (value !== undefined) {
-      const dbKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
-      dbData[dbKey] = value;
+  return {
+    id: item.id,
+    title: item.title, // mapped from 'name' in DB, but Prisma model uses 'title' if I recall schema correctly?
+    // Wait, let's check schema for Activity model.
+    // Line 209: title String.
+    // Line 210: thematic String.
+    // Line 117 in original service: dbData.name = activityData.title.
+    // Original service mapped 'name' to 'title'.
+    // Schema I read has 'title' and 'thematic'.
+    // So Prisma model has 'title'.
+    // But original service said `item.name` maps to `title`.
+    // This implies the DB column is `name`?
+    // Schema says: `title String`. It does NOT say `@map("name")`.
+    // So the column is `title`.
+    // But original service used `supabase.from('activities')` and `item.name`.
+    // This is a conflict.
+    // If `db push` was run with the schema I saw, the column is `title`.
+    // If the DB was created by Supabase originally, it might be `name`.
+    // However, the schema I read is the source of truth for Prisma.
+    // I will use `item.title`.
+
+    thematic: item.thematic,
+    date: item.date ? item.date.toISOString() : '',
+    level: item.level as Activity['level'],
+    status: item.status as ActivityStatus,
+    siteId: item.siteId || undefined,
+    smallGroupId: item.smallGroupId || undefined,
+    activityTypeId: item.activityTypeId,
+    participantsCountPlanned: item.participantsCountPlanned || undefined,
+    createdBy: item.createdById,
+    createdAt: item.createdAt ? item.createdAt.toISOString() : '',
+    siteName: item.site?.name,
+    smallGroupName: item.smallGroup?.name,
+    activityTypeName: item.activityType?.name,
+    participantsCount: participantsCount,
+  };
+};
+
+export const getFilteredActivities = async (filters: any): Promise<Activity[]> => {
+  const { user, searchTerm, dateFilter, statusFilter, levelFilter } = filters;
+  if (!user) throw new Error('User not authenticated.');
+
+  const where: any = {};
+
+  // RBAC
+  if (user.role === ROLES.SITE_COORDINATOR && user.siteId) {
+    where.OR = [
+      { level: 'national' },
+      { level: 'site', siteId: user.siteId },
+      { level: 'small_group', siteId: user.siteId }
+    ];
+  } else if (user.role === ROLES.SMALL_GROUP_LEADER && user.siteId && user.smallGroupId) {
+    where.OR = [
+      { level: 'national' },
+      { level: 'site', siteId: user.siteId },
+      { level: 'small_group', smallGroupId: user.smallGroupId }
+    ];
+  }
+  // National Coordinator sees all (no RBAC filter)
+
+  // Search
+  if (searchTerm) {
+    where.title = { contains: searchTerm, mode: 'insensitive' };
+  }
+
+  // Date
+  if (dateFilter?.from || dateFilter?.to) {
+    where.date = {};
+    if (dateFilter.from) where.date.gte = dateFilter.from;
+    if (dateFilter.to) where.date.lte = dateFilter.to;
+  }
+
+  // Status
+  if (statusFilter) {
+    const statuses = Object.entries(statusFilter)
+      .filter(([_, v]) => v)
+      .map(([k]) => k);
+    if (statuses.length > 0) {
+      where.status = { in: statuses };
+    }
+  }
+
+  // Level
+  if (levelFilter) {
+    const levels = Object.entries(levelFilter)
+      .filter(([_, v]) => v)
+      .map(([k]) => k);
+    if (levels.length > 0) {
+      where.level = { in: levels };
+    }
+  }
+
+  const activities = await prisma.activity.findMany({
+    where,
+    include: {
+      site: true,
+      smallGroup: true,
+      activityType: true,
+      reports: {
+        select: { participantsCountReported: true },
+        take: 1,
+        orderBy: { submissionDate: 'desc' }
+      }
+    },
+    orderBy: { date: 'desc' }
+  });
+
+  return activities.map(mapPrismaActivityToActivity);
+};
+
+export const getActivityById = async (id: string): Promise<Activity> => {
+  const activity = await prisma.activity.findUnique({
+    where: { id },
+    include: {
+      site: true,
+      smallGroup: true,
+      activityType: true,
+      reports: {
+        select: { participantsCountReported: true },
+        take: 1,
+        orderBy: { submissionDate: 'desc' }
+      }
     }
   });
-  // Ensure date is in ISO format
-  if (data.date instanceof Date) {
-    dbData.date = data.date.toISOString();
-  }
-  return dbData;
-};
 
-// Converts database snake_case data to frontend Activity model (camelCase)
-const toActivityModel = (dbActivity: any): Activity => ({
-  id: dbActivity.id,
-  title: dbActivity.name,
-  thematic: dbActivity.thematic,
-  date: dbActivity.date,
-  level: dbActivity.level,
-  status: dbActivity.status,
-  site_id: dbActivity.site_id,
-  small_group_id: dbActivity.small_group_id,
-  activity_type_id: dbActivity.activity_type_id,
-  participants_count_planned: dbActivity.participants_count_planned,
-  created_by: dbActivity.created_by,
-  created_at: dbActivity.created_at,
-  // Enriched data from joins
-  siteName: dbActivity.sites?.name || null,
-  smallGroupName: dbActivity.small_groups?.name || null,
-  activityTypeName: dbActivity.activity_types?.name || null,
-  participantsCount: Array.isArray(dbActivity.activity_participants) ? dbActivity.activity_participants[0]?.count : 0,
-});
-
-const getFilteredActivities = async (filters: any): Promise<Activity[]> => {
-  const supabase = createClient();
-  const { user, searchTerm, dateFilter, statusFilter, levelFilter } = filters;
-
-  if (!user) throw new Error('User not authenticated.');
-
-  let query = supabase
-    .from('activities')
-    .select('*, sites:site_id(name), small_groups:small_group_id(name), activity_types:activity_type_id(name), activity_participants(count)');
-
-  // Role-based filtering
-  if (user.role === ROLES.SITE_COORDINATOR && user.siteId) {
-    query = query.or(`level.eq.national,and(level.eq.site,site_id.eq.${user.siteId})`);
-  } else if (user.role === ROLES.SMALL_GROUP_LEADER && user.siteId && user.smallGroupId) {
-    query = query.or(`level.eq.national,and(level.eq.site,site_id.eq.${user.siteId}),and(level.eq.small_group,small_group_id.eq.${user.smallGroupId})`);
-  }
-
-  // Search term filter
-  if (searchTerm) {
-    query = query.ilike('title', `%${searchTerm}%`);
-  }
-
-  // Date filter
-  if (dateFilter && dateFilter.from) {
-    query = query.gte('date', dateFilter.from.toISOString());
-  }
-  if (dateFilter && dateFilter.to) {
-    query = query.lte('date', dateFilter.to.toISOString());
-  }
-
-  // Status filter
-  const activeStatusFilters = Object.entries(statusFilter)
-    .filter(([, isActive]) => isActive)
-    .map(([status]) => status);
-
-  if (activeStatusFilters.length > 0) {
-    query = query.in('status', activeStatusFilters);
-  }
-
-  // Level filter
-  const activeLevelFilters = Object.entries(levelFilter)
-    .filter(([, isActive]) => isActive)
-    .map(([level]) => level);
-  
-  if (activeLevelFilters.length > 0) {
-    query = query.in('level', activeLevelFilters);
-  }
-
-  const { data: activitiesData, error } = await query.order('date', { ascending: false });
-
-  if (error) {
-    console.error('[ActivityService] Error in getFilteredActivities:', error.message);
-    throw new Error(error.message);
-  }
-
-  if (!activitiesData) return [];
-
-  return activitiesData.map(toActivityModel);
-};
-
-const getActivitiesByRole = async (user: User): Promise<Activity[]> => {
-  const supabase = createClient();
-  if (!user) throw new Error('User not authenticated.');
-
-  let query = supabase
-    .from('activities')
-    .select('*, sites:site_id(name), small_groups:small_group_id(name), activity_types:activity_type_id(name), activity_participants(count)');
-
-  // Role-based filtering
-  if (user.role === ROLES.SITE_COORDINATOR && user.siteId) {
-    query = query.or(`level.eq.national,and(level.eq.site,site_id.eq.${user.siteId})`);
-  } else if (user.role === ROLES.SMALL_GROUP_LEADER && user.siteId && user.smallGroupId) {
-    query = query.or(`level.eq.national,and(level.eq.site,site_id.eq.${user.siteId}),and(level.eq.small_group,small_group_id.eq.${user.smallGroupId})`);
-  }
-  // National coordinator sees all, so no .or() filter is needed.
-
-  const { data: activitiesData, error } = await query.order('date', { ascending: false });
-
-  if (error) {
-    console.error('[ActivityService] Error in getActivitiesByRole:', error.message);
-    throw new Error(error.message);
-  }
-
-  if (!activitiesData) return [];
-
-  return activitiesData.map(toActivityModel);
-};
-
-const getPlannedActivitiesForUser = async (user: User): Promise<Activity[]> => {
-  if (!user) throw new Error('User not authenticated.');
-
-  const allActivities = await getActivitiesByRole(user);
-  return allActivities.filter(activity => activity.status === 'planned');
-};
-
-const getActivityById = async (id: string): Promise<Activity> => {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from('activities')
-    .select('*, sites:site_id(name), small_groups:small_group_id(name), activity_types:activity_type_id(name), activity_participants(count)')
-    .eq('id', id)
-    .single();
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  if (!data) {
+  if (!activity) {
     throw new Error('Activity not found');
   }
 
-  return toActivityModel(data);
+  return mapPrismaActivityToActivity(activity);
 };
 
-const createActivity = async (activityData: Omit<ActivityFormData, 'created_by'>, userId: string): Promise<Activity> => {
-  const supabase = createClient();
-  const dbData = toActivityDbData({ ...activityData, created_by: userId });
+export const createActivity = async (activityData: ActivityFormData): Promise<Activity> => {
+  const activity = await prisma.activity.create({
+    data: {
+      title: activityData.title,
+      thematic: activityData.thematic,
+      date: activityData.date,
+      level: activityData.level,
+      status: activityData.status,
+      siteId: activityData.siteId,
+      smallGroupId: activityData.smallGroupId,
+      activityTypeId: activityData.activityTypeId,
+      participantsCountPlanned: activityData.participantsCountPlanned,
+      createdById: activityData.createdBy,
+    },
+    include: {
+      site: true,
+      smallGroup: true,
+      activityType: true,
+    }
+  });
 
-  const { data, error } = await supabase
-    .from('activities')
-    .insert(dbData)
-    .select('id')
-    .single();
+  return mapPrismaActivityToActivity(activity);
+};
 
-  if (error) {
-    console.error('[ActivityService] Error in createActivity:', error.message);
-    throw new Error(error.message);
+export const updateActivity = async (id: string, updatedData: Partial<ActivityFormData | { status: ActivityStatus }>): Promise<Activity> => {
+  // Map frontend data to Prisma update object
+  const dbUpdates: any = {};
+  const data = updatedData as any; // Loose typing to handle both types
+
+  if (data.title !== undefined) dbUpdates.title = data.title;
+  if (data.thematic !== undefined) dbUpdates.thematic = data.thematic;
+  if (data.date !== undefined) dbUpdates.date = data.date;
+  if (data.level !== undefined) dbUpdates.level = data.level;
+  if (data.status !== undefined) dbUpdates.status = data.status;
+  if (data.siteId !== undefined) dbUpdates.siteId = data.siteId;
+  if (data.smallGroupId !== undefined) dbUpdates.smallGroupId = data.smallGroupId;
+  if (data.activityTypeId !== undefined) dbUpdates.activityTypeId = data.activityTypeId;
+  if (data.participantsCountPlanned !== undefined) dbUpdates.participantsCountPlanned = data.participantsCountPlanned;
+  if (data.createdBy !== undefined) dbUpdates.createdById = data.createdBy;
+
+  const activity = await prisma.activity.update({
+    where: { id },
+    data: dbUpdates,
+    include: {
+      site: true,
+      smallGroup: true,
+      activityType: true,
+      reports: {
+        select: { participantsCountReported: true },
+        take: 1,
+        orderBy: { submissionDate: 'desc' }
+      }
+    }
+  });
+
+  return mapPrismaActivityToActivity(activity);
+};
+
+export const deleteActivity = async (id: string): Promise<void> => {
+  await prisma.activity.delete({
+    where: { id },
+  });
+};
+
+export const getActivityTypes = async (): Promise<ActivityType[]> => {
+  const types = await prisma.activityType.findMany();
+
+  return types.map(t => ({
+    id: t.id,
+    name: t.name,
+    description: t.description || undefined,
+    category: t.category,
+  }));
+};
+
+
+
+export const updateActivityStatuses = async () => {
+  const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  // 1. Planned -> In Progress (if date is today or past)
+  const plannedToInProgress = await prisma.activity.updateMany({
+    where: {
+      status: 'planned',
+      date: { lte: now },
+    },
+    data: { status: 'in_progress' },
+  });
+
+  // 2. In Progress -> Delayed (if date < yesterday and no reports)
+  const activitiesToDelay = await prisma.activity.findMany({
+    where: {
+      status: 'in_progress',
+      date: { lt: yesterday },
+      reports: { none: {} },
+    },
+    select: { id: true },
+  });
+
+  const delayedCount = activitiesToDelay.length;
+  if (delayedCount > 0) {
+    await prisma.activity.updateMany({
+      where: { id: { in: activitiesToDelay.map(a => a.id) } },
+      data: { status: 'delayed' },
+    });
   }
-  return getActivityById(data.id);
+
+  return {
+    plannedToInProgress: plannedToInProgress.count,
+    inProgressToDelayed: delayedCount,
+  };
 };
-
-const updateActivity = async (id: string, updatedData: Partial<ActivityFormData | { status: ActivityStatus }>): Promise<Activity> => {
-  const supabase = createClient();
-  const dbData = toActivityDbData(updatedData as Partial<ActivityFormData>);
-
-  const { error } = await supabase
-    .from('activities')
-    .update(dbData)
-    .eq('id', id);
-
-  if (error) {
-    console.error(`[ActivityService] Error in updateActivity for id ${id}:`, error.message);
-    throw new Error(error.message);
-  }
-  return getActivityById(id);
-};
-
-const deleteActivity = async (id: string): Promise<void> => {
-  const supabase = createClient();
-  const { error } = await supabase
-    .from('activities')
-    .delete()
-    .eq('id', id);
-  if (error) {
-            console.error(`[ActivityService] Error in deleteActivity for id ${id}:`, error.message);
-    throw new Error(error.message);
-  }
-};
-
-const getActivityTypes = async (): Promise<ActivityType[]> => {
-  const supabase = createClient();
-  const { data, error } = await supabase.from('activity_types').select('*');
-  if (error) {
-    console.error('[ActivityService] Error in getActivityTypes:', error.message);
-    throw new Error(error.message);
-  }
-  return data || [];
-};
-
-const activityService = {
-  getFilteredActivities,
-  getActivitiesByRole,
-  getPlannedActivitiesForUser,
-  getActivityById,
-  createActivity,
-  updateActivity,
-    deleteActivity,
-  getActivityTypes,
-};
-
-export default activityService;

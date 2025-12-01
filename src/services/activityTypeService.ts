@@ -1,50 +1,44 @@
 // src/services/activityTypeService.ts
-import { createClient } from '@/utils/supabase/client';
+'use server';
+
+import { prisma } from '@/lib/prisma';
 import type { ActivityType } from '@/lib/types';
 
 /**
  * Fetches all available activity types from the database.
- * @returns A promise that resolves to an array of activity types.
- * @throws An error if the database query fails.
+ * @returns A list of all activity types.
  */
-export const getActivityTypes = async (): Promise<ActivityType[]> => {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from('activity_types')
-    .select('*')
-    .order('name', { ascending: true });
+export const getAllActivityTypes = async (): Promise<ActivityType[]> => {
+  const items = await prisma.activityType.findMany({
+    orderBy: { name: 'asc' },
+  });
 
-  if (error) {
-    console.error('[ActivityTypeService] Error in getActivityTypes:', error.message);
-    console.error('[ActivityTypeService] Error in getAllActivityTypes:', error.message);
-    throw new Error(error.message);
-  }
-
-  return data || [];
+  return items.map((item) => ({
+    id: item.id,
+    name: item.name,
+    category: item.category as ActivityType['category'],
+    description: item.description ?? undefined,
+  }));
 };
 
 /**
  * Fetches a single activity type by its ID.
  * @param id The ID of the activity type to fetch.
- * @returns A promise that resolves to the activity type.
- * @throws An error if the activity type is not found or the query fails.
+ * @returns The activity type or throws if not found.
  */
 export const getActivityTypeById = async (id: string): Promise<ActivityType> => {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from('activity_types')
-    .select('*')
-    .eq('id', id)
-    .single();
+  const item = await prisma.activityType.findUnique({
+    where: { id },
+  });
 
-  if (error) {
-    console.error(`[ActivityTypeService] Error in getActivityTypeById for id ${id}:`, error.message);
-    throw new Error(error.message);
-  }
-
-  if (!data) {
+  if (!item) {
     throw new Error('Activity type not found.');
   }
 
-  return data;
+  return {
+    id: item.id,
+    name: item.name,
+    category: item.category as ActivityType['category'],
+    description: item.description ?? undefined,
+  };
 };

@@ -1,7 +1,6 @@
 import type {Metadata} from 'next';
 import {Geist, Geist_Mono} from 'next/font/google';
 import './globals.css';
-import { AuthProvider } from '@/contexts/AuthContext';
 import { Providers } from '@/components/shared/Providers';
 import { Toaster } from "@/components/ui/toaster";
 
@@ -29,10 +28,8 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <Providers>
-          <AuthProvider>
             {children}
             <Toaster />
-          </AuthProvider>
         </Providers>
       </body>
     </html>

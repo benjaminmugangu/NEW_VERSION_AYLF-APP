@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import transactionService from '@/services/transactionService';
+import * as transactionService from '@/services/transactionService';
 
 import { TransactionForm } from '@/components/financials/TransactionForm';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -30,16 +30,10 @@ const EditTransactionPage = () => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const transactionRes = await transactionService.getTransactionById(id);
+        const transaction = await transactionService.getTransactionById(id);
+        setTransaction(transaction);
 
-        if (transactionRes.success && transactionRes.data) {
-          setTransaction(transactionRes.data);
-        } else {
-          toast({ title: 'Error', description: 'Transaction not found.', variant: 'destructive' });
-          router.push('/dashboard/financials');
-        }
 
-        
 
       } catch (error) {
         toast({ title: 'Error', description: 'Failed to load transaction data.', variant: 'destructive' });
@@ -53,14 +47,14 @@ const EditTransactionPage = () => {
 
   const handleUpdate = async (data: TransactionFormData) => {
     setIsSaving(true);
-    const response = await transactionService.updateTransaction(id, data);
-    setIsSaving(false);
-
-    if (response.success) {
+    try {
+      await transactionService.updateTransaction(id, data);
       toast({ title: 'Success', description: 'Transaction updated successfully.' });
       router.push('/dashboard/financials');
-    } else {
-      toast({ title: 'Error', description: response.error?.message || 'Failed to update transaction.', variant: 'destructive' });
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to update transaction.', variant: 'destructive' });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -84,7 +78,7 @@ const EditTransactionPage = () => {
         initialData={transaction}
         onSave={handleUpdate}
         isSaving={isSaving}
-        
+
       />
     </div>
   );

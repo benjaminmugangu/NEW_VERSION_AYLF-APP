@@ -4,12 +4,12 @@
 import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import activityService, { activityFormSchema, type ActivityFormData } from '@/services/activityService';
+import { activityFormSchema, type ActivityFormData } from '@/schemas/activity';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
-
-import siteService from '@/services/siteService';
-import smallGroupService from '@/services/smallGroupService';
+import * as activityService from '@/services/activityService';
+import * as siteService from '@/services/siteService';
+import * as smallGroupService from '@/services/smallGroupService';
 import type { Activity, Site, SmallGroup, ActivityType } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -47,34 +47,34 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
       date: new Date(),
       status: 'planned',
       level: 'national',
-      site_id: '',
-      small_group_id: '',
-      participants_count_planned: 0,
-      activity_type_id: '',
-      created_by: currentUser?.id || '',
+      siteId: '',
+      smallGroupId: '',
+      participantsCountPlanned: 0,
+      activityTypeId: '',
+      createdBy: currentUser?.id || '',
     },
   });
 
   const selectedLevel = form.watch('level');
-  const selectedSiteId = form.watch('site_id');
+  const selectedSiteId = form.watch('siteId');
 
   useEffect(() => {
     const determinedLevel = currentUser?.role === ROLES.NATIONAL_COORDINATOR ? 'national' : currentUser?.role === ROLES.SITE_COORDINATOR ? 'site' : 'small_group';
-    
+
     if (isEditMode && initialActivity) {
       form.reset({
         ...initialActivity,
         date: new Date(initialActivity.date),
-        site_id: initialActivity.site_id ?? '',
-        small_group_id: initialActivity.small_group_id ?? '',
-        participants_count_planned: initialActivity.participants_count_planned ?? 0,
-        activity_type_id: initialActivity.activity_type_id ?? '',
-        created_by: initialActivity.created_by || currentUser?.id || '',
+        siteId: initialActivity.siteId ?? '',
+        smallGroupId: initialActivity.smallGroupId ?? '',
+        participantsCountPlanned: initialActivity.participantsCountPlanned ?? 0,
+        activityTypeId: initialActivity.activityTypeId ?? '',
+        createdBy: initialActivity.createdBy || currentUser?.id || '',
       });
     } else if (!isEditMode && currentUser) {
       form.setValue('level', determinedLevel);
-      if (currentUser.siteId) form.setValue('site_id', currentUser.siteId);
-      if (currentUser.smallGroupId) form.setValue('small_group_id', currentUser.smallGroupId);
+      if (currentUser.siteId) form.setValue('siteId', currentUser.siteId);
+      if (currentUser.smallGroupId) form.setValue('smallGroupId', currentUser.smallGroupId);
     }
   }, [initialActivity, isEditMode, currentUser, form]);
 
@@ -92,7 +92,7 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
           setSmallGroups(smallGroupsData);
         } else if (currentUser.role === ROLES.SITE_COORDINATOR && currentUser.siteId) {
           const siteData = await siteService.getSiteById(currentUser.siteId);
-          if(siteData) setSites([siteData]);
+          if (siteData) setSites([siteData]);
           const smallGroupsData = await smallGroupService.getSmallGroupsBySite(currentUser.siteId);
           setSmallGroups(smallGroupsData);
         } else if (currentUser.role === ROLES.SMALL_GROUP_LEADER && currentUser.smallGroupId) {
@@ -100,7 +100,7 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
           if (smallGroupData) {
             setSmallGroups([smallGroupData]);
             const siteData = await siteService.getSiteById(smallGroupData.siteId);
-            if(siteData) setSites([siteData]);
+            if (siteData) setSites([siteData]);
           }
         }
       } catch (error) {
@@ -129,27 +129,26 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
     try {
       const payload = {
         ...data,
-        site_id: data.level === 'national' ? undefined : data.site_id,
-        small_group_id: data.level !== 'small_group' ? undefined : data.small_group_id,
-        participants_count_planned: Number(data.participants_count_planned) || 0,
+        siteId: data.level === 'national' ? undefined : data.siteId,
+        smallGroupId: data.level !== 'small_group' ? undefined : data.smallGroupId,
+        participantsCountPlanned: Number(data.participantsCountPlanned) || 0,
+        createdBy: data.createdBy,
       };
 
       let savedActivity;
       if (isEditMode && initialActivity?.id) {
         savedActivity = await activityService.updateActivity(initialActivity.id, payload);
       } else {
-        // The 'created_by' field is handled by the service, so we omit it from the payload.
-        const { created_by, ...createData } = payload;
-        savedActivity = await activityService.createActivity(createData, currentUser.id);
+        savedActivity = await activityService.createActivity(payload);
       }
       toast({ title: 'Success', description: `Activity ${isEditMode ? 'updated' : 'created'} successfully.` });
-      if(savedActivity) onSave(savedActivity);
+      if (savedActivity) onSave(savedActivity);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
       toast({ title: 'Error', description: `Failed to save activity: ${errorMessage}`, variant: 'destructive' });
     }
   };
-  
+
   const handleStartActivity = async () => {
     if (!initialActivity) return;
     try {
@@ -181,7 +180,7 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Input type="hidden" {...form.register('created_by')} />
+            <Input type="hidden" {...form.register('createdBy')} />
             <div>
               <Label htmlFor="title">Title</Label>
               <Input id="title" {...form.register('title')} className="mt-1" placeholder="e.g., Weekly Meeting" />
@@ -243,74 +242,74 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {selectedLevel === 'site' || selectedLevel === 'small_group' ? (
               <div>
-                <Label htmlFor="site_id">Site</Label>
-                <Controller name="site_id" control={form.control} render={({ field }) => (
+                <Label htmlFor="siteId">Site</Label>
+                <Controller name="siteId" control={form.control} render={({ field }) => (
                   <Select onValueChange={field.onChange} value={field.value || ''} disabled={!canChangeSite}>
-                    <SelectTrigger id="site_id" className="mt-1"><SelectValue placeholder="Select site" /></SelectTrigger>
+                    <SelectTrigger id="siteId" className="mt-1"><SelectValue placeholder="Select site" /></SelectTrigger>
                     <SelectContent>
                       {sites.map(site => <SelectItem key={site.id} value={site.id}>{site.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 )} />
-                {form.formState.errors.site_id && <p className="text-sm text-destructive mt-1">{form.formState.errors.site_id.message}</p>}
+                {form.formState.errors.siteId && <p className="text-sm text-destructive mt-1">{form.formState.errors.siteId.message}</p>}
               </div>
-            ) : <div />} 
+            ) : <div />}
 
             {selectedLevel === 'small_group' ? (
               <div>
-                <Label htmlFor="small_group_id">Small Group</Label>
-                <Controller name="small_group_id" control={form.control} render={({ field }) => (
+                <Label htmlFor="smallGroupId">Small Group</Label>
+                <Controller name="smallGroupId" control={form.control} render={({ field }) => (
                   <Select onValueChange={field.onChange} value={field.value || ''} disabled={!selectedSiteId || !canChangeSmallGroup}>
-                    <SelectTrigger id="small_group_id" className="mt-1"><SelectValue placeholder="Select small group" /></SelectTrigger>
+                    <SelectTrigger id="smallGroupId" className="mt-1"><SelectValue placeholder="Select small group" /></SelectTrigger>
                     <SelectContent>
                       {filteredSmallGroups.map(sg => <SelectItem key={sg.id} value={sg.id}>{sg.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 )} />
-                {form.formState.errors.small_group_id && <p className="text-sm text-destructive mt-1">{form.formState.errors.small_group_id.message}</p>}
+                {form.formState.errors.smallGroupId && <p className="text-sm text-destructive mt-1">{form.formState.errors.smallGroupId.message}</p>}
               </div>
-            ) : <div />} 
+            ) : <div />}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <Label htmlFor="activity_type_id">Activity Type</Label>
-              <Controller name="activity_type_id" control={form.control} render={({ field }) => (
+              <Label htmlFor="activityTypeId">Activity Type</Label>
+              <Controller name="activityTypeId" control={form.control} render={({ field }) => (
                 <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                  <SelectTrigger id="activity_type_id" className="mt-1"><SelectValue placeholder="Select type" /></SelectTrigger>
+                  <SelectTrigger id="activityTypeId" className="mt-1"><SelectValue placeholder="Select type" /></SelectTrigger>
                   <SelectContent>
                     {activityTypes.map(type => <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               )} />
-              {form.formState.errors.activity_type_id && <p className="text-sm text-destructive mt-1">{form.formState.errors.activity_type_id.message}</p>}
+              {form.formState.errors.activityTypeId && <p className="text-sm text-destructive mt-1">{form.formState.errors.activityTypeId.message}</p>}
             </div>
             <div>
-              <Label htmlFor="participants_count_planned">Participants Count (Planned)</Label>
-              <Input id="participants_count_planned" type="number" {...form.register('participants_count_planned', { valueAsNumber: true })} className="mt-1" placeholder="e.g., 50" />
-              {form.formState.errors.participants_count_planned && <p className="text-sm text-destructive mt-1">{form.formState.errors.participants_count_planned.message}</p>}
+              <Label htmlFor="participantsCountPlanned">Participants Count (Planned)</Label>
+              <Input id="participantsCountPlanned" type="number" {...form.register('participantsCountPlanned', { valueAsNumber: true })} className="mt-1" placeholder="e.g., 50" />
+              {form.formState.errors.participantsCountPlanned && <p className="text-sm text-destructive mt-1">{form.formState.errors.participantsCountPlanned.message}</p>}
             </div>
           </div>
         </CardContent>
         <CardFooter className="flex justify-between items-center">
-            <div>
-              {isEditMode && initialActivity?.status === 'planned' && (
-                <Button type="button" variant="secondary" onClick={handleStartActivity}>
-                  <ActivityIconLucide className="mr-2 h-5 w-5" />
-                  Mark as Executed
-                </Button>
-              )}
-            </div>
-            <div className="flex space-x-4">
-              <Button type="button" variant="outline" onClick={onCancel}>
-                  <XCircle className="mr-2 h-5 w-5" />
-                  Cancel
+          <div>
+            {isEditMode && initialActivity?.status === 'planned' && (
+              <Button type="button" variant="secondary" onClick={handleStartActivity}>
+                <ActivityIconLucide className="mr-2 h-5 w-5" />
+                Mark as Executed
               </Button>
-              <Button type="submit" className="text-base" disabled={form.formState.isSubmitting}>
-                  <Save className="mr-2 h-5 w-5" />
-                  {form.formState.isSubmitting ? 'Saving...' : (initialActivity ? 'Save Changes' : 'Create Activity')}
-              </Button>
-            </div>
+            )}
+          </div>
+          <div className="flex space-x-4">
+            <Button type="button" variant="outline" onClick={onCancel}>
+              <XCircle className="mr-2 h-5 w-5" />
+              Cancel
+            </Button>
+            <Button type="submit" className="text-base" disabled={form.formState.isSubmitting}>
+              <Save className="mr-2 h-5 w-5" />
+              {form.formState.isSubmitting ? 'Saving...' : (initialActivity ? 'Save Changes' : 'Create Activity')}
+            </Button>
+          </div>
         </CardFooter>
       </form>
     </Card>

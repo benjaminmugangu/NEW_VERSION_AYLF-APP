@@ -1,54 +1,76 @@
 # AYLF Group Tracker
 
-This is a web application designed to help AYLF (African Youth Leadership Forum) track and manage the activities, finances, and reporting of its members, small groups, and sites.
+## 1. Objectif du Projet
 
-## Prerequisites
+Le projet **AYLF Group Tracker** est une application web conçue pour le suivi et la gestion des activités de l'organisation AYLF (African Youth Leadership Forum). Elle sert de plateforme centralisée pour les coordinateurs à différents niveaux afin de planifier, suivre et rapporter les activités, gérer les membres, et superviser les finances.
 
-- Node.js (v18 or later)
-- npm
+Pour une description détaillée de l'architecture et des fonctionnalités, veuillez consulter la **[documentation technique complète](./docs/README.md)**.
 
-## Getting Started
+## 2. Getting Started
 
-### 1. Installation
+Suivez ces étapes pour configurer et lancer le projet en environnement de développement.
 
-Clone the repository and install the dependencies:
+### Prérequis
 
-```bash
-npm install
-```
+-   Node.js (version 20.x ou supérieure)
+-   npm (généralement inclus avec Node.js)
+-   Un compte Supabase et un projet créé.
 
-#### **Important Note for Windows Users**
+### Installation
 
-If you encounter an error during `npm install` related to script execution policies, you may need to allow scripts to run for the current process. Open your terminal (PowerShell) and run the following command before `npm install`:
+1.  **Cloner le dépôt**
 
-```powershell
-Set-ExecutionPolicy RemoteSigned -Scope Process
-```
+    ```bash
+    git clone <URL_DU_DEPOT>
+    cd aylf-group-tracker-main
+    ```
 
-This command changes the execution policy only for the current PowerShell session and is a safe way to proceed.
+2.  **Configurer les variables d'environnement**
 
-### 2. Environment Variables
+    Créez un fichier `.env.local` à la racine du projet en copiant le modèle `.env.local.example`.
 
-Create a `.env.local` file in the root of the project by copying the example file:
+    ```bash
+    cp .env.local.example .env.local
+    ```
 
-```bash
-cp .env.example .env.local
-```
+    Remplissez ensuite le fichier `.env.local` avec vos clés d'API Supabase, que vous trouverez dans les paramètres de votre projet Supabase (`Project Settings > API`):
 
-Fill in the required Supabase credentials in your `.env.local` file:
+    ```env
+    NEXT_PUBLIC_SUPABASE_URL="VOTRE_URL_SUPABASE"
+    NEXT_PUBLIC_SUPABASE_ANON_KEY="VOTRE_CLE_ANON_PUBLIQUE"
+    SUPABASE_SERVICE_ROLE_KEY="VOTRE_CLE_SERVICE_ROLE"
+    ```
 
-```
-NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
-```
+3.  **Installer les dépendances**
 
-### 3. Running the Development Server
+    ```bash
+    npm install
+    ```
 
-Once the installation is complete and your environment variables are set, you can start the development server:
+    **Note pour les utilisateurs Windows :** Si vous rencontrez une erreur liée à la politique d'exécution de PowerShell, exécutez la commande suivante dans votre terminal et réessayez :
+    ```powershell
+    Set-ExecutionPolicy RemoteSigned -Scope Process
+    ```
+
+### Lancer le serveur de développement
+
+Une fois l'installation terminée, lancez le serveur de développement :
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Ouvrez [http://localhost:3000](http://localhost:3000) dans votre navigateur pour voir l'application.
+
+## 3. Comment Contribuer
+
+Nous encourageons les contributions pour améliorer ce projet. Avant de commencer, veuillez prendre connaissance des documents suivants :
+
+1.  **[Structure du Projet](./docs/02-structure-du-projet.md)** : Pour comprendre l'organisation du code.
+2.  **[Standards de Codage](./docs/04-recommandations.md)** : Pour connaître les règles de codage, de gestion des erreurs et de documentation à respecter.
+
+Le processus de contribution est le suivant :
+1.  Créez une nouvelle branche pour votre fonctionnalité ou votre correctif.
+2.  Développez votre contribution en respectant les standards du projet.
+3.  Assurez-vous que le code est correctement documenté (JSDoc).
+4.  Ouvrez une Pull Request en décrivant clairement les changements que vous avez apportés.

@@ -32,36 +32,15 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton";
 
-/**
- * Props for the generic DataTable component.
- * @template TData The type of data for each row in the table.
- * @template TValue The type of value for each cell in the table.
- */
 interface DataTableProps<TData, TValue> {
-  /**
-   * An array of column definitions for the table, from @tanstack/react-table.
-   * Determines the structure and behavior of each column.
-   */
   columns: ColumnDef<TData, TValue>[]
-  /** The data to be displayed in the table. */
   data: TData[]
-  /** The ID of the column to use for the primary filter input. */
   filterColumnId: string
-  /** The placeholder text for the filter input field. */
   filterPlaceholder: string
-  /** Optional flag to display a loading skeleton instead of the table. */
   isLoading?: boolean
-  /** Optional error object to display an error message instead of the table. */
   error?: Error | null
 }
 
-/**
- * A generic, reusable data table component built with @tanstack/react-table.
- * It supports sorting, filtering, column visibility toggling, and pagination.
- * It also handles loading and error states gracefully.
- * @template TData The type of data for each row.
- * @template TValue The type of value for each cell.
- */
 export function DataTable<TData, TValue>({
   columns,
   data,

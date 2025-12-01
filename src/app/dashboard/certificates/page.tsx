@@ -1,10 +1,8 @@
-
 // src/app/dashboard/certificates/page.tsx
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
 import { ROLES, APP_NAME } from "@/lib/constants";
 import type { RosterMember } from "@/services/certificateService";
 import { useCertificates } from "@/hooks/useCertificates";
@@ -21,12 +19,12 @@ import { DateRangeFilter } from "@/components/shared/DateRangeFilter";
 export default function CertificatesPage() {
   const [selectedUserForCertificate, setSelectedUserForCertificate] = useState<RosterMember | null>(null);
   const [isCertificateModalOpen, setIsCertificateModalOpen] = useState(false);
-  const { 
-    roster: coordinatorsAndLeaders, 
-    isLoading, 
-    error, 
-    dateFilter, 
-    setDateFilter 
+  const {
+    roster: coordinatorsAndLeaders,
+    isLoading,
+    error,
+    dateFilter,
+    setDateFilter
   } = useCertificates();
 
   const handleGenerateCertificate = (user: RosterMember) => {
@@ -78,7 +76,7 @@ export default function CertificatesPage() {
 
 
   return (
-    <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR]}>
+    <>
       <PageHeader
         title="Coordinator & Leader Certificates"
         description={`Generate certificates of service. Filter: ${dateFilter.display}`}
@@ -129,17 +127,17 @@ export default function CertificatesPage() {
                     <TableCell className="font-medium">{user.name}</TableCell>
                     <TableCell>{user.roleDisplayName}</TableCell>
                     <TableCell>{user.entityName}</TableCell>
-                    <TableCell>{user.mandateStartDate ? format(parseISO(user.mandateStartDate), "PP") : "N/A"}</TableCell>
-                    <TableCell>{user.mandateEndDate ? format(parseISO(user.mandateEndDate), "PP") : "Present"}</TableCell>
+                    <TableCell>{user.mandateStartDate ? format(user.mandateStartDate, "PP") : "N/A"}</TableCell>
+                    <TableCell>{user.mandateEndDate ? format(user.mandateEndDate, "PP") : "Present"}</TableCell>
                     <TableCell>
                       <Badge variant={user.mandateStatus === 'Past' ? "outline" : "default"} className="capitalize">
                         {user.mandateStatus}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right no-print">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => handleGenerateCertificate(user)}
                       >
                         <UserSquare2 className="mr-2 h-4 w-4" /> Generate Certificate
@@ -165,22 +163,22 @@ export default function CertificatesPage() {
             <DialogHeader className="p-6 pb-0">
               <DialogTitle>Certificate of Service for {selectedUserForCertificate.name}</DialogTitle>
             </DialogHeader>
-            <div className="max-h-[70vh] overflow-y-auto"> 
-                <PrintableCertificate 
-                    user={selectedUserForCertificate} 
-                    entityName={selectedUserForCertificate.entityName}
-                    appName={APP_NAME} 
-                />
+            <div className="max-h-[70vh] overflow-y-auto">
+              <PrintableCertificate
+                user={selectedUserForCertificate}
+                entityName={selectedUserForCertificate.entityName}
+                appName={APP_NAME}
+              />
             </div>
             <DialogFooter className="p-6 bg-muted border-t no-print">
               <Button variant="outline" onClick={() => setIsCertificateModalOpen(false)}>Close</Button>
               <Button onClick={() => {
-                  const printableContent = document.getElementById('certificate-content');
-                  if (printableContent) {
-                    const printWindow = window.open('', '_blank');
-                    if(printWindow) {
-                        printWindow.document.write('<html><head><title>Print Certificate</title>');
-                        printWindow.document.write(`
+                const printableContent = document.getElementById('certificate-content');
+                if (printableContent) {
+                  const printWindow = window.open('', '_blank');
+                  if (printWindow) {
+                    printWindow.document.write('<html><head><title>Print Certificate</title>');
+                    printWindow.document.write(`
                         <style>
                           @page { size: A4 portrait; margin: 15mm; }
                           body { margin: 0; font-family: "Times New Roman", Times, serif; color: #333; }
@@ -208,21 +206,21 @@ export default function CertificatesPage() {
                           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
                         </style>
                         `);
-                        printWindow.document.write('</head><body>');
-                        printWindow.document.write(printableContent.innerHTML);
-                        printWindow.document.write('</body></html>');
-                        printWindow.document.close();
-                        printWindow.focus();
-                        printWindow.print();
-                    }
+                    printWindow.document.write('</head><body>');
+                    printWindow.document.write(printableContent.innerHTML);
+                    printWindow.document.write('</body></html>');
+                    printWindow.document.close();
+                    printWindow.focus();
+                    printWindow.print();
                   }
+                }
               }}>
-                <Printer className="mr-2 h-4 w-4"/> Print / Export to PDF
+                <Printer className="mr-2 h-4 w-4" /> Print / Export to PDF
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       )}
-    </RoleBasedGuard>
+    </>
   );
 }

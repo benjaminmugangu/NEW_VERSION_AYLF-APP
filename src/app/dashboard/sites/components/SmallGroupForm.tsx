@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { SmallGroup, User, SmallGroupFormData } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import profileService from "@/services/profileService";
+import * as profileService from "@/services/profileService";
 import { ROLES } from "@/lib/constants";
 import { Users, Save } from "lucide-react";
 
@@ -20,34 +20,36 @@ import { Users, Save } from "lucide-react";
 
 const smallGroupFormSchema = z.object({
   name: z.string().min(3, "Small group name must be at least 3 characters."),
-  leaderId: z.string().optional(),
-  logisticsAssistantId: z.string().optional(),
-  financeAssistantId: z.string().optional(),
+  leaderId: z.string().optional().nullable(),
+  logisticsAssistantId: z.string().optional().nullable(),
+  financeAssistantId: z.string().optional().nullable(),
   meetingDay: z.enum(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']).optional(),
   meetingTime: z.string().optional(), // You might want to add a regex for time format
   meetingLocation: z.string().optional(),
 });
 
 const UNASSIGNED_VALUE = "__UNASSIGNED__"; // Represents no selection
+const ALLOWED_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const;
 
 interface SmallGroupFormProps {
   smallGroup?: SmallGroup; // For editing
-  siteId: string; 
+  siteId: string;
   onSubmitForm: (data: SmallGroupFormData) => Promise<void>;
+  isSaving?: boolean;
 }
 
-export function SmallGroupForm({ smallGroup, siteId, onSubmitForm }: SmallGroupFormProps) {
+export function SmallGroupForm({ smallGroup, siteId, onSubmitForm, isSaving }: SmallGroupFormProps) {
   const { toast } = useToast();
   const [availablePersonnel, setAvailablePersonnel] = useState<User[]>([]);
   const [isLoadingPersonnel, setIsLoadingPersonnel] = useState(true);
   const { control, handleSubmit, register, formState: { errors, isSubmitting }, reset } = useForm<SmallGroupFormData>({
     resolver: zodResolver(smallGroupFormSchema),
-    defaultValues: smallGroup ? { 
-      name: smallGroup.name, 
+    defaultValues: smallGroup ? {
+      name: smallGroup.name,
       leaderId: smallGroup.leaderId || undefined,
       logisticsAssistantId: smallGroup.logisticsAssistantId || undefined,
       financeAssistantId: smallGroup.financeAssistantId || undefined,
-      meetingDay: smallGroup.meetingDay,
+      meetingDay: ALLOWED_DAYS.includes((smallGroup.meetingDay as any) || '') ? (smallGroup.meetingDay as any) : undefined,
       meetingTime: smallGroup.meetingTime,
       meetingLocation: smallGroup.meetingLocation,
     } : {
@@ -65,23 +67,23 @@ export function SmallGroupForm({ smallGroup, siteId, onSubmitForm }: SmallGroupF
     const fetchPersonnel = async () => {
       setIsLoadingPersonnel(true);
       try {
-        const personnel = await profileService.getEligiblePersonnel(siteId, smallGroup?.id);
-        setAvailablePersonnel(personnel || []);
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Failed to load personnel";
-        toast({ title: "Error", description: errorMessage, variant: 'destructive' });
+        const users = await profileService.getEligiblePersonnel(siteId, smallGroup?.id);
+        setAvailablePersonnel(users);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        toast({ title: "Error", description: `Failed to load personnel: ${message}`, variant: 'destructive' });
       } finally {
         setIsLoadingPersonnel(false);
       }
     };
 
     fetchPersonnel();
-  }, [siteId, smallGroup?.id, toast]);
+  }, [siteId, smallGroup?.id]);
 
   const processSubmit = async (data: SmallGroupFormData) => {
     await onSubmitForm(data);
     if (!smallGroup) {
-      reset(); 
+      reset();
     }
   };
 
@@ -129,8 +131,8 @@ export function SmallGroupForm({ smallGroup, siteId, onSubmitForm }: SmallGroupF
               name="leaderId"
               control={control}
               render={({ field }) => (
-                <Select 
-                  onValueChange={(value) => field.onChange(value === UNASSIGNED_VALUE ? undefined : value)} 
+                <Select
+                  onValueChange={(value) => field.onChange(value === UNASSIGNED_VALUE ? undefined : value)}
                   value={field.value || UNASSIGNED_VALUE}
                 >
                   <SelectTrigger id="leaderId" className="mt-1" disabled={isLoadingPersonnel}>
@@ -156,8 +158,8 @@ export function SmallGroupForm({ smallGroup, siteId, onSubmitForm }: SmallGroupF
               name="logisticsAssistantId"
               control={control}
               render={({ field }) => (
-                <Select 
-                  onValueChange={(value) => field.onChange(value === UNASSIGNED_VALUE ? undefined : value)} 
+                <Select
+                  onValueChange={(value) => field.onChange(value === UNASSIGNED_VALUE ? undefined : value)}
                   value={field.value || UNASSIGNED_VALUE}
                 >
                   <SelectTrigger id="logisticsAssistantId" className="mt-1" disabled={isLoadingPersonnel}>
@@ -183,8 +185,8 @@ export function SmallGroupForm({ smallGroup, siteId, onSubmitForm }: SmallGroupF
               name="financeAssistantId"
               control={control}
               render={({ field }) => (
-                <Select 
-                  onValueChange={(value) => field.onChange(value === UNASSIGNED_VALUE ? undefined : value)} 
+                <Select
+                  onValueChange={(value) => field.onChange(value === UNASSIGNED_VALUE ? undefined : value)}
                   value={field.value || UNASSIGNED_VALUE}
                 >
                   <SelectTrigger id="financeAssistantId" className="mt-1" disabled={isLoadingPersonnel}>
@@ -205,12 +207,12 @@ export function SmallGroupForm({ smallGroup, siteId, onSubmitForm }: SmallGroupF
           </div>
 
           <p className="text-xs text-muted-foreground mt-1">
-              Leaders and assistants can be chosen from unassigned Small Group Leaders, the Site Coordinator of this site, or National Coordinators. Ensure gender considerations for assistants if applicable.
+            Leaders and assistants can be chosen from unassigned Small Group Leaders, the Site Coordinator of this site, or National Coordinators. Ensure gender considerations for assistants if applicable.
           </p>
 
-          <Button type="submit" className="w-full py-3 text-base" disabled={isSubmitting}>
+          <Button type="submit" className="w-full py-3 text-base" disabled={isSubmitting || isSaving}>
             <Save className="mr-2 h-5 w-5" />
-            {isSubmitting ? "Saving..." : (smallGroup ? "Save Changes" : "Add Small Group")}
+            {isSubmitting || isSaving ? "Saving..." : (smallGroup ? "Save Changes" : "Add Small Group")}
           </Button>
         </form>
       </CardContent>

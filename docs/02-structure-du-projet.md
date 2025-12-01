@@ -14,9 +14,10 @@ Le projet AYLF Group Tracker est organisé de manière à séparer clairement le
 │   ├── components/         # Composants React réutilisables.
 │   │   └── ui/             # Composants d'interface de base (boutons, cartes, etc.) fournis par shadcn/ui.
 │   ├── hooks/              # Hooks React personnalisés pour la logique réutilisable.
-│   ├── lib/                # Utilitaires, types et configuration globale.
+│   ├── lib/                # Utilitaires, types, constantes et mappers.
 │   ├── services/           # Logique de communication avec le backend (Supabase).
-│   └── store/              # Gestion de l'état global avec Zustand.
+│   ├── store/              # Gestion de l'état global avec Zustand.
+│   └── utils/              # Fonctions utilitaires (client Supabase, etc.).
 └── supabase/               # Configuration et migrations de la base de données Supabase.
     └── migrations/         # Scripts de migration SQL pour le schéma de la base de données.
 ```
@@ -39,13 +40,29 @@ Contient les hooks React personnalisés qui encapsulent une logique réutilisabl
 
 ### `src/lib`
 Ce répertoire est une boîte à outils pour le reste de l'application.
--   `constants.ts` : Constantes partagées (ex: rôles des utilisateurs).
--   `supabaseClient.ts` : Initialisation et exportation du client Supabase.
--   `types.ts` : Définitions des types et interfaces TypeScript utilisés dans tout le projet.
--   `utils.ts` : Fonctions utilitaires générales.
+-   `constants.ts`: Constantes partagées (ex: rôles des utilisateurs).
+-   `mappers.ts`: Contient les fonctions de mappage qui convertissent les objets de la base de données (snake_case) en objets typés pour le frontend (camelCase) et vice-versa. C'est une pièce maîtresse pour garantir la cohérence des types.
+-   `types.ts`: Définitions des types et interfaces TypeScript (`Site`, `Member`, `Activity`, etc.) qui définissent les contrats de données de l'application.
+-   `utils.ts`: Fonctions utilitaires générales.
+
+### `src/utils/supabase`
+Ce dossier contient la configuration du client Supabase. Il est crucial car il gère l'initialisation du client de manière isomorphique, c'est-à-dire qu'il peut être utilisé aussi bien côté serveur (dans les API Routes) que côté client (dans les composants React).
+-   `client.ts`: Exporte une instance du client Supabase pour le navigateur.
+-   `server.ts`: Exporte une instance du client Supabase pour le serveur.
 
 ### `src/services`
-La couche de service est responsable de toute la communication avec le backend (Supabase). Chaque fichier (ex: `activityService.ts`, `authService.ts`) regroupe les fonctions permettant d'effectuer des opérations CRUD (Create, Read, Update, Delete) sur une ressource spécifique. Ces services sont appelés par les hooks dans le répertoire `hooks/`.
+
+La couche de service est un élément central de l'architecture. Elle agit comme un médiateur entre le frontend et Supabase, encapsulant toute la logique de communication avec la base de données.
+
+**Rôles et responsabilités :**
+
+1.  **Abstraction de la source de données** : Les composants et les hooks n'interagissent jamais directement avec Supabase. Ils appellent les fonctions de service (ex: `siteService.getSiteById(id)`), ce qui rend le code plus modulaire et plus facile à tester.
+
+2.  **Gestion des opérations de données** : Chaque service regroupe les fonctions liées à une entité métier (ex: `activityService.ts`, `memberService.ts`). Il gère les opérations CRUD via l'API REST de Supabase et les requêtes complexes via les fonctions RPC.
+
+3.  **Transformation des données (Mapping)** : Les services sont responsables de la conversion systématique des données entre le format de la base de données (snake_case) et le format du frontend (camelCase), en utilisant les fonctions du répertoire `lib/mappers.ts`. Cela garantit que le reste de l'application manipule des objets typés et cohérents.
+
+4.  **Gestion des erreurs centralisée** : Conformément aux standards du projet, tous les services doivent `throw new Error()` en cas d'échec d'une opération. La gestion des erreurs (avec des blocs `try/catch`) est ainsi déléguée à la couche appelante (généralement les hooks), ce qui clarifie le flux de contrôle.
 
 ### `src/store`
 Contient les stores Zustand pour la gestion de l'état global. Par exemple, `useAuthStore.ts` gère l'état de la session de l'utilisateur (connecté ou non, informations de l'utilisateur).

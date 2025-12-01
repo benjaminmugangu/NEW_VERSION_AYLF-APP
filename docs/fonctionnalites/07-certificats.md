@@ -1,7 +1,7 @@
 # 3.7. Fonctionnalité : Gestion des Certificats
 
 Le module de certificats est conçu pour gérer la génération et le suivi des certificats de participation ou d'accomplissement pour les membres, probablement à l'issue de programmes ou d'activités spécifiques.
-
+ (il ya un souci ici, les certificats concernent uniquements ;les differents coordonateurs des sites, small group et nationaux )
 ## Fichiers Clés
 
 -   **Pages** : `/dashboard/certificates`
@@ -13,7 +13,7 @@ Le module de certificats est conçu pour gérer la génération et le suivi des 
 ### 1. Génération de Listes (Roster)
 
 -   La fonctionnalité principale semble être la capacité de générer une "liste de certification" (roster).
--   La fonction PostgreSQL `get_certificate_roster(p_activity_id UUID)` suggère que le processus est lié à une activité spécifique. Elle récupère probablement la liste des participants à une activité donnée qui sont éligibles pour recevoir un certificat.
+-   La fonction PostgreSQL `get_certificate_roster(p_activity_id UUID)`(le processus n'est pas liee a une activite donne mais liee au service rendu par un coordonateur apres son mandat ) suggère que le processus est lié à une activité spécifique. Elle récupère probablement la liste des participants (des coordonateurs ) à une activité donnée qui sont éligibles pour recevoir un certificat.
 -   Cette liste pourrait contenir des informations essentielles comme le nom complet du participant, son e-mail, et peut-être son niveau de participation.
 
 ### 2. Interface Utilisateur
@@ -28,3 +28,6 @@ Le module de certificats est conçu pour gérer la génération et le suivi des 
 
 -   La capacité de générer ces listes est probablement réservée à des rôles de coordinateurs (National ou Site) qui supervisent les activités.
 -   Les politiques de sécurité (RLS) s'assureraient qu'un coordinateur de site ne peut générer des listes que pour les activités de son propre site.
+
+Cette pasrtie ne doit etre visible que par le coordonateur principal et les roles concernees spnt uniquement (national, site, small group )
+Tout cette logique est donc a reformuler 

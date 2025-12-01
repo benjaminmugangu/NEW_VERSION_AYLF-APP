@@ -1,12 +1,13 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Banknote, Building, Receipt, TrendingDown } from 'lucide-react';
 import { PageHeader } from '@/components/shared/PageHeader';
-import { RoleBasedGuard } from '@/components/shared/RoleBasedGuard';
 import { ROLES } from '@/lib/constants';
-import siteService from '@/services/siteService';
+import * as siteService from '@/services/siteService';
 import type { Site } from '@/lib/types';
 import { StatCard } from "@/components/shared/StatCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -55,18 +56,16 @@ export default function SiteFinancialDashboardPage() {
 
   if (!site) {
     return (
-      <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR]}>
-        <div className="p-4 md:p-8 pt-6">
-          <PageHeader title="Site Not Found" icon={Building} />
-          <p className="mt-4">The requested site could not be found.</p>
-        </div>
-      </RoleBasedGuard>
+      <div className="p-4 md:p-8 pt-6">
+        <PageHeader title="Site Not Found" icon={Building} />
+        <p className="mt-4">The requested site could not be found.</p>
+      </div>
     );
   }
 
   return (
-    <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR]}>
-      <PageHeader 
+    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+      <PageHeader
         title={`${site?.name || 'Site'} Finances`}
         description={`An overview of the finances for ${site?.name || 'this site'}.`}
       />
@@ -87,10 +86,10 @@ export default function SiteFinancialDashboardPage() {
               <TabsTrigger value="reports">Financial Reports</TabsTrigger>
             </TabsList>
             <TabsContent value="allocations">
-              <AllocationList 
-                allocations={stats?.allocations || []} 
-                title="Allocations" 
-                emptyStateMessage="No allocations found for the selected period." 
+              <AllocationList
+                allocations={stats?.allocations || []}
+                title="Allocations"
+                emptyStateMessage="No allocations found for the selected period."
               />
             </TabsContent>
             <TabsContent value="reports">
@@ -99,6 +98,6 @@ export default function SiteFinancialDashboardPage() {
           </Tabs>
         </div>
       </div>
-    </RoleBasedGuard>
+    </div>
   );
 }

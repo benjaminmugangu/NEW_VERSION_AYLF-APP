@@ -37,3 +37,6 @@ Le module de rapports est le mécanisme par lequel les utilisateurs fournissent 
 -   Une page dédiée (`/dashboard/reports/view`) permet de visualiser les rapports soumis.
 -   Tout comme pour les autres modules, le service `reportService.ts` et le hook `useReports.ts` travaillent de concert pour récupérer les données des rapports, en les enrichissant avec des informations contextuelles (nom de l'activité, nom du soumissionnaire, etc.) via des jointures SQL.
 -   Les politiques de sécurité (RLS) de Supabase garantissent que les utilisateurs ne peuvent consulter que les rapports qui les concernent, en fonction de leur rôle et de leur périmètre (national, site, ou petit groupe).
+
+
+Cette documentation n'est pas complete car elle ne montre pas comment la soumission des rapoort pour des activites specifiques est restreinte suivant les differetns roles des utilisateurs, il faudra ajoouter cela car n'importe qui n'a pas le doit au CRUD de n'importe quel rapport 

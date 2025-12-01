@@ -35,7 +35,7 @@ const userCreateSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { session } } = await supabase.auth.getSession();
 
   if (!session) {
@@ -91,10 +91,10 @@ export async function POST(request: Request) {
     }
 
     if (!authData.user) {
-        return NextResponse.json({ error: 'Failed to create user.' }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to create user.' }, { status: 500 });
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       message: 'User created successfully',
       credentials: {
         email,

@@ -6,7 +6,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useToast } from '@/hooks/use-toast';
-import reportService, { type ReportFilters } from '@/services/reportService';
+import * as reportService from '@/services/reportService';
+import type { ReportFilters } from '@/services/reportService';
 import { ROLES } from '@/lib/constants';
 import type { ReportStatus, ReportWithDetails } from '@/lib/types';
 import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
@@ -16,8 +17,6 @@ export const useReports = () => {
   const { currentUser } = useAuth();
   const { toast } = useToast();
   const isMobile = useIsMobile();
-
-
 
   // Filters and view mode
   const [searchTerm, setSearchTerm] = useState('');
@@ -31,27 +30,46 @@ export const useReports = () => {
   const [rejectionNotes, setRejectionNotes] = useState('');
   const [isRejectingReport, setIsRejectingReport] = useState<ReportWithDetails | null>(null);
 
-  const filters = useMemo(() => ({
+  // Build UI filters (keeps DateFilterValue) for query keys and components
+  const uiFilters = useMemo(() => ({
+    searchTerm: searchTerm || undefined,
+    dateFilter,
+    statusFilter,
+  }), [searchTerm, dateFilter, statusFilter]);
+
+  // Convert DateFilterValue -> { from?: Date; to?: Date } for service layer
+  const serverDateFilter = useMemo(() => {
+    if (!dateFilter) return undefined;
+    const fromDate = (dateFilter as any).from ? new Date((dateFilter as any).from) : undefined;
+    const toDate = (dateFilter as any).to ? new Date((dateFilter as any).to) : undefined;
+    return {
+      rangeKey: (dateFilter as any).rangeKey,
+      from: fromDate,
+      to: toDate,
+    } as { rangeKey?: string; from?: Date; to?: Date };
+  }, [dateFilter]);
+
+  // Build service filters expected by reportService
+  const serviceFilters: ReportFilters = useMemo(() => ({
     user: currentUser,
     searchTerm: searchTerm || undefined,
-    dateFilter: dateFilter,
+    dateFilter: serverDateFilter,
     statusFilter: statusFilter,
-  }), [currentUser, searchTerm, dateFilter, statusFilter]);
+  }), [currentUser, searchTerm, serverDateFilter, statusFilter]);
 
-  const { 
-    data: reports = [], 
-    isLoading, 
-    error, 
-    refetch 
+  const {
+    data: reports = [],
+    isLoading,
+    error,
+    refetch
   } = useQuery<ReportWithDetails[], Error>({
-    queryKey: ['reports', filters],
-    queryFn: () => reportService.getFilteredReports(filters),
+    queryKey: ['reports', uiFilters],
+    queryFn: async () => {
+      const reports = await reportService.getFilteredReports(serviceFilters);
+      return reports;
+    },
     enabled: !!currentUser, // Only run the query if the user is loaded
   });
-
-
-
-
 
   useEffect(() => {
     const hash = window.location.hash.substring(1);
@@ -80,10 +98,10 @@ export const useReports = () => {
   };
 
   const updateReportMutation = useMutation({
-    mutationFn: ({ reportId, newStatus, notes }: { reportId: string; newStatus: ReportStatus; notes?: string }) => 
+    mutationFn: ({ reportId, newStatus, notes }: { reportId: string; newStatus: ReportStatus; notes?: string }) =>
       reportService.updateReport(reportId, { status: newStatus, reviewNotes: notes }),
     onSuccess: (updatedReport) => {
-      queryClient.invalidateQueries({ queryKey: ['reports', filters] });
+      queryClient.invalidateQueries({ queryKey: ['reports', uiFilters] });
       toast({ title: 'Success', description: `Report has been ${updatedReport.status}.` });
       // Close modals and reset state
       setIsModalOpen(false);

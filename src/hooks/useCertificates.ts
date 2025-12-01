@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { certificateService } from '@/services/certificateService';
+import { getCertificateRoster } from '@/services/certificateService';
 import { getDateRangeFromFilterValue, type DateFilterValue } from '@/components/shared/DateRangeFilter';
 
 const ALL_TIME_FILTER: DateFilterValue = { rangeKey: 'all_time', display: 'All Time' };
@@ -11,21 +11,21 @@ const ALL_TIME_FILTER: DateFilterValue = { rangeKey: 'all_time', display: 'All T
 export const useCertificates = () => {
   const [dateFilter, setDateFilter] = useState<DateFilterValue>(ALL_TIME_FILTER);
 
-  const { 
+  const {
     data: roster,
     isLoading,
     isError,
     error,
-    refetch 
+    refetch
   } = useQuery({
     queryKey: ['certificateRoster', dateFilter],
-    queryFn: () => {
+    queryFn: async () => {
       const { startDate, endDate } = getDateRangeFromFilterValue(dateFilter);
-      // The service now throws an error, which react-query will handle automatically.
-      return certificateService.getCertificateRoster({ 
+      const data = await getCertificateRoster({
         startDate: startDate ?? null,
         endDate: endDate ?? null,
       });
+      return data;
     },
     placeholderData: (previousData) => previousData, // Show previous data while fetching new data
   });

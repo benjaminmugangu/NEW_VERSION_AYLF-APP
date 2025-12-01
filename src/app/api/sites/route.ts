@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import * as z from 'zod';
-import siteService from '@/services/siteService';
+import * as siteService from '@/services/siteService';
 import { createClient } from '@/utils/supabase/server';
 
 /**
@@ -58,7 +58,7 @@ const siteCreateSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-        const supabase = createClient();
+    const supabase = await createClient();
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {

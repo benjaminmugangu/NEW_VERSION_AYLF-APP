@@ -1,33 +1,35 @@
-'use client';
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { redirect } from 'next/navigation';
+import * as profileService from '@/services/profileService';
+import * as reportService from '@/services/reportService';
+import FinancialReportsClient from './components/FinancialReportsClient';
+import { User } from '@/lib/types';
+import { ROLES } from '@/lib/constants';
 
-import React from 'react';
-import { useReports } from '@/hooks/useReports';
-import { columns } from '@/components/financials/reports/columns'; // Assuming this will be created
-import { DataTable } from '../../../../components/shared/DataTable';
+export const dynamic = 'force-dynamic';
 
-const FinancialReportsPage = () => {
-  const { reports, isLoading, error } = useReports();
+const FinancialReportsPage = async () => {
+  const { getUser } = getKindeServerSession();
+  const user = await getUser();
 
-  // Filter for reports that have expenses
-  const reportsWithExpenses = React.useMemo(() => {
-    return reports?.filter(report => (report.totalExpenses ?? 0) > 0) || [];
-  }, [reports]);
+  if (!user || !user.id) {
+    redirect('/api/auth/login');
+  }
 
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Reports with Declared Expenses</h1>
-      </div>
-      <DataTable
-        columns={columns}
-        data={reportsWithExpenses}
-        isLoading={isLoading}
-        error={error}
-        filterColumnId="title"
-        filterPlaceholder="Filter by report title..."
-      />
-    </div>
-  );
+  const profile: User = await profileService.getProfile(user.id);
+  if (!profile || ![ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR].includes(profile.role)) {
+    // Or redirect to an unauthorized page
+    return <p>You do not have permission to view this page.</p>;
+  }
+
+  try {
+    const reports = await reportService.getFilteredReports({ user: profile });
+    return <FinancialReportsClient reports={reports} />;
+  } catch (error) {
+    console.error('Error fetching reports:', error);
+    // Handle error state appropriately
+    return <p>Could not load reports.</p>;
+  }
 };
 
 export default FinancialReportsPage;

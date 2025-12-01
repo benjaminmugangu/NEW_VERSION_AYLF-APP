@@ -3,7 +3,7 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import smallGroupService from '@/services/smallGroupService';
+import * as smallGroupService from '@/services/smallGroupService';
 import type { SmallGroup, SmallGroupFormData, User } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { ROLES } from '@/lib/constants';
@@ -26,79 +26,43 @@ export const useSmallGroups = () => {
     enabled: !!currentUser, // Only run the query if the user is loaded
   });
 
-    const createSmallGroupMutation = useMutation<
-    SmallGroup,
+  const createSmallGroupMutation = useMutation<
+    any,
     Error,
     { siteId: string; formData: SmallGroupFormData }
   >({
-    mutationFn: async ({ siteId, formData }) => {
-      const response = await fetch('/api/small-groups', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, siteId }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create small group');
-      }
-
-      return response.json();
-    },
+    mutationFn: ({ siteId, formData }) =>
+      smallGroupService.createSmallGroup(siteId, formData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
     },
-    onError: (error: Error) => {
-      console.error('Failed to create small group:', error.message);
-      throw error;
+    onError: (error) => {
+      throw new Error(`Failed to create small group: ${(error as Error).message}`);
     },
   });
 
-    const updateSmallGroupMutation = useMutation<
-    SmallGroup,
+  const updateSmallGroupMutation = useMutation<
+    any,
     Error,
-    { groupId: string; formData: Partial<SmallGroupFormData> }
+    { groupId: string; formData: SmallGroupFormData }
   >({
-    mutationFn: async ({ groupId, formData }) => {
-      const response = await fetch(`/api/small-groups/${groupId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update small group');
-      }
-
-      return response.json();
-    },
+    mutationFn: ({ groupId, formData }) =>
+      smallGroupService.updateSmallGroup(groupId, formData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
     },
-    onError: (error: Error) => {
-      console.error('Failed to update small group:', error.message);
-      throw error;
+    onError: (error) => {
+      throw new Error(`Failed to update small group: ${(error as Error).message}`);
     },
   });
 
-    const deleteSmallGroupMutation = useMutation<void, Error, string>({
-    mutationFn: async (groupId: string) => {
-      const response = await fetch(`/api/small-groups/${groupId}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete small group');
-      }
-    },
+  const deleteSmallGroupMutation = useMutation<any, Error, string>({
+    mutationFn: (groupId: string) => smallGroupService.deleteSmallGroup(groupId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
     },
-    onError: (error: Error) => {
-      console.error('Failed to delete small group:', error.message);
-      throw error;
+    onError: (error) => {
+      throw new Error(`Failed to delete small group: ${(error as Error).message}`);
     },
   });
 

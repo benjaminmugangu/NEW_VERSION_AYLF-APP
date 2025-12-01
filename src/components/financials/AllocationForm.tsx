@@ -38,25 +38,12 @@ const formSchema = z.object({
   path: ['destinationType'],
 });
 
-/**
- * Props for the AllocationForm component.
- */
 interface AllocationFormProps {
-  /** Callback function triggered on successful form submission with validated data. */
   onSave: (data: FundAllocationFormData) => void;
-  /** Optional initial data to populate the form for editing an existing allocation. */
   initialData?: Partial<FundAllocationFormData>;
-  /** Optional flag to indicate if the form is currently in a saving state. */
   isSaving?: boolean;
 }
 
-/**
- * A form for creating or editing fund allocations.
- * It handles complex UI logic based on the user's role (National vs. Site Coordinator)
- * and the selected destination (Site vs. Small Group).
- * Fetches necessary data like sites and small groups using custom hooks.
- * @param {AllocationFormProps} props - The component props.
- */
 export const AllocationForm: React.FC<AllocationFormProps> = ({ onSave, initialData, isSaving = false }) => {
   const [isClient, setIsClient] = useState(false);
 

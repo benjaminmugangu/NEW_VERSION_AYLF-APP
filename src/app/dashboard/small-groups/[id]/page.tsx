@@ -11,7 +11,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ArrowLeft, Edit, UsersRound, MapPin, Clock, User, Building, Shield } from 'lucide-react';
-import { RoleBasedGuard } from '@/components/shared/RoleBasedGuard';
 import { ROLES } from '@/lib/constants';
 import { getInitials } from '@/lib/utils';
 import { PageSkeleton } from '../../../../components/shared/skeletons/PageSkeleton';
@@ -34,7 +33,7 @@ const DetailItem = ({ icon, label, value }: { icon: React.ElementType; label: st
 const UserCard = ({ user, role }: { user?: UserType; role: string }) => (
   <div className="flex items-center space-x-4 p-4 border rounded-lg">
     <Avatar className="h-12 w-12">
-      <AvatarImage src={user?.profilePicture} />
+      <AvatarImage src={(user?.user_metadata as any)?.avatar_url as string | undefined} />
       <AvatarFallback>{getInitials(user?.name || 'N/A')}</AvatarFallback>
     </Avatar>
     <div>
@@ -57,7 +56,7 @@ export default function SmallGroupDetailsPage() {
   if (error || !smallGroup) {
     return (
       <div className="text-center py-10">
-        <p className="text-xl font-semibold text-destructive">{error || 'Small group not found.'}</p>
+        <p className="text-xl font-semibold text-destructive">{error ? error.message : 'Small group not found.'}</p>
         <Button onClick={() => router.back()} className="mt-4">Go Back</Button>
       </div>
     );
@@ -72,7 +71,7 @@ export default function SmallGroupDetailsPage() {
   };
 
   return (
-    <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER]}>
+    <>
       <PageHeader
         title={smallGroup.name}
         description={`Details for the small group.`}
@@ -82,7 +81,7 @@ export default function SmallGroupDetailsPage() {
             <Button variant="outline" onClick={() => router.push('/dashboard/small-groups')}>
               <ArrowLeft className="mr-2 h-4 w-4" /> Back to List
             </Button>
-            <Link href={`/dashboard/small-groups/${smallGroup.id}/edit`}>
+            <Link href={`/dashboard/sites/${smallGroup.siteId}/small-groups/${smallGroup.id}/edit`}>
               <Button>
                 <Edit className="mr-2 h-4 w-4" /> Edit Group
               </Button>
@@ -172,6 +171,6 @@ export default function SmallGroupDetailsPage() {
           </Table>
         </CardContent>
       </Card>
-    </RoleBasedGuard>
+    </>
   );
 }

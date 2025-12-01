@@ -23,3 +23,5 @@ Le module "Financials" (`/dashboard/financials`) est une section dédiée à la 
 
 -   **Module `Finances`** : Centre opérationnel. Permet de créer, modifier et gérer les transactions et les allocations au quotidien.
 -   **Module `Financials`** : Centre de reporting. Permet de visualiser, d'analyser et d'exporter des données financières agrégées pour la prise de décision et la comptabilité.
+
+Je ne comprend pas trop la difference entre ces deux modules, tu vas devoir m'espliquer en details la nuance et la raison de leurs existances 

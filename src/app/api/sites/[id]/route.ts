@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import * as z from 'zod';
-import siteService from '@/services/siteService';
+import * as siteService from '@/services/siteService';
 import { createClient } from '@/utils/supabase/server';
 
 // Schema for partial updates (PATCH)
@@ -36,9 +36,10 @@ const siteUpdateSchema = z.object({
  *       404: {description: "Site not found"}
  *       500: {description: "Internal server error"}
  */
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-        const supabase = createClient();
+    const { id } = await params;
+    const supabase = await createClient();
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
@@ -51,7 +52,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       return new NextResponse(JSON.stringify({ error: 'Invalid input', details: parsedData.error.format() }), { status: 400 });
     }
 
-    const updatedSite = await siteService.updateSite(params.id, parsedData.data);
+    const updatedSite = await siteService.updateSite(id, parsedData.data);
     return NextResponse.json(updatedSite);
 
   } catch (error) {
@@ -78,15 +79,16 @@ export async function PATCH(request: Request, { params }: { params: { id: string
  *       404: {description: "Site not found"}
  *       500: {description: "Internal server error"}
  */
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-        const supabase = createClient();
+    const { id } = await params;
+    const supabase = await createClient();
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
     }
 
-    await siteService.deleteSite(params.id);
+    await siteService.deleteSite(id);
     return new NextResponse(null, { status: 204 });
 
   } catch (error) {

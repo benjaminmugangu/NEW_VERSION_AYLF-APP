@@ -30,7 +30,7 @@ export function ActivityDetails({ activity }: ActivityDetailsProps) {
     { icon: Flag, label: 'Activity Type', value: activity.activityTypeName || 'N/A' },
     { icon: MapPin, label: 'Site', value: activity.siteName || 'N/A' },
     { icon: Users, label: 'Small Group', value: activity.smallGroupName || 'N/A' },
-    { icon: Users, label: 'Participants Planned', value: activity.participants_count_planned ?? 'N/A' },
+    { icon: Users, label: 'Participants Planned', value: activity.participantsCountPlanned ?? 'N/A' },
     { icon: CheckCircle, label: 'Participants Attended', value: activity.participantsCount ?? 'N/A' },
   ];
 

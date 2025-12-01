@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React from 'react';
 import { useAllocations } from '@/hooks/useAllocations'; // Assuming this hook exists or will be created
 import { columns } from '@/components/financials/allocations/columns'; // Assuming this will be created

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as z from 'zod';
-import activityService from '@/services/activityService';
+import * as activityService from '@/services/activityService';
 import { createClient } from '@/utils/supabase/server';
 
 const activityUpdateSchema = z.object({
@@ -15,8 +15,8 @@ const activityUpdateSchema = z.object({
   participants_count_planned: z.number().int().min(0).optional(),
 }).partial();
 
-export async function PATCH(request: NextRequest, context: any) {
-  const { params } = context as { params: { id: string } };
+export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
   const supabase = await createClient();
   const { data: { session } } = await supabase.auth.getSession();
 
@@ -37,7 +37,7 @@ export async function PATCH(request: NextRequest, context: any) {
       ...(parsedData.data.date && { date: new Date(parsedData.data.date) }),
     };
 
-    const updatedActivity = await activityService.updateActivity(params.id, dataForService);
+    const updatedActivity = await activityService.updateActivity(id, dataForService);
     return NextResponse.json(updatedActivity);
 
   } catch (error) {
@@ -47,8 +47,8 @@ export async function PATCH(request: NextRequest, context: any) {
 }
 
 
-export async function DELETE(request: NextRequest, context: any) {
-  const { params } = context as { params: { id: string } };
+export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
   const supabase = await createClient();
   const { data: { session } } = await supabase.auth.getSession();
 
@@ -57,7 +57,7 @@ export async function DELETE(request: NextRequest, context: any) {
   }
 
   try {
-    await activityService.deleteActivity(params.id);
+    await activityService.deleteActivity(id);
     return new Response(null, { status: 204 });
 
   } catch (error) {

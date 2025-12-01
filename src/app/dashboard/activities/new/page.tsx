@@ -1,39 +1,31 @@
 // src/app/dashboard/activities/new/page.tsx
-"use client";
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { redirect } from 'next/navigation';
+import { ROLES } from '@/lib/constants';
+import NewActivityClient from './NewActivityClient';
 
-import { PageHeader } from "@/components/shared/PageHeader";
-import { ActivityForm } from "../components/ActivityForm";
-import { RoleBasedGuard } from "@/components/shared/RoleBasedGuard";
-import { ROLES } from "@/lib/constants";
-import { Activity as ActivityIcon, PlusCircle } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { useRouter } from "next/navigation";
-import type { Activity } from "@/lib/types";
+export const dynamic = 'force-dynamic';
 
-export default function NewActivityPage() {
-  const { toast } = useToast();
-  const router = useRouter();
+export default async function NewActivityPage() {
+  const { getUser } = getKindeServerSession();
+  const user = await getUser();
 
-  const handleSuccessfulCreate = (newActivity: Activity) => {
-    toast({
-      title: "Activity Created!",
-      description: `Activity "${newActivity.title}" has been successfully created.`,
-    });
-    router.push("/dashboard/activities");
-  };
+  if (!user || !user.id) {
+    return redirect('/api/auth/login');
+  }
 
-  const handleCancel = () => {
-    router.push("/dashboard/activities");
-  };
+  const profileService = await import('@/services/profileService');
+  const profile = await profileService.getProfile(user.id);
 
-  return (
-    <RoleBasedGuard allowedRoles={[ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER]}>
-      <PageHeader 
-        title="Create New Activity"
-        description="Define the details for a new activity at the appropriate level."
-        icon={PlusCircle}
-      />
-      <ActivityForm onSave={handleSuccessfulCreate} onCancel={handleCancel} />
-    </RoleBasedGuard>
-  );
+  const allowedRoles = [
+    ROLES.NATIONAL_COORDINATOR,
+    ROLES.SITE_COORDINATOR,
+    ROLES.SMALL_GROUP_LEADER,
+  ];
+
+  if (!profile || !allowedRoles.includes(profile.role)) {
+    return redirect('/dashboard');
+  }
+
+  return <NewActivityClient />;
 }
