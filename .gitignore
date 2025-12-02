@@ -21,7 +21,6 @@
 /build
 
 # misc
-.DS_Store
 *.pem
 
 # debug
@@ -37,10 +36,34 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# genkit
 .genkit/*
+
+# Environment variables (secrets)
 .env*
+!.env.preview
 .env
 .env.local
+
+# Vercel environment files (contain secrets)
+vercel.env
+vercel-production.env
+vercel-*.env
+
 # firebase
 firebase-debug.log
 firestore-debug.log
+
+# Personal files & backups
+*.bak
+*.backup
+*.old
+*.tmp
+*~
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store

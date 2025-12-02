@@ -43,6 +43,44 @@ const UserCard = ({ user, role }: { user?: UserType; role: string }) => (
   </div>
 );
 
+import { getCoordinatorHistory, type CoordinatorHistory } from '@/services/coordinatorHistoryService';
+import { CoordinatorHistoryClient } from '@/app/dashboard/history/coordinators/components/CoordinatorHistoryClient';
+
+function CoordinatorHistorySection({ groupId }: { groupId: string | null }) {
+  const [history, setHistory] = React.useState<CoordinatorHistory[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    if (!groupId) return;
+
+    getCoordinatorHistory({
+      entityType: 'small_group',
+      smallGroupId: groupId,
+      includeActive: true,
+      includePast: true
+    }).then(data => {
+      setHistory(data);
+      setLoading(false);
+    }).catch(err => {
+      console.error('Failed to fetch history:', err);
+      setLoading(false);
+    });
+  }, [groupId]);
+
+  if (loading) return <div className="p-4 text-center text-muted-foreground">Chargement de l'historique...</div>;
+  if (history.length === 0) return null;
+
+  return (
+    <div className="mt-6">
+      <CoordinatorHistoryClient
+        initialData={history}
+        title="Historique des Leaders"
+        hideFilters={true}
+      />
+    </div>
+  );
+}
+
 export default function SmallGroupDetailsPage() {
   const params = useParams();
   const router = useRouter();
@@ -131,6 +169,8 @@ export default function SmallGroupDetailsPage() {
           <UserCard user={smallGroup.financeAssistant} role="Finance Assistant" />
         </CardContent>
       </Card>
+
+      <CoordinatorHistorySection groupId={groupId} />
 
       <Card className="mt-6">
         <CardHeader>
