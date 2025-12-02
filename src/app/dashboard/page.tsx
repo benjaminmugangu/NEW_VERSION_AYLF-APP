@@ -138,8 +138,19 @@ export default async function DashboardPage(props: any) {
   const userRole = profile.role;
   const userName = profile.name || profile.email || 'Unknown User';
 
-  // Allow access for all valid roles
-  if (![ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER].includes(userRole)) {
+  // Role-based redirection
+  if (userRole === ROLES.SITE_COORDINATOR) {
+    redirect('/dashboard/site-coordinator');
+  }
+  if (userRole === ROLES.SMALL_GROUP_LEADER) {
+    redirect('/dashboard/small-group-leader');
+  }
+  if (userRole === ROLES.MEMBER) {
+    redirect('/dashboard/member');
+  }
+
+  // Allow access for National Coordinator (or fallback)
+  if (userRole !== ROLES.NATIONAL_COORDINATOR) {
     return (
       <div className="p-4">
         <PageHeader title="Access Denied" description="You do not have permission to view this page." />

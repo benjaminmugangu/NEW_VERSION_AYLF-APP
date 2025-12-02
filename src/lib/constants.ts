@@ -90,6 +90,12 @@ export const NAVIGATION_LINKS: NavItem[] = [
     allowedRoles: [ROLES.NATIONAL_COORDINATOR],
   },
   {
+    href: "/dashboard/my-certificates",
+    label: "My Certificates",
+    icon: Award,
+    allowedRoles: [ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER],
+  },
+  {
     href: "/dashboard/settings/profile",
     label: "My Profile",
     icon: UserProfileIcon, // Changed from Settings icon for clarity

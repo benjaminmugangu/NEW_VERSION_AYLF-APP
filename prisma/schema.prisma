@@ -101,6 +101,7 @@ model Profile {
   reviewedReports   Report[] @relation("ReportReviewer")
   recordedTransactions FinancialTransaction[] @relation("RecordedBy")
   allocatedFunds    FundAllocation[]
+  certificates      Certificate[]
 
   mandateStartDate  DateTime? @map("mandate_start_date")
   mandateEndDate    DateTime? @map("mandate_end_date")
@@ -362,4 +363,19 @@ model UserInvitation {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@map("user_invitations")
+}
+
+model Certificate {
+  id                String   @id @default(uuid())
+  profileId         String   @map("profile_id")
+  profile           Profile  @relation(fields: [profileId], references: [id])
+  role              String
+  mandateStartDate  DateTime @map("mandate_start_date")
+  mandateEndDate    DateTime @map("mandate_end_date")
+  pdfUrl            String   @map("pdf_url")
+  generatedAt       DateTime @default(now()) @map("generated_at")
+  downloadCount     Int      @default(0) @map("download_count")
+  
+  @@index([profileId])
+  @@map("certificates")
 }

@@ -194,6 +194,94 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
           </CardContent>
         </Card>
       )}
+
+      {userRole === ROLES.SITE_COORDINATOR && (
+        <Card className="mt-6 shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Zap className="text-primary"/> Quick Actions</CardTitle>
+            <CardDescription>Manage your site's operations.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <Button asChild variant="outline" className="w-full flex items-start justify-start p-3 h-auto text-left">
+              <Link href="/dashboard/small-groups/new">
+                <>
+                  <UsersRound className="h-5 w-5 text-primary shrink-0" />
+                  <div className="whitespace-normal ml-2">
+                    <p className="font-semibold">Add Small Group</p>
+                    <p className="text-xs text-muted-foreground break-words">Create a new group in your site.</p>
+                  </div>
+                </>
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="w-full flex items-start justify-start p-3 h-auto text-left">
+              <Link href="/dashboard/users/new">
+                <>
+                  <Users className="h-5 w-5 text-primary shrink-0" />
+                  <div className="whitespace-normal ml-2">
+                    <p className="font-semibold">Invite Leader</p>
+                    <p className="text-xs text-muted-foreground break-words">Onboard a new group leader.</p>
+                  </div>
+                </>
+              </Link>
+            </Button>
+             <Button asChild variant="outline" className="w-full flex items-start justify-start p-3 h-auto text-left">
+               <Link href="/dashboard/reports/submit">
+                <>
+                  <FileText className="h-5 w-5 text-primary shrink-0" />
+                  <div className="whitespace-normal ml-2">
+                    <p className="font-semibold">Submit Report</p>
+                    <p className="text-xs text-muted-foreground break-words">Log site activity.</p>
+                  </div>
+                </>
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {userRole === ROLES.SMALL_GROUP_LEADER && (
+        <Card className="mt-6 shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Zap className="text-primary"/> Quick Actions</CardTitle>
+            <CardDescription>Manage your small group.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <Button asChild variant="outline" className="w-full flex items-start justify-start p-3 h-auto text-left">
+              <Link href="/dashboard/members/new">
+                <>
+                  <Users className="h-5 w-5 text-primary shrink-0" />
+                  <div className="whitespace-normal ml-2">
+                    <p className="font-semibold">Add Member</p>
+                    <p className="text-xs text-muted-foreground break-words">Register a new member.</p>
+                  </div>
+                </>
+              </Link>
+            </Button>
+             <Button asChild variant="outline" className="w-full flex items-start justify-start p-3 h-auto text-left">
+               <Link href="/dashboard/reports/submit">
+                <>
+                  <FileText className="h-5 w-5 text-primary shrink-0" />
+                  <div className="whitespace-normal ml-2">
+                    <p className="font-semibold">Submit Report</p>
+                    <p className="text-xs text-muted-foreground break-words">Log group activity.</p>
+                  </div>
+                </>
+              </Link>
+            </Button>
+             <Button asChild variant="outline" className="w-full flex items-start justify-start p-3 h-auto text-left">
+               <Link href="/dashboard/activities/new">
+                <>
+                  <Activity className="h-5 w-5 text-primary shrink-0" />
+                  <div className="whitespace-normal ml-2">
+                    <p className="font-semibold">Plan Activity</p>
+                    <p className="text-xs text-muted-foreground break-words">Schedule a new meeting.</p>
+                  </div>
+                </>
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
       <Card className="shadow-lg mt-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><Activity className="text-primary"/> Recent Activities</CardTitle>
