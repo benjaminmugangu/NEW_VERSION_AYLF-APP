@@ -29,6 +29,7 @@ const formSchema = z.object({
   destinationType: z.enum(['site', 'small_group']).optional(),
   siteId: z.string().optional(),
   smallGroupId: z.string().optional(),
+  proofUrl: z.string().optional(),
 }).refine(data => {
   if (data.destinationType === 'site') return !!data.siteId;
   if (data.destinationType === 'small_group') return !!data.smallGroupId;
@@ -50,12 +51,12 @@ export const AllocationForm: React.FC<AllocationFormProps> = ({ onSave, initialD
   useEffect(() => {
     setIsClient(true);
   }, []);
-    const { currentUser } = useAuth();
+  const { currentUser } = useAuth();
   const { allSites: sites, isLoading: isLoadingSites } = useSites();
   const { smallGroups, isLoading: isLoadingSmallGroups, error: errorSmallGroups, isError: isErrorSmallGroups } = useSmallGroups();
 
 
-    const getInitialDestinationType = React.useCallback(() => {
+  const getInitialDestinationType = React.useCallback(() => {
     if (!isClient) return undefined; // Prevent server-side execution
     if (initialData?.siteId) return 'site';
     if (initialData?.smallGroupId) return 'small_group';
@@ -71,7 +72,7 @@ export const AllocationForm: React.FC<AllocationFormProps> = ({ onSave, initialD
       amount: initialData?.amount || undefined,
       allocationDate: initialData?.allocationDate ? new Date(initialData.allocationDate) : new Date(),
       goal: initialData?.goal || '',
-      source: initialData?.source || '',
+      source: initialData?.source || (currentUser?.role === ROLES.SITE_COORDINATOR ? 'Site Budget' : ''),
       destinationType: getInitialDestinationType(),
       siteId: initialData?.siteId || undefined,
       smallGroupId: initialData?.smallGroupId || undefined,
@@ -86,6 +87,7 @@ export const AllocationForm: React.FC<AllocationFormProps> = ({ onSave, initialD
       allocationDate: values.allocationDate.toISOString(),
       siteId: destinationType === 'site' ? values.siteId : undefined,
       smallGroupId: destinationType === 'small_group' ? values.smallGroupId : undefined,
+      proofUrl: values.proofUrl,
     };
 
     onSave(formData as FundAllocationFormData);
@@ -148,21 +150,23 @@ export const AllocationForm: React.FC<AllocationFormProps> = ({ onSave, initialD
             )}
           />
 
-          <div className="md:col-span-2">
-            <FormField
-              control={form.control}
-              name="source"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Source of Funds</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., National Treasury, Special Donation" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+          {currentUser?.role !== ROLES.SITE_COORDINATOR && (
+            <div className="md:col-span-2">
+              <FormField
+                control={form.control}
+                name="source"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Source of Funds</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., National Treasury, Special Donation" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          )}
 
           <div className="md:col-span-2">
             <FormField
@@ -173,6 +177,22 @@ export const AllocationForm: React.FC<AllocationFormProps> = ({ onSave, initialD
                   <FormLabel>Goal / Purpose</FormLabel>
                   <FormControl>
                     <Input placeholder="e.g., Annual Retreat, Equipment Purchase" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <FormField
+              control={form.control}
+              name="proofUrl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Proof of Transfer (URL or Reference)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., Bank Transaction ID or Document URL" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -220,55 +240,55 @@ export const AllocationForm: React.FC<AllocationFormProps> = ({ onSave, initialD
             </div>
           )}
 
-                    {isClient && destinationType === 'site' && currentUser?.role === ROLES.NATIONAL_COORDINATOR && (
-             <FormField
-                control={form.control}
-                name="siteId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Destination Site</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger disabled={isLoadingSites}>
-                          <SelectValue placeholder="Select a site" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {sites.map((site: Site) => (
-                          <SelectItem key={site.id} value={site.id}>{site.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+          {isClient && destinationType === 'site' && currentUser?.role === ROLES.NATIONAL_COORDINATOR && (
+            <FormField
+              control={form.control}
+              name="siteId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Destination Site</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger disabled={isLoadingSites}>
+                        <SelectValue placeholder="Select a site" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {sites.map((site: Site) => (
+                        <SelectItem key={site.id} value={site.id}>{site.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           )}
 
-                    {isClient && (destinationType === 'small_group' || currentUser?.role === ROLES.SITE_COORDINATOR) && (
-             <FormField
-                control={form.control}
-                name="smallGroupId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Destination Small Group</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger disabled={isLoadingSmallGroups}>
-                          <SelectValue placeholder="Select a small group" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {isErrorSmallGroups && <p className="p-2 text-sm text-red-500">Error: {errorSmallGroups?.message}</p>}
-                        {smallGroups.map((group: SmallGroup) => (
-                          <SelectItem key={group.id} value={group.id}>{group.name} ({group.siteName})</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+          {isClient && (destinationType === 'small_group' || currentUser?.role === ROLES.SITE_COORDINATOR) && (
+            <FormField
+              control={form.control}
+              name="smallGroupId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Destination Small Group</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger disabled={isLoadingSmallGroups}>
+                        <SelectValue placeholder="Select a small group" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {isErrorSmallGroups && <p className="p-2 text-sm text-red-500">Error: {errorSmallGroups?.message}</p>}
+                      {smallGroups.map((group: SmallGroup) => (
+                        <SelectItem key={group.id} value={group.id}>{group.name} ({group.siteName})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           )}
 
         </div>

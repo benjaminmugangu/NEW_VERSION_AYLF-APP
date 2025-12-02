@@ -278,6 +278,22 @@ export interface FundAllocation extends BaseEntity {
   allocatedByName?: string;
   siteName?: string;
   smallGroupName?: string;
+  fromSiteId?: string;
+  proofUrl?: string;
+}
+
+export interface FundAllocationFormData {
+  amount: number;
+  allocationDate: string; // ISO date string
+  goal: string;
+  source: string;
+  status: 'planned' | 'completed';
+  allocatedById: string;
+  siteId?: string;
+  smallGroupId?: string;
+  notes?: string;
+  fromSiteId?: string;
+  proofUrl?: string;
 }
 
 export interface Financials {
