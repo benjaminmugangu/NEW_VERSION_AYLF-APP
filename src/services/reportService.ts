@@ -2,6 +2,9 @@
 
 import { prisma } from '@/lib/prisma';
 import { Report, ReportWithDetails, ReportFormData, User, UserRole } from '@/lib/types';
+import { logReportApproval, createAuditLog } from './auditLogService';
+
+// ... existing code ...
 
 // Helper to normalize images from JSON
 const normalizeImages = (images: any): Array<{ name: string; url: string }> | undefined => {
@@ -279,3 +282,158 @@ export async function getFilteredReports(filters: ReportFilters): Promise<Report
 
   return reports.map(mapPrismaReportToModel);
 }
+
+/**
+ * Approve a report (National Coordinator only)
+ * Automatically generates FinancialTransactions based on report expenses
+ */
+export async function approveReport(
+  reportId: string,
+  approvedById: string,
+  ipAddress?: string,
+  userAgent?: string
+): Promise<ReportWithDetails> {
+  // Get current report for audit
+  const before = await prisma.report.findUnique({
+    where: { id: reportId },
+    include: {
+      activity: true,
+      site: true,
+      smallGroup: true,
+    },
+  });
+
+  if (!before) {
+    throw new Error('Report not found');
+  }
+
+  if (before.status === 'approved') {
+    throw new Error('Report already approved');
+  }
+
+  const generatedTransactionIds: string[] = [];
+
+  // Update report and generate transactions in a transaction
+  const result = await prisma.$transaction(async (tx) => {
+    // 1. Mark report as approved
+    const approvedReport = await tx.report.update({
+      where: { id: reportId },
+      data: {
+        status: 'approved',
+        reviewedAt: new Date(),
+        reviewedById: approvedById,
+      },
+      include: {
+        activity: true,
+        smallGroup: true,
+        site: true,
+        submittedBy: true,
+        reviewedBy: true,
+        activityType: true,
+      },
+    });
+
+    // 2. Mark related activity as executed (if exists)
+    if (approvedReport.activityId) {
+      await tx.activity.update({
+        where: { id: approvedReport.activityId },
+        data: { status: 'executed' },
+      });
+    }
+
+    // 3. Generate FinancialTransaction if there are expenses
+    if (approvedReport.totalExpenses && approvedReport.totalExpenses > 0) {
+      const transaction = await tx.financialTransaction.create({
+        data: {
+          type: 'expense',
+          category: 'Activity Expense', // Could be more specific based on activityType
+          amount: approvedReport.totalExpenses,
+          date: approvedReport.activityDate,
+          description: `Dépenses pour: ${approvedReport.title}`,
+          siteId: approvedReport.siteId,
+          smallGroupId: approvedReport.smallGroupId,
+          recordedById: approvedById,
+          status: 'approved',
+          approvedById: approvedById,
+          approvedAt: new Date(),
+          relatedReportId: reportId,
+          relatedActivityId: approvedReport.activityId,
+          // proofUrl: Could link to report's attachments if needed
+        },
+      });
+
+      generatedTransactionIds.push(transaction.id);
+    }
+
+    return approvedReport;
+  });
+
+  // Audit log
+  await logReportApproval(
+    approvedById,
+    reportId,
+    before,
+    result,
+    generatedTransactionIds,
+    ipAddress,
+    userAgent
+  ).catch(console.error);
+
+  return mapPrismaReportToModel(result);
+}
+
+/**
+ * Reject a report
+ */
+export async function rejectReport(
+  reportId: string,
+  rejectedById: string,
+  reason: string,
+  ipAddress?: string,
+  userAgent?: string
+): Promise<ReportWithDetails> {
+  const before = await prisma.report.findUnique({
+    where: { id: reportId },
+  });
+
+  if (!before) {
+    throw new Error('Report not found');
+  }
+
+  const rejectedReport = await prisma.report.update({
+    where: { id: reportId },
+    data: {
+      status: 'rejected',
+      reviewedAt: new Date(),
+      reviewedById: rejectedById,
+      reviewNotes: reason,
+    },
+    include: {
+      activity: true,
+      smallGroup: true,
+      site: true,
+      submittedBy: true,
+      reviewedBy: true,
+      activityType: true,
+    },
+  });
+
+  // Audit log
+  await createAuditLog({
+    actorId: rejectedById,
+    action: 'reject',
+    entityType: 'Report',
+    entityId: reportId,
+    metadata: {
+      before,
+      after: rejectedReport,
+      reason,
+      comment: 'Rapport rejeté',
+    },
+    ipAddress,
+    userAgent,
+  }).catch(console.error);
+
+  return mapPrismaReportToModel(rejectedReport);
+}
+

@@ -252,9 +252,16 @@ export interface FinancialTransaction extends BaseEntity {
   recordedById: string;
   recordedByName?: string;
   recordedByRole?: UserRole;
+  // Workflow fields (NEW)
+  status?: string;
+  approvedById?: string;
+  approvedByName?: string;
+  approvedAt?: string;
+  // Linked entities
   relatedReportId?: string;
   relatedReportTitle?: string;
-  attachments?: string[];
+  relatedActivityId?: string;
+  proofUrl?: string;
 }
 
 export interface FundAllocation extends BaseEntity {
@@ -343,6 +350,9 @@ export interface TransactionFormData {
   siteId?: string;
   smallGroupId?: string;
   relatedReportId?: string;
+  relatedActivityId?: string;
+  status?: string;
+  proofUrl?: string;
   attachments?: string[];
   recordedById: string; // Set to current user's ID
 }

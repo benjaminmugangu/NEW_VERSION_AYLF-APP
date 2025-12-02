@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { FinancialTransaction, User, TransactionFormData, UserRole } from '@/lib/types';
 import { getDateRangeFromFilterValue, type DateFilterValue } from '@/lib/dateUtils';
+import { logTransactionCreation, logTransactionApproval, createAuditLog } from './auditLogService';
 
 // Helper to map Prisma result to FinancialTransaction type
 const mapPrismaTransactionToModel = (tx: any): FinancialTransaction => {
@@ -20,6 +21,14 @@ const mapPrismaTransactionToModel = (tx: any): FinancialTransaction => {
     recordedById: tx.recordedById,
     recordedByName: tx.recordedBy?.name,
     recordedByRole: tx.recordedBy?.role,
+    // NEW fields
+    status: (tx.status ?? 'approved') as string,
+    approvedById: tx.approvedById || undefined,
+    approvedByName: tx.approvedBy?.name,
+    approvedAt: tx.approvedAt ? tx.approvedAt.toISOString() : undefined,
+    relatedReportId: tx.relatedReportId || undefined,
+    relatedActivityId: tx.relatedActivityId || undefined,
+    proofUrl: tx.proofUrl || undefined,
   };
 };
 
@@ -116,18 +125,26 @@ export async function createTransaction(formData: TransactionFormData): Promise<
       type: formData.type,
       category: formData.category,
       amount: formData.amount,
-      date: formData.date, // Assuming formData.date is Date string or Date object. Prisma expects Date object or ISO string.
+      date: formData.date,
       description: formData.description,
       siteId: formData.siteId,
       smallGroupId: formData.smallGroupId,
       recordedById: formData.recordedById,
+      status: formData.status || 'approved', // Default approved for National/Site direct creation
+      proofUrl: formData.proofUrl,
+      relatedActivityId: formData.relatedActivityId,
+      relatedReportId: formData.relatedReportId,
     },
     include: {
       site: true,
       smallGroup: true,
       recordedBy: true,
+      approvedBy: true,
     }
   });
+
+  // Audit log
+  await logTransactionCreation(formData.recordedById, tx.id, tx).catch(console.error);
 
   return mapPrismaTransactionToModel(tx);
 }
@@ -160,3 +177,157 @@ export async function deleteTransaction(id: string): Promise<void> {
     where: { id },
   });
 }
+
+/**
+ * Approve a transaction (National Coordinator only)
+ */
+export async function approveTransaction(
+  transactionId: string,
+  approvedById: string,
+  ipAddress?: string,
+  userAgent?: string
+): Promise<FinancialTransaction> {
+  // Get current transaction for audit
+  const before = await prisma.financialTransaction.findUnique({
+    where: { id: transactionId },
+  });
+
+  if (!before) {
+    throw new Error('Transaction not found');
+  }
+
+  if (before.status === 'approved') {
+    throw new Error('Transaction already approved');
+  }
+
+  const tx = await prisma.financialTransaction.update({
+    where: { id: transactionId },
+    data: {
+      status: 'approved',
+      approvedById,
+      approvedAt: new Date(),
+    },
+    include: {
+      site: true,
+      smallGroup: true,
+      recordedBy: true,
+      approvedBy: true,
+    },
+  });
+
+  // Audit log
+  await logTransactionApproval(approvedById, transactionId, before, tx, ipAddress, userAgent).catch(console.error);
+
+  return mapPrismaTransactionToModel(tx);
+}
+
+/**
+ * Reject a transaction
+ */
+export async function rejectTransaction(
+  transactionId: string,
+  rejectedById: string,
+  reason: string,
+  ipAddress?: string,
+  userAgent?: string
+): Promise<FinancialTransaction> {
+  const before = await prisma.financialTransaction.findUnique({
+    where: { id: transactionId },
+  });
+
+  if (!before) {
+    throw new Error('Transaction not found');
+  }
+
+  const tx = await prisma.financialTransaction.update({
+    where: { id: transactionId },
+    data: {
+      status: 'rejected',
+    },
+    include: {
+      site: true,
+      smallGroup: true,
+      recordedBy: true,
+      approvedBy: true,
+    },
+  });
+
+  // Audit log
+  await createAuditLog({
+    actorId: rejectedById,
+    action: 'reject',
+    entityType: 'FinancialTransaction',
+    entityId: transactionId,
+    metadata: {
+      before,
+      after: tx,
+      reason,
+      comment: 'Transaction rejetée',
+    },
+    ipAddress,
+    userAgent,
+  }).catch(console.error);
+
+  return mapPrismaTransactionToModel(tx);
+}
+
+/**
+ * Create a reversal transaction (correction)
+ */
+export async function createReversalTransaction(
+  originalTransactionId: string,
+  createdById: string,
+  reason: string,
+  ipAddress?: string,
+  userAgent?: string
+): Promise<FinancialTransaction> {
+  const original = await prisma.financialTransaction.findUnique({
+    where: { id: originalTransactionId },
+  });
+
+  if (!original) {
+    throw new Error('Original transaction not found');
+  }
+
+  const reversalTx = await prisma.financialTransaction.create({
+    data: {
+      type: original.type === 'income' ? 'expense' : 'income', // Inverse type
+      category: original.category,
+      amount: original.amount, // Same amount, opposite sign via type
+      date: new Date(),
+      description: `ANNULATION: ${original.description}`,
+      siteId: original.siteId,
+      smallGroupId: original.smallGroupId,
+      recordedById: createdById,
+      status: 'approved',
+      approvedById: createdById,
+      approvedAt: new Date(),
+      isReversalOfId: originalTransactionId,
+      proofUrl: original.proofUrl,
+    },
+    include: {
+      site: true,
+      smallGroup: true,
+      recordedBy: true,
+      approvedBy: true,
+    },
+  });
+
+  // Audit log
+  await createAuditLog({
+    actorId: createdById,
+    action: 'reverse',
+    entityType: 'FinancialTransaction',
+    entityId: reversalTx.id,
+    metadata: {
+      originalTransactionId,
+      reason,
+      comment: 'Transaction annulée par contre-passation',
+    },
+    ipAddress,
+    userAgent,
+  }).catch(console.error);
+
+  return mapPrismaTransactionToModel(reversalTx);
+}
+

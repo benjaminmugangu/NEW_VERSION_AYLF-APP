@@ -271,10 +271,11 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <Label htmlFor="activityTypeEnum">Type d'Activité</Label>
+              <Label htmlFor="activityTypeEnum">Type d'Activité</Label>
               <Controller name="activityTypeEnum" control={form.control} render={({ field }) => (
-                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value || undefined}>
                   <SelectTrigger id="activityTypeEnum" className="mt-1"><SelectValue placeholder="Sélectionnez un type" /></SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-[9999]">
                     <SelectItem value="small_group_meeting">Réunion de Small Group</SelectItem>
                     <SelectItem value="conference">Conférence</SelectItem>
                     <SelectItem value="apostolat">Apostolat</SelectItem>

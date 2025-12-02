@@ -109,8 +109,11 @@ model Profile {
   submittedReports  Report[] @relation("ReportSubmitter")
   reviewedReports   Report[] @relation("ReportReviewer")
   recordedTransactions FinancialTransaction[] @relation("RecordedBy")
+  approvedTransactions FinancialTransaction[] @relation("ApprovedTransactions") // NEW
   allocatedFunds    FundAllocation[]
   certificates      Certificate[]
+  auditLogs         AuditLog[] // NEW
+  closedPeriods     AccountingPeriod[] // NEW
 
   mandateStartDate  DateTime? @map("mandate_start_date")
   mandateEndDate    DateTime? @map("mandate_end_date")
@@ -136,8 +139,10 @@ model Site {
   activities     Activity[]
   transactions   FinancialTransaction[]
   allocations    FundAllocation[]
+  allocationsFrom FundAllocation[] @relation("AllocationsFrom") // NEW - for Site → Group allocations
   reports        Report[]
   invitations    UserInvitation[]
+  inventoryItems InventoryItem[] // NEW - for Inventory Management
 
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
@@ -244,6 +249,7 @@ model Activity {
 
   // Relations
   reports            Report[]
+  financialTransactions FinancialTransaction[] // NEW - transactions linked to this activity
   
   createdAt          DateTime       @default(now()) @map("created_at")
   updatedAt          DateTime       @updatedAt @map("updated_at")
@@ -311,6 +317,7 @@ model FinancialTransaction {
   type            TransactionType
   category        String
   
+  // Entity Links
   siteId          String?         @map("site_id")
   site            Site?           @relation(fields: [siteId], references: [id])
   
@@ -322,8 +329,26 @@ model FinancialTransaction {
   
   attachments     Json?           // string[]
 
-  relatedReportId String?         @map("related_report_id")
-  relatedReport   Report?         @relation(fields: [relatedReportId], references: [id])
+  // Workflow & Approval (NEW)
+  status          String          @default("approved") // 'draft' | 'submitted' | 'approved' | 'rejected'
+  approvedById    String?         @map("approved_by_id")
+  approvedBy      Profile?        @relation("ApprovedTransactions", fields: [approvedById], references: [id])
+  approvedAt      DateTime?       @map("approved_at")
+
+  // Context Links (NEW)
+  relatedReportId    String?      @map("related_report_id")
+  relatedReport      Report?      @relation(fields: [relatedReportId], references: [id])
+
+  relatedActivityId  String?      @map("related_activity_id")
+  relatedActivity    Activity?    @relation(fields: [relatedActivityId], references: [id])
+
+  // Reversal Support (NEW)
+  isReversalOfId     String?      @map("is_reversal_of_id")
+  isReversalOf       FinancialTransaction? @relation("TransactionReversal", fields: [isReversalOfId], references: [id], onDelete: SetNull)
+  reversals          FinancialTransaction[] @relation("TransactionReversal")
+
+  // Proof (NEW)
+  proofUrl           String?      @map("proof_url")
 
   createdAt       DateTime        @default(now()) @map("created_at")
   updatedAt       DateTime        @updatedAt @map("updated_at")
@@ -340,8 +365,15 @@ model FundAllocation {
   status          AllocationStatus
   notes           String?
   
+  // Proof (NEW)
+  proofUrl        String?          @map("proof_url") // URL to transfer proof in Supabase
+  
   allocatedById   String           @map("allocated_by_id")
   allocatedBy     Profile          @relation(fields: [allocatedById], references: [id])
+  
+  // Source tracking (NEW) - for Site → Group allocations
+  fromSiteId      String?          @map("from_site_id")
+  fromSite        Site?            @relation("AllocationsFrom", fields: [fromSiteId], references: [id])
   
   siteId          String?          @map("site_id")
   site            Site?            @relation(fields: [siteId], references: [id])
@@ -390,4 +422,109 @@ model Certificate {
   
   @@index([profileId])
   @@map("certificates")
+}
+
+// ============================================
+// AUDIT LOG - Complete Traceability
+// ============================================
+model AuditLog {
+  id          String   @id @default(uuid())
+  
+  // Who performed the action
+  actorId     String   @map("actor_id")
+  actor       Profile  @relation(fields: [actorId], references: [id])
+  
+  // What was done
+  action      String   // 'create' | 'update' | 'approve' | 'reject' | 'complete' | 'reverse' | 'delete'
+  
+  // On which entity
+  entityType  String   // 'FundAllocation' | 'FinancialTransaction' | 'Report' | 'Activity'
+  entityId    String   @map("entity_id")
+  
+  // Context
+  metadata    Json?    // Stores before/after snapshots, comments, reasons
+  
+  // Technical details
+  ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent")
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ============================================
+// 4. ACCOUNTING PERIODS
+// ============================================
+model AccountingPeriod {
+  id          String   @id @default(uuid())
+  
+  type        String   // 'month' | 'quarter' | 'year'
+  startDate   DateTime @map("start_date")
+  endDate     DateTime @map("end_date")
+  
+  status      String   @default("open") // 'open' | 'closed'
+  closedAt    DateTime? @map("closed_at")
+  closedById  String?  @map("closed_by_id")
+  closedBy    Profile? @relation(fields: [closedById], references: [id])
+  
+  // Snapshot at closing
+  snapshotData Json?  @map("snapshot_data") // Stores balances per entity at closing
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([startDate, endDate])
+  @@map("accounting_periods")
+}
+
+// ============================================
+// 5. INVENTORY SYSTEM
+// ============================================
+model InventoryItem {
+  id          String   @id @default(uuid())
+  
+  name        String
+  description String?
+  category    String?  // 'equipment' | 'supplies' | 'furniture'
+  unit        String?  // 'piece' | 'box' | 'kg'
+  
+  // Ownership
+  siteId      String?  @map("site_id")
+  site        Site?    @relation(fields: [siteId], references: [id])
+  
+  movements   InventoryMovement[]
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("inventory_items")
+}
+
+model InventoryMovement {
+  id          String   @id @default(uuid())
+  
+  itemId      String   @map("item_id")
+  item        InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  
+  date        DateTime
+  direction   String   // 'in' (purchase/reception) | 'out' (usage/disposal)
+  quantity    Decimal
+  reason      String?  // Description or justification
+  
+  // Links to financial records
+  relatedTransactionId String? @map("related_transaction_id")
+  relatedReportId      String? @map("related_report_id")
+  
+  // Context
+  siteId        String?  @map("site_id")
+  smallGroupId  String?  @map("small_group_id")
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([itemId, date])
+  @@map("inventory_movements")
 }

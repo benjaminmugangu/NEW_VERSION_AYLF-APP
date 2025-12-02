@@ -5,6 +5,7 @@ import { CheckCircle, XCircle, ArrowRight, LogOut } from 'lucide-react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { cookies } from "next/headers";
 
 interface PageProps {
     searchParams: Promise<{ token?: string }>;
@@ -13,7 +14,22 @@ interface PageProps {
 export default async function AcceptInvitationPage({ searchParams }: PageProps) {
     const { token } = await searchParams;
 
+    const { getUser, isAuthenticated } = getKindeServerSession();
+    const isAuth = await isAuthenticated();
+    const currentUser = isAuth ? await getUser() : null;
+
+    if (token && !currentUser) {
+        (await cookies()).set('invitation_token', token, {
+            httpOnly: true,
+            path: '/',
+            maxAge: 60 * 60 * 24 // 24 hours
+        });
+    }
+
     if (!token) {
+        if (currentUser) {
+            redirect('/dashboard');
+        }
         return (
             <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
                 <Card className="w-full max-w-md border-red-200">
@@ -24,6 +40,11 @@ export default async function AcceptInvitationPage({ searchParams }: PageProps) 
                             No invitation token was provided. Please check the link you received.
                         </CardDescription>
                     </CardHeader>
+                    <CardFooter className="justify-center">
+                        <Button asChild variant="outline">
+                            <Link href="/api/auth/login">Go to Login</Link>
+                        </Button>
+                    </CardFooter>
                 </Card>
             </div>
         );
@@ -32,6 +53,9 @@ export default async function AcceptInvitationPage({ searchParams }: PageProps) 
     const invitation = await getInvitationByToken(token);
 
     if (!invitation || invitation.status === 'accepted') {
+        if (currentUser) {
+            redirect('/dashboard');
+        }
         return (
             <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
                 <Card className="w-full max-w-md border-red-200">
@@ -51,11 +75,6 @@ export default async function AcceptInvitationPage({ searchParams }: PageProps) 
             </div>
         );
     }
-
-    // Check if user is already logged in
-    const { getUser, isAuthenticated } = getKindeServerSession();
-    const isAuth = await isAuthenticated();
-    const currentUser = isAuth ? await getUser() : null;
 
     // If user is logged in with a different email, show logout warning
     const needsLogout = currentUser && currentUser.email !== invitation.email;

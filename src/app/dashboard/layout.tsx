@@ -9,6 +9,7 @@ import { DashboardSidebar } from './components/DashboardSidebar';
 import { ClientOnly } from '@/components/shared/ClientOnly';
 import type { User } from '@/lib/types';
 import { UserRole } from '@prisma/client';
+import { InvitationProcessor } from '@/components/auth/InvitationProcessor';
 
 export default async function DashboardLayout({
   children,
@@ -51,20 +52,21 @@ export default async function DashboardLayout({
         mandateEndDate: profile.mandateEndDate?.toISOString(),
       };
     } else {
-        // Fallback si l'utilisateur est auth Kinde mais pas encore sync en DB
-        // Note: Normalement /api/auth/me s'en charge, ou on pourrait l'auto-créer ici aussi par sécurité
-        userProfile = {
-            id: kindeUser.id,
-            name: `${kindeUser.given_name ?? ''} ${kindeUser.family_name ?? ''}`.trim() || kindeUser.email || 'User',
-            email: kindeUser.email || '',
-            role: 'member', // Rôle par défaut temporaire
-            status: 'active'
-        }
+      // Fallback si l'utilisateur est auth Kinde mais pas encore sync en DB
+      // Note: Normalement /api/auth/me s'en charge, ou on pourrait l'auto-créer ici aussi par sécurité
+      userProfile = {
+        id: kindeUser.id,
+        name: `${kindeUser.given_name ?? ''} ${kindeUser.family_name ?? ''}`.trim() || kindeUser.email || 'User',
+        email: kindeUser.email || '',
+        role: 'member', // Rôle par défaut temporaire
+        status: 'active'
+      }
     }
   }
 
   return (
     <SidebarProvider defaultOpen>
+      <InvitationProcessor />
       <ClientOnly>
         <DashboardSidebar user={userProfile} />
       </ClientOnly>
