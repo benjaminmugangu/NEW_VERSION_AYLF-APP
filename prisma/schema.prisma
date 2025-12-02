@@ -72,6 +72,15 @@ enum ActivityCategory {
   training
 }
 
+enum ActivityTypeEnum {
+  small_group_meeting
+  conference
+  apostolat
+  deuil
+  other
+}
+
+
 // Models
 
 model Profile {
