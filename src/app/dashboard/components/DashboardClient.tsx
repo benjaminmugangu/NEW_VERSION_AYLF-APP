@@ -68,13 +68,13 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
 
   return (
     <>
-      <PageHeader 
+      <PageHeader
         title={`Welcome, ${userName}!`}
         description={`Here is your dashboard overview for ${initialDateFilter.display}.`}
         actions={
           <div className="flex items-center gap-2">
             <DateRangeFilter onFilterChange={handleDateFilterChange} initialRangeKey={initialDateFilter.rangeKey} />
-            <Button onClick={handlePrintPage} variant="outline" size="icon"><Printer className="h-4 w-4"/></Button>
+            <Button onClick={handlePrintPage} variant="outline" size="icon"><Printer className="h-4 w-4" /></Button>
           </div>
         }
       />
@@ -132,7 +132,7 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
       {userRole === ROLES.NATIONAL_COORDINATOR && (
         <Card className="mt-6 shadow-lg">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Zap className="text-primary"/> Quick Actions</CardTitle>
+            <CardTitle className="flex items-center gap-2"><Zap className="text-primary" /> Quick Actions</CardTitle>
             <CardDescription>Key actions for national-level coordination.</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -159,7 +159,7 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
               </Link>
             </Button>
             <Button asChild variant="outline" className="w-full flex items-start justify-start p-3 h-auto text-left">
-               <Link href="/dashboard/reports/submit">
+              <Link href="/dashboard/reports/submit">
                 <>
                   <FileText className="h-5 w-5 text-primary shrink-0" />
                   <div className="whitespace-normal ml-2">
@@ -170,10 +170,10 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
               </Link>
             </Button>
             <Button asChild variant="outline" className="w-full flex items-start justify-start p-3 h-auto text-left">
-             <Link href="/dashboard/suggestions">
+              <Link href="/dashboard/suggestions">
                 <>
                   <Lightbulb className="h-5 w-5 text-primary shrink-0" />
-                   <div className="whitespace-normal ml-2">
+                  <div className="whitespace-normal ml-2">
                     <p className="font-semibold">Get AI Suggestions</p>
                     <p className="text-xs text-muted-foreground break-words">Discover new activity ideas.</p>
                   </div>
@@ -181,7 +181,7 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
               </Link>
             </Button>
             <Button asChild variant="outline" className="w-full flex items-start justify-start p-3 h-auto text-left">
-             <Link href="/dashboard/users">
+              <Link href="/dashboard/users">
                 <>
                   <UsersRound className="h-5 w-5 text-primary shrink-0" />
                   <div className="whitespace-normal ml-2">
@@ -198,7 +198,7 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
       {userRole === ROLES.SITE_COORDINATOR && (
         <Card className="mt-6 shadow-lg">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Zap className="text-primary"/> Quick Actions</CardTitle>
+            <CardTitle className="flex items-center gap-2"><Zap className="text-primary" /> Quick Actions</CardTitle>
             <CardDescription>Manage your site's operations.</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -214,23 +214,23 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
               </Link>
             </Button>
             <Button asChild variant="outline" className="w-full flex items-start justify-start p-3 h-auto text-left">
-              <Link href="/dashboard/users/new">
-                <>
-                  <Users className="h-5 w-5 text-primary shrink-0" />
-                  <div className="whitespace-normal ml-2">
-                    <p className="font-semibold">Invite Leader</p>
-                    <p className="text-xs text-muted-foreground break-words">Onboard a new group leader.</p>
-                  </div>
-                </>
-              </Link>
-            </Button>
-             <Button asChild variant="outline" className="w-full flex items-start justify-start p-3 h-auto text-left">
-               <Link href="/dashboard/reports/submit">
+              <Link href="/dashboard/reports/submit">
                 <>
                   <FileText className="h-5 w-5 text-primary shrink-0" />
                   <div className="whitespace-normal ml-2">
                     <p className="font-semibold">Submit Report</p>
                     <p className="text-xs text-muted-foreground break-words">Log site activity.</p>
+                  </div>
+                </>
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="w-full flex items-start justify-start p-3 h-auto text-left">
+              <Link href="/dashboard/activities/new">
+                <>
+                  <Activity className="h-5 w-5 text-primary shrink-0" />
+                  <div className="whitespace-normal ml-2">
+                    <p className="font-semibold">Plan Activity</p>
+                    <p className="text-xs text-muted-foreground break-words">Schedule a site event.</p>
                   </div>
                 </>
               </Link>
@@ -242,7 +242,7 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
       {userRole === ROLES.SMALL_GROUP_LEADER && (
         <Card className="mt-6 shadow-lg">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Zap className="text-primary"/> Quick Actions</CardTitle>
+            <CardTitle className="flex items-center gap-2"><Zap className="text-primary" /> Quick Actions</CardTitle>
             <CardDescription>Manage your small group.</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -257,8 +257,8 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
                 </>
               </Link>
             </Button>
-             <Button asChild variant="outline" className="w-full flex items-start justify-start p-3 h-auto text-left">
-               <Link href="/dashboard/reports/submit">
+            <Button asChild variant="outline" className="w-full flex items-start justify-start p-3 h-auto text-left">
+              <Link href="/dashboard/reports/submit">
                 <>
                   <FileText className="h-5 w-5 text-primary shrink-0" />
                   <div className="whitespace-normal ml-2">
@@ -268,8 +268,8 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
                 </>
               </Link>
             </Button>
-             <Button asChild variant="outline" className="w-full flex items-start justify-start p-3 h-auto text-left">
-               <Link href="/dashboard/activities/new">
+            <Button asChild variant="outline" className="w-full flex items-start justify-start p-3 h-auto text-left">
+              <Link href="/dashboard/activities/new">
                 <>
                   <Activity className="h-5 w-5 text-primary shrink-0" />
                   <div className="whitespace-normal ml-2">
@@ -284,7 +284,7 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
       )}
       <Card className="shadow-lg mt-6">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Activity className="text-primary"/> Recent Activities</CardTitle>
+          <CardTitle className="flex items-center gap-2"><Activity className="text-primary" /> Recent Activities</CardTitle>
           <CardDescription>A quick look at recently executed or planned activities for the selected period.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -294,7 +294,7 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
                 <div>
                   <Button asChild variant="link" className="p-0 h-auto text-left">
                     <Link href={`/dashboard/activities/${activity.id}`}>
-                       <h4 className="font-semibold text-md hover:underline">{activity.title}</h4>
+                      <h4 className="font-semibold text-md hover:underline">{activity.title}</h4>
                     </Link>
                   </Button>
                   <p className="text-sm text-muted-foreground">{activity.level.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} level - {new Date(activity.date).toLocaleDateString()}</p>
@@ -308,9 +308,9 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
           )) : (
             <p className="text-muted-foreground text-center py-4">No recent activities found for the selected period.</p>
           )}
-           <Button asChild variant="link" className="mt-2 px-0">
-             <Link href="/dashboard/activities">View All Activities →</Link>
-           </Button>
+          <Button asChild variant="link" className="mt-2 px-0">
+            <Link href="/dashboard/activities">View All Activities →</Link>
+          </Button>
         </CardContent>
       </Card>
     </>
