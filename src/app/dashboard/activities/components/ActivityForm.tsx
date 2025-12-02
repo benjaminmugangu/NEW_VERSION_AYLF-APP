@@ -10,7 +10,8 @@ import { useToast } from '@/components/ui/use-toast';
 import * as activityService from '@/services/activityService';
 import * as siteService from '@/services/siteService';
 import * as smallGroupService from '@/services/smallGroupService';
-import type { Activity, Site, SmallGroup, ActivityType } from '@/lib/types';
+import type { Activity, Site, SmallGroup } from '@/lib/types';
+import { ActivityTypeEnum } from '@prisma/client';
 import { ROLES } from '@/lib/constants';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -36,7 +37,6 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
 
   const [sites, setSites] = useState<Site[]>([]);
   const [smallGroups, setSmallGroups] = useState<SmallGroup[]>([]);
-  const [activityTypes, setActivityTypes] = useState<ActivityType[]>([]);
   const [filteredSmallGroups, setFilteredSmallGroups] = useState<SmallGroup[]>([]);
 
   const form = useForm<ActivityFormData>({
@@ -50,7 +50,7 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
       siteId: '',
       smallGroupId: '',
       participantsCountPlanned: 0,
-      activityTypeId: '',
+      activityTypeEnum: 'small_group_meeting',
       createdBy: currentUser?.id || '',
     },
   });
@@ -68,7 +68,7 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
         siteId: initialActivity.siteId ?? '',
         smallGroupId: initialActivity.smallGroupId ?? '',
         participantsCountPlanned: initialActivity.participantsCountPlanned ?? 0,
-        activityTypeId: initialActivity.activityTypeId ?? '',
+        activityTypeEnum: (initialActivity as any).activityTypeEnum ?? 'small_group_meeting',
         createdBy: initialActivity.createdBy || currentUser?.id || '',
       });
     } else if (!isEditMode && currentUser) {
@@ -82,9 +82,6 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
     const fetchData = async () => {
       if (!currentUser) return;
       try {
-        const activityTypesData = await activityService.getActivityTypes();
-        setActivityTypes(activityTypesData);
-
         if (currentUser.role === ROLES.NATIONAL_COORDINATOR) {
           const sitesData = await siteService.getSitesWithDetails(currentUser);
           setSites(sitesData);
@@ -273,16 +270,20 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <Label htmlFor="activityTypeId">Activity Type</Label>
-              <Controller name="activityTypeId" control={form.control} render={({ field }) => (
+              <Label htmlFor="activityTypeEnum">Type d'Activité</Label>
+              <Controller name="activityTypeEnum" control={form.control} render={({ field }) => (
                 <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                  <SelectTrigger id="activityTypeId" className="mt-1"><SelectValue placeholder="Select type" /></SelectTrigger>
+                  <SelectTrigger id="activityTypeEnum" className="mt-1"><SelectValue placeholder="Sélectionnez un type" /></SelectTrigger>
                   <SelectContent>
-                    {activityTypes.map(type => <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>)}
+                    <SelectItem value="small_group_meeting">Réunion de Small Group</SelectItem>
+                    <SelectItem value="conference">Conférence</SelectItem>
+                    <SelectItem value="apostolat">Apostolat</SelectItem>
+                    <SelectItem value="deuil">Deuil</SelectItem>
+                    <SelectItem value="other">Autre</SelectItem>
                   </SelectContent>
                 </Select>
               )} />
-              {form.formState.errors.activityTypeId && <p className="text-sm text-destructive mt-1">{form.formState.errors.activityTypeId.message}</p>}
+              {form.formState.errors.activityTypeEnum && <p className="text-sm text-destructive mt-1">{(form.formState.errors.activityTypeEnum as any).message}</p>}
             </div>
             <div>
               <Label htmlFor="participantsCountPlanned">Participants Count (Planned)</Label>

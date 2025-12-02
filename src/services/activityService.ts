@@ -6,7 +6,6 @@ import { ROLES } from '@/lib/constants';
 import { activityFormSchema, type ActivityFormData } from '@/schemas/activity';
 
 
-// Helper to map Prisma result to Activity type
 const mapPrismaActivityToActivity = (item: any): Activity => {
   // Try to determine participants count.
   // If reports exist, use the reported count from the latest report.
@@ -49,6 +48,7 @@ const mapPrismaActivityToActivity = (item: any): Activity => {
     siteId: item.siteId || undefined,
     smallGroupId: item.smallGroupId || undefined,
     activityTypeId: item.activityTypeId,
+    activityTypeEnum: item.activityTypeEnum || undefined,
     participantsCountPlanned: item.participantsCountPlanned || undefined,
     createdBy: item.createdById,
     createdAt: item.createdAt ? item.createdAt.toISOString() : '',
@@ -163,7 +163,8 @@ export const createActivity = async (activityData: ActivityFormData): Promise<Ac
       status: activityData.status,
       siteId: activityData.siteId,
       smallGroupId: activityData.smallGroupId,
-      activityTypeId: activityData.activityTypeId,
+      activityTypeId: activityData.activityTypeId || '00000000-0000-0000-0000-000000000000',
+      activityTypeEnum: activityData.activityTypeEnum,
       participantsCountPlanned: activityData.participantsCountPlanned,
       createdById: activityData.createdBy,
     },
@@ -190,6 +191,7 @@ export const updateActivity = async (id: string, updatedData: Partial<ActivityFo
   if (data.siteId !== undefined) dbUpdates.siteId = data.siteId;
   if (data.smallGroupId !== undefined) dbUpdates.smallGroupId = data.smallGroupId;
   if (data.activityTypeId !== undefined) dbUpdates.activityTypeId = data.activityTypeId;
+  if (data.activityTypeEnum !== undefined) dbUpdates.activityTypeEnum = data.activityTypeEnum;
   if (data.participantsCountPlanned !== undefined) dbUpdates.participantsCountPlanned = data.participantsCountPlanned;
   if (data.createdBy !== undefined) dbUpdates.createdById = data.createdBy;
 

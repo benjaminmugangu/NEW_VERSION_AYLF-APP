@@ -135,6 +135,7 @@ export interface Activity extends BaseEntity {
   siteId?: string;
   smallGroupId?: string;
   activityTypeId: string;
+  activityTypeEnum?: 'small_group_meeting' | 'conference' | 'apostolat' | 'deuil' | 'other';
   participantsCountPlanned?: number;
   createdBy: string; // UUID of the user who created the activity
   createdAt: string; // ISO date string
@@ -155,6 +156,7 @@ export interface DbActivity {
   site_id?: string;
   small_group_id?: string;
   activity_type_id: string;
+  activity_type_enum?: 'small_group_meeting' | 'conference' | 'apostolat' | 'deuil' | 'other';
   participants_count_planned?: number;
   created_by: string;
   created_at: string;

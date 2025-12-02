@@ -234,6 +234,9 @@ model Activity {
   activityTypeId     String         @map("activity_type_id")
   activityType       ActivityType   @relation(fields: [activityTypeId], references: [id])
   
+  // New enum-based type field
+  activityTypeEnum   ActivityTypeEnum? @map("activity_type_enum")
+  
   participantsCountPlanned Int?     @map("participants_count_planned")
   
   createdById        String         @map("created_by")
