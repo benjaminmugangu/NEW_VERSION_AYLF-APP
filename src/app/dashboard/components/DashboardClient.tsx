@@ -181,6 +181,17 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
               </Link>
             </Button>
             <Button asChild variant="outline" className="w-full flex items-start justify-start p-3 h-auto text-left">
+              <Link href="/dashboard/financials/allocations/new">
+                <>
+                  <DollarSign className="h-5 w-5 text-primary shrink-0" />
+                  <div className="whitespace-normal ml-2">
+                    <p className="font-semibold">Send Funds to Site</p>
+                    <p className="text-xs text-muted-foreground break-words">Allocate budget to a site.</p>
+                  </div>
+                </>
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="w-full flex items-start justify-start p-3 h-auto text-left">
               <Link href="/dashboard/users">
                 <>
                   <UsersRound className="h-5 w-5 text-primary shrink-0" />
