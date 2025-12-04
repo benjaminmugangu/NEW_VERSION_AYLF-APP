@@ -1,5 +1,5 @@
 import type { NavItem, UserRole } from "@/lib/types";
-import { LayoutDashboard, Activity, Users, FileText, Lightbulb, Building, Settings, UsersRound, Briefcase, Award, UserCircle as UserProfileIcon } from "lucide-react";
+import { LayoutDashboard, Activity, Users, FileText, Lightbulb, Building, Settings, UsersRound, Briefcase, Award, UserCircle as UserProfileIcon, History as HistoryIcon } from "lucide-react";
 
 export const ROLES: Record<string, UserRole> = {
   NATIONAL_COORDINATOR: "national_coordinator",
@@ -66,6 +66,12 @@ export const NAVIGATION_LINKS: NavItem[] = [
     allowedRoles: [ROLES.NATIONAL_COORDINATOR],
   },
   {
+    href: "/dashboard/history/coordinators",
+    label: "History",
+    icon: HistoryIcon,
+    allowedRoles: [ROLES.NATIONAL_COORDINATOR],
+  },
+  {
     href: "/dashboard/invitations",
     label: "Invitations",
     icon: UsersRound,
@@ -82,6 +88,12 @@ export const NAVIGATION_LINKS: NavItem[] = [
     label: "Certificates",
     icon: Award,
     allowedRoles: [ROLES.NATIONAL_COORDINATOR],
+  },
+  {
+    href: "/dashboard/my-certificates",
+    label: "My Certificates",
+    icon: Award,
+    allowedRoles: [ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER],
   },
   {
     href: "/dashboard/settings/profile",

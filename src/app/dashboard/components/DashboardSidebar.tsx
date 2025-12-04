@@ -77,11 +77,11 @@ export function DashboardSidebar({ user }: DashboardSidebarProps) {
 
         return (
           <SidebarMenuItem key={item.href}>
-            <SidebarMenuButton isActive={isActive} asChild tooltip={item.label}>
+            <SidebarMenuButton isActive={isActive} asChild tooltip={item.label} className="h-12 md:h-10">
               <Link href={item.href}>
-                <span className="flex items-center gap-2">
-                  <Icon className="h-5 w-5" />
-                  <span>{item.label}</span>
+                <span className="flex items-center gap-3 md:gap-2">
+                  <Icon className="h-6 w-6 md:h-5 md:w-5" />
+                  <span className="text-base md:text-sm font-medium">{item.label}</span>
                 </span>
               </Link>
             </SidebarMenuButton>
@@ -95,9 +95,9 @@ export function DashboardSidebar({ user }: DashboardSidebarProps) {
       <SidebarHeader className="p-4">
         <Link href="/dashboard">
           <span className="flex items-center gap-2 group/logo">
-            <Image 
+            <Image
               src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcROsJ0oRg8RYoAuUWm025MBmI5tjiHUI-Pcgw&s"
-              alt="AYLF Logo" 
+              alt="AYLF Logo"
               width={40}
               height={40}
               className="rounded-full transition-transform duration-300 group-hover/logo:scale-110"
@@ -117,9 +117,9 @@ export function DashboardSidebar({ user }: DashboardSidebarProps) {
         {user && (
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton onClick={handleLogout} tooltip="Logout">
-                <LogOut className="h-5 w-5" />
-                <span>Logout</span>
+              <SidebarMenuButton onClick={handleLogout} tooltip="Logout" className="h-12 md:h-10 text-destructive hover:text-destructive hover:bg-destructive/10">
+                <LogOut className="h-6 w-6 md:h-5 md:w-5" />
+                <span className="text-base md:text-sm font-medium">Logout</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>

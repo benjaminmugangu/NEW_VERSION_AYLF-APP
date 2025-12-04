@@ -9,7 +9,8 @@ export const activityFormSchema = z.object({
     status: z.enum(["planned", "in_progress", "delayed", "executed", "canceled"]).default('planned'),
     siteId: z.string().optional(),
     smallGroupId: z.string().optional(),
-    activityTypeId: z.string().min(1, 'Activity type is required.'),
+    activityTypeId: z.string().optional(), // Keep for legacy compatibility
+    activityTypeEnum: z.enum(["small_group_meeting", "conference", "apostolat", "deuil", "other"]).optional(),
     participantsCountPlanned: z.number().int().min(0).optional(),
     createdBy: z.string(),
 }).refine(data => data.level !== 'site' || !!data.siteId, {

@@ -3,6 +3,7 @@
 
 import { prisma } from '@/lib/prisma';
 import type { FundAllocation, FundAllocationFormData } from '@/lib/types';
+import { calculateAvailableBudget } from './budgetService';
 
 export async function getAllocations(filters?: { siteId?: string; smallGroupId?: string }): Promise<FundAllocation[]> {
   const where: any = {};
@@ -41,6 +42,8 @@ export async function getAllocations(filters?: { siteId?: string; smallGroupId?:
     siteName: allocation.site?.name,
     smallGroupName: allocation.smallGroup?.name,
     sourceTransactionId: null, // Legacy field, not in new schema
+    fromSiteId: allocation.fromSiteId,
+    proofUrl: allocation.proofUrl,
   } as FundAllocation));
 }
 
@@ -73,10 +76,24 @@ export async function getAllocationById(id: string): Promise<FundAllocation> {
     siteName: allocation.site?.name,
     smallGroupName: allocation.smallGroup?.name,
     sourceTransactionId: null,
+    fromSiteId: allocation.fromSiteId,
+    proofUrl: allocation.proofUrl,
   } as FundAllocation;
 }
 
 export async function createAllocation(formData: FundAllocationFormData): Promise<FundAllocation> {
+  // Budget validation: Check if sender has sufficient funds
+  // Only check for Site and Small Group allocations (fromSiteId exists)
+  if (formData.fromSiteId) {
+    const budget = await calculateAvailableBudget({ siteId: formData.fromSiteId });
+    
+    if (budget.available < formData.amount) {
+      throw new Error(
+        `Budget insuffisant. Disponible: ${budget.available.toFixed(2)} FCFA, Demandé: ${formData.amount.toFixed(2)} FCFA`
+      );
+    }
+  }
+
   const allocation = await prisma.fundAllocation.create({
     data: {
       amount: formData.amount,
@@ -88,6 +105,8 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
       siteId: formData.siteId || null,
       smallGroupId: formData.smallGroupId || null,
       notes: formData.notes,
+      fromSiteId: formData.fromSiteId || null,
+      proofUrl: formData.proofUrl || null,
     },
     include: {
       allocatedBy: true,
@@ -111,6 +130,8 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
     siteName: allocation.site?.name,
     smallGroupName: allocation.smallGroup?.name,
     sourceTransactionId: null,
+    fromSiteId: allocation.fromSiteId,
+    proofUrl: allocation.proofUrl,
   } as FundAllocation;
 }
 
@@ -125,6 +146,8 @@ export async function updateAllocation(id: string, formData: Partial<FundAllocat
   if (formData.siteId !== undefined) updateData.siteId = formData.siteId;
   if (formData.smallGroupId !== undefined) updateData.smallGroupId = formData.smallGroupId;
   if (formData.notes !== undefined) updateData.notes = formData.notes;
+  if (formData.fromSiteId !== undefined) updateData.fromSiteId = formData.fromSiteId;
+  if (formData.proofUrl !== undefined) updateData.proofUrl = formData.proofUrl;
 
   await prisma.fundAllocation.update({
     where: { id },

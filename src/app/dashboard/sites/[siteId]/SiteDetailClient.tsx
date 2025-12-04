@@ -27,14 +27,18 @@ import * as smallGroupService from '@/services/smallGroupService';
 import { Breadcrumbs } from '@/components/ui-custom/Breadcrumbs';
 import { EmptyState } from '@/components/ui-custom/EmptyState';
 
+import { CoordinatorHistoryClient } from '@/app/dashboard/history/coordinators/components/CoordinatorHistoryClient';
+import type { CoordinatorHistory } from '@/services/coordinatorHistoryService';
+
 interface SiteDetailClientProps {
   site: Site;
   initialSmallGroups: SmallGroup[];
   totalMembers: number;
   canManageSite: boolean;
+  historyData: CoordinatorHistory[];
 }
 
-export default function SiteDetailClient({ site, initialSmallGroups, totalMembers, canManageSite }: SiteDetailClientProps) {
+export default function SiteDetailClient({ site, initialSmallGroups, totalMembers, canManageSite, historyData }: SiteDetailClientProps) {
   const router = useRouter();
   const { toast } = useToast();
 
@@ -194,6 +198,14 @@ export default function SiteDetailClient({ site, initialSmallGroups, totalMember
           )}
         </CardContent>
       </Card>
+
+      <div className="mt-6">
+        <CoordinatorHistoryClient
+          initialData={historyData}
+          title="Historique des Coordinateurs du Site"
+          hideFilters={true}
+        />
+      </div>
 
       <AlertDialog open={!!groupToDelete} onOpenChange={(open) => !open && setGroupToDelete(null)}>
         <AlertDialogContent>

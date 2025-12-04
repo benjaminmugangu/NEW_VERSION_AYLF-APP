@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import * as z from 'zod';
 import * as activityService from '@/services/activityService';
 import { createClient } from '@/utils/supabase/server';
+import { MESSAGES } from '@/lib/messages';
 
 // Zod schema for validating incoming activity creation data (without created_by)
 const activityCreateSchema = z.object({
@@ -12,7 +13,8 @@ const activityCreateSchema = z.object({
   status: z.enum(["planned", "in_progress", "delayed", "executed", "canceled"]).default('planned'),
   site_id: z.string().uuid().optional(),
   small_group_id: z.string().uuid().optional(),
-  activity_type_id: z.string().uuid('Activity type is required.'),
+  activity_type_id: z.string().uuid().optional(), // Made optional since we might use enum instead
+  activity_type_enum: z.enum(["small_group_meeting", "conference", "apostolat", "deuil", "other"]).optional(),
   participants_count_planned: z.number().int().min(0).optional(),
 }).refine(data => data.level !== 'site' || !!data.site_id, {
   message: 'Site is required for site-level activities.',
@@ -28,14 +30,14 @@ export async function POST(request: NextRequest) {
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
     }
 
     const json = await request.json();
     const parsedData = activityCreateSchema.safeParse(json);
 
     if (!parsedData.success) {
-      return NextResponse.json({ error: 'Invalid input', details: parsedData.error.format() }, { status: 400 });
+      return NextResponse.json({ error: MESSAGES.errors.validation, details: parsedData.error.format() }, { status: 400 });
     }
 
     const activityDataForService = {
@@ -44,7 +46,8 @@ export async function POST(request: NextRequest) {
       date: new Date(parsedData.data.date),
       level: parsedData.data.level,
       status: parsedData.data.status,
-      activityTypeId: parsedData.data.activity_type_id,
+      activityTypeId: parsedData.data.activity_type_id || '00000000-0000-0000-0000-000000000000', // Default UUID if not provided
+      activityTypeEnum: parsedData.data.activity_type_enum,
       createdBy: session.user.id,
       siteId: parsedData.data.site_id,
       smallGroupId: parsedData.data.small_group_id,
@@ -55,7 +58,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(newActivity, { status: 201 });
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-    return NextResponse.json({ error: 'Internal Server Error', details: errorMessage }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : MESSAGES.errors.generic;
+    return NextResponse.json({ error: MESSAGES.errors.serverError, details: errorMessage }, { status: 500 });
   }
 }

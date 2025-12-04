@@ -135,6 +135,7 @@ export interface Activity extends BaseEntity {
   siteId?: string;
   smallGroupId?: string;
   activityTypeId: string;
+  activityTypeEnum?: 'small_group_meeting' | 'conference' | 'apostolat' | 'deuil' | 'other';
   participantsCountPlanned?: number;
   createdBy: string; // UUID of the user who created the activity
   createdAt: string; // ISO date string
@@ -155,6 +156,7 @@ export interface DbActivity {
   site_id?: string;
   small_group_id?: string;
   activity_type_id: string;
+  activity_type_enum?: 'small_group_meeting' | 'conference' | 'apostolat' | 'deuil' | 'other';
   participants_count_planned?: number;
   created_by: string;
   created_at: string;
@@ -222,6 +224,7 @@ export interface Report extends BaseEntity {
   financialSummary?: string;
   status: ReportStatus;
   reviewNotes?: string;
+  rejectionReason?: string; // Reason for rejection (displayed to submitter)
   attachments?: string[];
   // Enriched data for UI
   submittedByName?: string;
@@ -250,9 +253,16 @@ export interface FinancialTransaction extends BaseEntity {
   recordedById: string;
   recordedByName?: string;
   recordedByRole?: UserRole;
+  // Workflow fields (NEW)
+  status?: string;
+  approvedById?: string;
+  approvedByName?: string;
+  approvedAt?: string;
+  // Linked entities
   relatedReportId?: string;
   relatedReportTitle?: string;
-  attachments?: string[];
+  relatedActivityId?: string;
+  proofUrl?: string;
 }
 
 export interface FundAllocation extends BaseEntity {
@@ -269,6 +279,22 @@ export interface FundAllocation extends BaseEntity {
   allocatedByName?: string;
   siteName?: string;
   smallGroupName?: string;
+  fromSiteId?: string;
+  proofUrl?: string;
+}
+
+export interface FundAllocationFormData {
+  amount: number;
+  allocationDate: string; // ISO date string
+  goal: string;
+  source: string;
+  status: 'planned' | 'completed';
+  allocatedById: string;
+  siteId?: string;
+  smallGroupId?: string;
+  notes?: string;
+  fromSiteId?: string;
+  proofUrl?: string;
 }
 
 export interface Financials {
@@ -341,6 +367,9 @@ export interface TransactionFormData {
   siteId?: string;
   smallGroupId?: string;
   relatedReportId?: string;
+  relatedActivityId?: string;
+  status?: string;
+  proofUrl?: string;
   attachments?: string[];
   recordedById: string; // Set to current user's ID
 }

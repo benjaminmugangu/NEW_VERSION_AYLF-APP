@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { format } from 'date-fns';
+import { MESSAGES } from '@/lib/messages';
 
 export async function GET(request: Request) {
     try {
@@ -9,12 +10,12 @@ export async function GET(request: Request) {
         const isAuth = await isAuthenticated();
 
         if (!isAuth) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
         }
 
         const user = await getUser();
         if (!user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
         }
 
         const currentUser = await prisma.profile.findUnique({
@@ -95,7 +96,7 @@ export async function GET(request: Request) {
     } catch (error) {
         console.error('Error exporting transactions:', error);
         return NextResponse.json(
-            { error: 'Internal Server Error' },
+            { error: MESSAGES.errors.serverError },
             { status: 500 }
         );
     }

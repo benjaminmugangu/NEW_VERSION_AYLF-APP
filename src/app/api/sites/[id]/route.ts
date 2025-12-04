@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import * as z from 'zod';
 import * as siteService from '@/services/siteService';
 import { createClient } from '@/utils/supabase/server';
+import { MESSAGES } from '@/lib/messages';
 
 // Schema for partial updates (PATCH)
 const siteUpdateSchema = z.object({
@@ -42,22 +43,22 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const supabase = await createClient();
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-      return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+      return new NextResponse(JSON.stringify({ error: MESSAGES.errors.unauthorized }), { status: 401 });
     }
 
     const json = await request.json();
     const parsedData = siteUpdateSchema.safeParse(json);
 
     if (!parsedData.success) {
-      return new NextResponse(JSON.stringify({ error: 'Invalid input', details: parsedData.error.format() }), { status: 400 });
+      return new NextResponse(JSON.stringify({ error: MESSAGES.errors.validation, details: parsedData.error.format() }), { status: 400 });
     }
 
     const updatedSite = await siteService.updateSite(id, parsedData.data);
     return NextResponse.json(updatedSite);
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-    return new NextResponse(JSON.stringify({ error: 'Internal Server Error', details: errorMessage }), { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : MESSAGES.errors.generic;
+    return new NextResponse(JSON.stringify({ error: MESSAGES.errors.serverError, details: errorMessage }), { status: 500 });
   }
 }
 
@@ -85,14 +86,14 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const supabase = await createClient();
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-      return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+      return new NextResponse(JSON.stringify({ error: MESSAGES.errors.unauthorized }), { status: 401 });
     }
 
     await siteService.deleteSite(id);
     return new NextResponse(null, { status: 204 });
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-    return new NextResponse(JSON.stringify({ error: 'Internal Server Error', details: errorMessage }), { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : MESSAGES.errors.generic;
+    return new NextResponse(JSON.stringify({ error: MESSAGES.errors.serverError, details: errorMessage }), { status: 500 });
   }
 }

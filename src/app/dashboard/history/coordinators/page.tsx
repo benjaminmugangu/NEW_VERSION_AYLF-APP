@@ -1,0 +1,51 @@
+import { Metadata } from 'next';
+import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
+import { redirect } from 'next/navigation';
+import { prisma } from '@/lib/prisma';
+import { getCoordinatorHistory } from '@/services/coordinatorHistoryService';
+import { CoordinatorHistoryClient } from './components/CoordinatorHistoryClient';
+
+export const metadata: Metadata = {
+    title: 'Historique des Coordinateurs | AYLF',
+    description: 'Historique des mandats des coordinateurs',
+};
+
+export default async function CoordinatorHistoryPage() {
+    const { getUser, isAuthenticated } = getKindeServerSession();
+
+    if (!(await isAuthenticated())) {
+        redirect('/api/auth/login');
+    }
+
+    const user = await getUser();
+    if (!user) {
+        redirect('/api/auth/login');
+    }
+
+    const currentUser = await prisma.profile.findUnique({
+        where: { id: user.id },
+    });
+
+    if (!currentUser || currentUser.role !== 'national_coordinator') {
+        redirect('/dashboard');
+    }
+
+    const historyData = await getCoordinatorHistory({
+        includeActive: true,
+        includePast: true
+    });
+
+    return (
+        <div className="flex-1 space-y-4 p-8 pt-6">
+            <div className="flex items-center justify-between space-y-2">
+                <h2 className="text-3xl font-bold tracking-tight">Historique des Coordinateurs</h2>
+                <div className="flex items-center space-x-2">
+                    {/* Export button could go here */}
+                </div>
+            </div>
+            <div className="hidden h-full flex-1 flex-col space-y-8 md:flex">
+                <CoordinatorHistoryClient initialData={historyData} />
+            </div>
+        </div>
+    );
+}

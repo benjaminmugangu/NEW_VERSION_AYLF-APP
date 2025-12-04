@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { updateActivityStatuses } from '@/services/activityService';
+import { MESSAGES } from '@/lib/messages';
 
 export async function GET(request: Request) {
     try {
@@ -8,7 +9,7 @@ export async function GET(request: Request) {
         const cronSecret = process.env.CRON_SECRET;
 
         if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
         }
 
         // Execute the status update logic
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
     } catch (error) {
         console.error('Error updating activity statuses:', error);
         return NextResponse.json(
-            { error: 'Internal Server Error' },
+            { error: MESSAGES.errors.serverError },
             { status: 500 }
         );
     }

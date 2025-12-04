@@ -2,6 +2,8 @@ import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { UserRole } from "@prisma/client";
+import { logInfo, logError } from "@/lib/logger";
+import { MESSAGES } from "@/lib/messages";
 
 export async function GET() {
   try {
@@ -14,7 +16,7 @@ export async function GET() {
 
     const kindeUser = await getUser();
     if (!kindeUser || !kindeUser.id || !kindeUser.email) {
-      return NextResponse.json({ error: "Incomplete user data from Kinde" }, { status: 400 });
+      return NextResponse.json({ error: MESSAGES.errors.validation }, { status: 400 });
     }
 
     // 1. Chercher l'utilisateur dans notre DB
@@ -28,7 +30,7 @@ export async function GET() {
 
     // 2. Si l'utilisateur n'existe pas, on le crée (Auto-Sync)
     if (!dbUser) {
-      console.log(`Creating new user from Kinde: ${kindeUser.email}`);
+      logInfo(`Creating new user from Kinde: ${kindeUser.email}`, { userId: kindeUser.id });
 
       // Check for pending invitation
       const invitation = await prisma.userInvitation.findUnique({
@@ -40,7 +42,7 @@ export async function GET() {
       let smallGroupId: string | undefined;
 
       if (invitation) {
-        console.log(`Found invitation for ${kindeUser.email}: ${invitation.role}`);
+        logInfo(`Found invitation for ${kindeUser.email}: ${invitation.role}`, { invitationId: invitation.id });
         role = invitation.role;
         siteId = invitation.siteId || undefined;
         smallGroupId = invitation.smallGroupId || undefined;
@@ -86,7 +88,7 @@ export async function GET() {
     return NextResponse.json({ user: frontendUser });
 
   } catch (error) {
-    console.error("[AUTH_SYNC_ERROR]", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    logError("[AUTH_SYNC_ERROR]", error);
+    return NextResponse.json({ error: MESSAGES.errors.serverError }, { status: 500 });
   }
 }

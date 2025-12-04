@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import { prisma } from '@/lib/prisma';
+import { MESSAGES } from '@/lib/messages';
 
 export async function GET(request: Request) {
     try {
@@ -8,12 +9,12 @@ export async function GET(request: Request) {
         const isAuth = await isAuthenticated();
 
         if (!isAuth) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
         }
 
         const user = await getUser();
         if (!user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
         }
 
         const currentUser = await prisma.profile.findUnique({
@@ -21,7 +22,7 @@ export async function GET(request: Request) {
         });
 
         if (!currentUser) {
-            return NextResponse.json({ error: 'User not found' }, { status: 404 });
+            return NextResponse.json({ error: MESSAGES.errors.notFound }, { status: 404 });
         }
 
         // Parse query params
@@ -30,23 +31,23 @@ export async function GET(request: Request) {
         const smallGroupId = searchParams.get('smallGroupId');
 
         if (!siteId && !smallGroupId) {
-            return NextResponse.json({ error: 'Either siteId or smallGroupId is required' }, { status: 400 });
+            return NextResponse.json({ error: MESSAGES.errors.validation }, { status: 400 });
         }
 
         // RBAC
         if (currentUser.role !== 'national_coordinator') {
             if (siteId && currentUser.siteId !== siteId) {
-                return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+                return NextResponse.json({ error: MESSAGES.errors.forbidden }, { status: 403 });
             }
             if (smallGroupId && currentUser.smallGroupId !== smallGroupId) {
                 // Allow site coordinator to view small group budget
                 if (currentUser.role === 'site_coordinator' && currentUser.siteId) {
                     const group = await prisma.smallGroup.findUnique({ where: { id: smallGroupId } });
                     if (group?.siteId !== currentUser.siteId) {
-                        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+                        return NextResponse.json({ error: MESSAGES.errors.forbidden }, { status: 403 });
                     }
                 } else if (currentUser.smallGroupId !== smallGroupId) {
-                    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+                    return NextResponse.json({ error: MESSAGES.errors.forbidden }, { status: 403 });
                 }
             }
         }
@@ -91,7 +92,7 @@ export async function GET(request: Request) {
     } catch (error) {
         console.error('Error fetching budget status:', error);
         return NextResponse.json(
-            { error: 'Internal Server Error' },
+            { error: MESSAGES.errors.serverError },
             { status: 500 }
         );
     }

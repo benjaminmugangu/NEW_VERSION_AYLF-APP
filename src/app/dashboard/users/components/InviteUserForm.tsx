@@ -25,7 +25,17 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/components/ui/use-toast';
 import { UserRole } from '@prisma/client';
-import { CheckCircle, Copy } from 'lucide-react';
+import { CheckCircle, Copy, AlertTriangle } from 'lucide-react';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const formSchema = z.object({
     email: z.string().email(),
@@ -40,11 +50,30 @@ interface InviteUserFormProps {
     smallGroups: { id: string; name: string; siteId: string }[];
 }
 
+interface ConflictData {
+    conflictType: 'site_coordinator' | 'small_group_leader';
+    existingCoordinator?: {
+        id: string;
+        name: string;
+        email: string;
+        mandateStartDate: string;
+    };
+    existingLeader?: {
+        id: string;
+        name: string;
+        email: string;
+        mandateStartDate: string;
+    };
+    error: string;
+}
+
 export default function InviteUserForm({ sites, smallGroups }: InviteUserFormProps) {
     const router = useRouter();
     const { toast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
     const [invitationLink, setInvitationLink] = useState<string | null>(null);
+    const [conflictData, setConflictData] = useState<ConflictData | null>(null);
+    const [pendingInvitation, setPendingInvitation] = useState<z.infer<typeof formSchema> | null>(null);
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -62,18 +91,29 @@ export default function InviteUserForm({ sites, smallGroups }: InviteUserFormPro
         (group) => !selectedSiteId || group.siteId === selectedSiteId
     );
 
-    async function onSubmit(values: z.infer<typeof formSchema>) {
+    async function onSubmit(values: z.infer<typeof formSchema>, replaceExisting = false, existingCoordinatorId?: string) {
         setIsLoading(true);
         try {
+            const requestBody = replaceExisting && existingCoordinatorId
+                ? { ...values, replaceExisting: true, existingCoordinatorId }
+                : values;
+
             const response = await fetch('/api/admin/users', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(values),
+                body: JSON.stringify(requestBody),
             });
 
             const data = await response.json();
 
             if (!response.ok) {
+                // Handle 409 Conflict (duplicate coordinator)
+                if (response.status === 409 && (data.conflictType === 'site_coordinator' || data.conflictType === 'small_group_leader')) {
+                    setConflictData(data);
+                    setPendingInvitation(values);
+                    setIsLoading(false);
+                    return; // Don't throw, show dialog instead
+                }
                 throw new Error(data.error || 'Failed to invite user');
             }
 
@@ -110,8 +150,65 @@ export default function InviteUserForm({ sites, smallGroups }: InviteUserFormPro
         }
     };
 
+    const handleReplaceConfirm = async () => {
+        if (!pendingInvitation || !conflictData) return;
+
+        const existingPerson = conflictData.existingCoordinator || conflictData.existingLeader;
+        if (!existingPerson) return;
+
+        // Retry submission with replace flag
+        await onSubmit(pendingInvitation, true, existingPerson.id);
+
+        // Clear conflict state
+        setConflictData(null);
+        setPendingInvitation(null);
+    };
+
+    const handleReplaceCancel = () => {
+        setConflictData(null);
+        setPendingInvitation(null);
+    };
+
+    const existingPerson = conflictData?.existingCoordinator || conflictData?.existingLeader;
+    const roleLabel = conflictData?.conflictType === 'site_coordinator' ? 'Site Coordinator' : 'Small Group Leader';
+
     return (
         <>
+            {/* Conflict Resolution Dialog */}
+            <AlertDialog open={!!conflictData} onOpenChange={(open) => !open && handleReplaceCancel()}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <div className="flex items-center gap-2">
+                            <AlertTriangle className="h-5 w-5 text-amber-500" />
+                            <AlertDialogTitle>Coordinateur existant détecté</AlertDialogTitle>
+                        </div>
+                        <AlertDialogDescription className="space-y-3 pt-3">
+                            <p>{conflictData?.error}</p>
+                            {existingPerson && (
+                                <div className="bg-slate-50 p-3 rounded-md border border-slate-200 space-y-1">
+                                    <p className="text-sm font-medium text-slate-900">Coordinateur actuel :</p>
+                                    <p className="text-sm"><strong>Nom :</strong> {existingPerson.name}</p>
+                                    <p className="text-sm"><strong>Email :</strong> {existingPerson.email}</p>
+                                    <p className="text-sm">
+                                        <strong>Mandat depuis :</strong>{' '}
+                                        {new Date(existingPerson.mandateStartDate).toLocaleDateString('fr-FR')}
+                                    </p>
+                                </div>
+                            )}
+                            <p className="text-sm text-amber-700 font-medium">
+                                ⚠️ Si vous confirmez, le mandat du coordinateur actuel sera terminé et le nouveau coordinateur prendra sa place.
+                            </p>
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={handleReplaceCancel}>Annuler</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleReplaceConfirm} className="bg-amber-600 hover:bg-amber-700">
+                            Oui, remplacer
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
             {invitationLink && (
                 <Alert className="mb-6 border-green-200 bg-green-50">
                     <CheckCircle className="h-4 w-4 text-green-600" />
@@ -158,7 +255,7 @@ export default function InviteUserForm({ sites, smallGroups }: InviteUserFormPro
             )}
 
             <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 max-w-lg">
+                <form onSubmit={form.handleSubmit((values) => onSubmit(values))} className="space-y-8 max-w-lg">
                     <FormField
                         control={form.control}
                         name="email"

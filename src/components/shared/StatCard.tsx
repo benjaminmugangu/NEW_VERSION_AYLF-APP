@@ -13,7 +13,7 @@ export interface StatCardProps {
 
 export function StatCard({ title, value, icon: Icon, description, href }: StatCardProps) {
   const cardContent = (
-    <Card className="shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out hover:scale-[1.02] h-full">
+    <Card className="shadow-md hover:shadow-lg transition-all duration-300 ease-in-out hover:scale-[1.02] h-full border-2 border-border/50 hover:border-primary/20 hover:bg-accent/5">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">
           {title}

@@ -28,7 +28,10 @@ const formSchema = z.object({
     role: z.nativeEnum(UserRole),
     siteId: z.string().optional().nullable(),
     smallGroupId: z.string().optional().nullable(),
+    status: z.enum(['active', 'inactive', 'invited']).optional(),
 });
+
+// ...
 
 interface EditUserFormProps {
     user: {
@@ -38,6 +41,7 @@ interface EditUserFormProps {
         role: UserRole;
         siteId?: string | null;
         smallGroupId?: string | null;
+        status?: string | null;
     };
     sites: { id: string; name: string }[];
     smallGroups: { id: string; name: string; siteId: string }[];
@@ -54,6 +58,7 @@ export default function EditUserForm({ user, sites, smallGroups }: EditUserFormP
             role: user.role,
             siteId: user.siteId || undefined,
             smallGroupId: user.smallGroupId || undefined,
+            status: (user.status as 'active' | 'inactive' | 'invited') || 'active',
         },
     });
 
@@ -105,6 +110,29 @@ export default function EditUserForm({ user, sites, smallGroups }: EditUserFormP
                         Email: {user.email}
                     </p>
                 </div>
+
+                <FormField
+                    control={form.control}
+                    name="status"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Status</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select status" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    <SelectItem value="active">Active</SelectItem>
+                                    <SelectItem value="inactive">Inactive</SelectItem>
+                                    <SelectItem value="invited">Invited</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
 
                 <FormField
                     control={form.control}

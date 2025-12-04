@@ -16,7 +16,13 @@ const ALLOWED_ROLES = [ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES
 
 export default async function ActivitiesPage() {
   const { getUser } = getKindeServerSession();
-  const user = await getUser();
+  let user;
+  try {
+    user = await getUser();
+  } catch (error) {
+    console.error("Error fetching user session:", error);
+    redirect('/api/auth/login');
+  }
 
   if (!user || !user.id) {
     redirect('/api/auth/login');

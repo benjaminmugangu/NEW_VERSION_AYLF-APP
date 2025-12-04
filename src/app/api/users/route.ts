@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/utils/supabase/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
+import { MESSAGES } from '@/lib/messages';
 
 // Helper to generate a random password
 const generatePassword = (length = 12) => {
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
   const { data: { session } } = await supabase.auth.getSession();
 
   if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
   }
 
   const { data: profile } = await supabase
@@ -49,7 +50,7 @@ export async function POST(request: Request) {
     .single();
 
   if (profile?.role !== 'national_coordinator') {
-    return NextResponse.json({ error: 'Forbidden: You do not have permission to create users.' }, { status: 403 });
+    return NextResponse.json({ error: MESSAGES.errors.forbidden }, { status: 403 });
   }
 
   const supabaseAdmin = createAdminClient(
@@ -62,7 +63,7 @@ export async function POST(request: Request) {
     const validation = userCreateSchema.safeParse(body);
 
     if (!validation.success) {
-      return NextResponse.json({ error: 'Invalid input', details: validation.error.flatten() }, { status: 400 });
+      return NextResponse.json({ error: MESSAGES.errors.validation, details: validation.error.flatten() }, { status: 400 });
     }
 
     const { name, email, role, siteId, smallGroupId, status, mandateStartDate, mandateEndDate } = validation.data;
@@ -91,11 +92,11 @@ export async function POST(request: Request) {
     }
 
     if (!authData.user) {
-      return NextResponse.json({ error: 'Failed to create user.' }, { status: 500 });
+      return NextResponse.json({ error: MESSAGES.errors.generic }, { status: 500 });
     }
 
     return NextResponse.json({
-      message: 'User created successfully',
+      message: MESSAGES.success.created,
       credentials: {
         email,
         password,
@@ -103,6 +104,6 @@ export async function POST(request: Request) {
     }, { status: 201 });
 
   } catch (error) {
-    return NextResponse.json({ error: 'An unexpected error occurred.' }, { status: 500 });
+    return NextResponse.json({ error: MESSAGES.errors.serverError }, { status: 500 });
   }
 }

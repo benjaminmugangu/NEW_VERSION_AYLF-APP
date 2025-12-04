@@ -16,7 +16,7 @@ interface ReportCardProps {
 
 export function ReportCard({ report, onViewDetails }: ReportCardProps) {
   const getLevelBadgeColor = (level: ReportWithDetails["level"]) => {
-    switch(level) {
+    switch (level) {
       case "national": return "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300";
       case "site": return "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300";
       case "small_group": return "bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300";
@@ -35,7 +35,7 @@ export function ReportCard({ report, onViewDetails }: ReportCardProps) {
         return { variant: "secondary", icon: <AlertCircle className="mr-1 h-3 w-3" />, text: "Submitted", className: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300 border-yellow-300 dark:border-yellow-700" };
     }
   };
-  
+
   const statusInfo = getStatusBadgeInfo(report.status);
 
 
@@ -43,9 +43,9 @@ export function ReportCard({ report, onViewDetails }: ReportCardProps) {
     <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col h-full">
       {report.images && report.images.length > 0 && (
         <div className="relative w-full h-40 overflow-hidden rounded-t-lg">
-          <Image 
-            src={report.images[0].url} 
-            alt={report.images[0].name} 
+          <Image
+            src={report.images[0].url}
+            alt={report.images[0].name}
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
             priority
@@ -56,16 +56,16 @@ export function ReportCard({ report, onViewDetails }: ReportCardProps) {
       )}
       <CardHeader className="pb-2">
         <div className="flex justify-between items-start mb-1">
-            <CardTitle className="text-base font-semibold leading-tight line-clamp-2">{report.title}</CardTitle>
-             <Badge variant="outline" className={`${getLevelBadgeColor(report.level)} border-none text-xs px-1.5 py-0.5`}>
-                {report.level.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-            </Badge>
+          <CardTitle className="text-base font-semibold leading-tight line-clamp-2">{report.title}</CardTitle>
+          <Badge variant="outline" className={`${getLevelBadgeColor(report.level)} border-none text-xs px-1.5 py-0.5`}>
+            {report.level.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+          </Badge>
         </div>
-         <div className="flex items-center mt-1">
-            <Badge variant={statusInfo.variant as any} className={`${statusInfo.className} text-xs px-1.5 py-0.5 flex items-center`}>
-                {statusInfo.icon}
-                {statusInfo.text}
-            </Badge>
+        <div className="flex items-center mt-1">
+          <Badge variant={statusInfo.variant as any} className={`${statusInfo.className} text-xs px-1.5 py-0.5 flex items-center`}>
+            {statusInfo.icon}
+            {statusInfo.text}
+          </Badge>
         </div>
         <CardDescription className="text-xs text-muted-foreground space-y-0.5 pt-1">
           <div className="flex items-center"><CalendarDays className="mr-1.5 h-3 w-3" />Activity Date: {format(new Date(report.activityDate), "PP")}</div>
@@ -76,22 +76,29 @@ export function ReportCard({ report, onViewDetails }: ReportCardProps) {
       <CardContent className="flex-grow pt-2 pb-3">
         <p className="text-sm text-muted-foreground line-clamp-2 mb-1">{report.content}</p>
         <div className="text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-0.5">
-            {report.participantsCountReported !== undefined && (
-                <span className="flex items-center"><Users className="mr-1 h-3 w-3" /> {report.participantsCountReported} Participants</span>
-            )}
-            <span className="flex items-center"><UserCircle className="mr-1 h-3 w-3" /> By: {report.submittedByName || 'N/A'}</span>
-            <span className="flex items-center"><CalendarDays className="mr-1 h-3 w-3" />Submitted: {new Date(report.submissionDate).toLocaleDateString()}</span>
+          {report.participantsCountReported !== undefined && (
+            <span className="flex items-center"><Users className="mr-1 h-3 w-3" /> {report.participantsCountReported} Participants</span>
+          )}
+          <span className="flex items-center"><UserCircle className="mr-1 h-3 w-3" /> By: {report.submittedByName || 'N/A'}</span>
+          <span className="flex items-center"><CalendarDays className="mr-1 h-3 w-3" />Submitted: {new Date(report.submissionDate).toLocaleDateString()}</span>
         </div>
-         {report.financialSummary && (
-            <div className="mt-1.5 pt-1.5 border-t border-dashed">
-                <h4 className="text-xs font-semibold text-foreground">Financial Summary:</h4>
-                <p className="text-xs text-muted-foreground line-clamp-1">{report.financialSummary}</p>
-            </div>
+        {report.financialSummary && (
+          <div className="mt-1.5 pt-1.5 border-t border-dashed">
+            <h4 className="text-xs font-semibold text-foreground">Financial Summary:</h4>
+            <p className="text-xs text-muted-foreground line-clamp-1">{report.financialSummary}</p>
+          </div>
         )}
-         {report.totalExpenses !== undefined && report.totalExpenses > 0 && (
-             <div className="mt-1 text-xs text-muted-foreground">
-                Total Expenses: <span className="font-medium text-foreground">{report.totalExpenses.toLocaleString()} {report.currency}</span>
-            </div>
+        {report.totalExpenses !== undefined && report.totalExpenses > 0 && (
+          <div className="mt-1 text-xs text-muted-foreground">
+            Total Expenses: <span className="font-medium text-foreground">{report.totalExpenses.toLocaleString()} {report.currency}</span>
+          </div>
+        )}
+        {/* Display rejection reason when report is rejected */}
+        {report.status === 'rejected' && report.rejectionReason && (
+          <div className="mt-2 p-2 rounded-md bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800">
+            <p className="text-xs font-medium text-red-700 dark:text-red-300">Raison du rejet:</p>
+            <p className="text-xs text-red-600 dark:text-red-400">{report.rejectionReason}</p>
+          </div>
         )}
       </CardContent>
       <CardFooter className="pt-2 pb-3">

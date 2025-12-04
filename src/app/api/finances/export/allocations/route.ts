@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { format } from 'date-fns';
+import { MESSAGES } from '@/lib/messages';
 
 export async function GET(request: Request) {
     try {
@@ -9,12 +10,12 @@ export async function GET(request: Request) {
         const isAuth = await isAuthenticated();
 
         if (!isAuth) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
         }
 
         const user = await getUser();
         if (!user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
         }
 
         const currentUser = await prisma.profile.findUnique({
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
         });
 
         if (!currentUser || currentUser.role !== 'national_coordinator') {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+            return NextResponse.json({ error: MESSAGES.errors.forbidden }, { status: 403 });
         }
 
         // Parse query params
@@ -77,9 +78,9 @@ export async function GET(request: Request) {
         });
 
     } catch (error) {
-        console.error('Error exporting allocations:', error);
+        console.error('Error exporting allocations', error);
         return NextResponse.json(
-            { error: 'Internal Server Error' },
+            { error: MESSAGES.errors.serverError },
             { status: 500 }
         );
     }

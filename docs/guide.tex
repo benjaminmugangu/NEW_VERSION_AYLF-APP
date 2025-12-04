@@ -1,0 +1,132 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{geometry}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+
+% Configuration de la page
+\geometry{hmargin=2.5cm,vmargin=2.5cm}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+}
+
+% En-tête et pied de page
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{AYLF Group Tracker - Guide Utilisateur}
+\lhead{\leftmark}
+\cfoot{\thepage}
+
+\title{\textbf{Guide Utilisateur Complet}\\AYLF Group Tracker}
+\author{Équipe Technique AYLF}
+\date{Décembre 2024 - Version 2.0}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\begin{abstract}
+Ce document est le guide de référence pour l'utilisation de l'application AYLF Group Tracker. Il couvre l'ensemble des fonctionnalités, y compris les dernières mises à jour concernant la gestion financière, les rapports, la sécurité et l'installation mobile (PWA).
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{Introduction et Nouveautés}
+
+Bienvenue dans la nouvelle version de l'application **AYLF Group Tracker**. Cette plateforme centralise la gestion des sites, groupes, activités et membres de l'AYLF.
+
+\subsection{Dernières Améliorations (v2.0)}
+Cette version intègre des fonctionnalités majeures suite à l'audit de décembre 2024 :
+\begin{itemize}
+    \item \textbf{Application Mobile (PWA)} : Installation directe sur smartphone pour un accès hors ligne.
+    \item \textbf{Gestion Financière Automatisée} : Génération automatique des transactions lors de l'approbation des rapports.
+    \item \textbf{Feedback de Rejet} : Visualisation claire des motifs de rejet des rapports.
+    \item \textbf{Sécurité Renforcée} : Protection des données et traçabilité accrue.
+    \item \textbf{Interface Améliorée} : Mode sombre, chargement rapide et navigation fluide.
+\end{itemize}
+
+\section{Installation Mobile (PWA)}
+\label{sec:pwa}
+
+L'application est désormais une \textbf{Progressive Web App (PWA)}. Vous pouvez l'installer sur votre téléphone comme une application native.
+
+\subsection{Sur Android (Chrome)}
+\begin{enumerate}
+    \item Ouvrez Chrome et naviguez vers l'application.
+    \item Appuyez sur le menu (trois points) en haut à droite.
+    \item Sélectionnez \textbf{"Installer l'application"} ou \textbf{"Ajouter à l'écran d'accueil"}.
+    \item L'icône AYLF apparaîtra sur votre écran d'accueil.
+\end{enumerate}
+
+\subsection{Sur iOS (Safari)}
+\begin{enumerate}
+    \item Ouvrez Safari et naviguez vers l'application.
+    \item Appuyez sur le bouton \textbf{Partager} (carré avec une flèche vers le haut).
+    \item Faites défiler vers le bas et appuyez sur \textbf{"Sur l'écran d'accueil"}.
+    \item Confirmez en appuyant sur \textbf{"Ajouter"}.
+\end{enumerate}
+
+\section{Gestion des Rapports et Finances}
+
+\subsection{Cycle de Vie d'un Rapport}
+Le processus de soumission et de validation des rapports a été enrichi :
+\begin{enumerate}
+    \item \textbf{Soumission} : Le Leader ou Coordinateur soumet un rapport d'activité.
+    \item \textbf{Validation} : Le Coordinateur National examine le rapport.
+    \item \textbf{Approbation} :
+    \begin{itemize}
+        \item Le statut passe à \texttt{Approved}.
+        \item \textbf{Nouveau :} Si le rapport contient des dépenses, une \textbf{transaction financière de dépense} est automatiquement créée et liée au rapport.
+    \end{itemize}
+    \item \textbf{Rejet} :
+    \begin{itemize}
+        \item Le statut passe à \texttt{Rejected}.
+        \item \textbf{Nouveau :} Un motif de rejet est obligatoire et s'affiche clairement sur la carte du rapport pour le soumissionnaire (encadré rouge).
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Suivi Financier}
+Les finances sont désormais étroitement liées aux activités :
+\begin{itemize}
+    \item \textbf{Allocations} : Les fonds alloués aux sites/groupes sont suivis.
+    \item \textbf{Dépenses Automatiques} : Chaque rapport approuvé génère une écriture comptable.
+    \item \textbf{Transparence} : Les coordinateurs peuvent voir le solde en temps réel de leur entité.
+\end{itemize}
+
+\section{Rôles et Permissions (Rappel)}
+
+L'application gère strictement les accès via 4 rôles :
+
+\begin{description}
+    \item[Coordinateur National] Accès total. Gestion des sites, utilisateurs, validation des rapports et supervision financière globale.
+    \item[Coordinateur de Site] Gestion de son site uniquement. Création de groupes, supervision des leaders, rapports de site.
+    \item[Leader de Small Group] Gestion de son groupe. Ajout de membres, rapports d'activités de groupe.
+    \item[Membre] Consultation uniquement (profil, activités à venir).
+\end{description}
+
+\section{Sécurité et Performance}
+
+\subsection{Sécurité des Données}
+\begin{itemize}
+    \item \textbf{Rate Limiting} : Protection contre les tentatives de connexion abusives.
+    \item \textbf{Audit Logs} : Toutes les actions sensibles (approbation, suppression) sont tracées.
+    \item \textbf{Headers de Sécurité} : Protection renforcée contre les attaques XSS et autres vulnérabilités web.
+\end{itemize}
+
+\subsection{Performance}
+\begin{itemize}
+    \item \textbf{Pagination} : Les listes chargent les données page par page pour plus de rapidité.
+    \item \textbf{Mode Hors Ligne} : Grâce à la PWA, certaines pages restent accessibles sans connexion (cache).
+\end{itemize}
+
+\end{document}

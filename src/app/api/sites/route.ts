@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import * as z from 'zod';
 import * as siteService from '@/services/siteService';
 import { createClient } from '@/utils/supabase/server';
+import { MESSAGES } from '@/lib/messages';
 
 /**
  * @swagger
@@ -62,14 +63,14 @@ export async function POST(request: Request) {
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {
-      return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+      return new NextResponse(JSON.stringify({ error: MESSAGES.errors.unauthorized }), { status: 401, headers: { 'Content-Type': 'application/json' } });
     }
 
     const json = await request.json();
     const parsedData = siteCreateSchema.safeParse(json);
 
     if (!parsedData.success) {
-      return new NextResponse(JSON.stringify({ error: 'Invalid input', details: parsedData.error.format() }), {
+      return new NextResponse(JSON.stringify({ error: MESSAGES.errors.validation, details: parsedData.error.format() }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       });
@@ -79,9 +80,9 @@ export async function POST(request: Request) {
     return new NextResponse(JSON.stringify(newSite), { status: 201, headers: { 'Content-Type': 'application/json' } });
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+    const errorMessage = error instanceof Error ? error.message : MESSAGES.errors.generic;
     console.error('Error creating site:', errorMessage);
-    return new NextResponse(JSON.stringify({ error: 'Internal Server Error', details: errorMessage }), {
+    return new NextResponse(JSON.stringify({ error: MESSAGES.errors.serverError, details: errorMessage }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });

@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
+import { MESSAGES } from '@/lib/messages';
 
 export async function DELETE(
   request: Request,
@@ -12,7 +13,7 @@ export async function DELETE(
   const { data: { session } } = await supabase.auth.getSession();
 
   if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
   }
 
   const { data: profile } = await supabase
@@ -22,7 +23,7 @@ export async function DELETE(
     .single();
 
   if (profile?.role !== 'national_coordinator') {
-    return NextResponse.json({ error: 'Forbidden: You do not have permission to archive users.' }, { status: 403 });
+    return NextResponse.json({ error: MESSAGES.errors.forbidden }, { status: 403 });
   }
 
   if (userId === session.user.id) {
@@ -55,9 +56,9 @@ export async function DELETE(
       return NextResponse.json({ error: `Failed to disable user in authentication system: ${authError.message}` }, { status: 500 });
     }
 
-    return NextResponse.json({ message: 'User archived successfully' }, { status: 200 });
+    return NextResponse.json({ message: MESSAGES.success.deleted }, { status: 200 });
 
   } catch (error) {
-    return NextResponse.json({ error: 'An unexpected error occurred.' }, { status: 500 });
+    return NextResponse.json({ error: MESSAGES.errors.serverError }, { status: 500 });
   }
 }

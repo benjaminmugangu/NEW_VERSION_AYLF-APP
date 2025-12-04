@@ -44,6 +44,15 @@ export default async function SiteDetailPage(props: any) {
     const smallGroups = await smallGroupService.getSmallGroupsBySite(siteId);
     const totalMembers = smallGroups.reduce((acc: number, sg) => acc + (sg.memberCount || 0), 0);
 
+    // Fetch coordinator history
+    const historyService = await import('@/services/coordinatorHistoryService');
+    const historyData = await historyService.getCoordinatorHistory({
+      entityType: 'site',
+      siteId: site.id,
+      includeActive: true,
+      includePast: true
+    });
+
     // Determine if the user has management rights (only NC can edit/delete sites)
     const canManageSite = isNationalCoordinator;
 
@@ -53,6 +62,7 @@ export default async function SiteDetailPage(props: any) {
         initialSmallGroups={smallGroups}
         totalMembers={totalMembers}
         canManageSite={canManageSite}
+        historyData={historyData}
       />
     );
   } catch (error) {

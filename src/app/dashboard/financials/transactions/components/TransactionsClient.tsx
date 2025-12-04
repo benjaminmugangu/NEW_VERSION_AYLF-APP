@@ -7,7 +7,7 @@ import { useTransactions } from '@/hooks/useTransactions';
 import { columns } from '@/components/financials/transactions/columns';
 import { DataTable } from '@/components/shared/DataTable';
 import { Button } from '@/components/ui/button';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, Download } from 'lucide-react';
 import type { FinancialTransaction, User } from '@/lib/types';
 
 interface TransactionsClientProps {
@@ -29,15 +29,26 @@ export function TransactionsClient({ initialTransactions, user }: TransactionsCl
 
   const pageTitle = type === 'income' ? 'Income Transactions' : type === 'expense' ? 'Expense Transactions' : 'All Transactions';
 
+  const handleExportCSV = () => {
+    const params = new URLSearchParams();
+    if (type) params.append('type', type);
+    window.open(`/api/exports/transactions?${params.toString()}`, '_blank');
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">{pageTitle}</h1>
-        <Button asChild>
-          <Link href="/dashboard/financials/transactions/new">
-            <PlusCircle className="mr-2 h-4 w-4" /> Add Transaction
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={handleExportCSV} variant="outline">
+            <Download className="mr-2 h-4 w-4" /> Export CSV
+          </Button>
+          <Button asChild>
+            <Link href="/dashboard/financials/transactions/new">
+              <PlusCircle className="mr-2 h-4 w-4" /> Add Transaction
+            </Link>
+          </Button>
+        </div>
       </div>
       <DataTable
         columns={columns}

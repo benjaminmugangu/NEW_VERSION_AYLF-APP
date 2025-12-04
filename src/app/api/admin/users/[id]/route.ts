@@ -3,12 +3,18 @@ import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { UserRole } from '@prisma/client';
+import { MESSAGES } from '@/lib/messages';
 
 const updateUserSchema = z.object({
     role: z.nativeEnum(UserRole).optional(),
     siteId: z.string().optional().nullable(),
     smallGroupId: z.string().optional().nullable(),
+    status: z.enum(['active', 'inactive', 'invited']).optional(),
 });
+
+// ... inside PATCH function ...
+
+
 
 export async function PATCH(
     request: Request,
@@ -20,12 +26,12 @@ export async function PATCH(
         const isAuth = await isAuthenticated();
 
         if (!isAuth) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
         }
 
         const user = await getUser();
         if (!user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
         }
 
         const currentUser = await prisma.profile.findUnique({
@@ -33,7 +39,7 @@ export async function PATCH(
         });
 
         if (!currentUser || currentUser.role !== 'national_coordinator') {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+            return NextResponse.json({ error: MESSAGES.errors.forbidden }, { status: 403 });
         }
 
         const body = await request.json();
@@ -55,7 +61,7 @@ export async function PATCH(
             return NextResponse.json({ error: error.errors }, { status: 400 });
         }
         return NextResponse.json(
-            { error: 'Internal Server Error' },
+            { error: MESSAGES.errors.serverError },
             { status: 500 }
         );
     }
@@ -71,12 +77,12 @@ export async function DELETE(
         const isAuth = await isAuthenticated();
 
         if (!isAuth) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
         }
 
         const user = await getUser();
         if (!user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
         }
 
         const currentUser = await prisma.profile.findUnique({
@@ -84,7 +90,7 @@ export async function DELETE(
         });
 
         if (!currentUser || currentUser.role !== 'national_coordinator') {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+            return NextResponse.json({ error: MESSAGES.errors.forbidden }, { status: 403 });
         }
 
         // Optional: Check if user can be deleted (e.g., has no related data)
@@ -94,11 +100,11 @@ export async function DELETE(
             where: { id },
         });
 
-        return NextResponse.json({ message: 'User deleted successfully' });
+        return NextResponse.json({ message: MESSAGES.success.deleted });
     } catch (error) {
         console.error('Error deleting user:', error);
         return NextResponse.json(
-            { error: 'Internal Server Error' },
+            { error: MESSAGES.errors.serverError },
             { status: 500 }
         );
     }

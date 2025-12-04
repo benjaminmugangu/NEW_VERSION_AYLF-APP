@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { MESSAGES } from '@/lib/messages';
 
 const createTransactionSchema = z.object({
     description: z.string().min(1),
@@ -21,12 +22,12 @@ export async function POST(
         const isAuth = await isAuthenticated();
 
         if (!isAuth) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
         }
 
         const user = await getUser();
         if (!user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
         }
 
         // Verify user is National Coordinator
@@ -35,14 +36,14 @@ export async function POST(
         });
 
         if (!currentUser || currentUser.role !== 'national_coordinator') {
-            return NextResponse.json({ error: 'Forbidden: Only National Coordinators can create transactions' }, { status: 403 });
+            return NextResponse.json({ error: MESSAGES.errors.forbidden }, { status: 403 });
         }
 
         const body = await request.json();
         const result = createTransactionSchema.safeParse(body);
 
         if (!result.success) {
-            return NextResponse.json({ error: 'Invalid input', details: result.error.errors }, { status: 400 });
+            return NextResponse.json({ error: MESSAGES.errors.validation, details: result.error.errors }, { status: 400 });
         }
 
         const { description, amount, date, category, type } = result.data;
@@ -79,7 +80,7 @@ export async function POST(
     } catch (error) {
         console.error('Error creating transaction:', error);
         return NextResponse.json(
-            { error: 'Internal Server Error' },
+            { error: MESSAGES.errors.serverError },
             { status: 500 }
         );
     }

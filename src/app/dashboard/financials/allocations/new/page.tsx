@@ -35,6 +35,7 @@ const NewAllocationPage = () => {
       ...data,
       allocatedById: currentUser?.id || '',
       status: 'planned',
+      fromSiteId: currentUser?.role === 'site_coordinator' ? currentUser.siteId || undefined : undefined,
     };
 
     if (!fullData.allocatedById) {

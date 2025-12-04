@@ -78,9 +78,14 @@ const FinancialsPage = () => {
             <Button asChild>
               <Link href="/dashboard/financials/transactions/new">Add Income/Expense</Link>
             </Button>
-            <Button asChild variant="secondary">
-              <Link href="/dashboard/financials/allocations/new">Add Allocation</Link>
-            </Button>
+            {currentUser?.role !== 'member' && (
+              <Button asChild variant="secondary">
+                <Link href="/dashboard/financials/allocations/new">
+                  {currentUser?.role === 'national_coordinator' ? 'Send Funds to Site' :
+                    currentUser?.role === 'site_coordinator' ? 'Send Funds to Small Group' : 'Add Allocation'}
+                </Link>
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>

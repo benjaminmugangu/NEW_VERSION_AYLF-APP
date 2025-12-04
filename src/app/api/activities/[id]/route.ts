@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import * as z from 'zod';
 import * as activityService from '@/services/activityService';
 import { createClient } from '@/utils/supabase/server';
+import { MESSAGES } from '@/lib/messages';
 
 const activityUpdateSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters long.').optional(),
@@ -21,7 +22,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
   const { data: { session } } = await supabase.auth.getSession();
 
   if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
   }
 
   try {
@@ -29,7 +30,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
     const parsedData = activityUpdateSchema.safeParse(json);
 
     if (!parsedData.success) {
-      return NextResponse.json({ error: 'Invalid input', details: parsedData.error.format() }, { status: 400 });
+      return NextResponse.json({ error: MESSAGES.errors.validation, details: parsedData.error.format() }, { status: 400 });
     }
 
     const dataForService = {
@@ -41,8 +42,8 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
     return NextResponse.json(updatedActivity);
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-    return NextResponse.json({ error: 'Internal Server Error', details: errorMessage }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : MESSAGES.errors.generic;
+    return NextResponse.json({ error: MESSAGES.errors.serverError, details: errorMessage }, { status: 500 });
   }
 }
 
@@ -53,7 +54,7 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
   const { data: { session } } = await supabase.auth.getSession();
 
   if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
   }
 
   try {
@@ -61,7 +62,7 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
     return new Response(null, { status: 204 });
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-    return NextResponse.json({ error: 'Internal Server Error', details: errorMessage }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : MESSAGES.errors.generic;
+    return NextResponse.json({ error: MESSAGES.errors.serverError, details: errorMessage }, { status: 500 });
   }
 }

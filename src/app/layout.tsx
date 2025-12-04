@@ -1,5 +1,5 @@
-import type {Metadata} from 'next';
-import {Geist, Geist_Mono} from 'next/font/google';
+import type { Metadata } from 'next';
+import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/shared/Providers';
 import { Toaster } from "@/components/ui/toaster";
@@ -17,6 +17,17 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'AYLF Small Group Tracker',
   description: 'Manage and track small group activities for AYLF.',
+  manifest: '/manifest.json',
+  themeColor: '#0f172a',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'AYLF Tracker',
+  },
+  icons: {
+    icon: '/icons/icon.svg',
+    apple: '/icons/icon.svg',
+  },
 };
 
 export default function RootLayout({
@@ -28,8 +39,8 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <Providers>
-            {children}
-            <Toaster />
+          {children}
+          <Toaster />
         </Providers>
       </body>
     </html>
