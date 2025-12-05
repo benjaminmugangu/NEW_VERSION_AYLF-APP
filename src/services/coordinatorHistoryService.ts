@@ -75,11 +75,14 @@ export async function getCoordinatorHistory(filters?: {
         mandateStartDate: p.mandateStartDate!,
         mandateEndDate: p.mandateEndDate,
         isActive: p.mandateEndDate === null,
-        duration: calculateDuration(p.mandateStartDate!, p.mandateEndDate)
+        duration: calculateDuration(p.mandateStartDate, p.mandateEndDate)
     }));
 }
 
-function calculateDuration(start: Date, end: Date | null): string {
+function calculateDuration(start: Date | null, end: Date | null): string {
+    // Handle null start date
+    if (!start) return 'Date non définie';
+
     const endDate = end || new Date();
     const diffMs = endDate.getTime() - start.getTime();
     const years = Math.floor(diffMs / (1000 * 60 * 60 * 24 * 365));
