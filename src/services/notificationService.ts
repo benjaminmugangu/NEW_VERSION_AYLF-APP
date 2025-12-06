@@ -1,5 +1,13 @@
 import { prisma } from '@/lib/prisma';
-import { NotificationType } from '@prisma/client';
+
+export type NotificationType =
+    | 'REPORT_APPROVED'
+    | 'REPORT_REJECTED'
+    | 'ALLOCATION_RECEIVED'
+    | 'ACTIVITY_REMINDER'
+    | 'BUDGET_ALERT'
+    | 'NEW_REPORT'
+    | 'USER_INVITED';
 
 export interface CreateNotificationData {
     userId: string;
@@ -24,7 +32,7 @@ export interface Notification {
  * Create a new notification for a user
  */
 export async function createNotification(data: CreateNotificationData): Promise<Notification> {
-    return await prisma.notification.create({
+    return await (prisma as any).notification.create({
         data: {
             userId: data.userId,
             type: data.type,
@@ -51,7 +59,7 @@ export async function getUserNotifications(
         where.read = false;
     }
 
-    return await prisma.notification.findMany({
+    return await (prisma as any).notification.findMany({
         where,
         orderBy: { createdAt: 'desc' },
         take: options?.limit || 50,
@@ -62,7 +70,7 @@ export async function getUserNotifications(
  * Get count of unread notifications for a user
  */
 export async function getUnreadCount(userId: string): Promise<number> {
-    return await prisma.notification.count({
+    return await (prisma as any).notification.count({
         where: {
             userId,
             read: false,
@@ -74,7 +82,7 @@ export async function getUnreadCount(userId: string): Promise<number> {
  * Mark a notification as read
  */
 export async function markAsRead(notificationId: string): Promise<Notification> {
-    return await prisma.notification.update({
+    return await (prisma as any).notification.update({
         where: { id: notificationId },
         data: { read: true },
     });
@@ -84,7 +92,7 @@ export async function markAsRead(notificationId: string): Promise<Notification> 
  * Mark all notifications as read for a user
  */
 export async function markAllAsRead(userId: string): Promise<number> {
-    const result = await prisma.notification.updateMany({
+    const result = await (prisma as any).notification.updateMany({
         where: {
             userId,
             read: false,
@@ -99,7 +107,7 @@ export async function markAllAsRead(userId: string): Promise<number> {
  * Delete a notification
  */
 export async function deleteNotification(notificationId: string): Promise<void> {
-    await prisma.notification.delete({
+    await (prisma as any).notification.delete({
         where: { id: notificationId },
     });
 }
@@ -111,7 +119,7 @@ export async function deleteOldNotifications(daysOld: number = 30): Promise<numb
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysOld);
 
-    const result = await prisma.notification.deleteMany({
+    const result = await (prisma as any).notification.deleteMany({
         where: {
             read: true,
             createdAt: {
