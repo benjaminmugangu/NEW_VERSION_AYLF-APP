@@ -19,6 +19,7 @@ import {
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Pie, PieChart, Cell } from 'recharts';
 import { DateRangeFilter, type DateFilterValue } from '@/components/shared/DateRangeFilter';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { OnboardingChecklist } from '@/components/shared/OnboardingChecklist';
 
 const chartConfigActivities = {
   planned: { label: "Planned", color: "hsl(var(--chart-2))" },
@@ -86,6 +87,10 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
         <StatCard title="Total Small Groups" value={initialStats.totalSmallGroups} icon={UsersRound} description="Active small groups" href="/dashboard/small-groups" />
         <StatCard title="Net Balance" value={new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(initialStats.netBalance)} icon={DollarSign} description={`Income: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(initialStats.totalIncome)} | Expenses: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(initialStats.totalExpenses)}`} href="/dashboard/finances" />
       </div>
+
+      {/* Onboarding Checklist */}
+      <OnboardingChecklist />
+
       <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-7">
         <Card className="shadow-lg lg:col-span-4">
           <CardHeader>

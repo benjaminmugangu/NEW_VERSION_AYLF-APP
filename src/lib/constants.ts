@@ -20,24 +20,28 @@ export const NAVIGATION_LINKS: NavItem[] = [
     label: "Activities",
     icon: Activity,
     allowedRoles: [ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER],
+    dataTour: "activities",
   },
   {
     href: "/dashboard/members",
     label: "Members",
     icon: Users,
     allowedRoles: [ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER],
+    dataTour: "members",
   },
   {
     label: "Reports",
     icon: FileText,
     allowedRoles: [ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER],
     href: "/dashboard/reports/view", // Main href for parent item, can be first child's href or a dedicated overview
+    dataTour: "reports",
     children: [
       {
         href: "/dashboard/reports/submit",
         label: "Submit Report",
         icon: FileText,
         allowedRoles: [ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER],
+        dataTour: "submit-report",
       },
       {
         href: "/dashboard/reports/view",
@@ -58,6 +62,7 @@ export const NAVIGATION_LINKS: NavItem[] = [
     label: "Sites", // More neutral label - NC sees all, SC sees their own
     icon: Building,
     allowedRoles: [ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR], // Site coordinators might see their own site details
+    dataTour: "create-site",
   },
   {
     href: "/dashboard/users",
@@ -76,12 +81,14 @@ export const NAVIGATION_LINKS: NavItem[] = [
     label: "Invitations",
     icon: UsersRound,
     allowedRoles: [ROLES.NATIONAL_COORDINATOR],
+    dataTour: "invite-user",
   },
   {
     href: "/dashboard/finances",
     label: "Finances",
     icon: Briefcase,
     allowedRoles: [ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER],
+    dataTour: "finances",
   },
   {
     href: "/dashboard/certificates",
@@ -98,6 +105,7 @@ export const NAVIGATION_LINKS: NavItem[] = [
   {
     href: "/dashboard/settings/profile",
     label: "My Profile",
+    dataTour: "profile",
     icon: UserProfileIcon, // Changed from Settings icon for clarity
     allowedRoles: [ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER],
   }

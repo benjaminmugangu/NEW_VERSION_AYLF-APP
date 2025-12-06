@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import * as profileService from '@/services/profileService';
 import * as reportService from '@/services/reportService';
+import notificationService from '@/services/notificationService';
 import { MESSAGES } from '@/lib/messages';
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -39,6 +40,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             reason,
             ipAddress,
             userAgent
+        );
+
+        // Send notification to submitter
+        await notificationService.notifyReportRejected(
+            rejectedReport.submittedBy,
+            rejectedReport.title,
+            rejectedReport.id,
+            reason
         );
 
         return NextResponse.json({

@@ -327,6 +327,7 @@ export interface NavItem {
   isChidren?: boolean;
   children?: NavItem[];
   allowedRoles?: UserRole[];
+  dataTour?: string; // For onboarding tour targeting
 }
 
 // =============================================================================

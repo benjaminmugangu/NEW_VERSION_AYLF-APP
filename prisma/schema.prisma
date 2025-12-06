@@ -80,6 +80,16 @@ enum ActivityTypeEnum {
   other
 }
 
+enum NotificationType {
+  REPORT_APPROVED
+  REPORT_REJECTED
+  ALLOCATION_RECEIVED
+  ACTIVITY_REMINDER
+  BUDGET_ALERT
+  NEW_REPORT
+  USER_INVITED
+}
+
 // Models
 
 model Profile {

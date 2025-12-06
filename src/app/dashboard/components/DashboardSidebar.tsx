@@ -53,6 +53,7 @@ export function DashboardSidebar({ user }: DashboardSidebarProps) {
                 onClick={() => toggleSubmenu(item.label)}
                 className="justify-between w-full"
                 isActive={isActive || isSubmenuOpen}
+                data-tour={item.dataTour}
               >
                 <span className="flex items-center gap-2">
                   <Icon className="h-5 w-5" />
@@ -64,7 +65,7 @@ export function DashboardSidebar({ user }: DashboardSidebarProps) {
                 <SidebarMenuSub>
                   {filteredChildren.map(child => (
                     <SidebarMenuSubItem key={child.href}>
-                      <SidebarMenuSubButton isActive={pathname === child.href} asChild>
+                      <SidebarMenuSubButton isActive={pathname === child.href} asChild data-tour={child.dataTour}>
                         <Link href={child.href}>{child.label}</Link>
                       </SidebarMenuSubButton>
                     </SidebarMenuSubItem>
@@ -77,7 +78,7 @@ export function DashboardSidebar({ user }: DashboardSidebarProps) {
 
         return (
           <SidebarMenuItem key={item.href}>
-            <SidebarMenuButton isActive={isActive} asChild tooltip={item.label} className="h-12 md:h-10">
+            <SidebarMenuButton isActive={isActive} asChild tooltip={item.label} className="h-12 md:h-10" data-tour={item.dataTour}>
               <Link href={item.href}>
                 <span className="flex items-center gap-3 md:gap-2">
                   <Icon className="h-6 w-6 md:h-5 md:w-5" />
@@ -91,7 +92,7 @@ export function DashboardSidebar({ user }: DashboardSidebarProps) {
   };
 
   return (
-    <Sidebar variant="sidebar" collapsible="icon">
+    <Sidebar variant="sidebar" collapsible="icon" data-tour="sidebar">
       <SidebarHeader className="p-4">
         <Link href="/dashboard">
           <span className="flex items-center gap-2 group/logo">
@@ -125,6 +126,6 @@ export function DashboardSidebar({ user }: DashboardSidebarProps) {
           </SidebarMenu>
         )}
       </SidebarFooter>
-    </Sidebar>
+    </Sidebar >
   );
 }

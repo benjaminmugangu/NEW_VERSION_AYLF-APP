@@ -10,6 +10,10 @@ import { ClientOnly } from '@/components/shared/ClientOnly';
 import type { User } from '@/lib/types';
 import { UserRole } from '@prisma/client';
 import { InvitationProcessor } from '@/components/auth/InvitationProcessor';
+import { CustomOnboardingTour } from '@/components/shared/CustomOnboardingTour';
+import { NotificationBell } from '@/components/shared/NotificationBell';
+import { CommandPalette } from '@/components/shared/CommandPalette';
+import { OfflineIndicator } from '@/components/shared/OfflineIndicator';
 
 export default async function DashboardLayout({
   children,
@@ -68,6 +72,9 @@ export default async function DashboardLayout({
     <SidebarProvider defaultOpen>
       <InvitationProcessor />
       <ClientOnly>
+        <CustomOnboardingTour />
+        <CommandPalette />
+        <OfflineIndicator />
         <DashboardSidebar user={userProfile} />
       </ClientOnly>
       <SidebarInset>
@@ -78,7 +85,10 @@ export default async function DashboardLayout({
             </ClientOnly>
           </div>
           <div className="text-lg font-semibold hidden md:block"></div>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            <ClientOnly>
+              <NotificationBell />
+            </ClientOnly>
             <UserNav user={userProfile} />
           </div>
         </header>
