@@ -123,6 +123,7 @@ model Profile {
   certificates         Certificate[]
   auditLogs            AuditLog[] // NEW
   closedPeriods        AccountingPeriod[] // NEW
+  notifications        Notification[] // NEW
 
   mandateStartDate DateTime? @map("mandate_start_date")
   mandateEndDate   DateTime? @map("mandate_end_date")
@@ -535,4 +536,24 @@ model InventoryMovement {
 
   @@index([itemId, date])
   @@map("inventory_movements")
+}
+
+// ============================================
+// 6. NOTIFICATIONS SYSTEM
+// ============================================
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String           @map("user_id")
+  type      NotificationType
+  title     String
+  message   String
+  read      Boolean          @default(false)
+  link      String?
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@map("notifications")
 }
