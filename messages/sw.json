@@ -1,0 +1,557 @@
+{
+    "Navigation": {
+        "dashboard": "Dashibodi",
+        "reports": "Ripot",
+        "activities": "Shughuli",
+        "finance": "Fedha",
+        "members": "Wanachama",
+        "sites": "Vituo",
+        "groups": "Vikundi",
+        "settings": "Mipangilio",
+        "users": "Watumiaji",
+        "manage_users": "Dhibiti Watumiaji",
+        "history": "Historia",
+        "monthly_reports": "Ripoti za Kila Mwezi",
+        "invitations": "Mialiko",
+        "certificates": "Vyeti",
+        "my_certificates": "Vyeti Vangu",
+        "my_profile": "Wasifu Wangu",
+        "ai_suggestions": "Mapendekezo ya AI",
+        "logout": "Kutoka"
+    },
+    "Common": {
+        "loading": "Inapakia...",
+        "error": "Hitilafu imetokea",
+        "save": "Hifadhi",
+        "cancel": "Ghairi",
+        "delete": "Futa",
+        "edit": "Hariri",
+        "view": "Tazama",
+        "create": "Unda",
+        "search": "Tafuta...",
+        "actions": "Vitendo",
+        "status": "Hali",
+        "level": "Ngazi",
+        "date": "Tarehe",
+        "success": "Imefaulu",
+        "try_again": "Jaribu Tena"
+    },
+    "Dashboard": {
+        "welcome": "Karibu, {name} !",
+        "overview": "Hapa kuna muhtasari wa dashibodi yako kwa {period}.",
+        "stats": {
+            "total_activities": "Jumla ya Shughuli",
+            "activities_desc": "{executed} zimetimizwa, {planned} zimepangwa",
+            "total_members": "Jumla ya Wanachama",
+            "members_desc": "{student} wanafunzi, {nonStudent} wasio wanafunzi",
+            "reports_submitted": "Ripoti Zilizowasilishwa",
+            "reports_desc": "Ngazi zote pamoja",
+            "total_sites": "Jumla ya Vituo",
+            "sites_desc": "Vituo vya AYLF vilivyosajiliwa",
+            "total_groups": "Jumla ya Vikundi",
+            "groups_desc": "Vikundi vidogo vilivyo hai",
+            "net_balance": "Salio Halisi",
+            "finance_desc": "Mapato: {income} | Matumizi: {expenses}"
+        },
+        "charts": {
+            "activity_status": "Muhtasari wa Hali ya Shughuli",
+            "activity_status_desc": "Mgawanyo wa shughuli zilizopangwa na kutimizwa kwa kipindi ulichochagua.",
+            "member_composition": "Muundo wa Wanachama",
+            "member_composition_desc": "Usambazaji wa wanafunzi dhidi ya wasio wanafunzi."
+        },
+        "quick_actions": {
+            "title": "Vitendo vya Haraka",
+            "national_desc": "Hatua muhimu kwa uratibu wa kitaifa.",
+            "site_desc": "Dhibiti shughuli za kituo chako.",
+            "group_desc": "Dhibiti kikundi chako kidogo.",
+            "add_site": "Ongeza Kituo Kipya",
+            "add_site_desc": "Anzisha kituo kipya cha utendaji.",
+            "invite_user": "Alika Mtumiaji",
+            "invite_user_desc": "Sajili mratibu au kiongozi mpya.",
+            "submit_report": "Wasilisha Ripoti Mpya",
+            "submit_report_desc": "Rekodi shughuli.",
+            "ai_suggestions": "Pata Mapendekezo ya AI",
+            "ai_suggestions_desc": "Gundua mawazo mapya ya shughuli.",
+            "send_funds": "Tuma Fedha",
+            "send_funds_desc": "Tenga bajeti kwa ajili ya kituo.",
+            "manage_users": "Dhibiti Watumiaji",
+            "manage_users_desc": "Simamia akaunti za watumiaji na majukumu.",
+            "add_group": "Ongeza Kikundi Kidogo",
+            "add_group_desc": "Unda kikundi kipya katika kituo chako.",
+            "plan_activity": "Panga Shughuli",
+            "plan_activity_desc": "Panga tukio.",
+            "add_member": "Ongeza Mwanachama",
+            "add_member_desc": "Sajili mwanachama mpya."
+        },
+        "recent_activities": {
+            "title": "Shughuli za Hivi Karibuni",
+            "description": "Mtazamo wa haraka wa shughuli za hivi karibuni.",
+            "no_activities": "Hakuna shughuli za hivi karibuni zilizopatikana kwa kipindi ulichochagua.",
+            "view_all": "Tazama Shughuli Zote"
+        },
+        "chart_labels": {
+            "students": "Wanafunzi",
+            "non_students": "Wasio Wanafunzi"
+        }
+    },
+    "Activities": {
+        "title": "Shughuli",
+        "description": "Fuatilia, dhibiti, na chambua shughuli zote katika ngazi mbalimbali.",
+        "add_new": "Shughuli Mpya",
+        "overview": "Muhtasari wa Shughuli",
+        "overview_desc": "Muhtasari wa hali za shughuli kulingana na vichungi vya sasa.",
+        "list_title": "Orodha ya Shughuli",
+        "list_desc": "Orodha kamili ya shughuli zote unazoweza kufikia.",
+        "filter": "Chuja",
+        "headers": {
+            "title": "Kichwa",
+            "date": "Tarehe",
+            "level": "Ngazi",
+            "status": "Hali",
+            "participants": "Washiriki",
+            "actions": "Vitendo"
+        },
+        "delete_confirm": {
+            "title": "Una uhakika kabisa?",
+            "description": "Hatua hii haiwezi kubatilishwa. Shughuli itafutwa kabisa.",
+            "continue": "Endelea"
+        },
+        "empty": {
+            "title": "Hakuna shughuli zilizopatikana",
+            "description": "Jaribu kurekebisha vichungi au unda shughuli mpya.",
+            "action": "Unda Shughuli"
+        }
+    },
+    "ActivityStatus": {
+        "planned": "Imepangwa",
+        "executed": "Imetekelezwa",
+        "in_progress": "Inaendelea",
+        "delayed": "Imechelewa",
+        "canceled": "Imedhulumiwa"
+    },
+    "ActivityLevel": {
+        "national": "Kitaifa",
+        "site": "Kituo",
+        "small_group": "Kikundi Kidogo"
+    },
+    "DateRanges": {
+        "all_time": "Muda Wote",
+        "today": "Leo",
+        "this_week": "Wiki Hii",
+        "last_week": "Wiki Iliyopita",
+        "this_month": "Mwezi Huu",
+        "last_month": "Mwezi Uliopita",
+        "this_year": "Mwaka Huu",
+        "last_7_days": "Siku 7 Zilizopita",
+        "last_30_days": "Siku 30 Zilizopita",
+        "last_90_days": "Siku 90 Zilizopita",
+        "last_12_months": "Miezi 12 Iliyopita",
+        "specific_period": "Kipindi Maalum",
+        "custom": "Kipindi Maalum",
+        "custom_display": "{from} - {to}",
+        "specific_period_display_year": "Mwaka {year}",
+        "specific_period_display_month": "{month} {year}",
+        "select_range": "Chagua Kipindi",
+        "filter_placeholder": "Chuja kwa tarehe",
+        "year_placeholder": "Mwaka",
+        "month_placeholder": "Mwezi",
+        "all_months": "Miezi Yote",
+        "all_months_for_year": "Miezi yote ya {year}"
+    },
+    "chart_labels": {
+        "students": "Wanafunzi",
+        "non_students": "Wasio Wanafunzi"
+    },
+    "ActivityForm": {
+        "title_create": "Unda Shughuli Mpya",
+        "title_edit": "Hariri Shughuli",
+        "section_general": "Taarifa za Msingi",
+        "title_label": "Kichwa",
+        "title_placeholder": "mf: Mkutano wa Wiki",
+        "status_label": "Hali",
+        "status_placeholder": "Chagua hali",
+        "thematic_label": "Dhamira",
+        "thematic_placeholder": "Dhamira ya kina ya shughuli...",
+        "date_label": "Tarehe",
+        "pick_date": "Chagua tarehe",
+        "level_label": "Ngazi",
+        "level_placeholder": "Chagua ngazi",
+        "site_label": "Kituo",
+        "site_placeholder": "Chagua kituo",
+        "small_group_label": "Kikundi Kidogo",
+        "small_group_placeholder": "Chagua kikundi kidogo",
+        "type_label": "Aina ya Sghughuli",
+        "type_placeholder": "Chagua aina",
+        "participants_label": "Idadi ya Washiriki (Iliyopangwa)",
+        "participants_placeholder": "mf: 50",
+        "mark_executed": "Weka kama Imetekelezwa",
+        "cancel": "Ghairi",
+        "save": "Hifadhi",
+        "saving": "Inahifadhi...",
+        "save_changes": "Hifadhi Mabadiliko",
+        "create_activity": "Unda Shughuli",
+        "success_created": "Shughuli imeundwa kikamilifu.",
+        "success_updated": "Shughuli imesasishwa kikamilifu.",
+        "error_save": "Imeshindwa kuhifadhi shughuli",
+        "error_fetch": "Hikuweza kupakia data zinazohitajika.",
+        "error_login": "Lazima uwe umeingia ili kufanya kitendo hiki.",
+        "types": {
+            "small_group_meeting": "Mkutano wa Kikundi Kidogo",
+            "conference": "Mkutano",
+            "apostolat": "Utume",
+            "deuil": "Maombolezo",
+            "other": "Nyingine"
+        }
+    },
+    "MemberForm": {
+        "title_create": "Ongeza Mwanachama Mpya",
+        "title_edit": "Hariri Mwanachama",
+        "desc_create": "Jaza maelezo kwa mwanachama mpya.",
+        "desc_edit": "Sasisha maelezo kwa {name}.",
+        "name_label": "Jina Kamili",
+        "name_placeholder": "mf: Baraka Juma",
+        "email_label": "Barua pepe",
+        "email_placeholder": "mwanachama@mfano.com",
+        "phone_label": "Simu",
+        "phone_placeholder": "+243 ...",
+        "gender_label": "Jinsia",
+        "gender_placeholder": "Chagua jinsia",
+        "type_label": "Aina ya Mwanachama",
+        "type_placeholder": "Chagua aina",
+        "join_date_label": "Tarehe ya Kujiunga",
+        "pick_date": "Chagua tarehe",
+        "level_label": "Ngazi",
+        "level_placeholder": "Chagua ngazi",
+        "site_label": "Kituo",
+        "site_placeholder": "Chagua kituo",
+        "small_group_label": "Kikundi Kidogo",
+        "small_group_placeholder": "Chagua kikundi kidogo",
+        "save": "Hifadhi Mabadiliko",
+        "add": "Ongeza Mwanachama",
+        "saving": "Inahifadhi...",
+        "gender_options": {
+            "male": "Mwanaume",
+            "female": "Mwanamke"
+        },
+        "type_options": {
+            "student": "Mwanafunzi",
+            "non_student": "Asiye Mwanafunzi"
+        },
+        "validation": {
+            "name_min": "Jina lazima liwe na angalau herufi 3.",
+            "email_invalid": "Barua pepe si sahihi.",
+            "type_required": "Aina ya mwanachama inahitajika.",
+            "date_required": "Tarehe ya kujiunga inahitajika.",
+            "level_required": "Ngazi inahitajika.",
+            "site_required": "Kituo kinahitajika kwa wanachama wa ngazi ya kituo.",
+            "group_required": "Kikundi kidogo kinahitajika kwa wanachama wa ngazi ya kikundi."
+        }
+    },
+    "SiteForm": {
+        "title_create": "Ongeza Kituo Kipya",
+        "title_edit": "Hariri Kituo",
+        "desc_create": "Jaza maelezo kwa kituo kipya.",
+        "desc_edit": "Sasisha maelezo kwa {name}.",
+        "name_label": "Jina la Kituo",
+        "name_placeholder": "mf: Kituo cha Goma",
+        "city_label": "Mji",
+        "city_placeholder": "mf: Goma",
+        "country_label": "Nchi",
+        "country_placeholder": "mf: DRC",
+        "creation_date_label": "Tarehe ya Kuanzishwa",
+        "coordinator_label": "Jina la Mratibu (Hiari)",
+        "coordinator_placeholder": "Ingiza jina kamili la mratibu",
+        "coordinator_help": "Ingiza jina kamili la mratibu wa kituo. Hii inaweza kuwekwa au kusasishwa baadaye.",
+        "save": "Hifadhi Mabadiliko",
+        "add": "Ongeza Kituo",
+        "saving": "Inahifadhi...",
+        "validation": {
+            "name_min": "Jina la kituo lazima liwe na angalau herufi 3.",
+            "city_min": "Mji lazima uwe na angalau herufi 2.",
+            "country_min": "Nchi lazima iwe na angalau herufi 2.",
+            "date_invalid": "Umbizo la tarehe si sahihi."
+        }
+    },
+    "SmallGroupForm": {
+        "title_create": "Ongeza Kikundi Kidogo Kipya",
+        "title_edit": "Hariri Kikundi Kidogo",
+        "desc_create": "Jaza maelezo kwa kikundi kidogo kipya katika kituo ID: {siteId}.",
+        "desc_edit": "Sasisha maelezo kwa {name}.",
+        "name_label": "Jina la Kikundi Kidogo",
+        "name_placeholder": "mf: Kikundi cha Alpha Campus",
+        "day_label": "Siku ya Mkutano (Hiari)",
+        "day_placeholder": "mf: Jumatano",
+        "time_label": "Muda wa Mkutano (Hiari)",
+        "time_placeholder": "mf: Saa 1 Jioni",
+        "location_label": "Mahali pa Mkutano (Hiari)",
+        "location_placeholder": "mf: Chumba 101",
+        "leader_label": "Kiongozi wa Kikundi (Hiari)",
+        "logistics_label": "Msaidizi wa Logistiki (Hiari)",
+        "finance_label": "Msaidizi wa Fedha (Hiari)",
+        "leader_placeholder": "Chagua Kiongozi",
+        "loading": "Inapakia...",
+        "none_unassigned": "Hakuna (Haijatumwa)",
+        "select_logistics": "Chagua Msaidizi wa Logistiki",
+        "select_finance": "Chagua Msaidizi wa Fedha",
+        "help_text": "Viongozi na wasaidizi wanaweza kuchaguliwa kutoka kwa Viongozi wa Vikundi Vidogo ambao hawajapangiwa, Mratibu wa Kituo hiki, au Waratibu wa Kitaifa.",
+        "save": "Hifadhi Mabadiliko",
+        "add": "Ongeza Kikundi Kidogo",
+        "saving": "Inahifadhi...",
+        "validation": {
+            "name_min": "Jina la kikundi lazima liwe na angalau herufi 3."
+        }
+    },
+    "Reports": {
+        "title": "Ripoti",
+        "description": "Tafadhali chagua hatua:",
+        "view_title": "Tazama Ripoti",
+        "view_desc": "Tazama ripoti zilizopo.",
+        "submit_title": "Wasilisha Ripoti",
+        "submit_desc": "Unda na uwasilishe ripoti mpya.",
+        "submit_page_title": "Wasilisha Ripoti Mpya",
+        "submit_page_desc": "Rekodi shughuli na matokeo kwa ngazi ya kitaifa, kituo, au kikundi kidogo.",
+        "permission_denied": "Huna idhini ya kuwasilisha ripoti.",
+        "form": {
+            "title": "Wasilisha Ripoti ya Shughuli",
+            "description": "Chagua shughuli iliyopangwa kujaza fomu mapema, kisha Kamilisha na uwasilishe ripoti yako.",
+            "select_activity": "Chagua Shughuli Iliyopangwa",
+            "choose_activity": "Chagua shughuli...",
+            "no_activities": "Hakuna shughuli zilizopangwa zilizopatikana",
+            "report_title": "Kichwa cha Ripoti",
+            "title_placeholder": "mf: Kikao cha Ushauri cha Kila Wiki",
+            "activity_date": "Tarehe ya Shughuli",
+            "pick_date": "Chagua tarehe",
+            "thematic": "Mada",
+            "thematic_placeholder": "mf: Uongozi",
+            "activity_type": "Aina ya Shughuli",
+            "select_type": "Chagua aina",
+            "speaker": "Mzungumzaji (Hiari)",
+            "speaker_placeholder": "mf: John Doe",
+            "moderator": "Msimamizi (Hiari)",
+            "moderator_placeholder": "mf: Jane Smith",
+            "attendance": "Mahudhurio",
+            "girls": "Wasichana",
+            "boys": "Wavulana",
+            "content": "Maelezo / Yaliyomo",
+            "content_placeholder": "Maelezo ya kina ya shughuli...",
+            "financial_summary": "Muhtasari wa Kifedha (Hiari)",
+            "financial_placeholder": "Muhtasari mfupi wa fedha...",
+            "images": "Picha (Hiari)",
+            "upload_files": "Pakia faili",
+            "drag_drop": "au buruta na uweke",
+            "file_types": "PNG, JPG, GIF hadi 10MB",
+            "submit": "Wasilisha Ripoti",
+            "submitting": "Inawasilisha...",
+            "success": "Imefanikiwa!",
+            "success_desc": "Ripoti imewasilishwa kikamilifu.",
+            "error_title": "Uwasilishaji Umeshindwa",
+            "error_load": "Imeshindwa kupakia data muhimu. Tafadhali jaribu tena baadaye.",
+            "error_user": "Data ya mtumiaji inakosekana.",
+            "validation": {
+                "activity_required": "Shughuli iliyopangwa lazima ichaguliwe.",
+                "title_min": "Kichwa lazima kiwe na angalau herufi 5.",
+                "type_required": "Aina ya shughuli inahitajika.",
+                "thematic_required": "Mada inahitajika.",
+                "content_min": "Yaliyomo lazima yawe na angalau herufi 20.",
+                "site_required": "Kituo kinahitajika kwa ripoti za ngazi ya kituo au kikundi kidogo.",
+                "group_required": "Kikundi kidogo kinahitajika kwa ripoti za ngazi ya kikundi."
+            }
+        }
+    },
+    "Finances": {
+        "dashboard_title": "Dashibodi ya Fedha",
+        "current_balance": "Salio la Sasa",
+        "funds_received": "Pesa Zilizopokelewa",
+        "reported_expenses": "Matumizi Yaliyotolewa Ripoti",
+        "reallocated_funds": "Pesa Zilizopangiwa Upya",
+        "desc_balance": "Pesa zilizopokelewa - (Matumizi + Mgawanyo Mpya)",
+        "desc_received": "Jumla ya pesa zilizotengwa kwa shirika hili",
+        "desc_expenses": "Jumla ya matumizi yaliyorekodiwa",
+        "desc_reallocated": "Jumla ya pesa zilizohamishiwa kwa mashirika mengine",
+        "recent_allocations": "Mgawanyo wa Hivi Karibuni",
+        "no_allocations": "Hakuna mgawanyo umerekodiwa kwa shirika hili bado.",
+        "recent_transactions": "Miamala ya Hivi Karibuni",
+        "recent_transactions_desc": "Harakati 5 za hivi karibuni za kifedha.",
+        "view_all_transactions": "Tazama Miamala Yote",
+        "no_transactions": "Hakuna miamala ya hivi karibuni iliyopatikana.",
+        "error_load": "Hitilafu kupakia data",
+        "error_desc": "Hatukuweza kupata takwimu za kifedha.",
+        "retry": "Jaribu tena"
+    },
+    "Onboarding": {
+        "title": "Hatua za Kwanza",
+        "subtitle": "Kamilisha hatua hizi kuanza kutumia AYLF",
+        "progress": "Maendeleo",
+        "tasks_completed": "Kazi {count} kati ya {total} zimekamilika",
+        "encouragement": "👏 Kazi nzuri! Endelea hivyo ili kumiliki AYLF",
+        "tasks": {
+            "profile": {
+                "label": "Kamilisha wasifu wako",
+                "desc": "Ongeza taarifa zako binafsi"
+            },
+            "site": {
+                "label": "Unda kituo chako cha kwanza",
+                "desc": "Kituo kinajumuisha vikundi vidogo vingi"
+            },
+            "invite": {
+                "label": "Alika mratibu",
+                "desc": "Alika waratibu wa vituo"
+            },
+            "activity_national": {
+                "label": "Panga shughuli",
+                "desc": "Unda shughuli yako ya kwanza ya kitaifa"
+            },
+            "group": {
+                "label": "Unda kikundi kidogo",
+                "desc": ""
+            },
+            "members": {
+                "label": "Ongeza wanachama",
+                "desc": ""
+            },
+            "activity_site": {
+                "label": "Panga shughuli ya kituo",
+                "desc": ""
+            },
+            "members_view": {
+                "label": "Ona wanachama wa kikundi chako",
+                "desc": ""
+            },
+            "activity_group": {
+                "label": "Panga shughuli yako ya kwanza",
+                "desc": ""
+            },
+            "report": {
+                "label": "Wasilisha ripoti ya shughuli",
+                "desc": ""
+            },
+            "activities_view": {
+                "label": "Ona shughuli zijazo",
+                "desc": ""
+            }
+        }
+    },
+    "Profile": {
+        "title": "Wasifu Wangu",
+        "subtitle": "Angalia na sasisha taarifa zako za kibinafsi.",
+        "personal_info": "Taarifa za Kibinafsi",
+        "update_desc": "Sasisha taarifa za wasifu wako.",
+        "view_desc": "Angalia maelezo ya wasifu wako.",
+        "full_name": "Jina Kamili",
+        "email": "Barua Pepe",
+        "role": "Jukumu",
+        "assignment": "Ugani",
+        "mandate_start": "Tarehe ya Kuanza Manda",
+        "mandate_end": "Tarehe ya Kumaliza Manda",
+        "pick_date": "Chagua tarehe",
+        "pick_date_optional": "Chagua tarehe (Kwa hiari)",
+        "save_changes": "Hifadhi Mabadiliko",
+        "saving": "Inahifadhi...",
+        "profile_updated": "Wasifu Umesasishwa",
+        "update_success": "Taarifa zako za wasifu zimesasishwa kikamilifu.",
+        "update_failed": "Imeshindwa Kusasisha",
+        "fail_desc": "Haikuweza kusasisha wasifu. Tafadhali jaribu tena.",
+        "unknown_site": "Tovuti Isiyojulikana",
+        "unknown_group": "Kikundi Kidogo Kisichojulikana",
+        "name_error": "Jina lazima liwe na angalau herufi 3.",
+        "email_error": "Barua pepe si sahihi.",
+        "mandate_error": "Tarehe ya kumaliza manda haiwezi kuwa kabla ya tarehe ya kuanza."
+    },
+    "Users": {
+        "title": "Watumiaji",
+        "description": "Orodha ya watumiaji",
+        "no_users": "Hakuna watumiaji waliopatikana.",
+        "actions": {
+            "edit": "Hariri",
+            "deactivate": "Zima",
+            "delete": "Futa Mtumiaji"
+        },
+        "delete_dialog": {
+            "title": "Je, una uhakika kabisa?",
+            "description": "Kitendo hiki kitafuta mtumiaji {name} moja kwa moja. Kitendo hiki hakiwezi kubatilishwa.",
+            "cancel": "Ghairi",
+            "confirm": "Futa Mtumiaji",
+            "deleting": "Inafuta..."
+        },
+        "forms": {
+            "add_new": "Ongeza Mtumiaji Mpya",
+            "edit_user": "Hariri Mtumiaji",
+            "fill_details": "Jaza maelezo kwa mtumiaji mpya.",
+            "update_details": "Sasisha maelezo kwa {name}.",
+            "send_invitation": "Tuma Mwaliko",
+            "sending": "Inatuma Mwaliko...",
+            "role_label": "Jukumu",
+            "select_role": "Chagua jukumu",
+            "site_label": "Tovuti Iliyopewa",
+            "select_site": "Chagua tovuti",
+            "group_label": "Kikundi Kidogo Kilichopewa",
+            "select_group": "Chagua kikundi kidogo",
+            "status_label": "Hali",
+            "select_status": "Chagua hali",
+            "success_invite": "Mwaliko umeundwa kikamilifu!",
+            "success_invite_desc": "Mtumiaji ameundwa katika Kinde. Mtumie kiungo hapa chini.",
+            "copy_link": "Kiungo kimenakiliwa!",
+            "invite_another": "Alika mtumiaji mwingine",
+            "back_list": "Rudi kwenye orodha",
+            "email_label": "Barua Pepe",
+            "name_label": "Jina",
+            "updating": "Inasasisha...",
+            "update_user": "Sasisha Mtumiaji",
+            "success_update": "Mtumiaji amesasishwa kikamilifu",
+            "conflict_title": "Mratibu Aliyepo Ameonekana",
+            "conflict_desc": "Ukithibitisha, manda ya mratibu wa sasa itakamilika.",
+            "yes_replace": "Ndio, badilisha"
+        }
+    },
+    "Roles": {
+        "national_coordinator": "Mratibu wa Kitaifa",
+        "site_coordinator": "Mratibu wa Tovuti",
+        "small_group_leader": "Kiongozi wa Kikundi Kidogo",
+        "member": "Mwanachama"
+    },
+    "Notifications": {
+        "title": "Arifa",
+        "mark_all_read": "Weka Zote Kama Zilisomwa",
+        "no_notifications": "Hakuna arifa",
+        "view_all": "Tazama Arifa Zote",
+        "types": {
+            "info": "Taarifa",
+            "success": "Mafanikio",
+            "warning": "Onyo",
+            "error": "Hitilafu",
+            "system": "Mfumo"
+        },
+        "titles": {
+            "welcome": "Karibu AYLF",
+            "profile_updated": "Wasifu Umesasishwa",
+            "password_changed": "Nenosiri Limebadilishwa",
+            "new_login": "Ingizo Jipya Limegunduliwa",
+            "report_submitted": "Ripoti Imepelekwa",
+            "report_approved": "Ripoti Imethibitishwa",
+            "report_rejected": "Ripoti Imekataliwa",
+            "new_activity": "Shughuli Mpya",
+            "activity_reminder": "Kumbukumbu ya Shughuli",
+            "system_update": "Sasisho la Mfumo"
+        },
+        "messages": {
+            "welcome": "Karibu AYLF! Anza kwa kuchunguza dashibodi.",
+            "profile_updated": "Wasifu wako umesasishwa kikamilifu.",
+            "password_changed": "Nenosiri lako limebadilishwa kikamilifu.",
+            "new_login": "Ingizo jipya limegunduliwa kutoka {device} {location}.",
+            "report_submitted": "Ripoti yako imepelekwa kikamilifu.",
+            "report_approved": "Ripoti yako imethibitishwa.",
+            "report_rejected": "Ripoti yako imekataliwa. Sababu: {reason}",
+            "new_activity": "Shughuli mpya imeongezwa: {activity_name}",
+            "activity_reminder": "Kumbukumbu: Shughuli {activity_name} inaanza hivi karibuni.",
+            "system_update": "Sasisho jipya lipo. Tafadhali pya ukurasa kusakinisha."
+        },
+        "preferences": {
+            "title": "Mapendekezo ya Arifa",
+            "email": "Arifa za Barua Pepe",
+            "push": "Arifa za Kipepeo",
+            "in_app": "Arifa Ndani ya Programu",
+            "save": "Hifadhi Mapendekezo",
+            "saved": "Mapendekezo yamehifadhiwa kikamilifu"
+        }
+    }
+}

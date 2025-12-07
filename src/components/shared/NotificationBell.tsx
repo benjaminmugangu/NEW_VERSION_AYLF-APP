@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Bell, Check, Trash2, Mail } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
@@ -12,8 +12,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
-import { formatDistanceToNow } from 'date-fns'
-import { fr } from 'date-fns/locale'
+import { useTranslations, useFormatter } from 'next-intl'
 
 interface Notification {
     id: string
@@ -33,13 +32,15 @@ interface NotificationsResponse {
 export function NotificationBell() {
     const [open, setOpen] = useState(false)
     const queryClient = useQueryClient()
+    const t = useTranslations('Notifications')
+    const tCommon = useTranslations('Common')
 
     // Fetch notifications
     const { data, isLoading } = useQuery<NotificationsResponse>({
         queryKey: ['notifications'],
         queryFn: async () => {
             const res = await fetch('/api/notifications')
-            if (!res.ok) throw new Error('Failed to fetch notifications')
+            if (!res.ok) throw new Error(t('error_fetch'))
             return res.json()
         },
         refetchInterval: 30000, // Refetch every 30 seconds
@@ -53,7 +54,7 @@ export function NotificationBell() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ notificationId }),
             })
-            if (!res.ok) throw new Error('Failed to mark as read')
+            if (!res.ok) throw new Error(t('error_read'))
             return res.json()
         },
         onSuccess: () => {
@@ -69,7 +70,7 @@ export function NotificationBell() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ markAllRead: true }),
             })
-            if (!res.ok) throw new Error('Failed to mark all as read')
+            if (!res.ok) throw new Error(t('error_all_read'))
             return res.json()
         },
         onSuccess: () => {
@@ -83,7 +84,7 @@ export function NotificationBell() {
             const res = await fetch(`/api/notifications?id=${notificationId}`, {
                 method: 'DELETE',
             })
-            if (!res.ok) throw new Error('Failed to delete notification')
+            if (!res.ok) throw new Error(t('error_delete'))
             return res.json()
         },
         onSuccess: () => {
@@ -119,7 +120,7 @@ export function NotificationBell() {
                 <div className="flex items-center justify-between p-4 border-b">
                     <h4 className="font-semibold flex items-center gap-2">
                         <Bell className="h-4 w-4" />
-                        Notifications
+                        {t('title')}
                     </h4>
                     {unreadCount > 0 && (
                         <Button
@@ -129,7 +130,7 @@ export function NotificationBell() {
                             className="text-xs"
                         >
                             <Mail className="h-3 w-3 mr-1" />
-                            Tout marquer lu
+                            {t('mark_all_read')}
                         </Button>
                     )}
                 </div>
@@ -137,12 +138,12 @@ export function NotificationBell() {
                 <ScrollArea className="h-[400px]">
                     {isLoading ? (
                         <div className="p-8 text-center text-muted-foreground">
-                            Chargement...
+                            {tCommon('loading')}
                         </div>
                     ) : notifications.length === 0 ? (
                         <div className="p-8 text-center text-muted-foreground">
                             <Bell className="h-12 w-12 mx-auto mb-2 opacity-20" />
-                            <p>Aucune notification</p>
+                            <p>{t('empty')}</p>
                         </div>
                     ) : (
                         <div className="divide-y">
@@ -180,7 +181,7 @@ export function NotificationBell() {
                                                 className="h-7 text-xs"
                                             >
                                                 <Check className="h-3 w-3 mr-1" />
-                                                Marquer lu
+                                                {t('mark_read')}
                                             </Button>
                                         )}
                                         <Button
@@ -193,7 +194,7 @@ export function NotificationBell() {
                                             className="h-7 text-xs text-destructive hover:text-destructive"
                                         >
                                             <Trash2 className="h-3 w-3 mr-1" />
-                                            Supprimer
+                                            {t('delete')}
                                         </Button>
                                     </div>
                                 </div>
@@ -207,6 +208,8 @@ export function NotificationBell() {
 }
 
 function NotificationContent({ notification }: { notification: Notification }) {
+    const format = useFormatter()
+
     return (
         <>
             <div className="flex items-start justify-between gap-2">
@@ -221,10 +224,7 @@ function NotificationContent({ notification }: { notification: Notification }) {
                 )}
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-                {formatDistanceToNow(new Date(notification.createdAt), {
-                    addSuffix: true,
-                    locale: fr,
-                })}
+                {format.relativeTime(new Date(notification.createdAt))}
             </p>
         </>
     )

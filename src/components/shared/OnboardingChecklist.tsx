@@ -1,5 +1,7 @@
 'use client'
 
+import { useTranslations, useLocale } from 'next-intl';
+
 import { useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
@@ -19,6 +21,8 @@ interface OnboardingTask {
 
 export function OnboardingChecklist() {
     const { currentUser } = useAuth()
+    const t = useTranslations('Onboarding')
+    const locale = useLocale();
 
     const tasks = useMemo<OnboardingTask[]>(() => {
         if (!currentUser) return []
@@ -30,29 +34,29 @@ export function OnboardingChecklist() {
             national_coordinator: [
                 {
                     id: 'profile',
-                    label: 'Compléter votre profil',
-                    description: 'Ajoutez vos informations personnelles',
+                    label: t('tasks.profile.label'),
+                    description: t('tasks.profile.desc'),
                     href: '/dashboard/settings/profile',
                     completed: !!currentUser.name && !!currentUser.email,
                 },
                 {
                     id: 'site',
-                    label: 'Créer votre premier site',
-                    description: 'Un site regroupe plusieurs petits groupes',
+                    label: t('tasks.site.label'),
+                    description: t('tasks.site.desc'),
                     href: '/dashboard/sites/new',
                     completed: (currentUser as any).hasSites || false,
                 },
                 {
                     id: 'invite',
-                    label: 'Inviter un coordinateur',
-                    description: 'Invitez des coordinateurs de sites',
+                    label: t('tasks.invite.label'),
+                    description: t('tasks.invite.desc'),
                     href: '/dashboard/invitations',
                     completed: (currentUser as any).hasInvitations || false,
                 },
                 {
                     id: 'activity',
-                    label: 'Planifier une activité',
-                    description: 'Créez votre première activité nationale',
+                    label: t('tasks.activity_national.label'),
+                    description: t('tasks.activity_national.desc'),
                     href: '/dashboard/activities/new',
                     completed: (currentUser as any).hasActivities || false,
                 },
@@ -60,25 +64,25 @@ export function OnboardingChecklist() {
             site_coordinator: [
                 {
                     id: 'profile',
-                    label: 'Compléter votre profil',
+                    label: t('tasks.profile.label'),
                     href: '/dashboard/settings/profile',
                     completed: !!currentUser.name && !!currentUser.email,
                 },
                 {
                     id: 'group',
-                    label: 'Créer un petit groupe',
+                    label: t('tasks.group.label'),
                     href: `/dashboard/sites/${currentUser.siteId}/small-groups/new`,
                     completed: (currentUser as any).hasGroups || false,
                 },
                 {
                     id: 'members',
-                    label: 'Ajouter des membres',
+                    label: t('tasks.members.label'),
                     href: '/dashboard/members/new',
                     completed: (currentUser as any).hasMembers || false,
                 },
                 {
                     id: 'activity',
-                    label: 'Planifier une activité de site',
+                    label: t('tasks.activity_site.label'),
                     href: '/dashboard/activities/new',
                     completed: (currentUser as any).hasActivities || false,
                 },
@@ -86,25 +90,25 @@ export function OnboardingChecklist() {
             small_group_leader: [
                 {
                     id: 'profile',
-                    label: 'Compléter votre profil',
+                    label: t('tasks.profile.label'),
                     href: '/dashboard/settings/profile',
                     completed: !!currentUser.name && !!currentUser.email,
                 },
                 {
                     id: 'members',
-                    label: 'Voir les membres de votre groupe',
+                    label: t('tasks.members_view.label'),
                     href: '/dashboard/members',
                     completed: (currentUser as any).viewedMembers || false,
                 },
                 {
                     id: 'activity',
-                    label: 'Planifier votre première activité',
+                    label: t('tasks.activity_group.label'),
                     href: '/dashboard/activities/new',
                     completed: (currentUser as any).hasActivities || false,
                 },
                 {
                     id: 'report',
-                    label: 'Soumettre un rapport d\'activité',
+                    label: t('tasks.report.label'),
                     href: '/dashboard/reports/submit',
                     completed: (currentUser as any).hasReports || false,
                 },
@@ -112,13 +116,13 @@ export function OnboardingChecklist() {
             member: [
                 {
                     id: 'profile',
-                    label: 'Compléter votre profil',
+                    label: t('tasks.profile.label'),
                     href: '/dashboard/settings/profile',
                     completed: !!currentUser.name && !!currentUser.email,
                 },
                 {
                     id: 'activities',
-                    label: 'Voir les activités à venir',
+                    label: t('tasks.activities_view.label'),
                     href: '/dashboard/activities',
                     completed: (currentUser as any).viewedActivities || false,
                 },
@@ -126,7 +130,7 @@ export function OnboardingChecklist() {
         }
 
         return tasksByRole[role] || []
-    }, [currentUser])
+    }, [currentUser, t])
 
     const progress = useMemo(() => {
         if (tasks.length === 0) return 0
@@ -143,24 +147,24 @@ export function OnboardingChecklist() {
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <Sparkles className="h-5 w-5 text-primary" />
-                    Premiers Pas
+                    {t('title')}
                 </CardTitle>
                 <CardDescription>
-                    Complétez ces étapes pour bien démarrer avec AYLF
+                    {t('subtitle')}
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                 {/* Barre de progression */}
                 <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Progression</span>
+                        <span className="text-muted-foreground">{t('progress')}</span>
                         <span className="font-semibold text-primary">
                             {Math.round(progress)}%
                         </span>
                     </div>
                     <Progress value={progress} className="h-2" />
                     <p className="text-xs text-muted-foreground">
-                        {tasks.filter(t => t.completed).length} sur {tasks.length} tâches complétées
+                        {t('tasks_completed', { count: tasks.filter(t => t.completed).length, total: tasks.length })}
                     </p>
                 </div>
 
@@ -215,7 +219,7 @@ export function OnboardingChecklist() {
                 {!allCompleted && progress > 0 && (
                     <div className="pt-2 border-t">
                         <p className="text-sm text-muted-foreground text-center">
-                            👏 Bon travail! Continuez ainsi pour maîtriser AYLF
+                            {t('encouragement')}
                         </p>
                     </div>
                 )}

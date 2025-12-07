@@ -1,21 +1,19 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CalendarIcon, Filter } from 'lucide-react';
-import {
-  format,
-  getYear,
-} from 'date-fns';
+import { getYear } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import {
   getDateRangeFromFilterValue,
   type DateFilterValue,
   type PredefinedRange
 } from '@/lib/dateUtils';
+import { useTranslations, useFormatter } from 'next-intl';
 
 // Re-export types for backward compatibility if needed, but better to use from lib
 export type { DateFilterValue, PredefinedRange };
@@ -27,21 +25,6 @@ interface DateRangeFilterProps {
   initialSpecificYear?: string;
   initialSpecificMonth?: string; // "0"-"11" or "all"
 }
-
-const PREDEFINED_RANGES_OPTIONS: { value: PredefinedRange; label: string }[] = [
-  { value: 'all_time', label: 'All Time' },
-  { value: 'today', label: 'Today' },
-  { value: 'this_week', label: 'This Week (Mon-Sun)' },
-  { value: 'last_week', label: 'Last Week (Mon-Sun)' },
-  { value: 'this_month', label: 'This Month (Current)' },
-  { value: 'last_month', label: 'Last Month' },
-  { value: 'this_year', label: 'This Year (Current)' },
-  { value: 'specific_period', label: 'Specific Year/Month' },
-  { value: 'last_7_days', label: 'Last 7 Days' },
-  { value: 'last_30_days', label: 'Last 30 Days' },
-  { value: 'last_90_days', label: 'Last 90 Days' },
-  { value: 'last_12_months', label: 'Last 12 Months' },
-];
 
 const ALL_MONTHS_VALUE = "all";
 
@@ -56,15 +39,6 @@ const generateYearOptions = () => {
 };
 const YEAR_OPTIONS = generateYearOptions();
 
-const MONTH_OPTIONS: { value: string; label: string }[] = [
-  { value: ALL_MONTHS_VALUE, label: "All Months" },
-  ...Array.from({ length: 12 }, (_, i) => ({
-    value: i.toString(),
-    label: format(new Date(0, i), "MMMM"),
-  }))
-];
-
-
 export function DateRangeFilter({
   onFilterChange,
   initialRangeKey = 'all_time',
@@ -72,6 +46,33 @@ export function DateRangeFilter({
   initialSpecificYear,
   initialSpecificMonth,
 }: DateRangeFilterProps) {
+  const t = useTranslations('DateRanges');
+  const tCommon = useTranslations('Common');
+  const format = useFormatter();
+
+  const PREDEFINED_RANGES_OPTIONS: { value: PredefinedRange; label: string }[] = useMemo(() => [
+    { value: 'all_time', label: t('all_time') },
+    { value: 'today', label: t('today') },
+    { value: 'this_week', label: t('this_week') },
+    { value: 'last_week', label: t('last_week') },
+    { value: 'this_month', label: t('this_month') },
+    { value: 'last_month', label: t('last_month') },
+    { value: 'this_year', label: t('this_year') },
+    { value: 'specific_period', label: t('specific_period') },
+    { value: 'last_7_days', label: t('last_7_days') },
+    { value: 'last_30_days', label: t('last_30_days') },
+    { value: 'last_90_days', label: t('last_90_days') },
+    { value: 'last_12_months', label: t('last_12_months') },
+  ], [t]);
+
+  const MONTH_OPTIONS: { value: string; label: string }[] = useMemo(() => [
+    { value: ALL_MONTHS_VALUE, label: t('all_months') },
+    ...Array.from({ length: 12 }, (_, i) => ({
+      value: i.toString(),
+      label: format.dateTime(new Date(0, i), { month: 'long' }),
+    }))
+  ], [t, format]);
+
   const [selectedRangeKey, setSelectedRangeKey] = useState<PredefinedRange>(initialRangeKey);
   const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>(initialCustomRange);
 
@@ -88,25 +89,28 @@ export function DateRangeFilter({
   ): string => {
     if (rangeKey === 'custom' && currentCustomRange?.from) {
       if (currentCustomRange.to) {
-        return `${format(currentCustomRange.from, "LLL dd, y")} - ${format(currentCustomRange.to, "LLL dd, y")}`;
+        return t('custom_display', {
+          from: format.dateTime(currentCustomRange.from, { month: 'short', day: 'numeric', year: 'numeric' }),
+          to: format.dateTime(currentCustomRange.to, { month: 'short', day: 'numeric', year: 'numeric' })
+        });
       }
-      return format(currentCustomRange.from, "LLL dd, y");
+      return format.dateTime(currentCustomRange.from, { month: 'short', day: 'numeric', year: 'numeric' });
     }
     if (rangeKey === 'specific_period' && year) {
       if (month && month !== ALL_MONTHS_VALUE) {
         const monthLabel = MONTH_OPTIONS.find(m => m.value === month)?.label || "";
-        return `Period: ${monthLabel} ${year}`;
+        return t('specific_period_display_month', { month: monthLabel, year });
       }
-      return `Period: Year ${year}`;
+      return t('specific_period_display_year', { year });
     }
-    return PREDEFINED_RANGES_OPTIONS.find(r => r.value === rangeKey)?.label || "Select Range";
+    return PREDEFINED_RANGES_OPTIONS.find(r => r.value === rangeKey)?.label || t('select_range');
   };
 
   const [displayLabel, setDisplayLabel] = useState<string>(() => getDisplayLabel(initialRangeKey, initialCustomRange, currentSpecificYear, currentSpecificMonth));
 
   useEffect(() => {
     setDisplayLabel(getDisplayLabel(selectedRangeKey, customDateRange, currentSpecificYear, currentSpecificMonth));
-  }, [selectedRangeKey, customDateRange, currentSpecificYear, currentSpecificMonth]);
+  }, [selectedRangeKey, customDateRange, currentSpecificYear, currentSpecificMonth, t, format, PREDEFINED_RANGES_OPTIONS, MONTH_OPTIONS]);
 
 
   const triggerFilterChange = (
@@ -185,7 +189,7 @@ export function DateRangeFilter({
       <Select value={selectedRangeKey} onValueChange={(value) => handleMainRangeChange(value as PredefinedRange)}>
         <SelectTrigger className="w-full sm:w-[200px]">
           <Filter className="mr-2 h-4 w-4 text-muted-foreground" />
-          <SelectValue placeholder="Filter by date" />
+          <SelectValue placeholder={t('filter_placeholder')} />
         </SelectTrigger>
         <SelectContent>
           {PREDEFINED_RANGES_OPTIONS.map(range => (
@@ -197,7 +201,7 @@ export function DateRangeFilter({
         <>
           <Select value={currentSpecificYear || ""} onValueChange={handleSpecificYearChange}>
             <SelectTrigger className="w-full sm:w-[120px]">
-              <SelectValue placeholder="Year" />
+              <SelectValue placeholder={t('year_placeholder')} />
             </SelectTrigger>
             <SelectContent>
               {YEAR_OPTIONS.map(option => (
@@ -209,12 +213,12 @@ export function DateRangeFilter({
           {currentSpecificYear && (
             (<Select value={currentSpecificMonth || ""} onValueChange={handleSpecificMonthChange}>
               <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="Month" />
+                <SelectValue placeholder={t('month_placeholder')} />
               </SelectTrigger>
               <SelectContent>
                 {MONTH_OPTIONS.map(option => (
                   <SelectItem key={option.value} value={option.value}>
-                    {option.value === ALL_MONTHS_VALUE ? `All Months for ${currentSpecificYear}` : option.label}
+                    {option.value === ALL_MONTHS_VALUE ? t('all_months_for_year', { year: currentSpecificYear }) : option.label}
                   </SelectItem>
                 ))}
               </SelectContent>

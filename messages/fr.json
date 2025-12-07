@@ -1,0 +1,646 @@
+{
+    "Navigation": {
+        "dashboard": "Tableau de Bord",
+        "reports": "Rapports",
+        "activities": "Activités",
+        "finance": "Finance",
+        "members": "Membres",
+        "sites": "Sites",
+        "groups": "Groupes",
+        "settings": "Paramètres",
+        "users": "Utilisateurs",
+        "manage_users": "Gérer Utilisateurs",
+        "history": "Historique",
+        "monthly_reports": "Rapports Mensuels",
+        "invitations": "Invitations",
+        "certificates": "Certificats",
+        "my_certificates": "Mes Certificats",
+        "my_profile": "Mon Profil",
+        "ai_suggestions": "Suggestions IA",
+        "logout": "Déconnexion"
+    },
+    "Common": {
+        "loading": "Chargement...",
+        "error": "Une erreur est survenue",
+        "save": "Enregistrer",
+        "cancel": "Annuler",
+        "delete": "Supprimer",
+        "edit": "Modifier",
+        "view": "Voir",
+        "create": "Créer",
+        "search": "Rechercher...",
+        "actions": "Actions",
+        "status": "Statut",
+        "level": "Niveau",
+        "date": "Date",
+        "success": "Succès",
+        "try_again": "Réessayer"
+    },
+    "Dashboard": {
+        "welcome": "Bienvenue, {name} !",
+        "overview": "Voici votre tableau de bord pour {period}.",
+        "stats": {
+            "total_activities": "Total Activités",
+            "activities_desc": "{executed} exécutées, {planned} planifiées",
+            "total_members": "Total Membres",
+            "members_desc": "{student} étudiants, {nonStudent} non-étudiants",
+            "reports_submitted": "Rapports Soumis",
+            "reports_desc": "Tous niveaux confondus",
+            "total_sites": "Total Sites",
+            "sites_desc": "Sites AYLF enregistrés",
+            "total_groups": "Total Groupes",
+            "groups_desc": "Groupes actifs",
+            "net_balance": "Solde Net",
+            "finance_desc": "Revenus: {income} | Dépenses: {expenses}"
+        },
+        "charts": {
+            "activity_status": "Aperçu Statut Activités",
+            "activity_status_desc": "Répartition des activités planifiées et exécutées pour la période.",
+            "member_composition": "Composition Membres",
+            "member_composition_desc": "Répartition étudiants vs non-étudiants."
+        },
+        "quick_actions": {
+            "title": "Actions Rapides",
+            "national_desc": "Actions clés pour la coordination nationale.",
+            "site_desc": "Gérez les opérations de votre site.",
+            "group_desc": "Gérez votre petit groupe.",
+            "add_site": "Ajouter un Site",
+            "add_site_desc": "Établir un nouveau site opérationnel.",
+            "invite_user": "Inviter Utilisateur",
+            "invite_user_desc": "Intégrer un nouveau coordinateur ou leader.",
+            "submit_report": "Soumettre Rapport",
+            "submit_report_desc": "Enregistrer une activité.",
+            "ai_suggestions": "Suggestions IA",
+            "ai_suggestions_desc": "Découvrir de nouvelles idées d'activités.",
+            "send_funds": "Envoyer Fonds",
+            "send_funds_desc": "Allouer un budget à un site.",
+            "manage_users": "Gérer Utilisateurs",
+            "manage_users_desc": "Administrer les comptes et rôles.",
+            "add_group": "Ajouter Groupe",
+            "add_group_desc": "Créer un nouveau groupe dans votre site.",
+            "plan_activity": "Planifier Activité",
+            "plan_activity_desc": "Programmer un événement.",
+            "add_member": "Ajouter Membre",
+            "add_member_desc": "Enregistrer un nouveau membre."
+        },
+        "recent_activities": {
+            "title": "Activités Récentes",
+            "description": "Aperçu rapide des activités récentes.",
+            "no_activities": "Aucune activité récente trouvée pour cette période.",
+            "view_all": "Voir Toutes les Activités"
+        },
+        "chart_labels": {
+            "students": "Étudiants",
+            "non_students": "Non-étudiants"
+        }
+    },
+    "Activities": {
+        "title": "Activités",
+        "description": "Suivez, gérez et analysez toutes les activités.",
+        "add_new": "Nouvelle Activité",
+        "overview": "Aperçu Activités",
+        "overview_desc": "Résumé des statuts selon les filtres.",
+        "list_title": "Liste des Activités",
+        "list_desc": "Liste complète des activités accessibles.",
+        "filter": "Filtrer",
+        "headers": {
+            "title": "Titre",
+            "date": "Date",
+            "level": "Niveau",
+            "status": "Statut",
+            "participants": "Participants",
+            "actions": "Actions"
+        },
+        "delete_confirm": {
+            "title": "Êtes-vous absolument sûr ?",
+            "description": "Cette action est irréversible. L'activité sera supprimée définitivement.",
+            "continue": "Continuer"
+        },
+        "empty": {
+            "title": "Aucune activité trouvée",
+            "description": "Essayez d'ajuster les filtres ou créez une nouvelle activité.",
+            "action": "Créer Activité"
+        }
+    },
+    "ActivityStatus": {
+        "planned": "Planifié",
+        "executed": "Exécuté",
+        "in_progress": "En Cours",
+        "delayed": "Retardé",
+        "canceled": "Annulé"
+    },
+    "ActivityLevel": {
+        "national": "National",
+        "site": "Site",
+        "small_group": "Petit Groupe"
+    },
+    "DateRanges": {
+        "all_time": "Tout le temps",
+        "today": "Aujourd'hui",
+        "this_week": "Cette semaine",
+        "last_week": "Semaine dernière",
+        "this_month": "Ce mois-ci",
+        "last_month": "Mois dernier",
+        "this_year": "Cette année",
+        "last_7_days": "7 derniers jours",
+        "last_30_days": "30 derniers jours",
+        "last_90_days": "90 derniers jours",
+        "last_12_months": "12 derniers mois",
+        "specific_period": "Période spécifique",
+        "custom": "Période personnalisée",
+        "custom_display": "{from} - {to}",
+        "specific_period_display_year": "Année {year}",
+        "specific_period_display_month": "{month} {year}",
+        "select_range": "Sélectionner Période",
+        "filter_placeholder": "Filtrer par date",
+        "year_placeholder": "Année",
+        "month_placeholder": "Mois",
+        "all_months": "Tous les mois",
+        "all_months_for_year": "Tous les mois de {year}"
+    },
+    "chart_labels": {
+        "students": "Étudiants",
+        "non_students": "Non-Étudiants"
+    },
+    "ActivityForm": {
+        "title_create": "Créer une nouvelle activité",
+        "title_edit": "Modifier l'activité",
+        "section_general": "Informations générales",
+        "title_label": "Titre",
+        "title_placeholder": "ex: Réunion hebdomadaire",
+        "status_label": "Statut",
+        "status_placeholder": "Sélectionner le statut",
+        "thematic_label": "Thématique",
+        "thematic_placeholder": "Thématique détaillée de l'activité...",
+        "date_label": "Date",
+        "pick_date": "Choisir une date",
+        "level_label": "Niveau",
+        "level_placeholder": "Sélectionner le niveau",
+        "site_label": "Site",
+        "site_placeholder": "Sélectionner le site",
+        "small_group_label": "Petit Groupe",
+        "small_group_placeholder": "Sélectionner le petit groupe",
+        "type_label": "Type d'Activité",
+        "type_placeholder": "Sélectionnez un type",
+        "participants_label": "Nombre de participants (Prévu)",
+        "participants_placeholder": "ex: 50",
+        "mark_executed": "Marquer comme Exécuté",
+        "cancel": "Annuler",
+        "deuil": "Deuil",
+        "other": "Autre"
+    },
+    "MemberForm": {
+        "title_create": "Ajouter un membre",
+        "title_edit": "Modifier le membre",
+        "desc_create": "Remplissez les détails du nouveau membre.",
+        "desc_edit": "Mettre à jour les détails pour {name}.",
+        "name_label": "Nom complet",
+        "name_placeholder": "ex: Jean Dupont",
+        "email_label": "Email",
+        "email_placeholder": "membre@exemple.com",
+        "phone_label": "Téléphone",
+        "phone_placeholder": "+243 ...",
+        "gender_label": "Genre",
+        "gender_placeholder": "Sélectionner le genre",
+        "type_label": "Type de Membre",
+        "type_placeholder": "Sélectionner le type",
+        "join_date_label": "Date d'adhesion",
+        "pick_date": "Choisir une date",
+        "level_label": "Niveau",
+        "level_placeholder": "Sélectionner le niveau",
+        "site_label": "Site",
+        "site_placeholder": "Sélectionner le site",
+        "small_group_label": "Petit Groupe",
+        "small_group_placeholder": "Sélectionner le petit groupe",
+        "save": "Enregistrer",
+        "add": "Ajouter",
+        "saving": "Enregistrement...",
+        "gender_options": {
+            "male": "Homme",
+            "female": "Femme"
+        },
+        "type_options": {
+            "student": "Étudiant",
+            "non_student": "Non-Étudiant"
+        },
+        "validation": {
+            "name_min": "Le nom doit comporter au moins 3 caractères.",
+            "email_invalid": "Adresse email invalide.",
+            "type_required": "Le type de membre est requis.",
+            "date_required": "La date d'adhésion est requise.",
+            "level_required": "Le niveau est requis.",
+            "site_required": "Le site est requis pour les membres de niveau site.",
+            "group_required": "Le petit groupe est requis pour les membres de niveau groupe."
+        }
+    },
+    "SiteForm": {
+        "title_create": "Ajouter un nouveau site",
+        "title_edit": "Modifier le site",
+        "desc_create": "Remplissez les détails pour le nouveau site.",
+        "desc_edit": "Mettre à jour les détails pour {name}.",
+        "name_label": "Nom du Site",
+        "name_placeholder": "ex: Site de Goma",
+        "city_label": "Ville",
+        "city_placeholder": "ex: Goma",
+        "country_label": "Pays",
+        "country_placeholder": "ex: RDC",
+        "creation_date_label": "Date de Création",
+        "coordinator_label": "Nom du Coordinateur (Optionnel)",
+        "coordinator_placeholder": "Entrez le nom complet du coordinateur",
+        "coordinator_help": "Entrez le nom complet du coordinateur du site. Cela peut être assigné ou mis à jour plus tard.",
+        "save": "Enregistrer les modifications",
+        "add": "Ajouter le site",
+        "saving": "Enregistrement...",
+        "validation": {
+            "name_min": "Le nom du site doit comporter au moins 3 caractères.",
+            "city_min": "La ville doit comporter au moins 2 caractères.",
+            "country_min": "Le pays doit comporter au moins 2 caractères.",
+            "date_invalid": "Format de date invalide."
+        }
+    },
+    "SmallGroupForm": {
+        "title_create": "Ajouter un petit groupe",
+        "title_edit": "Modifier le petit groupe",
+        "desc_create": "Remplissez les détails pour le nouveau petit groupe du site ID: {siteId}.",
+        "desc_edit": "Mettre à jour les détails pour {name}.",
+        "name_label": "Nom du Petit Groupe",
+        "name_placeholder": "ex: Groupe Alpha Campus",
+        "day_label": "Jour de réunion (Optionnel)",
+        "day_placeholder": "ex: Mercredi",
+        "time_label": "Heure de réunion (Optionnel)",
+        "time_placeholder": "ex: 19h00",
+        "location_label": "Lieu de réunion (Optionnel)",
+        "location_placeholder": "ex: Salle 101",
+        "leader_label": "Responsable du Petit Groupe (Optionnel)",
+        "logistics_label": "Assistant Logistique (Optionnel)",
+        "finance_label": "Assistant Finance (Optionnel)",
+        "leader_placeholder": "Sélectionner le responsable",
+        "loading": "Chargement...",
+        "none_unassigned": "Aucun (Non assigné)",
+        "select_logistics": "Sélectionner l'assistant logistique",
+        "select_finance": "Sélectionner l'assistant finance",
+        "help_text": "Les responsables et assistants peuvent être choisis parmi les responsables de petits groupes non assignés, le coordinateur de site ou les coordinateurs nationaux.",
+        "save": "Enregistrer les modifications",
+        "add": "Ajouter le petit groupe",
+        "saving": "Enregistrement...",
+        "validation": {
+            "name_min": "Le nom du petit groupe doit comporter au moins 3 caractères."
+        }
+    },
+    "Reports": {
+        "title": "Rapports",
+        "description": "Veuillez choisir une action :",
+        "view_title": "Voir les rapports",
+        "view_desc": "Consulter les rapports existants.",
+        "submit_title": "Soumettre un rapport",
+        "submit_desc": "Créer et soumettre un nouveau rapport.",
+        "submit_page_title": "Soumettre un nouveau rapport",
+        "submit_page_desc": "Documenter les activités et résultats pour les niveaux national, site ou petit groupe.",
+        "permission_denied": "Vous n'avez pas la permission de soumettre des rapports.",
+        "form": {
+            "title": "Soumettre un rapport d'activité",
+            "description": "Sélectionnez une activité planifiée pour pré-remplir le formulaire, puis complétez et soumettez votre rapport.",
+            "select_activity": "Sélectionner une activité planifiée",
+            "choose_activity": "Choisir une activité...",
+            "no_activities": "Aucune activité planifiée trouvée",
+            "report_title": "Titre du rapport",
+            "title_placeholder": "ex: Séance de mentorat hebdomadaire",
+            "activity_date": "Date de l'activité",
+            "pick_date": "Choisir une date",
+            "thematic": "Thématique",
+            "thematic_placeholder": "ex: Leadership",
+            "activity_type": "Type d'activité",
+            "select_type": "Sélectionner un type",
+            "speaker": "Orateur (Optionnel)",
+            "speaker_placeholder": "ex: Jean Dupont",
+            "moderator": "Modérateur (Optionnel)",
+            "moderator_placeholder": "ex: Jeanne Martin",
+            "attendance": "Présence",
+            "girls": "Filles",
+            "boys": "Garçons",
+            "content": "Description / Contenu",
+            "content_placeholder": "Description détaillée de l'activité...",
+            "financial_summary": "Résumé financier (Optionnel)",
+            "financial_placeholder": "Bref résumé des finances...",
+            "images": "Images (Optionnel)",
+            "upload_files": "Téléverser des fichiers",
+            "drag_drop": "ou glisser-déposer",
+            "file_types": "PNG, JPG, GIF jusqu'à 10Mo",
+            "submit": "Soumettre le rapport",
+            "submitting": "Envoi en cours...",
+            "success": "Succès !",
+            "success_desc": "Rapport soumis avec succès.",
+            "error_title": "Échec de la soumission",
+            "error_load": "Impossible de charger les données nécessaires. Veuillez réessayer plus tard.",
+            "error_user": "Les données de l'utilisateur sont manquantes.",
+            "validation": {
+                "activity_required": "Une activité planifiée doit être sélectionnée.",
+                "title_min": "Le titre doit comporter au moins 5 caractères.",
+                "type_required": "Le type d'activité est requis.",
+                "thematic_required": "La thématique est requise.",
+                "content_min": "Le contenu doit comporter au moins 20 caractères.",
+                "site_required": "Le site est requis pour les rapports au niveau du site ou du petit groupe.",
+                "group_required": "Le petit groupe est requis pour les rapports au niveau du petit groupe."
+            }
+        }
+    },
+    "Finances": {
+        "dashboard_title": "Tableau de bord financier",
+        "current_balance": "Solde Actuel",
+        "funds_received": "Fonds Reçus",
+        "reported_expenses": "Dépenses Déclarées",
+        "reallocated_funds": "Fonds Réalloués",
+        "desc_balance": "Fonds reçus - (Dépenses + Réallocations)",
+        "desc_received": "Total des fonds alloués à cette entité",
+        "desc_expenses": "Total des dépenses enregistrées",
+        "desc_reallocated": "Total des fonds transférés à d'autres entités",
+        "recent_allocations": "Allocations Récentes",
+        "no_allocations": "Aucune allocation n'a encore été enregistrée pour cette entité.",
+        "recent_transactions": "Transactions Récentes",
+        "recent_transactions_desc": "Les 5 mouvements financiers les plus récents.",
+        "view_all_transactions": "Voir toutes les transactions",
+        "no_transactions": "Aucune transaction récente trouvée.",
+        "error_load": "Erreur de chargement des données",
+        "error_desc": "Nous n'avons pas pu récupérer les statistiques financières.",
+        "retry": "Réessayer"
+    },
+    "Onboarding": {
+        "title": "Premiers Pas",
+        "subtitle": "Complétez ces étapes pour bien démarrer avec AYLF",
+        "progress": "Progression",
+        "tasks_completed": "{count} sur {total} tâches complétées",
+        "encouragement": "👏 Bon travail! Continuez ainsi pour maîtriser AYLF",
+        "tasks": {
+            "profile": {
+                "label": "Compléter votre profil",
+                "desc": "Ajoutez vos informations personnelles"
+            },
+            "site": {
+                "label": "Créer votre premier site",
+                "desc": "Un site regroupe plusieurs petits groupes"
+            },
+            "invite": {
+                "label": "Inviter un coordinateur",
+                "desc": "Invitez des coordinateurs de sites"
+            },
+            "activity_national": {
+                "label": "Planifier une activité",
+                "desc": "Créez votre première activité nationale"
+            },
+            "group": {
+                "label": "Créer un petit groupe",
+                "desc": ""
+            },
+            "members": {
+                "label": "Ajouter des membres",
+                "desc": ""
+            },
+            "activity_site": {
+                "label": "Planifier une activité de site",
+                "desc": ""
+            },
+            "members_view": {
+                "label": "Voir les membres de votre groupe",
+                "desc": ""
+            },
+            "activity_group": {
+                "label": "Planifier votre première activité",
+                "desc": ""
+            },
+            "report": {
+                "label": "Soumettre un rapport d'activité",
+                "desc": ""
+            },
+            "activities_view": {
+                "label": "Voir les activités à venir",
+                "desc": ""
+            }
+        }
+    },
+    "Profile": {
+        "title": "Mon Profil",
+        "subtitle": "Consultez et mettez à jour vos informations personnelles.",
+        "personal_info": "Informations Personnelles",
+        "update_desc": "Mettez à jour vos informations de profil.",
+        "view_desc": "Consultez les détails de votre profil.",
+        "full_name": "Nom Complet",
+        "email": "Adresse Email",
+        "role": "Rôle",
+        "assignment": "Affectation",
+        "mandate_start": "Date de Début de Mandat",
+        "mandate_end": "Date de Fin de Mandat",
+        "pick_date": "Choisir une date",
+        "pick_date_optional": "Choisir une date (Optionnel)",
+        "save_changes": "Enregistrer les Modifications",
+        "saving": "Enregistrement...",
+        "profile_updated": "Profil Mis à Jour",
+        "update_success": "Vos informations de profil ont été mises à jour avec succès.",
+        "update_failed": "Échec de la Mise à Jour",
+        "fail_desc": "Impossible de mettre à jour le profil. Veuillez réessayer.",
+        "unknown_site": "Site Inconnu",
+        "unknown_group": "Petit Groupe Inconnu",
+        "name_error": "Le nom doit comporter au moins 3 caractères.",
+        "email_error": "Adresse email invalide.",
+        "mandate_error": "La date de fin de mandat ne peut pas être antérieure à la date de début."
+    },
+    "Users": {
+        "title": "Utilisateurs",
+        "invite_user": "Inviter un Utilisateur",
+        "search_placeholder": "Rechercher des utilisateurs...",
+        "table": {
+            "name": "Nom",
+            "email": "Email",
+            "role": "Rôle",
+            "site_group": "Site / Groupe",
+            "status": "Statut",
+            "actions": "Actions",
+            "no_users": "Aucun utilisateur trouvé."
+        },
+        "actions": {
+            "edit": "Modifier",
+            "deactivate": "Désactiver",
+            "delete": "Supprimer l'Utilisateur"
+        },
+        "delete_dialog": {
+            "title": "Êtes-vous absolument sûr ?",
+            "description": "Cette action supprimera définitivement l'utilisateur {name}. Cette action est irréversible.",
+            "cancel": "Annuler",
+            "confirm": "Supprimer l'Utilisateur",
+            "deleting": "Suppression..."
+        },
+        "forms": {
+            "add_new": "Ajouter un Nouvel Utilisateur",
+            "edit_user": "Modifier l'Utilisateur",
+            "fill_details": "Remplissez les détails pour le nouvel utilisateur.",
+            "update_details": "Mettre à jour les détails pour {name}.",
+            "send_invitation": "Envoyer l'Invitation",
+            "sending": "Envoi de l'Invitation...",
+            "role_label": "Rôle",
+            "select_role": "Sélectionner un rôle",
+            "site_label": "Site Affecté",
+            "select_site": "Sélectionner un site",
+            "group_label": "Petit Groupe Affecté",
+            "select_group": "Sélectionner un petit groupe",
+            "status_label": "Statut",
+            "select_status": "Sélectionner un statut",
+            "success_invite": "Invitation créée avec succès !",
+            "success_invite_desc": "Utilisateur créé dans Kinde. Envoyez-lui le lien ci-dessous.",
+            "copy_link": "Lien copié !",
+            "invite_another": "Inviter un autre utilisateur",
+            "back_list": "Retour à la liste",
+            "email_label": "Email",
+            "name_label": "Nom",
+            "updating": "Mise à jour...",
+            "update_user": "Mettre à jour l'Utilisateur",
+            "success_update": "Utilisateur mis à jour avec succès",
+            "conflict_title": "Coordinateur Existant Détecté",
+            "conflict_desc": "Si vous confirmez, le mandat du coordinateur actuel sera terminé.",
+            "yes_replace": "Oui, remplacer"
+        }
+    },
+    "Roles": {
+        "national_coordinator": "Coordinateur National",
+        "site_coordinator": "Coordinateur de Site",
+        "small_group_leader": "Leader de Petit Groupe",
+        "member": "Membre"
+    },
+    "Notifications": {
+        "title": "Notifications",
+        "mark_all_read": "Tout marquer comme lu",
+        "mark_read": "Marquer comme lu",
+        "empty": "Aucune notification",
+        "delete": "Supprimer",
+        "error_fetch": "Échec de récupération des notifications",
+        "error_read": "Échec de marquage comme lu",
+        "error_all_read": "Échec de marquage de tout comme lu",
+        "error_delete": "Échec de suppression de la notification"
+    },
+    "Analytics": {
+        "title": "Analytiques Avancées",
+        "loading": "Chargement des analytiques...",
+        "no_data": "Aucune donnée disponible",
+        "time_ranges": {
+            "6_months": "6 derniers mois",
+            "12_months": "12 derniers mois",
+            "3_years": "3 dernières années"
+        },
+        "metrics": {
+            "active_members": "Membres Actifs",
+            "ongoing_activities": "Activités en Cours",
+            "pending_reports": "Rapports en Attente",
+            "budget_utilization": "Utilisation Budget"
+        },
+        "trends": {
+            "up": "En hausse",
+            "down": "En baisse",
+            "member_growth": "Croissance des Membres",
+            "member_growth_desc": "Évolution du nombre de membres au fil du temps",
+            "activity_completion": "Activités Complétées",
+            "activity_completion_desc": "Nombre d'activités exécutées par mois",
+            "budget_forecast": "Prévisions Budgétaires",
+            "budget_forecast_desc": "Projection des dépenses futures basée sur la moyenne"
+        },
+        "comparisons": {
+            "site_performance": "Performance par Site",
+            "site_performance_desc": "Taux de complétion des activités",
+            "activity_types": "Types d'Activités",
+            "activity_types_desc": "Distribution par type",
+            "completion_rate": "% Complétion"
+        },
+        "chart_labels": {
+            "members": "Membres",
+            "completed": "Complétées",
+            "forecasted_expenses": "Dépenses Prévues (FC)"
+        }
+    },
+    "Certificates": {
+        "title": "Gestion des Certificats",
+        "description": "Visualiser et gérer les certificats générés",
+        "generate": "Générer un Certificat",
+        "list_title": "Liste des Certificats",
+        "no_certificates": "Aucun certificat trouvé",
+        "table": {
+            "coordinator": "Coordinateur",
+            "role": "Rôle",
+            "entity": "Entité",
+            "generated_at": "Généré le",
+            "actions": "Actions"
+        },
+        "actions": {
+            "view": "Voir PDF",
+            "download": "Télécharger",
+            "regenerate": "Régénérer"
+        }
+    },
+    "Invitations": {
+        "title": "Invitations",
+        "description": "Gérer les invitations d'utilisateurs en attente. Les utilisateurs apparaîtront dans la liste des utilisateurs une fois qu'ils auront accepté leur invitation et se seront connectés.",
+        "no_invitations": "Aucune invitation en attente",
+        "table": {
+            "email": "Email",
+            "name": "Nom",
+            "role": "Rôle",
+            "site": "Site",
+            "group": "Petit Groupe",
+            "status": "Statut",
+            "created_at": "Créée le",
+            "actions": "Actions"
+        },
+        "status": {
+            "pending": "En attente",
+            "accepted": "Acceptée",
+            "expired": "Expirée"
+        },
+        "actions": {
+            "resend": "Renvoyer",
+            "cancel": "Annuler",
+            "delete": "Supprimer"
+        }
+    },
+    "History": {
+        "title": "Historique des Coordinateurs",
+        "description": "Suivre l'historique des coordinateurs à travers les sites et petits groupes",
+        "no_history": "Aucun historique de coordinateur trouvé",
+        "table": {
+            "coordinator": "Coordinateur",
+            "role": "Rôle",
+            "entity": "Entité",
+            "start_date": "Date de début",
+            "end_date": "Date de fin",
+            "duration": "Durée",
+            "status": "Statut"
+        },
+        "status": {
+            "active": "Actif",
+            "ended": "Terminé"
+        },
+        "filters": {
+            "all": "Tous",
+            "active_only": "Actifs seulement",
+            "ended_only": "Terminés seulement"
+        }
+    },
+    "AuditLogs": {
+        "title": "Journaux d'Audit",
+        "description": "Activité système et journaux de modifications",
+        "no_logs": "Aucun journal d'audit trouvé",
+        "table": {
+            "timestamp": "Horodatage",
+            "user": "Utilisateur",
+            "action": "Action",
+            "entity": "Entité",
+            "details": "Détails"
+        },
+        "actions": {
+            "create": "Créé",
+            "update": "Mis à jour",
+            "delete": "Supprimé",
+            "login": "Connecté",
+            "logout": "Déconnecté"
+        },
+        "filters": {
+            "all_actions": "Toutes les actions",
+            "time_range": "Plage de temps"
+        }
+    }
+}

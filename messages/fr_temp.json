@@ -1,0 +1,655 @@
+﻿{
+    "Navigation":  {
+                       "dashboard":  "Dashboard",
+                       "reports":  "Reports",
+                       "activities":  "Activities",
+                       "finance":  "Finance",
+                       "members":  "Members",
+                       "sites":  "Sites",
+                       "groups":  "Groups",
+                       "settings":  "Settings",
+                       "users":  "Users",
+                       "manage_users":  "Manage Users",
+                       "history":  "History",
+                       "invitations":  "Invitations",
+                       "certificates":  "Certificates",
+                       "my_certificates":  "My Certificates",
+                       "my_profile":  "My Profile",
+                       "ai_suggestions":  "AI Suggestions",
+                       "logout":  "Logout"
+                   },
+    "Common":  {
+                   "loading":  "Loading...",
+                   "error":  "An error occurred",
+                   "save":  "Save",
+                   "cancel":  "Cancel",
+                   "delete":  "Delete",
+                   "edit":  "Edit",
+                   "view":  "View",
+                   "create":  "Create",
+                   "search":  "Search...",
+                   "actions":  "Actions",
+                   "status":  "Status",
+                   "level":  "Level",
+                   "date":  "Date",
+                   "success":  "Success",
+                   "try_again":  "Try Again"
+               },
+    "Dashboard":  {
+                      "welcome":  "Welcome, {name}!",
+                      "overview":  "Here is your dashboard overview for {period}.",
+                      "stats":  {
+                                    "total_activities":  "Total Activities",
+                                    "activities_desc":  "{executed} executed, {planned} planned",
+                                    "total_members":  "Total Members",
+                                    "members_desc":  "{student} students, {nonStudent} non-students",
+                                    "reports_submitted":  "Reports Submitted",
+                                    "reports_desc":  "All levels combined",
+                                    "total_sites":  "Total Sites",
+                                    "sites_desc":  "Registered AYLF sites",
+                                    "total_groups":  "Total Small Groups",
+                                    "groups_desc":  "Active small groups",
+                                    "net_balance":  "Net Balance",
+                                    "finance_desc":  "Income: {income} | Expenses: {expenses}"
+                                },
+                      "charts":  {
+                                     "activity_status":  "Activity Status Overview",
+                                     "activity_status_desc":  "Breakdown of planned and executed activities for the selected period.",
+                                     "member_composition":  "Member Composition",
+                                     "member_composition_desc":  "Distribution of student vs. non-student members."
+                                 },
+                      "quick_actions":  {
+                                            "title":  "Quick Actions",
+                                            "national_desc":  "Key actions for national-level coordination.",
+                                            "site_desc":  "Manage your site\u0027s operations.",
+                                            "group_desc":  "Manage your small group.",
+                                            "add_site":  "Add New Site",
+                                            "add_site_desc":  "Establish a new operational site.",
+                                            "invite_user":  "Invite User",
+                                            "invite_user_desc":  "Onboard a new coordinator or leader.",
+                                            "submit_report":  "Submit New Report",
+                                            "submit_report_desc":  "Log activity.",
+                                            "ai_suggestions":  "Get AI Suggestions",
+                                            "ai_suggestions_desc":  "Discover new activity ideas.",
+                                            "send_funds":  "Send Funds to Site",
+                                            "send_funds_desc":  "Allocate budget to a site.",
+                                            "manage_users":  "Manage Users",
+                                            "manage_users_desc":  "Administer user accounts and roles.",
+                                            "add_group":  "Add Small Group",
+                                            "add_group_desc":  "Create a new group in your site.",
+                                            "plan_activity":  "Plan Activity",
+                                            "plan_activity_desc":  "Schedule an event.",
+                                            "add_member":  "Add Member",
+                                            "add_member_desc":  "Register a new member."
+                                        },
+                      "recent_activities":  {
+                                                "title":  "Recent Activities",
+                                                "description":  "A quick look at recently executed or planned activities.",
+                                                "no_activities":  "No recent activities found for the selected period.",
+                                                "view_all":  "View All Activities"
+                                            }
+                  },
+    "Activities":  {
+                       "title":  "Activities",
+                       "description":  "Track, manage, and analyze all activities across different levels.",
+                       "add_new":  "Add New Activity",
+                       "overview":  "Activity Overview",
+                       "overview_desc":  "A summary of activity statuses based on the current filters.",
+                       "list_title":  "Activity List",
+                       "list_desc":  "A comprehensive list of all activities you have access to.",
+                       "filter":  "Filter",
+                       "headers":  {
+                                       "title":  "Title",
+                                       "date":  "Date",
+                                       "level":  "Level",
+                                       "status":  "Status",
+                                       "participants":  "Participants",
+                                       "actions":  "Actions"
+                                   },
+                       "delete_confirm":  {
+                                              "title":  "Are you absolutely sure?",
+                                              "description":  "This action cannot be undone. This will permanently delete the activity.",
+                                              "continue":  "Continue"
+                                          },
+                       "empty":  {
+                                     "title":  "No activities found",
+                                     "description":  "Try adjusting your filters or create a new activity.",
+                                     "action":  "Create Activity"
+                                 }
+                   },
+    "ActivityStatus":  {
+                           "planned":  "Planned",
+                           "executed":  "Executed",
+                           "in_progress":  "In Progress",
+                           "delayed":  "Delayed",
+                           "canceled":  "Canceled"
+                       },
+    "ActivityLevel":  {
+                          "national":  "National",
+                          "site":  "Site",
+                          "small_group":  "Small Group"
+                      },
+    "DateRanges":  {
+                       "all_time":  "All Time",
+                       "today":  "Today",
+                       "this_week":  "This Week",
+                       "last_week":  "Last Week",
+                       "this_month":  "This Month",
+                       "last_month":  "Last Month",
+                       "this_year":  "This Year",
+                       "last_7_days":  "Last 7 Days",
+                       "last_30_days":  "Last 30 Days",
+                       "last_90_days":  "Last 90 Days",
+                       "last_12_months":  "Last 12 Months",
+                       "specific_period":  "Specific Period",
+                       "custom":  "Custom Range",
+                       "custom_display":  "{from} - {to}",
+                       "specific_period_display_year":  "Year {year}",
+                       "specific_period_display_month":  "{month} {year}",
+                       "select_range":  "Select Range",
+                       "filter_placeholder":  "Filter by date",
+                       "year_placeholder":  "Year",
+                       "month_placeholder":  "Month",
+                       "all_months":  "All Months",
+                       "all_months_for_year":  "All Months for {year}"
+                   },
+    "chart_labels":  {
+                         "students":  "Students",
+                         "non_students":  "Non-Students"
+                     },
+    "ActivityForm":  {
+                         "title_create":  "Create New Activity",
+                         "title_edit":  "Edit Activity",
+                         "section_general":  "General Information",
+                         "title_label":  "Title",
+                         "title_placeholder":  "e.g., Weekly Meeting",
+                         "status_label":  "Status",
+                         "status_placeholder":  "Select status",
+                         "thematic_label":  "Thematic",
+                         "thematic_placeholder":  "Detailed thematic of the activity...",
+                         "date_label":  "Date",
+                         "pick_date":  "Pick a date",
+                         "level_label":  "Level",
+                         "level_placeholder":  "Select level",
+                         "site_label":  "Site",
+                         "site_placeholder":  "Select site",
+                         "small_group_label":  "Small Group",
+                         "small_group_placeholder":  "Select small group",
+                         "type_label":  "Activity Type",
+                         "type_placeholder":  "Select a type",
+                         "participants_label":  "Participants Count (Planned)",
+                         "participants_placeholder":  "e.g., 50",
+                         "mark_executed":  "Mark as Executed",
+                         "cancel":  "Cancel",
+                         "save":  "Save",
+                         "saving":  "Saving...",
+                         "save_changes":  "Save Changes",
+                         "create_activity":  "Create Activity",
+                         "success_created":  "Activity created successfully.",
+                         "success_updated":  "Activity updated successfully.",
+                         "error_save":  "Failed to save activity",
+                         "error_fetch":  "Could not load necessary data.",
+                         "error_login":  "You must be logged in to perform this action.",
+                         "types":  {
+                                       "small_group_meeting":  "Small Group Meeting",
+                                       "conference":  "Conference",
+                                       "apostolat":  "Apostolate",
+                                       "deuil":  "Mourning",
+                                       "other":  "Other"
+                                   }
+                     },
+    "MemberForm":  {
+                       "title_create":  "Add New Member",
+                       "title_edit":  "Edit Member",
+                       "desc_create":  "Fill in the details for the new member.",
+                       "desc_edit":  "Update details for {name}.",
+                       "name_label":  "Full Name",
+                       "name_placeholder":  "e.g., John Doe",
+                       "email_label":  "Email",
+                       "email_placeholder":  "member@example.com",
+                       "phone_label":  "Phone",
+                       "phone_placeholder":  "+243 ...",
+                       "gender_label":  "Gender",
+                       "gender_placeholder":  "Select gender",
+                       "type_label":  "Member Type",
+                       "type_placeholder":  "Select type",
+                       "join_date_label":  "Join Date",
+                       "pick_date":  "Pick a date",
+                       "level_label":  "Level",
+                       "level_placeholder":  "Select level",
+                       "site_label":  "Site",
+                       "site_placeholder":  "Select site",
+                       "small_group_label":  "Small Group",
+                       "small_group_placeholder":  "Select small group",
+                       "save":  "Save Changes",
+                       "add":  "Add Member",
+                       "saving":  "Saving...",
+                       "gender_options":  {
+                                              "male":  "Male",
+                                              "female":  "Female"
+                                          },
+                       "type_options":  {
+                                            "student":  "Student",
+                                            "non_student":  "Non-Student"
+                                        },
+                       "validation":  {
+                                          "name_min":  "Member name must be at least 3 characters.",
+                                          "email_invalid":  "Invalid email address.",
+                                          "type_required":  "Member type is required.",
+                                          "date_required":  "Join date is required.",
+                                          "level_required":  "Level is required.",
+                                          "site_required":  "Site is required for site-level members.",
+                                          "group_required":  "Small group is required for small group level members."
+                                      }
+                   },
+    "SiteForm":  {
+                     "title_create":  "Add New Site",
+                     "title_edit":  "Edit Site",
+                     "desc_create":  "Fill in the details for the new site.",
+                     "desc_edit":  "Update details for {name}.",
+                     "name_label":  "Site Name",
+                     "name_placeholder":  "e.g., Goma Site",
+                     "city_label":  "City",
+                     "city_placeholder":  "e.g., Goma",
+                     "country_label":  "Country",
+                     "country_placeholder":  "e.g., DRC",
+                     "creation_date_label":  "Creation Date",
+                     "coordinator_label":  "Site Coordinator Name (Optional)",
+                     "coordinator_placeholder":  "Enter coordinator\u0027s full name",
+                     "coordinator_help":  "Enter the full name of the site coordinator. This can be assigned or updated later.",
+                     "save":  "Save Changes",
+                     "add":  "Add Site",
+                     "saving":  "Saving...",
+                     "validation":  {
+                                        "name_min":  "Site name must be at least 3 characters.",
+                                        "city_min":  "City must be at least 2 characters.",
+                                        "country_min":  "Country must be at least 2 characters.",
+                                        "date_invalid":  "Invalid date format."
+                                    }
+                 },
+    "SmallGroupForm":  {
+                           "title_create":  "Add New Small Group",
+                           "title_edit":  "Edit Small Group",
+                           "desc_create":  "Fill in the details for the new small group in site ID: {siteId}.",
+                           "desc_edit":  "Update details for {name}.",
+                           "name_label":  "Small Group Name",
+                           "name_placeholder":  "e.g., Campus Alpha Group",
+                           "day_label":  "Meeting Day (Optional)",
+                           "day_placeholder":  "e.g., Wednesday",
+                           "time_label":  "Meeting Time (Optional)",
+                           "time_placeholder":  "e.g., 7:00 PM",
+                           "location_label":  "Meeting Location (Optional)",
+                           "location_placeholder":  "e.g., Room 101, Main Hall",
+                           "leader_label":  "Small Group Leader (Optional)",
+                           "logistics_label":  "Logistics Assistant (Optional)",
+                           "finance_label":  "Finance Assistant (Optional)",
+                           "leader_placeholder":  "Select Leader",
+                           "loading":  "Loading...",
+                           "none_unassigned":  "None (Unassigned)",
+                           "select_logistics":  "Select Logistics Assistant",
+                           "select_finance":  "Select Finance Assistant",
+                           "help_text":  "Leaders and assistants can be chosen from unassigned Small Group Leaders, the Site Coordinator of this site, or National Coordinators. Ensure gender considerations for assistants if applicable.",
+                           "save":  "Save Changes",
+                           "add":  "Add Small Group",
+                           "saving":  "Saving...",
+                           "validation":  {
+                                              "name_min":  "Small group name must be at least 3 characters."
+                                          }
+                       },
+    "Reports":  {
+                    "title":  "Reports",
+                    "description":  "Please choose an action:",
+                    "view_title":  "View Reports",
+                    "view_desc":  "View existing reports.",
+                    "submit_title":  "Submit Report",
+                    "submit_desc":  "Create and submit a new report.",
+                    "submit_page_title":  "Submit New Report",
+                    "submit_page_desc":  "Document activities and outcomes for national, site, or small group levels.",
+                    "permission_denied":  "You do not have permission to submit reports.",
+                    "form":  {
+                                 "title":  "Submit Activity Report",
+                                 "description":  "Select a planned activity to pre-fill the form, then complete and submit your report.",
+                                 "select_activity":  "Select a Planned Activity",
+                                 "choose_activity":  "Choose an activity...",
+                                 "no_activities":  "No planned activities found",
+                                 "report_title":  "Report Title",
+                                 "title_placeholder":  "e.g., Weekly Mentorship Session",
+                                 "activity_date":  "Activity Date",
+                                 "pick_date":  "Pick a date",
+                                 "thematic":  "Thematic",
+                                 "thematic_placeholder":  "e.g., Leadership",
+                                 "activity_type":  "Activity Type",
+                                 "select_type":  "Select a type",
+                                 "speaker":  "Speaker (Optional)",
+                                 "speaker_placeholder":  "e.g., John Doe",
+                                 "moderator":  "Moderator (Optional)",
+                                 "moderator_placeholder":  "e.g., Jane Smith",
+                                 "attendance":  "Attendance",
+                                 "girls":  "Girls",
+                                 "boys":  "Boys",
+                                 "content":  "Description / Content",
+                                 "content_placeholder":  "Detailed description of the activity...",
+                                 "financial_summary":  "Financial Summary (Optional)",
+                                 "financial_placeholder":  "Brief summary of finances...",
+                                 "images":  "Images (Optional)",
+                                 "upload_files":  "Upload files",
+                                 "drag_drop":  "or drag and drop",
+                                 "file_types":  "PNG, JPG, GIF up to 10MB",
+                                 "submit":  "Submit Report",
+                                 "submitting":  "Submitting...",
+                                 "success":  "Success!",
+                                 "success_desc":  "Report submitted successfully.",
+                                 "error_title":  "Submission Failed",
+                                 "error_load":  "Could not load necessary data. Please try again later.",
+                                 "error_user":  "User data is missing.",
+                                 "validation":  {
+                                                    "activity_required":  "A planned activity must be selected.",
+                                                    "title_min":  "Title must be at least 5 characters long.",
+                                                    "type_required":  "Activity type is required.",
+                                                    "thematic_required":  "Thematic is required.",
+                                                    "content_min":  "Content must be at least 20 characters long.",
+                                                    "site_required":  "Site is required for site or small group level reports.",
+                                                    "group_required":  "Small group is required for small group level reports."
+                                                }
+                             }
+                },
+    "Finances":  {
+                     "dashboard_title":  "Finances Dashboard",
+                     "current_balance":  "Current Balance",
+                     "funds_received":  "Funds Received",
+                     "reported_expenses":  "Reported Expenses",
+                     "reallocated_funds":  "Reallocated Funds",
+                     "desc_balance":  "Funds received - (Expenses + Reallocations)",
+                     "desc_received":  "Total funds allocated to this entity",
+                     "desc_expenses":  "Total expenses recorded",
+                     "desc_reallocated":  "Total funds transferred to other entities",
+                     "recent_allocations":  "Recent Allocations",
+                     "no_allocations":  "No allocations have been recorded for this entity yet.",
+                     "recent_transactions":  "Recent Transactions",
+                     "recent_transactions_desc":  "The 5 most recent financial movements.",
+                     "view_all_transactions":  "View All Transactions",
+                     "no_transactions":  "No recent transactions found.",
+                     "error_load":  "Error loading data",
+                     "error_desc":  "We could not retrieve financial statistics.",
+                     "retry":  "Retry"
+                 },
+    "Onboarding":  {
+                       "title":  "Getting Started",
+                       "subtitle":  "Complete these steps to get started with AYLF",
+                       "progress":  "Progress",
+                       "tasks_completed":  "{count} of {total} tasks completed",
+                       "encouragement":  "ðŸ‘ Good job! Keep going to master AYLF",
+                       "tasks":  {
+                                     "profile":  {
+                                                     "label":  "Complete your profile",
+                                                     "desc":  "Add your personal information"
+                                                 },
+                                     "site":  {
+                                                  "label":  "Create your first site",
+                                                  "desc":  "A site groups multiple small groups"
+                                              },
+                                     "invite":  {
+                                                    "label":  "Invite a coordinator",
+                                                    "desc":  "Invite site coordinators"
+                                                },
+                                     "activity_national":  {
+                                                               "label":  "Plan an activity",
+                                                               "desc":  "Create your first national activity"
+                                                           },
+                                     "group":  {
+                                                   "label":  "Create a small group",
+                                                   "desc":  ""
+                                               },
+                                     "members":  {
+                                                     "label":  "Add members",
+                                                     "desc":  ""
+                                                 },
+                                     "activity_site":  {
+                                                           "label":  "Plan a site activity",
+                                                           "desc":  ""
+                                                       },
+                                     "members_view":  {
+                                                          "label":  "View group members",
+                                                          "desc":  ""
+                                                      },
+                                     "activity_group":  {
+                                                            "label":  "Plan your first activity",
+                                                            "desc":  ""
+                                                        },
+                                     "report":  {
+                                                    "label":  "Submit an activity report",
+                                                    "desc":  ""
+                                                },
+                                     "activities_view":  {
+                                                             "label":  "View upcoming activities",
+                                                             "desc":  ""
+                                                         }
+                                 }
+                   },
+    "Profile":  {
+                    "title":  "My Profile",
+                    "subtitle":  "View and update your personal information.",
+                    "personal_info":  "Personal Information",
+                    "update_desc":  "Update your profile information.",
+                    "view_desc":  "View your profile details.",
+                    "full_name":  "Full Name",
+                    "email":  "Email Address",
+                    "role":  "Role",
+                    "assignment":  "Assignment",
+                    "mandate_start":  "Mandate Start Date",
+                    "mandate_end":  "Mandate End Date",
+                    "pick_date":  "Pick a date",
+                    "pick_date_optional":  "Pick a date (Optional)",
+                    "save_changes":  "Save Changes",
+                    "saving":  "Saving...",
+                    "profile_updated":  "Profile Updated",
+                    "update_success":  "Your profile information has been successfully updated.",
+                    "update_failed":  "Update Failed",
+                    "fail_desc":  "Could not update profile. Please try again.",
+                    "unknown_site":  "Unknown Site",
+                    "unknown_group":  "Unknown Small Group",
+                    "name_error":  "Name must be at least 3 characters.",
+                    "email_error":  "Invalid email address.",
+                    "mandate_error":  "Mandate end date cannot be before start date."
+                },
+    "Users":  {
+                  "title":  "Users",
+                  "invite_user":  "Invite User",
+                  "search_placeholder":  "Search users...",
+                  "table":  {
+                                "name":  "Name",
+                                "email":  "Email",
+                                "role":  "Role",
+                                "site_group":  "Site / Group",
+                                "status":  "Status",
+                                "actions":  "Actions",
+                                "no_users":  "No users found."
+                            },
+                  "actions":  {
+                                  "edit":  "Edit",
+                                  "deactivate":  "Deactivate",
+                                  "delete":  "Delete User"
+                              },
+                  "delete_dialog":  {
+                                        "title":  "Are you absolutely sure?",
+                                        "description":  "This action will permanently delete user {name}. This action cannot be undone.",
+                                        "cancel":  "Cancel",
+                                        "confirm":  "Delete User",
+                                        "deleting":  "Deleting..."
+                                    },
+                  "forms":  {
+                                "add_new":  "Add New User",
+                                "edit_user":  "Edit User",
+                                "fill_details":  "Fill in the details for the new user.",
+                                "update_details":  "Update details for {name}.",
+                                "send_invitation":  "Send Invitation",
+                                "sending":  "Sending Invitation...",
+                                "role_label":  "Role",
+                                "select_role":  "Select a role",
+                                "site_label":  "Assigned Site",
+                                "select_site":  "Select a site",
+                                "group_label":  "Assigned Small Group",
+                                "select_group":  "Select a small group",
+                                "status_label":  "Status",
+                                "select_status":  "Select status",
+                                "success_invite":  "Invitation created successfully!",
+                                "success_invite_desc":  "User created in Kinde. Send them the link below.",
+                                "copy_link":  "Link copied!",
+                                "invite_another":  "Invite another user",
+                                "back_list":  "Back to list",
+                                "email_label":  "Email",
+                                "name_label":  "Name",
+                                "updating":  "Updating...",
+                                "update_user":  "Update User",
+                                "success_update":  "User updated successfully",
+                                "conflict_title":  "Existing Coordinator Detected",
+                                "conflict_desc":  "If you confirm, the current coordinator\u0027s mandate will be ended.",
+                                "yes_replace":  "Yes, replace"
+                            }
+              },
+    "Roles":  {
+                  "national_coordinator":  "National Coordinator",
+                  "site_coordinator":  "Site Coordinator",
+                  "small_group_leader":  "Small Group Leader",
+                  "member":  "Member"
+              },
+    "Notifications":  {
+                          "title":  "Notifications",
+                          "mark_all_read":  "Mark all as read",
+                          "mark_read":  "Mark as read",
+                          "empty":  "No notifications",
+                          "delete":  "Delete",
+                          "error_fetch":  "Failed to fetch notifications",
+                          "error_read":  "Failed to mark as read",
+                          "error_all_read":  "Failed to mark all as read",
+                          "error_delete":  "Failed to delete notification"
+                      },
+    "Analytics":  {
+                      "title":  "Advanced Analytics",
+                      "loading":  "Loading analytics...",
+                      "no_data":  "No data available",
+                      "time_ranges":  {
+                                          "6_months":  "Last 6 Months",
+                                          "12_months":  "Last 12 Months",
+                                          "3_years":  "Last 3 Years"
+                                      },
+                      "metrics":  {
+                                      "active_members":  "Active Members",
+                                      "ongoing_activities":  "Ongoing Activities",
+                                      "pending_reports":  "Pending Reports",
+                                      "budget_utilization":  "Budget Utilization"
+                                  },
+                      "trends":  {
+                                     "up":  "Trending Up",
+                                     "down":  "Trending Down",
+                                     "member_growth":  "Member Growth",
+                                     "member_growth_desc":  "Evolution of member count over time",
+                                     "activity_completion":  "Completed Activities",
+                                     "activity_completion_desc":  "Number of executed activities per month",
+                                     "budget_forecast":  "Budget Forecast",
+                                     "budget_forecast_desc":  "Future expense projection based on average"
+                                 },
+                      "comparisons":  {
+                                          "site_performance":  "Performance by Site",
+                                          "site_performance_desc":  "Activity completion rates",
+                                          "activity_types":  "Activity Types",
+                                          "activity_types_desc":  "Distribution by type",
+                                          "completion_rate":  "% Completion"
+                                      },
+                      "chart_labels":  {
+                                           "members":  "Members",
+                                           "completed":  "Completed",
+                                           "forecasted_expenses":  "Forecasted Expenses (FC)"
+                                       }
+                  },
+    "Certificates":  {
+                         "title":  "Certificate Management",
+                         "description":  "View and manage generated certificates",
+                         "generate":  "Generate Certificate",
+                         "list_title":  "Certificates List",
+                         "no_certificates":  "No certificates found",
+                         "table":  {
+                                       "coordinator":  "Coordinator",
+                                       "role":  "Role",
+                                       "entity":  "Entity",
+                                       "generated_at":  "Generated",
+                                       "actions":  "Actions"
+                                   },
+                         "actions":  {
+                                         "view":  "View PDF",
+                                         "download":  "Download",
+                                         "regenerate":  "Regenerate"
+                                     }
+                     },
+    "Invitations":  {
+                        "title":  "Invitations",
+                        "description":  "Manage pending user invitations. Users will appear in the Users list once they accept their invitation and log in.",
+                        "no_invitations":  "No pending invitations",
+                        "table":  {
+                                      "email":  "Email",
+                                      "name":  "Name",
+                                      "role":  "Role",
+                                      "site":  "Site",
+                                      "group":  "Small Group",
+                                      "status":  "Status",
+                                      "created_at":  "Created",
+                                      "actions":  "Actions"
+                                  },
+                        "status":  {
+                                       "pending":  "Pending",
+                                       "accepted":  "Accepted",
+                                       "expired":  "Expired"
+                                   },
+                        "actions":  {
+                                        "resend":  "Resend",
+                                        "cancel":  "Cancel",
+                                        "delete":  "Delete"
+                                    }
+                    },
+    "History":  {
+                    "title":  "Coordinator History",
+                    "description":  "Track the history of coordinators across sites and small groups",
+                    "no_history":  "No coordinator history found",
+                    "table":  {
+                                  "coordinator":  "Coordinator",
+                                  "role":  "Role",
+                                  "entity":  "Entity",
+                                  "start_date":  "Start Date",
+                                  "end_date":  "End Date",
+                                  "duration":  "Duration",
+                                  "status":  "Status"
+                              },
+                    "status":  {
+                                   "active":  "Active",
+                                   "ended":  "Ended"
+                               },
+                    "filters":  {
+                                    "all":  "All",
+                                    "active_only":  "Active Only",
+                                    "ended_only":  "Ended Only"
+                                }
+                },
+    "AuditLogs":  {
+                      "title":  "Audit Logs",
+                      "description":  "System activity and change logs",
+                      "no_logs":  "No audit logs found",
+                      "table":  {
+                                    "timestamp":  "Timestamp",
+                                    "user":  "User",
+                                    "action":  "Action",
+                                    "entity":  "Entity",
+                                    "details":  "Details"
+                                },
+                      "actions":  {
+                                      "create":  "Created",
+                                      "update":  "Updated",
+                                      "delete":  "Deleted",
+                                      "login":  "Logged In",
+                                      "logout":  "Logged Out"
+                                  },
+                      "filters":  {
+                                      "all_actions":  "All Actions",
+                                      "time_range":  "Time Range"
+                                  }
+                  }
+}
