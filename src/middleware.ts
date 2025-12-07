@@ -12,7 +12,7 @@ export default function middleware(req: NextRequest) {
 
   // 1. Define public paths (both root and localized)
   // These paths bypass Kinde authentication
-  const publicPathPrefixes = ['/login', '/signup', '/auth', '/api/auth', '/api/webhooks'];
+  const publicPathPrefixes = ['/login', '/signup', '/auth', '/api/auth', '/api/webhooks', '/impact'];
 
   const isPublic =
     pathname === '/' ||

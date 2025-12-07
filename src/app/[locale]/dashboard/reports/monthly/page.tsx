@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { FileText, RefreshCw, Wand2, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { ReportNarrative } from '@/services/monthlyStatsService';
+import { AIAssistantButton } from '@/components/ai/AIAssistantButton';
 import dynamic from 'next/dynamic';
 
 const MonthlyReportDownloader = dynamic(
@@ -135,7 +136,13 @@ export default function MonthlyReportPage() {
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="space-y-2">
-                                <Label>1. Introduction</Label>
+                                <div className="flex items-center justify-between">
+                                    <Label>1. Introduction</Label>
+                                    <AIAssistantButton
+                                        textToImprove={narrative.intro}
+                                        onApply={(val) => updateNarrative('intro', val)}
+                                    />
+                                </div>
                                 <Textarea
                                     value={narrative.intro}
                                     onChange={(e) => updateNarrative('intro', e.target.value)}
@@ -171,7 +178,13 @@ export default function MonthlyReportPage() {
                             </div>
 
                             <div className="space-y-2">
-                                <Label>5. Conclusion</Label>
+                                <div className="flex items-center justify-between">
+                                    <Label>5. Conclusion</Label>
+                                    <AIAssistantButton
+                                        textToImprove={narrative.conclusion}
+                                        onApply={(val) => updateNarrative('conclusion', val)}
+                                    />
+                                </div>
                                 <Textarea
                                     value={narrative.conclusion}
                                     onChange={(e) => updateNarrative('conclusion', e.target.value)}

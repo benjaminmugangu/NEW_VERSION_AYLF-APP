@@ -22,6 +22,7 @@ import { useToast } from '@/components/ui/use-toast';
 import * as reportService from '@/services/reportService';
 import dynamic from 'next/dynamic';
 import { Loader2 } from 'lucide-react';
+import DOMPurify from 'isomorphic-dompurify';
 
 const ActivityReportDownloader = dynamic(
   () => import('@/components/pdf/ActivityReportDownloader'),
@@ -261,7 +262,7 @@ export default function ViewReportsClient({ initialReports, user }: ViewReportsC
 
                 <div>
                   <h4 className="font-semibold text-lg mb-2">Report Content</h4>
-                  <div className="prose prose-sm max-w-none p-3 border rounded-md bg-muted/50" dangerouslySetInnerHTML={{ __html: selectedReport.content || "<p>No content provided.</p>" }} />
+                  <div className="prose prose-sm max-w-none p-3 border rounded-md bg-muted/50" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(selectedReport.content || "<p>No content provided.</p>") }} />
                 </div>
 
                 {selectedReport.images && selectedReport.images.length > 0 && (
