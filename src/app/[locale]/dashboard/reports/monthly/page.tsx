@@ -11,6 +11,8 @@ import { Label } from '@/components/ui/label';
 import { FileText, RefreshCw, Wand2, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { ReportNarrative } from '@/services/monthlyStatsService';
+import { DateRangeFilter, DateFilterValue, getDateRangeFromFilterValue } from '@/components/shared/DateRangeFilter';
+import { format } from 'date-fns';
 import { AIAssistantButton } from '@/components/ai/AIAssistantButton';
 import dynamic from 'next/dynamic';
 
@@ -22,38 +24,45 @@ const MonthlyReportDownloader = dynamic(
     }
 );
 
-const MONTHS = [
-    { value: 1, label: 'Janvier' },
-    { value: 2, label: 'Février' },
-    { value: 3, label: 'Mars' },
-    { value: 4, label: 'Avril' },
-    { value: 5, label: 'Mai' },
-    { value: 6, label: 'Juin' },
-    { value: 7, label: 'Juillet' },
-    { value: 8, label: 'Août' },
-    { value: 9, label: 'Septembre' },
-    { value: 10, label: 'Octobre' },
-    { value: 11, label: 'Novembre' },
-    { value: 12, label: 'Décembre' },
-];
+
 
 export default function MonthlyReportPage() {
     const { toast } = useToast();
-    const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1); // Default to current (or previous?)
-    const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+
+    // Date Filter State
+    const [dateFilter, setDateFilter] = useState<DateFilterValue>({
+        rangeKey: 'this_month',
+        display: 'This Month'
+    });
+
     const [loading, setLoading] = useState(false);
 
     // Editable State
     const [narrative, setNarrative] = useState<ReportNarrative | null>(null);
+    // Stats state needed for PDF
+    const [stats, setStats] = useState<any>(null);
 
     const handleGenerate = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/reports/monthly?month=${selectedMonth}&year=${selectedYear}`);
+            let query = '';
+            const range = getDateRangeFromFilterValue(dateFilter);
+
+            if (range?.from && range?.to) {
+                query = `?from=${range.from.toISOString()}&to=${range.to.toISOString()}`;
+            } else {
+                // Fallback defaults
+                const now = new Date();
+                query = `?month=${now.getMonth() + 1}&year=${now.getFullYear()}`;
+            }
+
+            const res = await fetch(`/api/reports/monthly${query}`);
             if (!res.ok) throw new Error('Erreur lors de la génération');
 
             const data = await res.json();
             setNarrative(data.narrative);
+            setStats(data.stats);
+
             toast({ title: 'Rapport généré', description: 'Vous pouvez maintenant éditer le contenu avant le téléchargement.' });
         } catch (error) {
             toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de générer le rapport.' });
@@ -98,26 +107,17 @@ export default function MonthlyReportPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Sélection de la Période</CardTitle>
-                    <CardDescription>Choisissez le mois pour lequel générer le rapport.</CardDescription>
+                    <CardDescription>Choisissez la période pour laquelle générer le rapport.</CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col sm:flex-row gap-4 items-end">
-                    <div className="space-y-2 flex-1">
-                        <Label>Mois</Label>
-                        <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(parseInt(v))}>
-                            <SelectTrigger>
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {MONTHS.map(m => (
-                                    <SelectItem key={m.value} value={m.value.toString()}>{m.label}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                    <div className="flex-1 w-full">
+                        <Label className="mb-2 block">Période</Label>
+                        <DateRangeFilter
+                            onFilterChange={setDateFilter}
+                            initialRangeKey="this_month"
+                        />
                     </div>
-                    <div className="space-y-2 w-32">
-                        <Label>Année</Label>
-                        <Input type="number" value={selectedYear} onChange={(e) => setSelectedYear(parseInt(e.target.value))} />
-                    </div>
+
                     <Button onClick={handleGenerate} disabled={loading} className="min-w-[150px]">
                         {loading ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
                         {loading ? 'Génération...' : 'Générer Brouillon'}
@@ -218,8 +218,9 @@ export default function MonthlyReportPage() {
 
                                 <MonthlyReportDownloader
                                     narrative={narrative}
-                                    period={`${MONTHS.find(m => m.value === selectedMonth)?.label} ${selectedYear}`}
-                                    fileName={`Rapport_Mensuel_AYLF_${selectedMonth}_${selectedYear}.pdf`}
+                                    stats={stats}
+                                    period={stats?.period?.label || dateFilter.display || 'Période Personnalisée'}
+                                    fileName={`Rapport_${(stats?.period?.label || 'export').replace(/[^a-z0-9]/gi, '_')}.pdf`}
                                     label="Télécharger le Rapport Officiel (PDF)"
                                 />
                             </CardContent>

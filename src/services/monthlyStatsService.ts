@@ -1,8 +1,15 @@
 import { prisma } from '@/lib/prisma';
-import { ActivityLevel } from '@prisma/client';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
-export interface MonthlyStats {
-  period: { month: number; year: number; monthName: string };
+export interface BasePeriod {
+  start: Date;
+  end: Date;
+  label: string;
+}
+
+export interface PeriodStats {
+  period: BasePeriod;
   totalActivities: number;
   activitiesByType: Record<string, number>;
   specialActivities: Array<{ title: string; type: string; siteName: string; date: Date }>;
@@ -16,24 +23,29 @@ export interface MonthlyStats {
   activeSites: string[];
 }
 
-const MONTH_NAMES = [
-  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
-];
+export async function getActivityStatsInPeriod(start: Date, end: Date, label?: string): Promise<PeriodStats> {
+  // Ensure we cover the full day for the end date if it's at 00:00:00
+  // Actually, better to assume the caller provides correct boundaries, 
+  // but if end is same as start (single day) or user picked a day, usually we want end of that day.
+  // Let's force end of day for the end date if needed, or assume 'end' is inclusive 23:59:59.
+  // Best practice: The Service takes exact dates. The Controller/UI handles "End of Day".
+  // However, specifically for generic usage:
+  const queryStart = new Date(start);
+  const queryEnd = new Date(end);
 
-export async function getMonthlyActivitySummary(month: number, year: number): Promise<MonthlyStats> {
-  // 1. Calculate Date Range
-  const startDate = new Date(year, month - 1, 1);
-  const endDate = new Date(year, month, 0, 23, 59, 59); // Last day of month
+  // If end doesn't have time set (00:00:00), set it to 23:59:59
+  if (queryEnd.getHours() === 0 && queryEnd.getMinutes() === 0) {
+    queryEnd.setHours(23, 59, 59, 999);
+  }
 
-  // 2. Fetch Activities in Range
+  // Fetch Activities
   const activities = await prisma.activity.findMany({
     where: {
       date: {
-        gte: startDate,
-        lte: endDate,
+        gte: queryStart,
+        lte: queryEnd,
       },
-      status: { not: 'canceled' } // Exclude canceled
+      status: { not: 'canceled' }
     },
     include: {
       activityType: true,
@@ -48,9 +60,11 @@ export async function getMonthlyActivitySummary(month: number, year: number): Pr
     }
   });
 
-  // 3. Aggregate Data
-  const stats: MonthlyStats = {
-    period: { month, year, monthName: MONTH_NAMES[month - 1] },
+  // Aggregate Data
+  const periodLabel = label || `Période du ${format(queryStart, 'dd/MM/yyyy')} au ${format(queryEnd, 'dd/MM/yyyy')}`;
+
+  const stats: PeriodStats = {
+    period: { start: queryStart, end: queryEnd, label: periodLabel },
     totalActivities: activities.length,
     activitiesByType: {},
     specialActivities: [],
@@ -61,45 +75,32 @@ export async function getMonthlyActivitySummary(month: number, year: number): Pr
   const siteSet = new Set<string>();
 
   for (const activity of activities) {
-    // Counts by Type
     const typeName = activity.activityType?.name || 'Autre';
     stats.activitiesByType[typeName] = (stats.activitiesByType[typeName] || 0) + 1;
 
-    // Active Sites
     if (activity.site?.name) {
       siteSet.add(activity.site.name);
     }
 
-    // Participation Stats (from linked reports if available, or estimated from activity)
-    // Note: Reports give verified numbers. If multiple reports for one activity, sum them? 
-    // Usually 1 report per activity.
     let actParticipants = 0;
     let actGirls = 0;
     let actBoys = 0;
 
     if (activity.reports && activity.reports.length > 0) {
-      // Take the most recent approved or submitted report numbers
-      const report = activity.reports[0]; // Simplified: take first
+      const report = activity.reports[0];
       actParticipants = report.participantsCountReported || 0;
       actGirls = report.girlsCount || 0;
       actBoys = report.boysCount || 0;
     } else {
-      // Fallback to planned count if no report? NO, reports confirm attendance. 
-      // For "Realized Activities" report, maybe only count those with reports?
-      // The user prompt says "Bilan des activités... réalisées", implies they happened.
-      // We keep activity count based on Activity table, but stats from Reports.
-      actParticipants = activity.participantsCountPlanned || 0; // Fallback or 0
+      actParticipants = activity.participantsCountPlanned || 0;
     }
 
     stats.participation.total += actParticipants;
     stats.participation.girls += actGirls;
     stats.participation.boys += actBoys;
-    // Assuming boys/girls maps to Men/Women contextually or just tracked as such
     stats.participation.women += actGirls;
     stats.participation.men += actBoys;
 
-    // Special Activities Detection for Narrative
-    // Heuristic: specific keywords or types that are "special"
     const lowerTitle = activity.title.toLowerCase();
     const lowerType = typeName.toLowerCase();
 
@@ -120,8 +121,18 @@ export async function getMonthlyActivitySummary(month: number, year: number): Pr
   }
 
   stats.activeSites = Array.from(siteSet).sort();
-
   return stats;
+}
+
+// Backward compatibility wrapper
+export async function getMonthlyActivitySummary(month: number, year: number) {
+  const startDate = new Date(year, month - 1, 1);
+  const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+  const label = `${format(startDate, 'MMMM yyyy', { locale: fr })}`;
+  // capitalize month
+  const capLabel = label.charAt(0).toUpperCase() + label.slice(1);
+
+  return await getActivityStatsInPeriod(startDate, endDate, capLabel);
 }
 
 export interface ReportNarrative {
@@ -132,32 +143,29 @@ export interface ReportNarrative {
   conclusion: string;
 }
 
-export function generateNarrative(stats: MonthlyStats): ReportNarrative {
-  const { monthName, year } = stats.period;
+export function generateNarrative(stats: PeriodStats): ReportNarrative {
+  const { label } = stats.period;
 
   // 1. Introduction
   const intro = `Chers Coordonnateurs,
 
-Nous tenons à vous adresser nos salutations les plus cordiales en ce mois de ${monthName} ${year} et espérons que vous vous portez bien.
+Nous tenons à vous adresser nos salutations les plus cordiales et espérons que vous vous portez bien.
 
-Nous souhaitons exprimer notre sincère gratitude pour votre engagement constant et votre présence active sur le terrain. Grâce à vos efforts dévoués, le mois de ${monthName} s'est achevé sur une dynamique particulièrement encourageante à travers l'ensemble de nos sites.`;
+Nous souhaitons exprimer notre sincère gratitude pour votre engagement constant et votre présence active sur le terrain. Grâce à vos efforts dévoués, la période "${label}" s'est achevée sur une dynamique particulièrement encourageante à travers l'ensemble de nos sites.`;
 
   // 2. General Summary Bullets
   const bullets: string[] = [];
 
   if (stats.totalActivities === 0) {
-    bullets.push(`Aucune activité n’a été enregistrée pour ce mois.`);
+    bullets.push(`Aucune activité n’a été enregistrée pour cette période.`);
   } else {
-    bullets.push(`Durant le mois de ${monthName} ${year}, un total de ${stats.totalActivities} activités a été mené sur l’ensemble du territoire, témoignant de la diversité et de l’impact croissant de notre travail.`);
+    bullets.push(`Durant cette période (${label}), un total de ${stats.totalActivities} activités a été mené sur l’ensemble du territoire, témoignant de la diversité et de l’impact croissant de notre travail.`);
 
-    // Type breakdown
     Object.entries(stats.activitiesByType).forEach(([type, count]) => {
       bullets.push(`${count} ${type} ont été organisées.`);
     });
 
-    // Special activities narrative
     if (stats.specialActivities.length > 0) {
-      // Group special activities by type to avoid listing every single one individually if too many
       const specialByType: Record<string, string[]> = {};
       stats.specialActivities.forEach(act => {
         if (!specialByType[act.type]) specialByType[act.type] = [];
@@ -176,7 +184,7 @@ Nous souhaitons exprimer notre sincère gratitude pour votre engagement constant
   if (stats.participation.total === 0) {
     participation = "Aucune participation enregistrée pour cette période.";
   } else {
-    participation = `Les activités du mois de ${monthName} ont mobilisé un total de ${stats.participation.total} participants, répartis comme suit :
+    participation = `Les activités de la période ont mobilisé un total de ${stats.participation.total} participants, répartis comme suit :
 * ${stats.participation.men} hommes
 * ${stats.participation.women} femmes`;
   }
@@ -184,7 +192,7 @@ Nous souhaitons exprimer notre sincère gratitude pour votre engagement constant
   // 4. Active Sites Narrative
   let activeSites = "";
   if (stats.activeSites.length === 0) {
-    activeSites = "Aucun site actif ce mois-ci.";
+    activeSites = "Aucun site actif sur cette période.";
   } else {
     activeSites = `Ces initiatives ont été organisées avec succès dans les sites suivants :
 ${stats.activeSites.map(s => `* ${s}`).join('\n')}`;

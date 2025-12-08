@@ -1,18 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getMonthlyActivitySummary, generateNarrative } from '@/services/monthlyStatsService';
+import { getMonthlyActivitySummary, getActivityStatsInPeriod, generateNarrative } from '@/services/monthlyStatsService';
 
 export async function GET(req: NextRequest) {
     try {
         const { searchParams } = new URL(req.url);
-        const month = parseInt(searchParams.get('month') || '');
-        const year = parseInt(searchParams.get('year') || '');
+        const month = searchParams.get('month');
+        const year = searchParams.get('year');
+        const from = searchParams.get('from');
+        const to = searchParams.get('to');
 
-        if (isNaN(month) || isNaN(year)) {
-            return NextResponse.json({ error: 'Month and Year required' }, { status: 400 });
+        let stats;
+
+        // Mode 1: Dynamic Date Range
+        if (from && to) {
+            const startDate = new Date(from);
+            const endDate = new Date(to);
+            if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+                return NextResponse.json({ error: 'Invalid date format' }, { status: 400 });
+            }
+            stats = await getActivityStatsInPeriod(startDate, endDate);
         }
-
-        // 1. Get raw stats
-        const stats = await getMonthlyActivitySummary(month, year);
+        // Mode 2: Legacy Monthly Reports
+        else if (month && year) {
+            const m = parseInt(month);
+            const y = parseInt(year);
+            if (isNaN(m) || isNaN(y)) {
+                return NextResponse.json({ error: 'Month and Year required' }, { status: 400 });
+            }
+            stats = await getMonthlyActivitySummary(m, y);
+        }
+        else {
+            return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
+        }
 
         // 2. Generate narrative draft
         const narrative = generateNarrative(stats);
