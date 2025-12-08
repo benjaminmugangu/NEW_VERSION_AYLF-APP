@@ -48,8 +48,8 @@ export default function MonthlyReportPage() {
             let query = '';
             const range = getDateRangeFromFilterValue(dateFilter);
 
-            if (range?.from && range?.to) {
-                query = `?from=${range.from.toISOString()}&to=${range.to.toISOString()}`;
+            if (range?.startDate && range?.endDate) {
+                query = `?from=${range.startDate.toISOString()}&to=${range.endDate.toISOString()}`;
             } else {
                 // Fallback defaults
                 const now = new Date();

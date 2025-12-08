@@ -33,16 +33,29 @@ const styles = StyleSheet.create({
 
 interface MonthlyReportPdfProps {
     narrative: ReportNarrative;
-    period: string; // e.g. "Juillet 2025"
+    period: string;
+    stats?: any; // Optional for now, but good to have for data display
 }
 
-export const MonthlyReportPDF = ({ narrative, period }: MonthlyReportPdfProps) => {
+export const MonthlyReportPDF = ({ narrative, period, stats }: MonthlyReportPdfProps) => {
     return (
         <PdfLayout title={`RAPPORT MENSUEL – AYLF RDC`} generatedBy="Système Central">
 
-            <Text style={{ fontSize: 13, textAlign: 'center', marginBottom: 20, fontWeight: 'bold' }}>
+            <Text style={{ fontSize: 13, textAlign: 'center', marginBottom: 10, fontWeight: 'bold' }}>
                 Période couverte : {period}
             </Text>
+
+            {/* Stats Summary Box (New) */}
+            {stats && (
+                <View style={{ marginVertical: 10, padding: 10, backgroundColor: '#f0f0f0', borderRadius: 4 }}>
+                    <Text style={{ fontSize: 10, fontWeight: 'bold', marginBottom: 4 }}>CHIFFRES CLÉS :</Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                        <Text style={{ fontSize: 10 }}>Activités: {stats.totalActivities}</Text>
+                        <Text style={{ fontSize: 10 }}>Participants: {stats.participation?.total || 0}</Text>
+                        <Text style={{ fontSize: 10 }}>Sites Actifs: {stats.activeSites?.length || 0}</Text>
+                    </View>
+                </View>
+            )}
 
             {/* 1. Introduction */}
             <View style={styles.section}>

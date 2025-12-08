@@ -11,17 +11,19 @@ import { MonthlyReportPDF } from './MonthlyReportPDF';
 
 interface MonthlyReportDownloaderProps {
     narrative: ReportNarrative;
+    stats: any; // Using any for now to avoid circular dependency or type import issues, or import MonthlyStats
     period: string;
     fileName: string;
     label?: string;
 }
 
-export default function MonthlyReportDownloader({ narrative, period, fileName, label }: MonthlyReportDownloaderProps) {
+export default function MonthlyReportDownloader({ narrative, stats, period, fileName, label }: MonthlyReportDownloaderProps) {
     return (
         <PDFDownloadButton
             document={
                 <MonthlyReportPDF
                     narrative={narrative}
+                    stats={stats}
                     period={period}
                 />
             }
