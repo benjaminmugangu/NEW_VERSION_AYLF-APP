@@ -8,7 +8,8 @@ import type { User } from '@/lib/types';
 import {
   Sidebar, SidebarHeader, SidebarContent, SidebarFooter,
   SidebarMenu, SidebarMenuItem, SidebarMenuButton,
-  SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton
+  SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
+  SidebarMenuBadge // Import Badge
 } from '@/components/ui/sidebar';
 import { LogOut, ChevronDown, ChevronUp } from 'lucide-react';
 import Image from 'next/image';
@@ -68,6 +69,8 @@ export function DashboardSidebar({ user }: DashboardSidebarProps) {
                   <span>{label}</span>
                 </span>
                 {isSubmenuOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                {/* Render Badge if exists */}
+                {item.badge && <SidebarMenuBadge>{item.badge}</SidebarMenuBadge>}
               </SidebarMenuButton>
               {isSubmenuOpen && (
                 <SidebarMenuSub>
@@ -86,10 +89,12 @@ export function DashboardSidebar({ user }: DashboardSidebarProps) {
 
         return (
           <SidebarMenuItem key={item.label}>
-            <SidebarMenuButton asChild isActive={isActive} data-tour={item.dataTour}>
+            <SidebarMenuButton asChild isActive={isActive} data-tour={item.dataTour} className="relative">
               <Link href={item.href}>
                 <Icon className="h-5 w-5" />
                 <span>{label}</span>
+                {/* Render Badge if exists */}
+                {item.badge && <SidebarMenuBadge>{item.badge}</SidebarMenuBadge>}
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

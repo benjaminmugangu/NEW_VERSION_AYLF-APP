@@ -20,6 +20,7 @@ export const NAVIGATION_LINKS: NavItem[] = [
     label: "Navigation.notifications",
     icon: Bell,
     allowedRoles: [ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER],
+    badge: "3", // Sample badge
   },
   {
     href: "/dashboard/activities",

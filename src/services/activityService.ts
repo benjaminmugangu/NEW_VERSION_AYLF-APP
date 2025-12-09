@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { Activity, ActivityStatus, ActivityType, User, UserRole } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
 import { activityFormSchema, type ActivityFormData } from '@/schemas/activity';
@@ -154,19 +155,64 @@ export const getActivityById = async (id: string): Promise<Activity> => {
 };
 
 export const createActivity = async (activityData: ActivityFormData): Promise<Activity> => {
+  // Security Check: Get current user to enforce RBAC
+  const { getUser } = getKindeServerSession();
+  const user = await getUser();
+
+  if (!user) {
+    throw new Error('Unauthorized: User not authenticated');
+  }
+
+  // Fetch full profile for role and scoped IDs
+  const currentUser = await prisma.profile.findUnique({
+    where: { id: user.id },
+    select: { id: true, role: true, siteId: true, smallGroupId: true }
+  });
+
+  if (!currentUser) {
+    throw new Error('Unauthorized: User profile not found');
+  }
+
+  // Enforce RBAC Overrides
+  const safeData = { ...activityData };
+
+  // createdBy must be the current user
+  safeData.createdBy = currentUser.id;
+
+  if (currentUser.role === ROLES.SITE_COORDINATOR) {
+    // FORCE Site Context
+    if (!currentUser.siteId) throw new Error('Site Coordinator has no site assigned');
+
+    // Strict enforcement: SC can only create SITE level activities for THEIR site
+    safeData.level = 'site';
+    safeData.siteId = currentUser.siteId;
+    safeData.smallGroupId = undefined;
+  }
+  else if (currentUser.role === ROLES.SMALL_GROUP_LEADER) {
+    // FORCE Small Group Context
+    if (!currentUser.smallGroupId) throw new Error('Small Group Leader has no group assigned');
+
+    safeData.level = 'small_group';
+    safeData.smallGroupId = currentUser.smallGroupId;
+    safeData.siteId = currentUser.siteId || undefined;
+  }
+  else if (currentUser.role === ROLES.MEMBER) {
+    throw new Error('Unauthorized: Members cannot create activities');
+  }
+
   const activity = await prisma.activity.create({
     data: {
-      title: activityData.title,
-      thematic: activityData.thematic,
-      date: activityData.date,
-      level: activityData.level,
-      status: activityData.status,
-      siteId: activityData.siteId,
-      smallGroupId: activityData.smallGroupId,
-      activityTypeId: activityData.activityTypeId || '00000000-0000-0000-0000-000000000000',
-      activityTypeEnum: activityData.activityTypeEnum,
-      participantsCountPlanned: activityData.participantsCountPlanned,
-      createdById: activityData.createdBy,
+      title: safeData.title,
+      thematic: safeData.thematic,
+      date: safeData.date,
+      level: safeData.level,
+      status: safeData.status,
+      siteId: safeData.siteId,
+      smallGroupId: safeData.smallGroupId,
+      activityTypeId: safeData.activityTypeId || '00000000-0000-0000-0000-000000000000',
+      activityTypeEnum: safeData.activityTypeEnum,
+      participantsCountPlanned: safeData.participantsCountPlanned,
+      createdById: safeData.createdBy,
     },
     include: {
       site: true,
@@ -179,6 +225,46 @@ export const createActivity = async (activityData: ActivityFormData): Promise<Ac
 };
 
 export const updateActivity = async (id: string, updatedData: Partial<ActivityFormData | { status: ActivityStatus }>): Promise<Activity> => {
+  const { getUser } = getKindeServerSession();
+  const user = await getUser();
+
+  if (!user) throw new Error('Unauthorized');
+
+  const currentUser = await prisma.profile.findUnique({
+    where: { id: user.id },
+    select: { id: true, role: true, siteId: true, smallGroupId: true }
+  });
+
+  if (!currentUser) throw new Error('Unauthorized');
+
+  // Fetch existing activity to verify ownership/access
+  const existingActivity = await prisma.activity.findUnique({
+    where: { id },
+    select: { siteId: true, smallGroupId: true, createdById: true }
+  });
+
+  if (!existingActivity) throw new Error('Activity not found');
+
+  // Permission Check
+  if (currentUser.role !== ROLES.NATIONAL_COORDINATOR) {
+    // Site Coordinator can only update their site's activities
+    if (currentUser.role === ROLES.SITE_COORDINATOR) {
+      if (existingActivity.siteId !== currentUser.siteId) {
+        throw new Error('Forbidden: Cannot update activity from another site');
+      }
+    }
+    // Small Group Leader can only update their group's activities
+    if (currentUser.role === ROLES.SMALL_GROUP_LEADER) {
+      if (existingActivity.smallGroupId !== currentUser.smallGroupId) {
+        throw new Error('Forbidden: Cannot update activity from another group');
+      }
+    }
+    // Members cannot update
+    if (currentUser.role === ROLES.MEMBER) {
+      throw new Error('Forbidden');
+    }
+  }
+
   // Map frontend data to Prisma update object
   const dbUpdates: any = {};
   const data = updatedData as any; // Loose typing to handle both types
@@ -186,14 +272,22 @@ export const updateActivity = async (id: string, updatedData: Partial<ActivityFo
   if (data.title !== undefined) dbUpdates.title = data.title;
   if (data.thematic !== undefined) dbUpdates.thematic = data.thematic;
   if (data.date !== undefined) dbUpdates.date = data.date;
-  if (data.level !== undefined) dbUpdates.level = data.level;
+
+  // Prevent Level/Context hijacking during update
+  if (currentUser.role === ROLES.NATIONAL_COORDINATOR) {
+    if (data.level !== undefined) dbUpdates.level = data.level;
+    if (data.siteId !== undefined) dbUpdates.siteId = data.siteId;
+    if (data.smallGroupId !== undefined) dbUpdates.smallGroupId = data.smallGroupId;
+  }
+  // Others cannot change structural context
+
   if (data.status !== undefined) dbUpdates.status = data.status;
-  if (data.siteId !== undefined) dbUpdates.siteId = data.siteId;
-  if (data.smallGroupId !== undefined) dbUpdates.smallGroupId = data.smallGroupId;
   if (data.activityTypeId !== undefined) dbUpdates.activityTypeId = data.activityTypeId;
   if (data.activityTypeEnum !== undefined) dbUpdates.activityTypeEnum = data.activityTypeEnum;
   if (data.participantsCountPlanned !== undefined) dbUpdates.participantsCountPlanned = data.participantsCountPlanned;
-  if (data.createdBy !== undefined) dbUpdates.createdById = data.createdBy;
+
+  // createdBy cannot be changed
+  // if (data.createdBy !== undefined) dbUpdates.createdById = data.createdBy;
 
   const activity = await prisma.activity.update({
     where: { id },
@@ -214,6 +308,39 @@ export const updateActivity = async (id: string, updatedData: Partial<ActivityFo
 };
 
 export const deleteActivity = async (id: string): Promise<void> => {
+  const { getUser } = getKindeServerSession();
+  const user = await getUser();
+
+  if (!user) throw new Error('Unauthorized');
+
+  const currentUser = await prisma.profile.findUnique({
+    where: { id: user.id },
+    select: { id: true, role: true, siteId: true, smallGroupId: true }
+  });
+
+  if (!currentUser) throw new Error('Unauthorized');
+
+  const activity = await prisma.activity.findUnique({
+    where: { id },
+    select: { siteId: true, smallGroupId: true }
+  });
+
+  if (!activity) throw new Error('Activity not found');
+
+  if (currentUser.role !== ROLES.NATIONAL_COORDINATOR) {
+    if (currentUser.role === ROLES.SITE_COORDINATOR) {
+      if (activity.siteId !== currentUser.siteId) {
+        throw new Error('Forbidden: Cannot delete activity from another site');
+      }
+    } else if (currentUser.role === ROLES.SMALL_GROUP_LEADER) {
+      if (activity.smallGroupId !== currentUser.smallGroupId) {
+        throw new Error('Forbidden: Cannot delete activity from another group');
+      }
+    } else {
+      throw new Error('Forbidden');
+    }
+  }
+
   await prisma.activity.delete({
     where: { id },
   });

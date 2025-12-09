@@ -187,8 +187,17 @@
         "participants_placeholder": "ex: 50",
         "mark_executed": "Marquer comme Exécuté",
         "cancel": "Annuler",
-        "deuil": "Deuil",
-        "other": "Autre"
+        "save": "Enregistrer",
+        "saving": "Enregistrement...",
+        "save_changes": "Enregistrer les modifications",
+        "create_activity": "Créer l'activité",
+        "types": {
+            "small_group_meeting": "Réunion de Petit Groupe",
+            "conference": "Conférence",
+            "apostolat": "Apostolat",
+            "deuil": "Deuil",
+            "other": "Autre"
+        }
     },
     "MemberForm": {
         "title_create": "Ajouter un membre",
@@ -496,7 +505,29 @@
             "success_update": "Utilisateur mis à jour avec succès",
             "conflict_title": "Coordinateur Existant Détecté",
             "conflict_desc": "Si vous confirmez, le mandat du coordinateur actuel sera terminé.",
-            "yes_replace": "Oui, remplacer"
+            "yes_replace": "Oui, remplacer",
+            "forms": {
+                "email_error": "Adresse email invalide",
+                "name_error": "Le nom doit comporter au moins 2 caractères",
+                "success_invite": "Invitation envoyée",
+                "success_invite_desc": "Un email d'invitation a été envoyé à l'utilisateur",
+                "copy_link": "Lien copié dans le presse-papier",
+                "invite_another": "Inviter un autre",
+                "back_list": "Retour à la liste",
+                "email_label": "Email",
+                "name_label": "Nom",
+                "role_label": "Rôle",
+                "select_role": "Sélectionner un rôle",
+                "site_label": "Site",
+                "select_site": "Sélectionner un site",
+                "group_label": "Petit Groupe",
+                "select_group": "Sélectionner un groupe",
+                "sending": "Envoi en cours...",
+                "send_invitation": "Envoyer l'invitation",
+                "conflict_title": "Conflit détecté",
+                "conflict_desc": "Un utilisateur occupe déjà ce poste.",
+                "yes_replace": "Oui, remplacer"
+            }
         }
     },
     "Roles": {

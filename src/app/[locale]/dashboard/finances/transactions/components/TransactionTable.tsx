@@ -101,7 +101,7 @@ export function TransactionTable<TData>({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <div className="rounded-md border">
+      <div className="hidden md:block rounded-md border">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup: HeaderGroup<TData>) => (
@@ -138,6 +138,36 @@ export function TransactionTable<TData>({
             )}
           </TableBody>
         </Table>
+      </div>
+
+      {/* Mobile Card View */}
+      <div className="md:hidden flex flex-col gap-4">
+        {table.getRowModel().rows?.length ? (
+          table.getRowModel().rows.map((row: Row<TData>) => (
+            <div key={row.id} className="rounded-lg border bg-card text-card-foreground shadow-sm p-4 space-y-2">
+              {row.getVisibleCells().map((cell: Cell<TData, unknown>) => {
+                // Skip actions column or selection in standard display if weird, but for now render all.
+                // We might want to render header label next to value.
+                const header = cell.column.columnDef.header;
+                // @ts-ignore
+                const headerTitle = typeof header === 'string' ? header : (header?.title || cell.column.id);
+
+                return (
+                  <div key={cell.id} className="flex flex-col">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
+                      {headerTitle}
+                    </span>
+                    <div className="text-sm">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ))
+        ) : (
+          <div className="text-center p-4 text-muted-foreground">No results.</div>
+        )}
       </div>
       <div className="flex items-center justify-end space-x-2 py-4">
         <div className="flex-1 text-sm text-muted-foreground">

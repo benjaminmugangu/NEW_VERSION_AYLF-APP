@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/utils/supabase/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { MESSAGES } from '@/lib/messages';
 
 // Helper to generate a random password
@@ -36,17 +37,20 @@ const userCreateSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  // Authenticate via Kinde
+  const { getUser } = getKindeServerSession();
+  const user = await getUser();
 
-  if (!session) {
+  if (!user) {
     return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
   }
 
+  // Get user profile from Supabase to check role
+  const supabase = await createClient();
   const { data: profile } = await supabase
     .from('profiles')
     .select('role')
-    .eq('id', session.user.id)
+    .eq('id', user.id)
     .single();
 
   if (profile?.role !== 'national_coordinator') {

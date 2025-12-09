@@ -8,9 +8,12 @@ interface PageHeaderProps {
   actions?: React.ReactNode;
 }
 
+import { Breadcrumbs } from "./Breadcrumbs";
+
 export function PageHeader({ title, description, icon: Icon, actions }: PageHeaderProps) {
   return (
     <div className="mb-6 md:mb-8">
+      <Breadcrumbs />
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex flex-1 min-w-0 items-center gap-3"> {/* Added flex-1 min-w-0 */}
           {Icon && <Icon className="h-8 w-8 text-primary shrink-0" />} {/* Added shrink-0 to prevent icon from shrinking */}

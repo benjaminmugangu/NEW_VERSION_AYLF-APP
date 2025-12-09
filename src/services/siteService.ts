@@ -2,6 +2,8 @@
 
 import { prisma } from '@/lib/prisma';
 import { Site, SiteFormData, SiteWithDetails, User } from '@/lib/types';
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { ROLES } from '@/lib/constants';
 
 // Helper to convert frontend camelCase to DB snake_case for writing (Prisma handles this automatically via schema mapping, but we keep the input type)
 // Actually, with Prisma we just pass the object matching the schema.
@@ -152,6 +154,16 @@ export async function getSiteById(id: string): Promise<Site> {
 }
 
 export async function createSite(siteData: SiteFormData): Promise<Site> {
+  // Check auth
+  const { getUser } = getKindeServerSession();
+  const user = await getUser();
+  if (!user) throw new Error('Unauthorized');
+
+  const currentUser = await prisma.profile.findUnique({ where: { id: user.id } });
+  if (!currentUser || currentUser.role !== ROLES.NATIONAL_COORDINATOR) {
+    throw new Error('Forbidden: Only National Coordinators can create sites');
+  }
+
   if (!siteData.name || siteData.name.trim().length < 3) {
     throw new Error('Site name must be at least 3 characters long.');
   }
@@ -190,6 +202,23 @@ export async function createSite(siteData: SiteFormData): Promise<Site> {
 }
 
 export async function updateSite(id: string, updatedData: Partial<SiteFormData>): Promise<Site> {
+  const { getUser } = getKindeServerSession();
+  const user = await getUser();
+  if (!user) throw new Error('Unauthorized');
+
+  const currentUser = await prisma.profile.findUnique({ where: { id: user.id } });
+  // Only NC or the SC of that site (maybe?) can update.
+  // Actually, SCs typically update their own site details.
+  if (!currentUser) throw new Error('Unauthorized');
+
+  if (currentUser.role !== ROLES.NATIONAL_COORDINATOR) {
+    if (currentUser.role === ROLES.SITE_COORDINATOR) {
+      if (currentUser.siteId !== id) throw new Error('Forbidden');
+    } else {
+      throw new Error('Forbidden');
+    }
+  }
+
   if (updatedData.name && updatedData.name.trim().length < 3) {
     throw new Error('Site name must be at least 3 characters long.');
   }
@@ -229,6 +258,17 @@ export async function updateSite(id: string, updatedData: Partial<SiteFormData>)
 }
 
 export async function deleteSite(id: string): Promise<void> {
+  const { getUser } = getKindeServerSession();
+  const user = await getUser();
+  if (!user) throw new Error('Unauthorized');
+
+  const currentUser = await prisma.profile.findUnique({ where: { id: user.id } });
+
+  // STRICT: Only National Coordinator can delete a site
+  if (!currentUser || currentUser.role !== ROLES.NATIONAL_COORDINATOR) {
+    throw new Error('Forbidden: Only National Coordinators can delete sites');
+  }
+
   try {
     await prisma.site.delete({
       where: { id },
@@ -240,5 +280,3 @@ export async function deleteSite(id: string): Promise<void> {
     throw error;
   }
 }
-
-

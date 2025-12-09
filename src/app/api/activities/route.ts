@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as z from 'zod';
 import * as activityService from '@/services/activityService';
-import { createClient } from '@/utils/supabase/server';
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { MESSAGES } from '@/lib/messages';
 
 // Zod schema for validating incoming activity creation data (without created_by)
@@ -26,10 +26,10 @@ const activityCreateSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { getUser } = getKindeServerSession();
+    const user = await getUser();
 
-    if (!session) {
+    if (!user) {
       return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
     }
 
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       status: parsedData.data.status,
       activityTypeId: parsedData.data.activity_type_id || '00000000-0000-0000-0000-000000000000', // Default UUID if not provided
       activityTypeEnum: parsedData.data.activity_type_enum,
-      createdBy: session.user.id,
+      createdBy: user.id, // User ID from Kinde
       siteId: parsedData.data.site_id,
       smallGroupId: parsedData.data.small_group_id,
       participantsCountPlanned: parsedData.data.participants_count_planned,

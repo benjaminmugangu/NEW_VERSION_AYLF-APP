@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import * as z from 'zod';
 import * as smallGroupService from '@/services/smallGroupService';
-import { createClient } from '@/utils/supabase/server';
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { MESSAGES } from '@/lib/messages';
 
 const smallGroupCreateSchema = z.object({
@@ -17,10 +17,10 @@ const smallGroupCreateSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { getUser } = getKindeServerSession();
+    const user = await getUser();
 
-    if (!session) {
+    if (!user) {
       return new NextResponse(JSON.stringify({ error: MESSAGES.errors.unauthorized }), { status: 401 });
     }
 

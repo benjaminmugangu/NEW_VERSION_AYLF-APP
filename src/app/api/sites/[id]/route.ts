@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import * as z from 'zod';
 import * as siteService from '@/services/siteService';
-import { createClient } from '@/utils/supabase/server';
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { MESSAGES } from '@/lib/messages';
 
 // Schema for partial updates (PATCH)
@@ -40,9 +40,9 @@ const siteUpdateSchema = z.object({
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    const { getUser } = getKindeServerSession();
+    const user = await getUser();
+    if (!user) {
       return new NextResponse(JSON.stringify({ error: MESSAGES.errors.unauthorized }), { status: 401 });
     }
 
@@ -83,9 +83,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    const { getUser } = getKindeServerSession();
+    const user = await getUser();
+    if (!user) {
       return new NextResponse(JSON.stringify({ error: MESSAGES.errors.unauthorized }), { status: 401 });
     }
 

@@ -410,11 +410,14 @@ model UserInvitation {
   smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id])
 
   token  String @unique @default(uuid())
-  status String @default("pending") // pending, accepted
+  status String @default("pending") // pending, accepted, expired
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+  expiresAt DateTime @map("expires_at")
 
+  @@index([token])
+  @@index([expiresAt])
   @@map("user_invitations")
 }
 

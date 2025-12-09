@@ -121,10 +121,7 @@ export default function UsersClient({ initialUsers }: UsersClientProps) {
                                                 <DropdownMenuItem onClick={() => router.push(`/dashboard/users/${user.id}/edit`)}>
                                                     <Pencil className="mr-2 h-4 w-4" /> {t('actions.edit')}
                                                 </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem className="text-red-600">
-                                                    <Trash className="mr-2 h-4 w-4" /> {t('actions.deactivate')}
-                                                </DropdownMenuItem>
+
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </TableCell>

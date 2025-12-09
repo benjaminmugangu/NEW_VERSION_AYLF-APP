@@ -10,11 +10,20 @@ import { logReportApproval, createAuditLog } from './auditLogService';
 const normalizeImages = (images: any): Array<{ name: string; url: string }> | undefined => {
   if (!images) return undefined;
   if (!Array.isArray(images)) return undefined;
-  return images
+
+  // Security LIMIT: Max 10 images to prevent unbounded JSON growth
+  const SAFE_LIMIT = 10;
+  const slicedImages = images.slice(0, SAFE_LIMIT);
+
+  return slicedImages
     .map((it: any) => {
       const name = typeof it?.name === 'string' ? it.name : undefined;
       const url = typeof it?.url === 'string' ? it.url : undefined;
-      if (name && url) return { name, url };
+
+      // Security CHECK: Ensure URL is http/https (not data: or javascript:)
+      if (name && url && (url.startsWith('http://') || url.startsWith('https://'))) {
+        return { name, url };
+      }
       return undefined;
     })
     .filter(Boolean) as Array<{ name: string; url: string }>;

@@ -328,6 +328,7 @@ export interface NavItem {
   children?: NavItem[];
   allowedRoles?: UserRole[];
   dataTour?: string; // For onboarding tour targeting
+  badge?: string | number;
 }
 
 // =============================================================================
@@ -392,6 +393,7 @@ export type SiteFormData = Omit<Site, 'id' | 'coordinator' | 'memberCount' | 'sm
 
 export interface SmallGroupFormData {
   name: string;
+  siteId?: string; // Added to fix type error
   leaderId?: string | null;
   logisticsAssistantId?: string | null;
   financeAssistantId?: string | null;

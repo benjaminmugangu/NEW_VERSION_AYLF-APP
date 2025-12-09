@@ -2,20 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import * as certificateService from '@/services/certificateService';
 import { parseISO, isValid } from 'date-fns';
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { MESSAGES } from '@/lib/messages';
 
 export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const { getUser } = getKindeServerSession();
+  const user = await getUser();
 
-  if (!session) {
+  if (!user) {
     return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
   }
 
+  const supabase = await createClient();
   const { data: profile } = await supabase
     .from('profiles')
     .select('role')
-    .eq('id', session.user.id)
+    .eq('id', user.id) // Use Kinde user ID
     .single();
 
   if (profile?.role !== 'national_coordinator') {

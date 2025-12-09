@@ -98,6 +98,16 @@ body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+  
+  /* Improved focus visibility for accessibility */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  /* Smooth transitions for all interactive elements */
+  a, button, [role="button"] {
+    @apply transition-all duration-200 ease-in-out;
+  }
 }
 
 /* Print specific styles */
