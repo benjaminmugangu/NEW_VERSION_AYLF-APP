@@ -41,9 +41,10 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
     const updatedActivity = await activityService.updateActivity(id, dataForService);
     return NextResponse.json(updatedActivity);
 
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : MESSAGES.errors.generic;
-    return NextResponse.json({ error: MESSAGES.errors.serverError, details: errorMessage }, { status: 500 });
+  } catch (error: any) {
+    const { sanitizeError, logError } = await import('@/lib/errorSanitizer');
+    logError('ACTIVITY_UPDATE', error);
+    return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
   }
 }
 
@@ -61,8 +62,9 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
     await activityService.deleteActivity(id);
     return new Response(null, { status: 204 });
 
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : MESSAGES.errors.generic;
-    return NextResponse.json({ error: MESSAGES.errors.serverError, details: errorMessage }, { status: 500 });
+  } catch (error: any) {
+    const { sanitizeError, logError } = await import('@/lib/errorSanitizer');
+    logError('ACTIVITY_DELETE', error);
+    return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
   }
 }

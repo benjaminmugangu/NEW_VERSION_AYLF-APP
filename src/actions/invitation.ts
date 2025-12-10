@@ -70,7 +70,10 @@ export async function processInvitation(token?: string) {
         revalidatePath('/dashboard');
         return { success: true };
     } catch (error) {
-        console.error("Error processing invitation:", error);
+        // ✅ SECURITY: Don't log error object (may contain tokens/emails)
+        console.error('[PROCESS_INVITATION_ERROR]', {
+            type: error?.constructor?.name
+        });
         return { success: false, error: "Internal server error" };
     }
 }

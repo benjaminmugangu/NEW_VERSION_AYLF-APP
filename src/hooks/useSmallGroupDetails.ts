@@ -9,6 +9,7 @@ import * as profileService from '@/services/profileService';
 import * as memberService from '@/services/memberService';
 import { SmallGroup, Site, User, MemberWithDetails, SmallGroupFormData } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
+import { getClientErrorMessage } from '@/lib/clientErrorHandler';
 
 export interface SmallGroupDetails extends SmallGroup {
   site?: Site;
@@ -76,7 +77,7 @@ export const useSmallGroupDetails = (groupId: string | null) => {
       queryClient.invalidateQueries({ queryKey: ['smallGroups'] });
     },
     onError: (error: Error) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: 'Error', description: getClientErrorMessage(error), variant: 'destructive' });
     },
   };
 

@@ -35,7 +35,8 @@ export async function GET(request: NextRequest) {
     const roster = await certificateService.getCertificateRoster({ startDate, endDate });
     return NextResponse.json(roster);
   } catch (error) {
-    const message = error instanceof Error ? error.message : MESSAGES.errors.generic;
-    return NextResponse.json({ error: MESSAGES.errors.serverError, details: message }, { status: 500 });
+    const { sanitizeError, logError } = await import('@/lib/errorSanitizer');
+    logError('ELIGIBLE_USERS', error);
+    return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
   }
 }

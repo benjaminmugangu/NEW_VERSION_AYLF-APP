@@ -11,6 +11,7 @@ import type { ReportFilters } from '@/services/reportService';
 import { ROLES } from '@/lib/constants';
 import type { ReportStatus, ReportWithDetails } from '@/lib/types';
 import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
+import { getClientErrorMessage } from '@/lib/clientErrorHandler';
 
 export const useReports = () => {
   const queryClient = useQueryClient();
@@ -110,7 +111,7 @@ export const useReports = () => {
       setRejectionNotes('');
     },
     onError: (error) => {
-      toast({ title: 'Error', description: error.message || 'Failed to update report.', variant: 'destructive' });
+      toast({ title: 'Error', description: getClientErrorMessage(error), variant: 'destructive' });
       // Still close modals and reset state
       setIsModalOpen(false);
       setSelectedReport(null);

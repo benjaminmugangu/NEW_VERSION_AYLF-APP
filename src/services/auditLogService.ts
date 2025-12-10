@@ -40,7 +40,9 @@ export async function createAuditLog(entry: AuditLogEntry) {
 
         return auditLog;
     } catch (error) {
-        console.error('Failed to create audit log:', error);
+        console.error('[CREATE_AUDIT_LOG_FAILED]', {
+            type: error?.constructor?.name
+        });
         throw new Error('Failed to create audit log entry');
     }
 }
@@ -74,7 +76,9 @@ export async function getAuditLogsForEntity(
 
         return logs;
     } catch (error) {
-        console.error('Failed to fetch audit logs:', error);
+        console.error('[FETCH_AUDIT_LOGS_FAILED]', {
+            type: error?.constructor?.name
+        });
         throw new Error('Failed to fetch audit logs');
     }
 }
@@ -105,7 +109,9 @@ export async function getAuditLogsByActor(actorId: string, limit = 50) {
 
         return logs;
     } catch (error) {
-        console.error('Failed to fetch audit logs by actor:', error);
+        console.error('[FETCH_AUDIT_LOGS_BY_ACTOR_FAILED]', {
+            type: error?.constructor?.name
+        });
         throw new Error('Failed to fetch audit logs');
     }
 }
@@ -133,7 +139,9 @@ export async function getRecentAuditLogs(limit = 100) {
 
         return logs;
     } catch (error) {
-        console.error('Failed to fetch recent audit logs:', error);
+        console.error('[FETCH_RECENT_AUDIT_LOGS_FAILED]', {
+            type: error?.constructor?.name
+        });
         throw new Error('Failed to fetch recent audit logs');
     }
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { format } from 'date-fns';
 import { MESSAGES } from '@/lib/messages';
 
@@ -30,8 +31,8 @@ export async function GET(request: Request) {
         const { searchParams } = new URL(request.url);
         const year = searchParams.get('year');
 
-        // Build filter
-        const where: any = {};
+        // Build filter with proper typing
+        const where: Prisma.FundAllocationWhereInput = {};
 
         if (year) {
             const startDate = new Date(`${year}-01-01`);

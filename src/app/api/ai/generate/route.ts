@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateAIResponse, AIRequest } from '@/lib/ai/aiService';
 import { rateLimit } from '@/lib/rateLimit';
+import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 
 export async function POST(req: NextRequest) {
     try {
-        // 1. Rate Limiting to prevent AI abuse
-        const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || '127.0.0.1';
-        const { success } = await rateLimit(ip, { limit: 5, interval: 60 * 1000, uniqueTokenPerInterval: 500 }); // 5 requests per minute
+        // 1. Authentication Check (ADDED - FIX FOR ITERATION 1)
+        const { getUser } = getKindeServerSession();
+        const user = await getUser();
+
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        // 2. Rate Limiting to prevent AI abuse (now per user, not IP)
+        const { success } = await rateLimit(user.id, { limit: 5, interval: 60 * 1000, uniqueTokenPerInterval: 500 }); // 5 requests per minute per user
 
         if (!success) {
             return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });

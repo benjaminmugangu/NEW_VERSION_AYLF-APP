@@ -4,9 +4,16 @@ import notificationService from '@/services/notificationService';
 import { sendEmail, emailTemplates } from '@/lib/email/emailService';
 
 export async function GET(req: NextRequest) {
-    // Validate Cron Secret (if configured)
+    // Validate Cron Secret (MANDATORY - FIX FOR ITERATION 1)
+    const cronSecret = process.env.CRON_SECRET;
+
+    if (!cronSecret) {
+        console.error('[CRON_REMINDERS] CRON_SECRET environment variable not configured');
+        return new NextResponse('Server Configuration Error', { status: 500 });
+    }
+
     const authHeader = req.headers.get('authorization');
-    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    if (authHeader !== `Bearer ${cronSecret}`) {
         return new NextResponse('Unauthorized', { status: 401 });
     }
 
@@ -140,7 +147,10 @@ export async function GET(req: NextRequest) {
         });
 
     } catch (error) {
-        console.error('Cron Error:', error);
+        // ✅ SECURITY: Don't log error object (may contain emails in bulk reminders)
+        console.error('[CRON_DAILY_REMINDERS_ERROR]', {
+            type: error?.constructor?.name
+        });
         return new NextResponse('Internal Error', { status: 500 });
     }
 }

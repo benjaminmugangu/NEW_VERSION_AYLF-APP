@@ -42,8 +42,11 @@ async function getKindeAccessToken(): Promise<string> {
     });
 
     if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[KINDE_M2M_TOKEN_ERROR]', errorText);
+        // ✅ SECURITY: Don't log full Kinde error response (contains emails/org IDs)
+        console.error('[KINDE_M2M_TOKEN_ERROR]', {
+            status: response.status,
+            statusText: response.statusText
+        });
         throw new Error('Failed to get Kinde access token');
     }
 
@@ -90,17 +93,22 @@ export async function createKindeUser({ email, firstName, lastName }: CreateUser
         });
 
         if (!response.ok) {
-            const errorText = await response.text();
-            // If user already exists, Kinde might return 409 or similar.
-            // We should handle that gracefully if possible, but for now let's log it.
-            console.error('[KINDE_CREATE_USER_ERROR]', errorText);
+            // ✅ SECURITY: Don't log full error (contains email, org details)
+            console.error('[KINDE_CREATE_USER_ERROR]', {
+                status: response.status,
+                statusText: response.statusText
+            });
             throw new Error(`Failed to create user in Kinde: ${response.statusText}`);
         }
 
         const data = await response.json();
         return data;
     } catch (error) {
-        console.error('[KINDE_SERVICE_ERROR]', error);
+        // ✅ SECURITY: Log type only, no PII
+        console.error('[KINDE_SERVICE_ERROR]', {
+            type: error?.constructor?.name,
+            code: (error as any)?.code
+        });
         throw error;
     }
 }

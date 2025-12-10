@@ -2,17 +2,14 @@ import { NextResponse } from 'next/server';
 import * as z from 'zod';
 import * as smallGroupService from '@/services/smallGroupService';
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { prisma } from '@/lib/prisma';
 import { MESSAGES } from '@/lib/messages';
 
 const smallGroupCreateSchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters long'),
   siteId: z.string().uuid('A valid site ID is required'),
   leaderId: z.string().uuid().optional(),
-  logisticsAssistantId: z.string().uuid().optional(),
-  financeAssistantId: z.string().uuid().optional(),
-  meetingDay: z.enum(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']).optional(),
-  meetingTime: z.string().optional(), // Could be more specific, e.g., regex for HH:MM
-  meetingLocation: z.string().optional(),
+  description: z.string().optional(),
 });
 
 export async function POST(request: Request) {
@@ -24,6 +21,16 @@ export async function POST(request: Request) {
       return new NextResponse(JSON.stringify({ error: MESSAGES.errors.unauthorized }), { status: 401 });
     }
 
+    // ✅ Fetch user profile to determine role and siteId (ADDED - FIX FOR ITERATION 3)
+    const profile = await prisma.profile.findUnique({
+      where: { id: user.id },
+      select: { role: true, siteId: true }
+    });
+
+    if (!profile) {
+      return new NextResponse(JSON.stringify({ error: MESSAGES.errors.forbidden }), { status: 403 });
+    }
+
     const json = await request.json();
     const parsedData = smallGroupCreateSchema.safeParse(json);
 
@@ -31,16 +38,33 @@ export async function POST(request: Request) {
       return new NextResponse(JSON.stringify({ error: MESSAGES.errors.validation, details: parsedData.error.format() }), { status: 400 });
     }
 
-    const { siteId, ...formData } = parsedData.data;
+    // ✅ Server-side siteId override based on role (ADDED - FIX FOR ITERATION 3)
+    let actualSiteId: string;
+
+    if (profile.role === 'national_coordinator') {
+      // NC can create group in any site (use client-provided siteId)
+      actualSiteId = parsedData.data.siteId;
+    } else if (profile.role === 'site_coordinator') {
+      // SC can only create groups in their own site (override with profile.siteId)
+      if (!profile.siteId) {
+        return new NextResponse(JSON.stringify({ error: MESSAGES.errors.forbidden }), { status: 403 });
+      }
+      actualSiteId = profile.siteId;
+    } else {
+      // Other roles cannot create small groups
+      return new NextResponse(JSON.stringify({ error: MESSAGES.errors.forbidden }), { status: 403 });
+    }
+
+    const { siteId: _, ...formData } = parsedData.data;
 
     // The service handles the complex logic of creating the group and assigning roles
-    const newSmallGroup = await smallGroupService.createSmallGroup(siteId, formData);
+    const newSmallGroup = await smallGroupService.createSmallGroup(actualSiteId, formData);
 
     return new NextResponse(JSON.stringify(newSmallGroup), { status: 201 });
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : MESSAGES.errors.generic;
-    console.error('Error creating small group:', errorMessage);
-    return new NextResponse(JSON.stringify({ error: MESSAGES.errors.serverError, details: errorMessage }), { status: 500 });
+    const { sanitizeError, logError } = await import('@/lib/errorSanitizer');
+    logError('CREATE_SMALL_GROUP', error);
+    return new NextResponse(JSON.stringify({ error: sanitizeError(error) }), { status: 500 });
   }
 }

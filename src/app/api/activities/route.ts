@@ -57,8 +57,9 @@ export async function POST(request: NextRequest) {
     const newActivity = await activityService.createActivity(activityDataForService);
     return NextResponse.json(newActivity, { status: 201 });
 
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : MESSAGES.errors.generic;
-    return NextResponse.json({ error: MESSAGES.errors.serverError, details: errorMessage }, { status: 500 });
+  } catch (error: any) {
+    const { sanitizeError, logError } = await import('@/lib/errorSanitizer');
+    logError('ACTIVITY_CREATE', error);
+    return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
   }
 }

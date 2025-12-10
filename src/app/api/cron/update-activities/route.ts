@@ -21,7 +21,9 @@ export async function GET(request: Request) {
             stats: result,
         });
     } catch (error) {
-        console.error('Error updating activity statuses:', error);
+        console.error('[CRON_UPDATE_ACTIVITIES_ERROR]', {
+            type: error?.constructor?.name
+        });
         return NextResponse.json(
             { error: MESSAGES.errors.serverError },
             { status: 500 }

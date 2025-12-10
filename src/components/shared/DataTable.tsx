@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
+import { getClientErrorMessage } from "@/lib/clientErrorHandler";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
@@ -105,7 +106,7 @@ export function DataTable<TData, TValue>({
   }
 
   if (error) {
-    return <div className="rounded-md border p-4 text-center text-red-500">Erreur: {error.message}</div>;
+    return <div className="rounded-md border p-4 text-center text-red-500">Erreur: {getClientErrorMessage(error)}</div>;
   }
 
   return (

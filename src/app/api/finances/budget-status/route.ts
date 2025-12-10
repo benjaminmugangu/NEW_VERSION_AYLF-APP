@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { MESSAGES } from '@/lib/messages';
 
 export async function GET(request: Request) {
@@ -52,8 +53,8 @@ export async function GET(request: Request) {
             }
         }
 
-        // Calculate Total Allocations
-        const allocationWhere: any = {};
+        // Calculate Total Allocations with proper typing
+        const allocationWhere: Prisma.FundAllocationWhereInput = {};
         if (siteId) allocationWhere.siteId = siteId;
         if (smallGroupId) allocationWhere.smallGroupId = smallGroupId;
 
@@ -63,8 +64,8 @@ export async function GET(request: Request) {
         });
         const totalAllocated = allocations._sum.amount || 0;
 
-        // Calculate Total Expenses
-        const expenseWhere: any = { type: 'expense' };
+        // Calculate Total Expenses with proper typing
+        const expenseWhere: Prisma.FinancialTransactionWhereInput = { type: 'expense' };
         if (siteId) expenseWhere.siteId = siteId;
         if (smallGroupId) expenseWhere.smallGroupId = smallGroupId;
 

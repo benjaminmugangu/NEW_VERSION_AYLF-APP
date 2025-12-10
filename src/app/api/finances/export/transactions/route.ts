@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { format } from 'date-fns';
 import { MESSAGES } from '@/lib/messages';
 
@@ -31,15 +32,18 @@ export async function GET(request: Request) {
         const startDate = searchParams.get('startDate');
         const endDate = searchParams.get('endDate');
         const siteId = searchParams.get('siteId');
+        const smallGroupId = searchParams.get('smallGroupId'); // Added smallGroupId param
 
-        // Build filter
-        const where: any = {};
+        // Build where clause with proper typing
+        const where: Prisma.FinancialTransactionWhereInput = {};
+        if (siteId) where.siteId = siteId;
+        if (smallGroupId) where.smallGroupId = smallGroupId;
 
         if (startDate) {
-            where.date = { ...where.date, gte: new Date(startDate) };
+            where.date = { ...where.date as Prisma.DateTimeFilter, gte: new Date(startDate) };
         }
         if (endDate) {
-            where.date = { ...where.date, lte: new Date(endDate) };
+            where.date = { ...where.date as Prisma.DateTimeFilter, lte: new Date(endDate) };
         }
 
         // RBAC for filtering

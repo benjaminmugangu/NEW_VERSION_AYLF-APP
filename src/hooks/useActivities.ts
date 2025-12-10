@@ -10,6 +10,7 @@ import type { ActivityFormData } from '@/schemas/activity';
 import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
 import type { Activity, ActivityStatus, User } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
+import { getClientErrorMessage } from '@/lib/clientErrorHandler';
 
 interface UseActivitiesParams {
   initialData?: Activity[];
@@ -70,7 +71,7 @@ export const useActivities = ({ initialData = [], user }: UseActivitiesParams) =
       queryClient.invalidateQueries({ queryKey: ['activities'] });
     },
     onError: (error) => {
-      toast({ title: 'Error', description: `Failed to create activity: ${error.message}`, variant: 'destructive' });
+      toast({ title: 'Error', description: `Failed to create activity: ${getClientErrorMessage(error)}`, variant: 'destructive' });
     },
   });
 
@@ -82,7 +83,7 @@ export const useActivities = ({ initialData = [], user }: UseActivitiesParams) =
       queryClient.invalidateQueries({ queryKey: ['activityDetails', variables.id] });
     },
     onError: (error) => {
-      toast({ title: 'Error', description: `Failed to update activity: ${error.message}`, variant: 'destructive' });
+      toast({ title: 'Error', description: `Failed to update activity: ${getClientErrorMessage(error)}`, variant: 'destructive' });
     },
   });
 
@@ -93,7 +94,7 @@ export const useActivities = ({ initialData = [], user }: UseActivitiesParams) =
       queryClient.invalidateQueries({ queryKey: ['activities'] });
     },
     onError: (error) => {
-      toast({ title: 'Error', description: `Failed to delete activity: ${error.message}`, variant: 'destructive' });
+      toast({ title: 'Error', description: `Failed to delete activity: ${getClientErrorMessage(error)}`, variant: 'destructive' });
     },
   });
 

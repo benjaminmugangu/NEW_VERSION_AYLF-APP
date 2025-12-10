@@ -74,7 +74,7 @@ export const getFinancials = async (user: User, dateFilter: DateFilterValue): Pr
     return data;
 
   } catch (error: any) {
-    console.error('[FinancialsService] Unexpected error in getFinancials:', error.message);
-    throw new Error(error.message || 'An unexpected error occurred while fetching financials.');
+    console.error('[FinancialsService] Error in getFinancials');
+    throw new Error('Failed to fetch financial data');
   }
 };

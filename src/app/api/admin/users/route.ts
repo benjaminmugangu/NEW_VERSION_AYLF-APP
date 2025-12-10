@@ -79,7 +79,10 @@ export async function POST(req: Request) {
                     });
                     kindeId = kindeUser.id;
                 } catch (error) {
-                    console.error('Failed to create user in Kinde during replacement:', error);
+                    // ✅ SECURITY: Don't log full error (may contain email/credentials)
+                    console.error('[KINDE_USER_CREATE_FAILED]', {
+                        type: error?.constructor?.name
+                    });
                 }
 
                 // 4. Trigger certificate generation for replaced coordinator (Phase 3)
@@ -88,7 +91,10 @@ export async function POST(req: Request) {
                 try {
                     await generateCoordinatorCertificate(existingCoordinatorId);
                 } catch (error) {
-                    console.error('Failed to generate certificate:', error);
+                    // ✅ SECURITY: Log minimal info only
+                    console.error('[CERTIFICATE_GENERATION_FAILED]', {
+                        type: error?.constructor?.name
+                    });
                 }
 
                 replaced = true;

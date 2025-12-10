@@ -414,7 +414,7 @@ model UserInvitation {
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-  expiresAt DateTime @map("expires_at")
+  expiresAt DateTime @default(dbgenerated("NOW() + INTERVAL '7 days'")) @map("expires_at")
 
   @@index([token])
   @@index([expiresAt])

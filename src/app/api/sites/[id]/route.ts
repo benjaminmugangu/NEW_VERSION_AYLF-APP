@@ -57,8 +57,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json(updatedSite);
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : MESSAGES.errors.generic;
-    return new NextResponse(JSON.stringify({ error: MESSAGES.errors.serverError, details: errorMessage }), { status: 500 });
+    const { sanitizeError, logError } = await import('@/lib/errorSanitizer');
+    logError('UPDATE_SITE', error);
+    const safeMessage = sanitizeError(error);
+    return new NextResponse(JSON.stringify({ error: safeMessage }), { status: 500 });
   }
 }
 
@@ -93,7 +95,9 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     return new NextResponse(null, { status: 204 });
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : MESSAGES.errors.generic;
-    return new NextResponse(JSON.stringify({ error: MESSAGES.errors.serverError, details: errorMessage }), { status: 500 });
+    const { sanitizeError, logError } = await import('@/lib/errorSanitizer');
+    logError('DELETE_SITE', error);
+    const safeMessage = sanitizeError(error);
+    return new NextResponse(JSON.stringify({ error: safeMessage }), { status: 500 });
   }
 }

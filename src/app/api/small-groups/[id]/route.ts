@@ -35,8 +35,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json(updatedGroup);
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : MESSAGES.errors.generic;
-    return new NextResponse(JSON.stringify({ error: MESSAGES.errors.serverError, details: errorMessage }), { status: 500 });
+    const { sanitizeError, logError } = await import('@/lib/errorSanitizer');
+    logError('UPDATE_SMALL_GROUP', error);
+    return new NextResponse(JSON.stringify({ error: sanitizeError(error) }), { status: 500 });
   }
 }
 
@@ -54,7 +55,8 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     return new NextResponse(null, { status: 204 });
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : MESSAGES.errors.generic;
-    return new NextResponse(JSON.stringify({ error: MESSAGES.errors.serverError, details: errorMessage }), { status: 500 });
+    const { sanitizeError, logError } = await import('@/lib/errorSanitizer');
+    logError('DELETE_SMALL_GROUP', error);
+    return new NextResponse(JSON.stringify({ error: sanitizeError(error) }), { status: 500 });
   }
 }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import * as z from 'zod';
 import * as siteService from '@/services/siteService';
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { prisma } from '@/lib/prisma';
 import { MESSAGES } from '@/lib/messages';
 
 /**
@@ -66,6 +67,18 @@ export async function POST(request: Request) {
       return new NextResponse(JSON.stringify({ error: MESSAGES.errors.unauthorized }), { status: 401, headers: { 'Content-Type': 'application/json' } });
     }
 
+    // ✅ RBAC Check (ADDED - FIX FOR ITERATION 2)
+    const profile = await prisma.profile.findUnique({
+      where: { id: user.id },
+    });
+
+    if (!profile || profile.role !== 'national_coordinator') {
+      return new NextResponse(JSON.stringify({ error: MESSAGES.errors.forbidden }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
     const json = await request.json();
     const parsedData = siteCreateSchema.safeParse(json);
 
@@ -79,10 +92,10 @@ export async function POST(request: Request) {
     const newSite = await siteService.createSite(parsedData.data);
     return new NextResponse(JSON.stringify(newSite), { status: 201, headers: { 'Content-Type': 'application/json' } });
 
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : MESSAGES.errors.generic;
-    console.error('Error creating site:', errorMessage);
-    return new NextResponse(JSON.stringify({ error: MESSAGES.errors.serverError, details: errorMessage }), {
+  } catch (error: any) {
+    const { sanitizeError, logError } = await import('@/lib/errorSanitizer');
+    logError('SITE_CREATE', error);
+    return new NextResponse(JSON.stringify({ error: sanitizeError(error) }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });

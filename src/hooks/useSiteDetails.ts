@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ROLES } from '@/lib/constants';
 import { useMemo } from 'react';
 import { SiteFormData } from '@/lib/types';
+import { getClientErrorMessage } from '@/lib/clientErrorHandler';
 
 const SITE_DETAILS_QUERY_KEY = 'siteDetails';
 
@@ -28,7 +29,7 @@ export const useSiteDetails = (siteId: string) => {
       queryClient.invalidateQueries({ queryKey: ['smallGroups'] }); // Invalidate the global list as well
     },
     onError: (error: Error) => {
-      toast({ title: 'Error', description: `Failed to delete small group: ${error.message}`, variant: 'destructive' });
+      toast({ title: 'Error', description: `Failed to delete small group: ${getClientErrorMessage(error)}`, variant: 'destructive' });
     },
   });
 
@@ -40,7 +41,7 @@ export const useSiteDetails = (siteId: string) => {
       queryClient.invalidateQueries({ queryKey: ['sites'] });
     },
     onError: (error: Error) => {
-      toast({ title: 'Error', description: `Failed to update site: ${error.message}`, variant: 'destructive' });
+      toast({ title: 'Error', description: `Failed to update site: ${getClientErrorMessage(error)}`, variant: 'destructive' });
     },
   });
 
@@ -52,7 +53,7 @@ export const useSiteDetails = (siteId: string) => {
       queryClient.invalidateQueries({ queryKey: [SITE_DETAILS_QUERY_KEY, siteId] });
     },
     onError: (error: Error) => {
-      toast({ title: 'Error', description: `Failed to delete site: ${error.message}`, variant: 'destructive' });
+      toast({ title: 'Error', description: `Failed to delete site: ${getClientErrorMessage(error)}`, variant: 'destructive' });
     },
   });
 

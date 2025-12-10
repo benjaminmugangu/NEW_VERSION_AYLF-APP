@@ -2,6 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import notificationService from '@/services/notificationService';
 import { MESSAGES } from '@/lib/messages';
+import * as z from 'zod';
+
+// ✅ Zod schemas for validation (ADDED - FIX FOR ITERATION 4)
+const notificationPatchSchema = z.object({
+    notificationId: z.string().uuid().optional(),
+    markAllRead: z.boolean().optional()
+}).refine(data => data.notificationId ?? data.markAllRead, {
+    message: "Either notificationId or markAllRead must be provided"
+});
+
+const notificationDeleteSchema = z.object({
+    notificationId: z.string().uuid()
+});
 
 /**
  * GET /api/notifications
@@ -79,7 +92,17 @@ export async function PATCH(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { notificationId, markAllRead } = body;
+
+        // ✅ Zod validation (ADDED - FIX FOR ITERATION 4)
+        const validation = notificationPatchSchema.safeParse(body);
+        if (!validation.success) {
+            return NextResponse.json(
+                { error: MESSAGES.errors.validation, details: validation.error.format() },
+                { status: 400 }
+            );
+        }
+
+        const { notificationId, markAllRead } = validation.data;
 
         if (markAllRead) {
             // Mark all notifications as read
@@ -91,6 +114,7 @@ export async function PATCH(request: NextRequest) {
             });
         }
 
+        // notificationId is now guaranteed to exist by schema refinement
         if (!notificationId) {
             return NextResponse.json(
                 { error: 'notificationId est requis' },
@@ -137,15 +161,18 @@ export async function DELETE(request: NextRequest) {
             );
         }
 
-        const { searchParams } = new URL(request.url);
-        const notificationId = searchParams.get('id');
+        const body = await request.json();
 
-        if (!notificationId) {
+        // ✅ Zod validation (ADDED - FIX FOR ITERATION 4)
+        const validation = notificationDeleteSchema.safeParse(body);
+        if (!validation.success) {
             return NextResponse.json(
-                { error: 'notificationId est requis' },
+                { error: MESSAGES.errors.validation, details: validation.error.format() },
                 { status: 400 }
             );
         }
+
+        const { notificationId } = validation.data;
 
         await notificationService.deleteNotification(notificationId);
 

@@ -101,9 +101,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       message: MESSAGES.success.created,
-      credentials: {
+      user: {
         email,
-        password,
+        // ✅ SECURITY: Password never returned in response
+        // It should be sent via email only
       }
     }, { status: 201 });
 

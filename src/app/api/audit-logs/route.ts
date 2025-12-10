@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { MESSAGES } from '@/lib/messages';
 
 export async function GET(request: NextRequest) {
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
         const to = searchParams.get('to') || undefined;
         const limit = parseInt(searchParams.get('limit') || '100', 10);
 
-        const where: any = {};
+        const where: Prisma.AuditLogWhereInput = {};
 
         if (entityType) {
             where.entityType = entityType;
@@ -69,9 +70,10 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json(logs);
     } catch (error: any) {
-        console.error('Error fetching audit logs:', error);
+        const { sanitizeError, logError } = await import('@/lib/errorSanitizer');
+        logError('FETCH_AUDIT_LOGS', error);
         return NextResponse.json(
-            { error: error.message || MESSAGES.errors.generic },
+            { error: sanitizeError(error) },
             { status: 500 }
         );
     }

@@ -26,9 +26,14 @@ CREATE POLICY "Users can create their own reports" ON public.reports
 CREATE POLICY "Coordinators can update reports in their scope" ON public.reports
   FOR UPDATE USING (
     get_my_role() = 'national_coordinator' OR
-    (get_my_role() = 'site_coordinator' AND site_id = get_my_site_id())
+    (get_my_role() = 'site_coordinator' AND site_id = get_my_site_id()) OR
+    (get_my_role() = 'small_group_leader' AND small_group_id = get_my_small_group_id())
   );
 
--- 4. National Coordinators can delete any report
-CREATE POLICY "National Coordinators can delete any report" ON public.reports
-  FOR DELETE USING (get_my_role() = 'national_coordinator');
+-- 4. Coordinators can delete reports in their scope
+CREATE POLICY "Coordinators can delete reports in their scope" ON public.reports
+  FOR DELETE USING (
+    get_my_role() = 'national_coordinator' OR
+    (get_my_role() = 'site_coordinator' AND site_id = get_my_site_id()) OR
+    (get_my_role() = 'small_group_leader' AND small_group_id = get_my_small_group_id())
+  );

@@ -48,9 +48,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             message: MESSAGES.success.approved,
         });
     } catch (error: any) {
-        console.error('Error approving report:', error);
+        const { sanitizeError, logError } = await import('@/lib/errorSanitizer');
+        logError('APPROVE_REPORT', error);
         return NextResponse.json(
-            { error: error.message || MESSAGES.errors.generic },
+            { error: sanitizeError(error) },
             { status: 500 }
         );
     }

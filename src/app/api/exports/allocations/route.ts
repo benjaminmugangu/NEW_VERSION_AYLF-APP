@@ -30,9 +30,10 @@ export async function GET(request: NextRequest) {
             },
         });
     } catch (error: any) {
-        console.error('Error exporting allocations:', error);
+        const { sanitizeError, logError } = await import('@/lib/errorSanitizer');
+        logError('EXPORT_ALLOCATIONS', error);
         return NextResponse.json(
-            { error: error.message || MESSAGES.errors.generic },
+            { error: sanitizeError(error) },
             { status: 500 }
         );
     }

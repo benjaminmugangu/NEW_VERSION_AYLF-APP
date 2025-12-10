@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
-import * as profileService from '@/services/profileService';
+import { prisma } from '@/lib/prisma';
 import * as reportService from '@/services/reportService';
-import notificationService from '@/services/notificationService';
 import { MESSAGES } from '@/lib/messages';
+import * as z from 'zod';
+
+// ✅ Zod schema for validation (ADDED - FIX FOR ITERATION 4)
+const rejectReportSchema = z.object({
+    rejectionReason: z.string().min(10, "Rejection reason must be at least 10 characters").max(500, "Rejection reason is too long").optional()
+});
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
@@ -14,41 +19,33 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
         }
 
-        const profile = await profileService.getProfile(user.id);
-
-        // Only National Coordinators can reject reports
-        if (profile.role !== 'national_coordinator') {
+        const profile = await prisma.profile.findUnique({ where: { id: user.id } });
+        if (!profile || profile.role !== 'national_coordinator') {
             return NextResponse.json({ error: MESSAGES.errors.forbidden }, { status: 403 });
         }
 
-        const { id: reportId } = await params;
         const body = await request.json();
-        const { reason } = body;
 
-        if (!reason || !reason.trim()) {
+        // ✅ Zod validation (ADDED - FIX FOR ITERATION 4)
+        const validation = rejectReportSchema.safeParse(body);
+        if (!validation.success) {
+            return NextResponse.json(
+                { error: MESSAGES.errors.validation, details: validation.error.format() },
+                { status: 400 }
+            );
+        }
+
+        const { rejectionReason } = validation.data;
+
+        const resolvedParams = await params;
+        const reportId = resolvedParams.id;
+
+        if (!reportId) {
             return NextResponse.json({ error: MESSAGES.errors.validation }, { status: 400 });
         }
 
-        // Get IP and User Agent for audit
-        const ipAddress = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined;
-        const userAgent = request.headers.get('user-agent') || undefined;
-
-        // Reject the report
-        const rejectedReport = await reportService.rejectReport(
-            reportId,
-            profile.id,
-            reason,
-            ipAddress,
-            userAgent
-        );
-
-        // Send notification to submitter
-        await notificationService.notifyReportRejected(
-            rejectedReport.submittedBy,
-            rejectedReport.title,
-            rejectedReport.id,
-            reason
-        );
+        // Fix: rejectReport signature is (reportId, rejectedById, reason, ipAddress?, userAgent?)
+        const rejectedReport = await reportService.rejectReport(reportId, user.id, rejectionReason || '');
 
         return NextResponse.json({
             success: true,
@@ -56,9 +53,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             message: MESSAGES.success.rejected,
         });
     } catch (error: any) {
-        console.error('Error rejecting report:', error);
+        const { sanitizeError, logError } = await import('@/lib/errorSanitizer');
+        logError('REJECT_REPORT', error);
         return NextResponse.json(
-            { error: error.message || MESSAGES.errors.generic },
+            { error: sanitizeError(error) },
             { status: 500 }
         );
     }

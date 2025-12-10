@@ -20,9 +20,10 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json(budget);
     } catch (error: any) {
-        console.error('Error fetching budget:', error);
+        const { sanitizeError, logError } = await import('@/lib/errorSanitizer');
+        logError('FETCH_BUDGET', error);
         return NextResponse.json(
-            { error: error.message || MESSAGES.errors.generic },
+            { error: sanitizeError(error) },
             { status: 500 }
         );
     }

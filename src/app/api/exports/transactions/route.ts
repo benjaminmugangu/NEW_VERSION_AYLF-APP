@@ -39,9 +39,10 @@ export async function GET(request: NextRequest) {
             },
         });
     } catch (error: any) {
-        console.error('Error exporting transactions:', error);
+        const { sanitizeError, logError } = await import('@/lib/errorSanitizer');
+        logError('EXPORT_TRANSACTIONS', error);
         return NextResponse.json(
-            { error: error.message || MESSAGES.errors.generic },
+            { error: sanitizeError(error) },
             { status: 500 }
         );
     }
