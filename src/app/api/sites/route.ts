@@ -4,6 +4,7 @@ import * as siteService from '@/services/siteService';
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { prisma } from '@/lib/prisma';
 import { MESSAGES } from '@/lib/messages';
+import { safeParseJSON } from '@/lib/safeJSON';
 
 /**
  * @swagger
@@ -79,7 +80,7 @@ export async function POST(request: Request) {
       });
     }
 
-    const json = await request.json();
+    const json = await safeParseJSON(request);
     const parsedData = siteCreateSchema.safeParse(json);
 
     if (!parsedData.success) {

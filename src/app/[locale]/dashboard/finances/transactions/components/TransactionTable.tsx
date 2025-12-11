@@ -13,7 +13,6 @@ import {
   getSortedRowModel,
   useReactTable,
   Column,
-  Table as ReactTable, // Renaming to avoid conflict with our Table component
   HeaderGroup,
   Header,
   Row,
@@ -31,10 +30,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 interface DataTableProps<TData> {
-  columns: ColumnDef<TData, unknown>[];
-  data: TData[];
-  searchTerm: string;
-  setSearchTerm: (value: string) => void;
+  readonly columns: ColumnDef<TData, any>[];
+  readonly data: TData[];
+  readonly searchTerm: string;
+  readonly setSearchTerm: (value: string) => void;
 }
 
 export function TransactionTable<TData>({

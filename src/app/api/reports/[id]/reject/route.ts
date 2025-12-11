@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import * as reportService from '@/services/reportService';
 import { MESSAGES } from '@/lib/messages';
 import * as z from 'zod';
+import { safeParseJSON } from '@/lib/safeJSON';
 
 // ✅ Zod schema for validation (ADDED - FIX FOR ITERATION 4)
 const rejectReportSchema = z.object({
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             return NextResponse.json({ error: MESSAGES.errors.forbidden }, { status: 403 });
         }
 
-        const body = await request.json();
+        const body = await safeParseJSON(request);
 
         // ✅ Zod validation (ADDED - FIX FOR ITERATION 4)
         const validation = rejectReportSchema.safeParse(body);

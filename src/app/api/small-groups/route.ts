@@ -4,6 +4,7 @@ import * as smallGroupService from '@/services/smallGroupService';
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { prisma } from '@/lib/prisma';
 import { MESSAGES } from '@/lib/messages';
+import { safeParseJSON } from '@/lib/safeJSON';
 
 const smallGroupCreateSchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters long'),
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
       return new NextResponse(JSON.stringify({ error: MESSAGES.errors.forbidden }), { status: 403 });
     }
 
-    const json = await request.json();
+    const json = await safeParseJSON(request);
     const parsedData = smallGroupCreateSchema.safeParse(json);
 
     if (!parsedData.success) {
