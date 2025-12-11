@@ -4,12 +4,11 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ChevronRight, Home } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useTranslations } from 'next-intl';
+
 
 export function Breadcrumbs() {
     const pathname = usePathname();
-    const t = useTranslations('Navigation'); // Assuming you have or will add keys here
+
 
     // Helper to remove locale from path if present (e.g., /en/dashboard -> /dashboard)
     // This depends on how next-intl handles paths. Usually pathname includes locale.
@@ -57,7 +56,7 @@ export function Breadcrumbs() {
 
                     // Rough simple translation or capitalization
                     // Ideally: t(`breadcrumbs.${segment}`)
-                    const label = segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' ');
+                    const label = segment.charAt(0).toUpperCase() + segment.slice(1).replaceAll('-', ' ');
 
                     return (
                         <li key={href} className="flex items-center">

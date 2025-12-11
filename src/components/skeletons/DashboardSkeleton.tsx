@@ -18,7 +18,7 @@ export function DashboardSkeleton() {
 
             {/* Stats Grid Skeleton */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                {Array.from({ length: 4 }).map((_, i) => (
+                {[1, 2, 3, 4].map((n) => (
                     <Card key={i}>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <Skeleton className="h-4 w-24" />
@@ -50,8 +50,8 @@ export function DashboardSkeleton() {
                         <Skeleton className="h-4 w-48" />
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                            <div key={i} className="flex items-center">
+                        {[1, 2, 3, 4, 5].map((n) => (
+                            <div key={`card-${n}`} className="rounded-lg border bg-card p-6">
                                 <Skeleton className="h-9 w-9 rounded-full mr-4" />
                                 <div className="space-y-1 flex-1">
                                     <Skeleton className="h-4 w-full" />

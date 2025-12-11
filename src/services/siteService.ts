@@ -207,10 +207,9 @@ export async function updateSite(id: string, updatedData: Partial<SiteFormData>)
   if (!user) throw new Error('Unauthorized');
 
   const currentUser = await prisma.profile.findUnique({ where: { id: user.id } });
-  // Only NC or the SC of that site (maybe?) can update.
-  // Actually, SCs typically update their own site details.
   if (!currentUser) throw new Error('Unauthorized');
 
+  // Verify Permissions
   if (currentUser.role !== ROLES.NATIONAL_COORDINATOR) {
     if (currentUser.role === ROLES.SITE_COORDINATOR) {
       if (currentUser.siteId !== id) throw new Error('Forbidden');
@@ -219,6 +218,7 @@ export async function updateSite(id: string, updatedData: Partial<SiteFormData>)
     }
   }
 
+  // Validate Data
   if (updatedData.name && updatedData.name.trim().length < 3) {
     throw new Error('Site name must be at least 3 characters long.');
   }

@@ -73,7 +73,7 @@ export const useReports = () => {
   });
 
   useEffect(() => {
-    const hash = window.location.hash.substring(1);
+    const hash = globalThis.location.hash.substring(1);
     if (hash && reports.length > 0) {
       const reportToSelect = reports.find(r => r.id === hash);
       if (reportToSelect) {
@@ -88,14 +88,14 @@ export const useReports = () => {
     if (report) {
       setSelectedReport(report);
       setIsModalOpen(true);
-      window.location.hash = reportId;
+      globalThis.location.hash = reportId;
     }
   };
 
   const closeModal = () => {
     setSelectedReport(null);
     setIsModalOpen(false);
-    history.pushState("", document.title, window.location.pathname + window.location.search);
+    globalThis.history.replaceState("", globalThis.document.title, globalThis.location.pathname + globalThis.location.search);
   };
 
   const updateReportMutation = useMutation({

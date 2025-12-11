@@ -73,8 +73,8 @@ export const getFinancials = async (user: User, dateFilter: DateFilterValue): Pr
 
     return data;
 
-  } catch (error: any) {
-    console.error('[FinancialsService] Error in getFinancials');
-    throw new Error('Failed to fetch financial data');
+  } catch (error) {
+    console.error('Error fetching financials:', error);
+    throw new Error('Failed to load financial data. Please try again.');
   }
 };

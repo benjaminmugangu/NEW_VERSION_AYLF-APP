@@ -6,12 +6,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { Eye, Edit3, Trash2, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { Eye, CheckCircle, XCircle } from 'lucide-react';
 import { format } from "date-fns";
 
 interface ReportTableProps {
-  reports: ReportWithDetails[];
-  onViewDetails: (reportId: string) => void;
+  readonly reports: readonly ReportWithDetails[];
+  readonly onViewDetails: (reportId: string) => void;
 }
 
 export function ReportTable({ reports, onViewDetails }: ReportTableProps) {
@@ -75,7 +75,7 @@ export function ReportTable({ reports, onViewDetails }: ReportTableProps) {
                   <TableCell>{format(new Date(report.activityDate), "PP")}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className={`${getLevelBadgeColor(report.level)} border-none`}>
-                      {report.level.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      {report.level.replaceAll('_', ' ').replaceAll(/\b\w/g, l => l.toUpperCase())}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -120,7 +120,7 @@ export function ReportTable({ reports, onViewDetails }: ReportTableProps) {
 
               <div className="flex flex-wrap gap-2 text-sm">
                 <Badge variant="outline" className={`${getLevelBadgeColor(report.level)} border-none`}>
-                  {report.level.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                  {report.level.replaceAll('_', ' ').replaceAll(/\b\w/g, l => l.toUpperCase())}
                 </Badge>
                 <span className="bg-secondary text-secondary-foreground px-2 py-0.5 rounded text-xs content-center">
                   {report.activityTypeName}

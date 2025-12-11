@@ -33,7 +33,7 @@ export async function POST(req: Request) {
             where: { id: user.id },
         });
 
-        if (!currentUser || currentUser.role !== 'national_coordinator') {
+        if (currentUser?.role !== 'national_coordinator') {
             return NextResponse.json({ error: MESSAGES.errors.forbidden }, { status: 403 });
         }
 
@@ -43,170 +43,30 @@ export async function POST(req: Request) {
         if (!result.success) {
             return NextResponse.json({ error: MESSAGES.errors.validation, details: result.error.errors }, { status: 400 });
         }
-        const { email, role, siteId, smallGroupId, replaceExisting, existingCoordinatorId } = result.data;
+        const payload = result.data;
 
         let invitation = null;
         let kindeId = null;
         let replaced = false;
 
         // ✨ REPLACEMENT WORKFLOW
-        if (replaceExisting && existingCoordinatorId) {
-            await prisma.$transaction(async (tx) => {
-                // 1. End existing coordinator's mandate
-                await tx.profile.update({
-                    where: { id: existingCoordinatorId },
-                    data: { mandateEndDate: new Date() },
-                });
-
-                // 2. Create invitation for the new coordinator
-                invitation = await createInvitation({
-                    email,
-                    role,
-                    siteId,
-                    smallGroupId,
-                });
-
-                // 3. Try to create Kinde user
-                try {
-                    const nameParts = result.data.name.split(' ');
-                    const firstName = nameParts[0];
-                    const lastName = nameParts.slice(1).join(' ');
-
-                    const kindeUser = await createKindeUser({
-                        email,
-                        firstName,
-                        lastName: lastName || undefined,
-                    });
-                    kindeId = kindeUser.id;
-                } catch (error) {
-                    // ✅ SECURITY: Don't log full error (may contain email/credentials)
-                    console.error('[KINDE_USER_CREATE_FAILED]', {
-                        type: error?.constructor?.name
-                    });
-                }
-
-                // 4. Trigger certificate generation for replaced coordinator (Phase 3)
-                // Note: We import dynamically to avoid circular dependencies if any
-                const { generateCoordinatorCertificate } = await import('@/services/certificateGenerationService');
-                try {
-                    await generateCoordinatorCertificate(existingCoordinatorId);
-                } catch (error) {
-                    // ✅ SECURITY: Log minimal info only
-                    console.error('[CERTIFICATE_GENERATION_FAILED]', {
-                        type: error?.constructor?.name
-                    });
-                }
-
-                replaced = true;
-            });
+        if (payload.replaceExisting && payload.existingCoordinatorId) {
+            const result = await handleReplacementFlow(payload);
+            invitation = result.invitation;
+            kindeId = result.kindeId;
+            replaced = true;
         } else {
             // ✨ REGULAR WORKFLOW (with uniqueness validation)
+            const result = await handleRegularFlow(payload);
 
-            // Check if user already exists
-            const existingUser = await prisma.profile.findUnique({
-                where: { email },
-            });
-
-            if (existingUser) {
-                return NextResponse.json({ error: 'User already exists' }, { status: 409 });
+            // Handle error response from helper if any (e.g. conflict)
+            if ('error' in result) {
+                return NextResponse.json(result, { status: result.status || 409 });
             }
 
-            // ✨ NEW: Coordinator Uniqueness Validation
-            // Site Coordinator: Maximum 1 per site
-            if (role === 'site_coordinator' && siteId) {
-                const existingCoordinator = await prisma.profile.findFirst({
-                    where: {
-                        siteId: siteId,
-                        role: 'site_coordinator',
-                        status: 'active',
-                        mandateEndDate: null // Only active mandates
-                    },
-                    include: {
-                        site: true
-                    }
-                });
-
-                if (existingCoordinator) {
-                    return NextResponse.json({
-                        error: `${existingCoordinator.name} est déjà coordinateur de ${existingCoordinator.site?.name}. Voulez-vous le remplacer ?`,
-                        conflictType: 'site_coordinator',
-                        existingCoordinator: {
-                            id: existingCoordinator.id,
-                            name: existingCoordinator.name,
-                            email: existingCoordinator.email,
-                            mandateStartDate: existingCoordinator.mandateStartDate
-                        }
-                    }, { status: 409 }); // HTTP 409 Conflict
-                }
-            }
-
-            // Small Group Leader: Maximum 1 per group
-            if (role === 'small_group_leader' && smallGroupId) {
-                const existingLeader = await prisma.profile.findFirst({
-                    where: {
-                        smallGroupId: smallGroupId,
-                        role: 'small_group_leader',
-                        status: 'active',
-                        mandateEndDate: null
-                    },
-                    include: {
-                        smallGroup: {
-                            include: {
-                                site: true
-                            }
-                        }
-                    }
-                });
-
-                if (existingLeader) {
-                    return NextResponse.json({
-                        error: `${existingLeader.name} est déjà leader de ${existingLeader.smallGroup?.name}. Voulez-vous le remplacer ?`,
-                        conflictType: 'small_group_leader',
-                        existingLeader: {
-                            id: existingLeader.id,
-                            name: existingLeader.name,
-                            email: existingLeader.email,
-                            mandateStartDate: existingLeader.mandateStartDate
-                        }
-                    }, { status: 409 });
-                }
-            }
-
-            // National Coordinator: No limit (multiple allowed)
-            // No validation needed
-
-            invitation = await createInvitation({
-                email,
-                role,
-                siteId,
-                smallGroupId,
-            });
-
-            try {
-                // Split name into first and last name for Kinde
-                const nameParts = result.data.name.split(' ');
-                const firstName = nameParts[0];
-                const lastName = nameParts.slice(1).join(' ');
-
-                const kindeUser = await createKindeUser({
-                    email,
-                    firstName,
-                    lastName: lastName || undefined,
-                });
-                kindeId = kindeUser.id;
-            } catch (error) {
-                console.error('Failed to create user in Kinde:', error);
-                // We continue even if Kinde creation fails (e.g. user already exists)
-                // But ideally we should check if it failed because user exists.
-                // For now, we assume if it fails, the user might already be there or we handle it manually.
-                // If we want to be strict, we could return an error here.
-                // But let's allow "inviting" existing Kinde users to the app.
-            }
+            invitation = result.invitation;
+            kindeId = result.kindeId;
         }
-
-        // If we got a Kinde ID, we could potentially pre-create the profile or link it.
-        // But our current flow relies on the user logging in and /api/auth/me creating the profile.
-        // So we just leave the invitation pending.
 
         return NextResponse.json({
             success: true,
@@ -219,4 +79,149 @@ export async function POST(req: Request) {
         console.error('[INVITE_USER_ERROR]', error);
         return NextResponse.json({ error: MESSAGES.errors.serverError }, { status: 500 });
     }
+}
+
+// Helper Functions
+
+async function handleReplacementFlow(payload: any) {
+    let invitation = null;
+    let kindeId = null;
+
+    await prisma.$transaction(async (tx) => {
+        // 1. End existing coordinator's mandate
+        await tx.profile.update({
+            where: { id: payload.existingCoordinatorId },
+            data: { mandateEndDate: new Date() },
+        });
+
+        // 2. Create invitation for the new coordinator
+        invitation = await createInvitation({
+            email: payload.email,
+            role: payload.role,
+            siteId: payload.siteId,
+            smallGroupId: payload.smallGroupId,
+        });
+
+        // 3. Try to create Kinde user
+        try {
+            const nameParts = payload.name.split(' ');
+            const firstName = nameParts[0];
+            const lastName = nameParts.slice(1).join(' ');
+
+            const kindeUser = await createKindeUser({
+                email: payload.email,
+                firstName,
+                lastName: lastName || undefined,
+            });
+            kindeId = kindeUser.id;
+        } catch (error: any) {
+            console.error('[KINDE_USER_CREATE_FAILED]', {
+                type: error?.constructor?.name
+            });
+        }
+
+        // 4. Trigger certificate generation
+        const { generateCoordinatorCertificate } = await import('@/services/certificateGenerationService');
+        try {
+            await generateCoordinatorCertificate(payload.existingCoordinatorId!);
+        } catch (error: any) {
+            console.error('[CERTIFICATE_GENERATION_FAILED]', {
+                type: error?.constructor?.name
+            });
+        }
+    });
+
+    return { invitation, kindeId };
+}
+
+async function handleRegularFlow(payload: any) {
+    const { email, role, siteId, smallGroupId, name } = payload;
+
+    // Check if user already exists
+    const existingUser = await prisma.profile.findUnique({
+        where: { email },
+    });
+
+    if (existingUser) {
+        return { error: 'User already exists', status: 409 };
+    }
+
+    // Uniqueness Validaition logic
+    if (role === 'site_coordinator' && siteId) {
+        const existingCoordinator = await prisma.profile.findFirst({
+            where: {
+                siteId: siteId,
+                role: 'site_coordinator',
+                status: 'active',
+                mandateEndDate: null
+            },
+            include: { site: true }
+        });
+
+        if (existingCoordinator) {
+            return {
+                error: `${existingCoordinator.name} est déjà coordinateur de ${existingCoordinator.site?.name}. Voulez-vous le remplacer ?`,
+                conflictType: 'site_coordinator',
+                existingCoordinator: {
+                    id: existingCoordinator.id,
+                    name: existingCoordinator.name,
+                    email: existingCoordinator.email,
+                    mandateStartDate: existingCoordinator.mandateStartDate
+                },
+                status: 409
+            };
+        }
+    }
+
+    if (role === 'small_group_leader' && smallGroupId) {
+        const existingLeader = await prisma.profile.findFirst({
+            where: {
+                smallGroupId: smallGroupId,
+                role: 'small_group_leader',
+                status: 'active',
+                mandateEndDate: null
+            },
+            include: { smallGroup: { include: { site: true } } }
+        });
+
+        if (existingLeader) {
+            return {
+                error: `${existingLeader.name} est déjà leader de ${existingLeader.smallGroup?.name}. Voulez-vous le remplacer ?`,
+                conflictType: 'small_group_leader',
+                existingLeader: {
+                    id: existingLeader.id,
+                    name: existingLeader.name,
+                    email: existingLeader.email,
+                    mandateStartDate: existingLeader.mandateStartDate
+                },
+                status: 409
+            };
+        }
+    }
+
+    // Create Invitation
+    const invitation = await createInvitation({
+        email,
+        role,
+        siteId,
+        smallGroupId,
+    });
+
+    let kindeId = null;
+    try {
+        const nameParts = name.split(' ');
+        const firstName = nameParts[0];
+        const lastName = nameParts.slice(1).join(' ');
+
+        const kindeUser = await createKindeUser({
+            email,
+            firstName,
+            lastName: lastName || undefined,
+        });
+        kindeId = kindeUser.id;
+    } catch (error) {
+        console.error('Failed to create user in Kinde:', error);
+    }
+
+    return { invitation, kindeId };
 }

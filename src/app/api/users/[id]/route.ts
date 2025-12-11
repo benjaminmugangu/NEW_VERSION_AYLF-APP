@@ -64,6 +64,7 @@ export async function DELETE(
     return NextResponse.json({ message: MESSAGES.success.deleted }, { status: 200 });
 
   } catch (error) {
+    console.error('Failed to delete Kinde user:', error);
     return NextResponse.json({ error: MESSAGES.errors.serverError }, { status: 500 });
   }
 }

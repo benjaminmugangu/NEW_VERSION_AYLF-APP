@@ -35,7 +35,7 @@ export async function POST(
             where: { id: user.id },
         });
 
-        if (!currentUser || currentUser.role !== 'national_coordinator') {
+        if (currentUser?.role !== 'national_coordinator') {
             return NextResponse.json({ error: MESSAGES.errors.forbidden }, { status: 403 });
         }
 

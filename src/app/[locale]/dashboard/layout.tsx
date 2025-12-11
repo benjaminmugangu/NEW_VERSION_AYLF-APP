@@ -8,7 +8,6 @@ import { APP_NAME } from '@/lib/constants';
 import { DashboardSidebar } from './components/DashboardSidebar';
 import { ClientOnly } from '@/components/shared/ClientOnly';
 import type { User } from '@/lib/types';
-import { UserRole } from '@prisma/client';
 import { InvitationProcessor } from '@/components/auth/InvitationProcessor';
 import { CustomOnboardingTour } from '@/components/shared/CustomOnboardingTour';
 import { NotificationBell } from '@/components/shared/NotificationBell';
@@ -18,7 +17,7 @@ import { OfflineIndicator } from '@/components/shared/OfflineIndicator';
 export default async function DashboardLayout({
   children,
 }: {
-  children: React.ReactNode;
+  readonly children: React.ReactNode;
 }) {
   const { getUser, isAuthenticated } = getKindeServerSession();
   const isAuth = await isAuthenticated();
@@ -48,7 +47,7 @@ export default async function DashboardLayout({
         id: profile.id,
         name: profile.name,
         email: profile.email,
-        role: profile.role as UserRole, // Cast Prisma Enum -> App Type Enum
+        role: profile.role, // Prisma Enum matches App Type
         siteId: profile.siteId,
         smallGroupId: profile.smallGroupId,
         status: profile.status,

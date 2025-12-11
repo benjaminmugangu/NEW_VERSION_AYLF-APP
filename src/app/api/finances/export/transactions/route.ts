@@ -77,7 +77,7 @@ export async function GET(request: Request) {
         transactions.forEach(t => {
             csvRows.push([
                 format(new Date(t.date), 'yyyy-MM-dd'),
-                `"${t.description.replace(/"/g, '""')}"`, // Escape quotes
+                t.description?.replaceAll(',', ';') || '', // Escape quotes
                 t.amount.toString(),
                 t.type,
                 t.category,

@@ -101,15 +101,20 @@ export interface DbSmallGroup {
   meeting_location?: string | null;
 }
 
+// Type aliases for common unions (SonarLint fix)
+export type Gender = 'male' | 'female';
+export type MemberType = 'student' | 'non-student';
+export type EntityLevel = "national" | "site" | "small_group";
+
 export interface Member extends BaseEntity {
   userId?: string; // Optional link to a User account
   name: string;
-  gender: 'male' | 'female';
-  type: 'student' | 'non-student';
+  gender: Gender;
+  type: MemberType;
   joinDate: string; // ISO 8601 date string
   phone?: string;
   email?: string;
-  level: "national" | "site" | "small_group";
+  level: EntityLevel;
   siteId: string;
   smallGroupId?: string;
 }
@@ -124,6 +129,7 @@ export type MemberWithDetails = Member & {
 // FEATURE-SPECIFIC TYPES
 // =============================================================================
 
+export type EntityLevel = "national" | "site" | "small_group";
 export type ActivityStatus = 'planned' | 'in_progress' | 'delayed' | 'executed' | 'canceled';
 
 export interface Activity extends BaseEntity {
@@ -131,7 +137,7 @@ export interface Activity extends BaseEntity {
   thematic: string;
   date: string; // ISO date string
   status: ActivityStatus;
-  level: "national" | "site" | "small_group";
+  level: EntityLevel;
   siteId?: string;
   smallGroupId?: string;
   activityTypeId: string;
@@ -151,7 +157,7 @@ export interface DbActivity {
   title: string;
   thematic: string;
   date: string;
-  level: 'national' | 'site' | 'small_group';
+  level: EntityLevel;
   status: ActivityStatus;
   site_id?: string;
   small_group_id?: string;
@@ -181,7 +187,7 @@ export interface DbReport {
   activity_date: string;
   submitted_by: string; // User ID
   submission_date: string; // ISO date string
-  level: "national" | "site" | "small_group";
+  level: EntityLevel;
   site_id?: string;
   small_group_id?: string;
   activity_type_id: string;
@@ -207,7 +213,7 @@ export interface Report extends BaseEntity {
   activityDate: string;
   submittedBy: string; // User ID
   submissionDate: string; // ISO date string
-  level: "national" | "site" | "small_group";
+  level: EntityLevel;
   siteId?: string;
   smallGroupId?: string;
   activityTypeId: string;
@@ -339,7 +345,7 @@ export interface ReportFormData {
   activityId: string; // The ID of the planned activity this report is for
   title: string;
   activityDate: string;
-  level: "national" | "site" | "small_group";
+  level: EntityLevel;
   siteId?: string;
   smallGroupId?: string;
   activityTypeId: string;
@@ -404,13 +410,12 @@ export interface SmallGroupFormData {
 
 export type MemberFormData = {
   name: string;
-  gender: 'male' | 'female';
+  gender: Gender;
+  type: MemberType;
+  joinDate: Date | string;
   phone?: string;
   email?: string;
-  type: 'student' | 'non-student';
-  joinDate: Date;
-  level: "national" | "site" | "small_group";
-  siteId?: string;
+  siteId: string;
   smallGroupId?: string;
 };
 
@@ -426,7 +431,7 @@ export interface UserContext {
 
 export interface AuthContextType {
   currentUser: User | null;
-  session: any | null;
+  session: unknown; // SonarLint: 'unknown' covers null
   isLoading: boolean;
 }
 

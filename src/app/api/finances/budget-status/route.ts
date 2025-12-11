@@ -53,27 +53,11 @@ export async function GET(request: Request) {
             }
         }
 
-        // Calculate Total Allocations with proper typing
-        const allocationWhere: Prisma.FundAllocationWhereInput = {};
-        if (siteId) allocationWhere.siteId = siteId;
-        if (smallGroupId) allocationWhere.smallGroupId = smallGroupId;
+        // ... (RBAC logic remains or extracted if possible, but let's focus on calcs first) ...
+        // Actually, extracting the whole calculation block is better.
 
-        const allocations = await prisma.fundAllocation.aggregate({
-            where: allocationWhere,
-            _sum: { amount: true },
-        });
-        const totalAllocated = allocations._sum.amount || 0;
-
-        // Calculate Total Expenses with proper typing
-        const expenseWhere: Prisma.FinancialTransactionWhereInput = { type: 'expense' };
-        if (siteId) expenseWhere.siteId = siteId;
-        if (smallGroupId) expenseWhere.smallGroupId = smallGroupId;
-
-        const expenses = await prisma.financialTransaction.aggregate({
-            where: expenseWhere,
-            _sum: { amount: true },
-        });
-        const totalSpent = expenses._sum.amount || 0;
+        // Calculate Stats
+        const { totalAllocated, totalSpent } = await getBudgetStats(siteId, smallGroupId);
 
         const remaining = totalAllocated - totalSpent;
         const percentageSpent = totalAllocated > 0 ? (totalSpent / totalAllocated) * 100 : 0;
@@ -97,4 +81,30 @@ export async function GET(request: Request) {
             { status: 500 }
         );
     }
+}
+
+async function getBudgetStats(siteId: string | null, smallGroupId: string | null) {
+    // Calculate Total Allocations
+    const allocationWhere: Prisma.FundAllocationWhereInput = {};
+    if (siteId) allocationWhere.siteId = siteId;
+    if (smallGroupId) allocationWhere.smallGroupId = smallGroupId;
+
+    const allocations = await prisma.fundAllocation.aggregate({
+        where: allocationWhere,
+        _sum: { amount: true },
+    });
+    const totalAllocated = allocations._sum.amount || 0;
+
+    // Calculate Total Expenses
+    const expenseWhere: Prisma.FinancialTransactionWhereInput = { type: 'expense' };
+    if (siteId) expenseWhere.siteId = siteId;
+    if (smallGroupId) expenseWhere.smallGroupId = smallGroupId;
+
+    const expenses = await prisma.financialTransaction.aggregate({
+        where: expenseWhere,
+        _sum: { amount: true },
+    });
+    const totalSpent = expenses._sum.amount || 0;
+
+    return { totalAllocated, totalSpent };
 }

@@ -1,7 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import { Report, ReportWithDetails, ReportFormData, User, UserRole } from '@/lib/types';
+import { Report, ReportWithDetails, ReportFormData, User } from '@/lib/types';
 import { logReportApproval, createAuditLog } from './auditLogService';
 
 // ... existing code ...
@@ -32,7 +32,7 @@ const normalizeImages = (images: any): Array<{ name: string; url: string }> | un
 const normalizeAttachments = (attachments: any): string[] | undefined => {
   if (!attachments) return undefined;
   if (!Array.isArray(attachments)) return undefined;
-  return attachments.filter((x: any) => typeof x === 'string') as string[];
+  return attachments.filter((x: any) => typeof x === 'string');
 };
 
 // Server-safe date filter
@@ -189,28 +189,7 @@ export async function createReport(reportData: ReportFormData): Promise<Report> 
 }
 
 export async function updateReport(reportId: string, updatedData: Partial<ReportFormData>): Promise<ReportWithDetails> {
-  const updateData: any = {};
-  // Map fields
-  if (updatedData.title !== undefined) updateData.title = updatedData.title;
-  if (updatedData.activityDate !== undefined) updateData.activityDate = updatedData.activityDate;
-  if (updatedData.level !== undefined) updateData.level = updatedData.level;
-  if (updatedData.status !== undefined) updateData.status = updatedData.status;
-  if (updatedData.content !== undefined) updateData.content = updatedData.content;
-  if (updatedData.thematic !== undefined) updateData.thematic = updatedData.thematic;
-  if (updatedData.speaker !== undefined) updateData.speaker = updatedData.speaker;
-  if (updatedData.moderator !== undefined) updateData.moderator = updatedData.moderator;
-  if (updatedData.girlsCount !== undefined) updateData.girlsCount = updatedData.girlsCount;
-  if (updatedData.boysCount !== undefined) updateData.boysCount = updatedData.boysCount;
-  if (updatedData.participantsCountReported !== undefined) updateData.participantsCountReported = updatedData.participantsCountReported;
-  if (updatedData.totalExpenses !== undefined) updateData.totalExpenses = updatedData.totalExpenses;
-  if (updatedData.currency !== undefined) updateData.currency = updatedData.currency;
-  if (updatedData.financialSummary !== undefined) updateData.financialSummary = updatedData.financialSummary;
-  if (updatedData.images !== undefined) updateData.images = updatedData.images;
-  if (updatedData.attachments !== undefined) updateData.attachments = updatedData.attachments;
-  if (updatedData.siteId !== undefined) updateData.siteId = updatedData.siteId;
-  if (updatedData.smallGroupId !== undefined) updateData.smallGroupId = updatedData.smallGroupId;
-  if (updatedData.activityTypeId !== undefined) updateData.activityTypeId = updatedData.activityTypeId;
-  if (updatedData.activityId !== undefined) updateData.activityId = updatedData.activityId;
+  const updateData = mapUpdateDataFields(updatedData);
 
   const report = await prisma.report.update({
     where: { id: reportId },
@@ -226,6 +205,24 @@ export async function updateReport(reportId: string, updatedData: Partial<Report
   return mapPrismaReportToModel(report);
 }
 
+function mapUpdateDataFields(updatedData: Partial<ReportFormData>) {
+  const updateData: any = {};
+  const fields = [
+    'title', 'activityDate', 'level', 'status', 'content', 'thematic',
+    'speaker', 'moderator', 'girlsCount', 'boysCount',
+    'participantsCountReported', 'totalExpenses', 'currency',
+    'financialSummary', 'images', 'attachments', 'siteId',
+    'smallGroupId', 'activityTypeId', 'activityId'
+  ];
+
+  for (const field of fields) {
+    if ((updatedData as any)[field] !== undefined) {
+      updateData[field] = (updatedData as any)[field];
+    }
+  }
+  return updateData;
+}
+
 export async function deleteReport(id: string): Promise<void> {
   await prisma.report.delete({
     where: { id },
@@ -233,50 +230,12 @@ export async function deleteReport(id: string): Promise<void> {
 }
 
 export async function getFilteredReports(filters: ReportFilters): Promise<ReportWithDetails[]> {
-  const { user, entity, searchTerm, dateFilter, statusFilter } = filters;
+  const { user, entity } = filters;
   if (!user && !entity) {
     throw new Error('User or entity is required to fetch reports.');
   }
 
-  const where: any = {};
-
-  if (entity) {
-    if (entity.type === 'site') where.siteId = entity.id;
-    else where.smallGroupId = entity.id;
-  } else if (user) {
-    switch (user.role) {
-      case 'site_coordinator':
-        if (user.siteId) where.siteId = user.siteId;
-        else return [];
-        break;
-      case 'small_group_leader':
-        if (user.smallGroupId) where.smallGroupId = user.smallGroupId;
-        else return [];
-        break;
-    }
-  }
-
-  if (dateFilter) {
-    const { startDate, endDate } = computeDateRange(dateFilter);
-    if (startDate || endDate) {
-      where.activityDate = {};
-      if (startDate) where.activityDate.gte = startDate;
-      if (endDate) where.activityDate.lte = endDate;
-    }
-  }
-
-  if (searchTerm) {
-    where.title = { contains: searchTerm, mode: 'insensitive' };
-  }
-
-  if (statusFilter) {
-    const activeStatuses = Object.entries(statusFilter)
-      .filter(([, isActive]) => isActive)
-      .map(([status]) => status);
-    if (activeStatuses.length > 0) {
-      where.status = { in: activeStatuses };
-    }
-  }
+  const where = buildReportWhereClause(filters);
 
   const reports = await prisma.report.findMany({
     where,
@@ -290,6 +249,56 @@ export async function getFilteredReports(filters: ReportFilters): Promise<Report
   });
 
   return reports.map(mapPrismaReportToModel);
+}
+
+function buildReportWhereClause(filters: ReportFilters) {
+  const { user, entity, searchTerm, dateFilter, statusFilter } = filters;
+  const where: any = {};
+
+  // 1. Entity Filter
+  if (entity) {
+    if (entity.type === 'site') where.siteId = entity.id;
+    else where.smallGroupId = entity.id;
+    return where; // Entity filter is usually exclusive or base
+  }
+
+  // 2. User Role Filter (if no entity)
+  if (user) {
+    if (user.role === 'site_coordinator') {
+      if (user.siteId) where.siteId = user.siteId;
+      else return { id: 'nothing' }; // invalid state, return empty
+    } else if (user.role === 'small_group_leader') {
+      if (user.smallGroupId) where.smallGroupId = user.smallGroupId;
+      else return { id: 'nothing' };
+    }
+  }
+
+  // 3. Date Filter
+  if (dateFilter) {
+    const { startDate, endDate } = computeDateRange(dateFilter);
+    if (startDate || endDate) {
+      where.activityDate = {};
+      if (startDate) where.activityDate.gte = startDate;
+      if (endDate) where.activityDate.lte = endDate;
+    }
+  }
+
+  // 4. Search
+  if (searchTerm) {
+    where.title = { contains: searchTerm, mode: 'insensitive' };
+  }
+
+  // 5. Status
+  if (statusFilter) {
+    const activeStatuses = Object.entries(statusFilter)
+      .filter(([, isActive]) => isActive)
+      .map(([status]) => status);
+    if (activeStatuses.length > 0) {
+      where.status = { in: activeStatuses };
+    }
+  }
+
+  return where;
 }
 
 /**

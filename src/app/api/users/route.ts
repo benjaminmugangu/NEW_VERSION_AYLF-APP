@@ -108,7 +108,8 @@ export async function POST(request: Request) {
       }
     }, { status: 201 });
 
-  } catch (error) {
+  } catch (kindeError) {
+    console.error('Failed to create Kinde user:', kindeError);
     return NextResponse.json({ error: MESSAGES.errors.serverError }, { status: 500 });
   }
 }

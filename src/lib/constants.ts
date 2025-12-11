@@ -1,5 +1,5 @@
 import type { NavItem, UserRole } from "@/lib/types";
-import { LayoutDashboard, Activity, Users, FileText, Lightbulb, Building, Settings, UsersRound, Briefcase, Award, UserCircle as UserProfileIcon, History as HistoryIcon, Bell } from "lucide-react";
+import { LayoutDashboard, Activity, Users, FileText, Lightbulb, Building, UsersRound, Briefcase, Award, UserCircle as UserProfileIcon, History as HistoryIcon, Bell } from "lucide-react";
 
 export const ROLES: Record<string, UserRole> = {
   NATIONAL_COORDINATOR: "national_coordinator",

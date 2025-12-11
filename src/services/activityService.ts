@@ -2,9 +2,9 @@
 
 import { prisma } from '@/lib/prisma';
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
-import { Activity, ActivityStatus, ActivityType, User, UserRole } from '@/lib/types';
+import { Activity, ActivityStatus, ActivityType } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
-import { activityFormSchema, type ActivityFormData } from '@/schemas/activity';
+import { type ActivityFormData } from '@/schemas/activity';
 
 
 const mapPrismaActivityToActivity = (item: any): Activity => {
@@ -61,58 +61,10 @@ const mapPrismaActivityToActivity = (item: any): Activity => {
 };
 
 export const getFilteredActivities = async (filters: any): Promise<Activity[]> => {
-  const { user, searchTerm, dateFilter, statusFilter, levelFilter } = filters;
+  const { user } = filters;
   if (!user) throw new Error('User not authenticated.');
 
-  const where: any = {};
-
-  // RBAC
-  if (user.role === ROLES.SITE_COORDINATOR && user.siteId) {
-    where.OR = [
-      { level: 'national' },
-      { level: 'site', siteId: user.siteId },
-      { level: 'small_group', siteId: user.siteId }
-    ];
-  } else if (user.role === ROLES.SMALL_GROUP_LEADER && user.siteId && user.smallGroupId) {
-    where.OR = [
-      { level: 'national' },
-      { level: 'site', siteId: user.siteId },
-      { level: 'small_group', smallGroupId: user.smallGroupId }
-    ];
-  }
-  // National Coordinator sees all (no RBAC filter)
-
-  // Search
-  if (searchTerm) {
-    where.title = { contains: searchTerm, mode: 'insensitive' };
-  }
-
-  // Date
-  if (dateFilter?.from || dateFilter?.to) {
-    where.date = {};
-    if (dateFilter.from) where.date.gte = dateFilter.from;
-    if (dateFilter.to) where.date.lte = dateFilter.to;
-  }
-
-  // Status
-  if (statusFilter) {
-    const statuses = Object.entries(statusFilter)
-      .filter(([_, v]) => v)
-      .map(([k]) => k);
-    if (statuses.length > 0) {
-      where.status = { in: statuses };
-    }
-  }
-
-  // Level
-  if (levelFilter) {
-    const levels = Object.entries(levelFilter)
-      .filter(([_, v]) => v)
-      .map(([k]) => k);
-    if (levels.length > 0) {
-      where.level = { in: levels };
-    }
-  }
+  const where = buildActivityWhereClause(filters);
 
   const activities = await prisma.activity.findMany({
     where,
@@ -173,32 +125,8 @@ export const createActivity = async (activityData: ActivityFormData): Promise<Ac
     throw new Error('Unauthorized: User profile not found');
   }
 
-  // Enforce RBAC Overrides
-  const safeData = { ...activityData };
-
-  // createdBy must be the current user
-  safeData.createdBy = currentUser.id;
-
-  if (currentUser.role === ROLES.SITE_COORDINATOR) {
-    // FORCE Site Context
-    if (!currentUser.siteId) throw new Error('Site Coordinator has no site assigned');
-
-    // Strict enforcement: SC can only create SITE level activities for THEIR site
-    safeData.level = 'site';
-    safeData.siteId = currentUser.siteId;
-    safeData.smallGroupId = undefined;
-  }
-  else if (currentUser.role === ROLES.SMALL_GROUP_LEADER) {
-    // FORCE Small Group Context
-    if (!currentUser.smallGroupId) throw new Error('Small Group Leader has no group assigned');
-
-    safeData.level = 'small_group';
-    safeData.smallGroupId = currentUser.smallGroupId;
-    safeData.siteId = currentUser.siteId || undefined;
-  }
-  else if (currentUser.role === ROLES.MEMBER) {
-    throw new Error('Unauthorized: Members cannot create activities');
-  }
+  // Enforce RBAC Overrides and Validations
+  const safeData = await validateAndPrepareCreateData(activityData, currentUser);
 
   const activity = await prisma.activity.create({
     data: {
@@ -246,48 +174,10 @@ export const updateActivity = async (id: string, updatedData: Partial<ActivityFo
   if (!existingActivity) throw new Error('Activity not found');
 
   // Permission Check
-  if (currentUser.role !== ROLES.NATIONAL_COORDINATOR) {
-    // Site Coordinator can only update their site's activities
-    if (currentUser.role === ROLES.SITE_COORDINATOR) {
-      if (existingActivity.siteId !== currentUser.siteId) {
-        throw new Error('Forbidden: Cannot update activity from another site');
-      }
-    }
-    // Small Group Leader can only update their group's activities
-    if (currentUser.role === ROLES.SMALL_GROUP_LEADER) {
-      if (existingActivity.smallGroupId !== currentUser.smallGroupId) {
-        throw new Error('Forbidden: Cannot update activity from another group');
-      }
-    }
-    // Members cannot update
-    if (currentUser.role === ROLES.MEMBER) {
-      throw new Error('Forbidden');
-    }
-  }
+  validateUpdatePermissions(currentUser, existingActivity);
 
   // Map frontend data to Prisma update object
-  const dbUpdates: any = {};
-  const data = updatedData as any; // Loose typing to handle both types
-
-  if (data.title !== undefined) dbUpdates.title = data.title;
-  if (data.thematic !== undefined) dbUpdates.thematic = data.thematic;
-  if (data.date !== undefined) dbUpdates.date = data.date;
-
-  // Prevent Level/Context hijacking during update
-  if (currentUser.role === ROLES.NATIONAL_COORDINATOR) {
-    if (data.level !== undefined) dbUpdates.level = data.level;
-    if (data.siteId !== undefined) dbUpdates.siteId = data.siteId;
-    if (data.smallGroupId !== undefined) dbUpdates.smallGroupId = data.smallGroupId;
-  }
-  // Others cannot change structural context
-
-  if (data.status !== undefined) dbUpdates.status = data.status;
-  if (data.activityTypeId !== undefined) dbUpdates.activityTypeId = data.activityTypeId;
-  if (data.activityTypeEnum !== undefined) dbUpdates.activityTypeEnum = data.activityTypeEnum;
-  if (data.participantsCountPlanned !== undefined) dbUpdates.participantsCountPlanned = data.participantsCountPlanned;
-
-  // createdBy cannot be changed
-  // if (data.createdBy !== undefined) dbUpdates.createdById = data.createdBy;
+  const dbUpdates = buildActivityUpdateData(updatedData, currentUser);
 
   const activity = await prisma.activity.update({
     where: { id },
@@ -357,8 +247,6 @@ export const getActivityTypes = async (): Promise<ActivityType[]> => {
   }));
 };
 
-
-
 export const updateActivityStatuses = async () => {
   const now = new Date();
   const yesterday = new Date(now);
@@ -396,5 +284,154 @@ export const updateActivityStatuses = async () => {
     inProgressToDelayed: delayedCount,
   };
 };
+
+// =============================================================================
+// HELPER FUNCTIONS
+// =============================================================================
+
+function buildActivityWhereClause(filters: any) {
+  const { user, searchTerm, dateFilter, statusFilter, levelFilter } = filters;
+  const where: any = {};
+
+  // 1. apply RBAC
+  const rbacClause = getRbacWhereClause(user);
+  if (rbacClause) {
+    Object.assign(where, rbacClause);
+  }
+
+  // 2. apply Search
+  if (searchTerm) {
+    where.title = { contains: searchTerm, mode: 'insensitive' };
+  }
+
+  // 3. apply Date
+  if (dateFilter?.from || dateFilter?.to) {
+    where.date = {};
+    if (dateFilter.from) where.date.gte = dateFilter.from;
+    if (dateFilter.to) where.date.lte = dateFilter.to;
+  }
+
+  // 4. apply Filters
+  applyListFilter(where, 'status', statusFilter);
+  applyListFilter(where, 'level', levelFilter);
+
+  return where;
+}
+
+function getRbacWhereClause(user: any) {
+  if (user.role === ROLES.SITE_COORDINATOR && user.siteId) {
+    return {
+      OR: [
+        { level: 'national' },
+        { level: 'site', siteId: user.siteId },
+        { level: 'small_group', siteId: user.siteId }
+      ]
+    };
+  }
+
+  if (user.role === ROLES.SMALL_GROUP_LEADER && user.siteId && user.smallGroupId) {
+    return {
+      OR: [
+        { level: 'national' },
+        { level: 'site', siteId: user.siteId },
+        { level: 'small_group', smallGroupId: user.smallGroupId }
+      ]
+    };
+  }
+
+  return null;
+}
+
+function applyListFilter(where: any, field: string, filterObj: any) {
+  if (!filterObj) return;
+
+  const values = Object.entries(filterObj)
+    .filter(([_, v]) => v)
+    .map(([k]) => k);
+
+  if (values.length > 0) {
+    where[field] = { in: values };
+  }
+}
+
+function validateUpdatePermissions(currentUser: any, existingActivity: any) {
+  if (currentUser.role !== ROLES.NATIONAL_COORDINATOR) {
+    // Site Coordinator
+    if (currentUser.role === ROLES.SITE_COORDINATOR) {
+      if (existingActivity.siteId !== currentUser.siteId) {
+        throw new Error('Forbidden: Cannot update activity from another site');
+      }
+    }
+    // Small Group Leader
+    else if (currentUser.role === ROLES.SMALL_GROUP_LEADER) {
+      if (existingActivity.smallGroupId !== currentUser.smallGroupId) {
+        throw new Error('Forbidden: Cannot update activity from another group');
+      }
+    }
+    // Members
+    else if (currentUser.role === ROLES.MEMBER) {
+      throw new Error('Forbidden');
+    }
+  }
+}
+
+function buildActivityUpdateData(updatedData: any, currentUser: any) {
+  const dbUpdates: any = {};
+
+  // 1. Common Updates (Title, Thematic, Date)
+  assignCommonFields(dbUpdates, updatedData);
+
+  // 2. Status & Type Updates
+  assignStatusAndTypeFields(dbUpdates, updatedData);
+
+  // 3. Protected Context Updates (National Coordinator Only)
+  if (currentUser.role === ROLES.NATIONAL_COORDINATOR) {
+    assignContextFields(dbUpdates, updatedData);
+  }
+
+  return dbUpdates;
+}
+
+function assignCommonFields(target: any, source: any) {
+  if (source.title !== undefined) target.title = source.title;
+  if (source.thematic !== undefined) target.thematic = source.thematic;
+  if (source.date !== undefined) target.date = source.date;
+}
+
+function assignStatusAndTypeFields(target: any, source: any) {
+  if (source.status !== undefined) target.status = source.status;
+  if (source.activityTypeId !== undefined) target.activityTypeId = source.activityTypeId;
+  if (source.activityTypeEnum !== undefined) target.activityTypeEnum = source.activityTypeEnum;
+  if (source.participantsCountPlanned !== undefined) target.participantsCountPlanned = source.participantsCountPlanned;
+}
+
+function assignContextFields(target: any, source: any) {
+  if (source.level !== undefined) target.level = source.level;
+  if (source.siteId !== undefined) target.siteId = source.siteId;
+  if (source.smallGroupId !== undefined) target.smallGroupId = source.smallGroupId;
+}
+
+async function validateAndPrepareCreateData(activityData: ActivityFormData, currentUser: any) {
+  const safeData = { ...activityData } as any; // Cast to allow adding fields
+  safeData.createdBy = currentUser.id;
+
+  if (currentUser.role === ROLES.SITE_COORDINATOR) {
+    if (!currentUser.siteId) throw new Error('Site Coordinator has no site assigned');
+    safeData.level = 'site';
+    safeData.siteId = currentUser.siteId;
+    safeData.smallGroupId = undefined;
+  }
+  else if (currentUser.role === ROLES.SMALL_GROUP_LEADER) {
+    if (!currentUser.smallGroupId) throw new Error('Small Group Leader has no group assigned');
+    safeData.level = 'small_group';
+    safeData.smallGroupId = currentUser.smallGroupId;
+    safeData.siteId = currentUser.siteId || undefined;
+  }
+  else if (currentUser.role === ROLES.MEMBER) {
+    throw new Error('Unauthorized: Members cannot create activities');
+  }
+
+  return safeData;
+}
 
 

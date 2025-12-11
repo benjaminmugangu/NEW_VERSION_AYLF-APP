@@ -20,7 +20,7 @@ export interface CertificateData {
     nationalCoordinatorName: string;
 }
 
-export function CertificateTemplate({ data }: { data: CertificateData }) {
+export function CertificateTemplate({ data }: { readonly data: CertificateData }) {
     return (
         <Document>
             <Page size="A4" style={styles.page}>

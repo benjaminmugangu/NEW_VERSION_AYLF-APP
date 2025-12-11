@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+
 
 const KINDE_DOMAIN = process.env.KINDE_ISSUER_URL;
 const KINDE_M2M_CLIENT_ID = process.env.KINDE_M2M_CLIENT_ID;

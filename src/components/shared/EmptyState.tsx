@@ -2,11 +2,11 @@ import { LucideIcon } from 'lucide-react';
 import React from 'react';
 
 interface EmptyStateProps {
-    title: string;
-    description: string;
-    icon: LucideIcon;
-    action?: React.ReactNode;
-    className?: string;
+    readonly title: string;
+    readonly description: string;
+    readonly icon: LucideIcon;
+    readonly action?: React.ReactNode;
+    readonly className?: string;
 }
 
 export function EmptyState({ title, description, icon: Icon, action, className }: EmptyStateProps) {

@@ -52,7 +52,7 @@ export async function exportTransactionsToCSV(filters: {
         const date = new Date(t.date).toLocaleDateString('fr-FR');
         const type = t.type;
         const category = t.category;
-        const description = `"${t.description.replace(/"/g, '""')}"`;
+        const description = `"${t.description?.replaceAll('"', '""').replaceAll(',', ';') || ''}"`;
         const amount = t.amount;
         const site = t.site?.name || '';
         const smallGroup = t.smallGroup?.name || '';
@@ -132,11 +132,11 @@ export async function exportAllocationsToCSV(filters: {
         const toSite = a.site?.name || '';
         const toSmallGroup = a.smallGroup?.name || '';
         const amount = a.amount;
-        const goal = `"${a.goal.replace(/"/g, '""')}"`;
+        const goal = `"${a.goal.replaceAll('"', '""')}"`;
         const status = a.status;
         const allocatedBy = a.allocatedBy?.name || '';
         const proofUrl = a.proofUrl || '';
-        const notes = a.notes ? `"${a.notes.replace(/"/g, '""')}"` : '';
+        const notes = a.notes ? `"${a.notes.replaceAll('"', '""')}"` : '';
 
         return [
             date,

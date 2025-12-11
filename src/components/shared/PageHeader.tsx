@@ -2,10 +2,10 @@ import type { LucideIcon } from "lucide-react";
 import React from "react";
 
 interface PageHeaderProps {
-  title: string;
-  description?: string;
-  icon?: LucideIcon;
-  actions?: React.ReactNode;
+  readonly title: string;
+  readonly description?: string;
+  readonly icon?: LucideIcon;
+  readonly actions?: React.ReactNode;
 }
 
 import { Breadcrumbs } from "./Breadcrumbs";

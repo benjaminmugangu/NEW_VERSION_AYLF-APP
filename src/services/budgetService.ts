@@ -2,7 +2,12 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import type { FundAllocation, FundAllocationFormData } from '@/lib/types';
+import type { } from '@/lib/types'; // If all removed, I should check if I can remove the line.
+// Wait, if I remove both FundAllocation and FundAllocationFormData (as per user request), the import might be empty.
+// Let's check the file content again. It ends with:
+// }): Promise<{ available: number; received: number; sent: number; expenses: number }> {
+// It doesn't seem to return FundAllocation.
+// So I will remove the import line if both are unused.
 
 /**
  * Calculate available budget for a Site or Small Group

@@ -5,14 +5,13 @@ import { useLocale } from 'next-intl';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Bell, Check, Trash2, MailOpen, AlertCircle, Calendar, Info } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Bell, Check, Trash2, MailOpen, AlertCircle, Calendar, Info, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import Link from 'next/link';
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
-import { Loader2 } from 'lucide-react';
 
 interface Notification {
     id: string;
@@ -86,11 +85,9 @@ export function NotificationCenter() {
 
     // Map string locale to date-fns locale object
     const getDateLocale = (localeStr: string) => {
-        switch (localeStr) {
-            case 'fr': return fr;
-            // case 'sw': return sw; // date-fns might not have sw, typically en is fallback or sw if available
-            default: return undefined; // defaults to en-US
-        }
+        if (localeStr === 'fr') return fr;
+        // case 'sw': return sw; // date-fns might not have sw, typically en is fallback or sw if available
+        return undefined; // defaults to en-US
     };
 
     return (
@@ -122,23 +119,27 @@ export function NotificationCenter() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {isLoading ? (
+                    {isLoading && (
                         <div className="flex justify-center p-8">
                             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                         </div>
-                    ) : data?.notifications.length === 0 ? (
+                    )}
+
+                    {!isLoading && data?.notifications.length === 0 && (
                         <div className="text-center py-12 text-muted-foreground">
                             <Bell className="mx-auto h-12 w-12 opacity-20 mb-4" />
                             <p>Aucune notification pour le moment.</p>
                         </div>
-                    ) : (
+                    )}
+
+                    {!isLoading && (data?.notifications.length ?? 0) > 0 && (
                         <div className="space-y-4">
                             {data?.notifications.map((notif) => (
                                 <div
                                     key={notif.id}
                                     className={cn(
                                         "flex gap-4 p-4 rounded-lg border transition-all hover:bg-slate-50",
-                                        !notif.read ? "bg-blue-50/50 border-blue-100" : "bg-white"
+                                        notif.read ? "bg-white" : "bg-blue-50/50 border-blue-100"
                                     )}
                                 >
                                     <div className="mt-1 flex-shrink-0">

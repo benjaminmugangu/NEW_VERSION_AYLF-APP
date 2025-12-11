@@ -73,7 +73,7 @@ export async function POST(request: Request) {
       where: { id: user.id },
     });
 
-    if (!profile || profile.role !== 'national_coordinator') {
+    if (profile?.role !== 'national_coordinator') {
       return new NextResponse(JSON.stringify({ error: MESSAGES.errors.forbidden }), {
         status: 403,
         headers: { 'Content-Type': 'application/json' }

@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { UserRole } from '@prisma/client';
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 
 export interface CreateInvitationData {
     email: string;

@@ -83,74 +83,63 @@ export async function GET(req: NextRequest) {
         }
 
         // 2. Overdue Reports
-        // Submission deadline passed (activity date < yesterday) and still pending
-        const yesterday = new Date(today);
-        yesterday.setDate(today.getDate() - 1);
-
-        const overdueReports = await prisma.activity.findMany({
-            where: {
-                date: { lt: yesterday },
-                status: 'executed', // Only check executed ones, or planned ones that passed?
-                // Actually, usually we track reports by the 'Report' model, but reports are created BY users. 
-                // If report NOT created, we need to nudge them to create one.
-                // OR if Report exists but status is 'pending' (draft).
-                // Let's assume we nudge for Activities that are 'executed' or 'planned' in past but have NO submitted report.
-                reports: {
-                    none: { status: { in: ['submitted', 'approved'] } }
-                }
-            },
-            include: {
-                createdBy: true,
-                smallGroup: { include: { leader: true } }
-            }
-        });
-
-        let overdueAlerts = 0;
-        // Simplified: Just notify for pending reports already created but not submitted?
-        // User requested "Overdue Reports". Let's scan Report table for 'pending' old reports.
-
-        // Strategy B: Scan pending reports older than 3 days
-        // This assumes they started drafting.
-        const pendingReports = await prisma.report.findMany({
-            where: {
-                status: 'pending',
-                updatedAt: { lt: yesterday } // Not touched in 24h
-            },
-            include: { submittedBy: true }
-        });
-
-        for (const report of pendingReports) {
-            // In-App Nudge
-            await notificationService.createNotification({
-                userId: report.submittedById,
-                type: 'ACTIVITY_REMINDER', // Reuse type or add NEW type
-                title: 'Rapport en attente',
-                message: `N'oubliez pas de soumettre votre rapport "${report.title}".`,
-                link: `/dashboard/reports/${report.id}`
-            });
-
-            // Email
-            if (report.submittedBy?.email) {
-                await sendEmail({
-                    to: report.submittedBy.email,
-                    subject: `Rappel : Rapport non soumis`,
-                    html: emailTemplates.overdueReport(report.submittedBy.name, report.title)
-                });
-            }
-            overdueAlerts++;
+        // Let's assume we nudge for Activities that are 'executed' or 'planned' in past but have NO submitted report.
+        reports: {
+            none: { status: { in: ['submitted', 'approved'] } }
         }
+    },
+    include: {
+        createdBy: true,
+            smallGroup: { include: { leader: true } }
+    }
+});
 
-        return NextResponse.json({
-            success: true,
-            remindersSent,
-            overdueAlerts
+let overdueAlerts = 0;
+// Simplified: Just notify for pending reports already created but not submitted?
+// User requested "Overdue Reports". Let's scan Report table for 'pending' old reports.
+
+// Strategy B: Scan pending reports older than 3 days
+// This assumes they started drafting.
+const pendingReports = await prisma.report.findMany({
+    where: {
+        status: 'pending',
+        updatedAt: { lt: yesterday } // Not touched in 24h
+    },
+    include: { submittedBy: true }
+});
+
+for (const report of pendingReports) {
+    // In-App Nudge
+    await notificationService.createNotification({
+        userId: report.submittedById,
+        type: 'ACTIVITY_REMINDER', // Reuse type or add NEW type
+        title: 'Rapport en attente',
+        message: `N'oubliez pas de soumettre votre rapport "${report.title}".`,
+        link: `/dashboard/reports/${report.id}`
+    });
+
+    // Email
+    if (report.submittedBy?.email) {
+        await sendEmail({
+            to: report.submittedBy.email,
+            subject: `Rappel : Rapport non soumis`,
+            html: emailTemplates.overdueReport(report.submittedBy.name, report.title)
         });
+    }
+    overdueAlerts++;
+}
+
+return NextResponse.json({
+    success: true,
+    remindersSent,
+    overdueAlerts
+});
 
     } catch (error) {
-        // ✅ SECURITY: Don't log error object (may contain emails in bulk reminders)
-        console.error('[CRON_DAILY_REMINDERS_ERROR]', {
-            type: error?.constructor?.name
-        });
-        return new NextResponse('Internal Error', { status: 500 });
-    }
+    // ✅ SECURITY: Don't log error object (may contain emails in bulk reminders)
+    console.error('[CRON_DAILY_REMINDERS_ERROR]', {
+        type: error?.constructor?.name
+    });
+    return new NextResponse('Internal Error', { status: 500 });
+}
 }

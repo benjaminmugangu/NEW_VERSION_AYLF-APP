@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
 
         const { searchParams } = new URL(request.url);
         const unreadOnly = searchParams.get('unread') === 'true';
-        const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 50;
+        const limit = Number.parseInt(searchParams.get('limit') || '100', 10);
 
         const notifications = await notificationService.getUserNotifications(user.id, {
             unreadOnly,

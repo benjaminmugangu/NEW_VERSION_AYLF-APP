@@ -23,7 +23,7 @@ export async function GET(request: Request) {
             where: { id: user.id },
         });
 
-        if (!currentUser || currentUser.role !== 'national_coordinator') {
+        if (currentUser?.role !== 'national_coordinator') {
             return NextResponse.json({ error: MESSAGES.errors.forbidden }, { status: 403 });
         }
 
@@ -61,7 +61,7 @@ export async function GET(request: Request) {
         allocations.forEach(a => {
             csvRows.push([
                 format(new Date(a.allocationDate), 'yyyy-MM-dd'),
-                `"${a.goal.replace(/"/g, '""')}"`,
+                a.goal?.replaceAll(',', ';') || '',
                 a.amount.toString(),
                 a.site?.name || '',
                 a.smallGroup?.name || '',
