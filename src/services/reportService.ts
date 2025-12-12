@@ -257,20 +257,14 @@ function buildReportWhereClause(filters: ReportFilters) {
 
   // 1. Entity Filter
   if (entity) {
-    if (entity.type === 'site') where.siteId = entity.id;
-    else where.smallGroupId = entity.id;
-    return where; // Entity filter is usually exclusive or base
+    return applyEntityFilter({}, entity);
   }
 
   // 2. User Role Filter (if no entity)
   if (user) {
-    if (user.role === 'site_coordinator') {
-      if (user.siteId) where.siteId = user.siteId;
-      else return { id: 'nothing' }; // invalid state, return empty
-    } else if (user.role === 'small_group_leader') {
-      if (user.smallGroupId) where.smallGroupId = user.smallGroupId;
-      else return { id: 'nothing' };
-    }
+    const userFilter = applyUserRoleFilter({}, user);
+    if (!userFilter) return { id: 'nothing' }; // invalid state
+    Object.assign(where, userFilter);
   }
 
   // 3. Date Filter
@@ -299,6 +293,32 @@ function buildReportWhereClause(filters: ReportFilters) {
   }
 
   return where;
+}
+
+function applyEntityFilter(where: any, entity: { type: 'site' | 'smallGroup'; id: string }) {
+  if (entity.type === 'site') where.siteId = entity.id;
+  else where.smallGroupId = entity.id;
+  return where;
+}
+
+function applyUserRoleFilter(where: any, user: User) {
+  switch (user.role) {
+    case 'site_coordinator':
+      if (user.siteId) {
+        where.siteId = user.siteId;
+        return where;
+      }
+      return null;
+    case 'small_group_leader':
+      if (user.smallGroupId) {
+        where.smallGroupId = user.smallGroupId;
+        return where;
+      }
+      return null;
+    default:
+      // National Coordinator or others see everything (subject to other filters)
+      return where;
+  }
 }
 
 /**

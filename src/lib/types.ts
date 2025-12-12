@@ -129,7 +129,7 @@ export type MemberWithDetails = Member & {
 // FEATURE-SPECIFIC TYPES
 // =============================================================================
 
-export type EntityLevel = "national" | "site" | "small_group";
+
 export type ActivityStatus = 'planned' | 'in_progress' | 'delayed' | 'executed' | 'canceled';
 
 export interface Activity extends BaseEntity {
@@ -412,11 +412,12 @@ export type MemberFormData = {
   name: string;
   gender: Gender;
   type: MemberType;
-  joinDate: Date | string;
+  joinDate: Date;
   phone?: string;
   email?: string;
-  siteId: string;
-  smallGroupId?: string;
+  level: EntityLevel; // Added level
+  siteId?: string; // Made optional to match schema conditional logic
+  smallGroupId?: string; // Already optional
 };
 
 export type LoginCredentials = {

@@ -210,11 +210,12 @@ export async function updateSite(id: string, updatedData: Partial<SiteFormData>)
   if (!currentUser) throw new Error('Unauthorized');
 
   // Verify Permissions
-  if (currentUser.role !== ROLES.NATIONAL_COORDINATOR) {
-    if (currentUser.role === ROLES.SITE_COORDINATOR) {
-      if (currentUser.siteId !== id) throw new Error('Forbidden');
-    } else {
-      throw new Error('Forbidden');
+  const isNC = currentUser.role === ROLES.NATIONAL_COORDINATOR;
+  const isSC = currentUser.role === ROLES.SITE_COORDINATOR;
+  
+  if (!isNC) {
+    if (!isSC || currentUser.siteId !== id) {
+        throw new Error('Forbidden');
     }
   }
 
