@@ -41,10 +41,15 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSave, initia
       ...initialData,
       date: initialData?.date ? new Date(initialData.date) : new Date(),
       type: initialData?.type || 'expense',
+      description: initialData?.description || '',
+      amount: initialData?.amount || 0,
+      category: initialData?.category || '',
+      siteId: initialData?.siteId || undefined,
+      smallGroupId: initialData?.smallGroupId || undefined,
     },
   });
 
-  const transactionType = form.watch('type');
+
 
 
 
@@ -53,7 +58,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSave, initia
       ...values,
       date: values.date.toISOString(),
       // These fields will be set based on user context later
-      recordedById: '', 
+      recordedById: '',
     };
     onSave(formData);
   };
@@ -151,7 +156,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSave, initia
             )}
           />
 
-          
+
 
           <div className="md:col-span-2">
             <FormField

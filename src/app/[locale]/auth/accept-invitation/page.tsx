@@ -8,11 +8,11 @@ import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { cookies } from "next/headers";
 
 interface PageProps {
-    searchParams: Promise<{ token?: string }>;
+    readonly searchParams: Promise<{ token?: string; error?: string }>;
 }
 
 export default async function AcceptInvitationPage({ searchParams }: PageProps) {
-    const { token } = await searchParams;
+    const { token, error } = await searchParams;
 
     const { getUser, isAuthenticated } = getKindeServerSession();
     const isAuth = await isAuthenticated();
@@ -84,6 +84,16 @@ export default async function AcceptInvitationPage({ searchParams }: PageProps) 
         return role.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
     };
 
+    // Action Buttons Logic
+    let actionButtons;
+    if (needsLogout) {
+        actionButtons = <LogoutButton token={token} />;
+    } else if (currentUser) {
+        actionButtons = <ConfirmButton token={token} />;
+    } else {
+        actionButtons = <LoginButton email={invitation.email} token={token} />;
+    }
+
     return (
         <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
             <Card className="w-full max-w-md shadow-lg">
@@ -131,22 +141,58 @@ export default async function AcceptInvitationPage({ searchParams }: PageProps) 
                         </div>
                     )}
                 </CardContent>
-                <CardFooter>
-                    {needsLogout ? (
-                        <Button asChild className="w-full h-12 text-lg" variant="destructive">
-                            <Link href={`/api/auth/logout?post_logout_redirect_url=${encodeURIComponent(`/auth/accept-invitation?token=${token}`)}`}>
-                                <LogOut className="mr-2 h-4 w-4" /> Log Out & Continue
-                            </Link>
-                        </Button>
-                    ) : (
-                        <Button asChild className="w-full h-12 text-lg">
-                            <Link href={`/api/auth/login?login_hint=${invitation.email}`}>
-                                Accept & Login <ArrowRight className="ml-2 h-4 w-4" />
-                            </Link>
-                        </Button>
+                <CardFooter className="flex-col gap-3">
+                    {/* Security Check Message */}
+                    {error === 'email_mismatch' && (
+                        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md w-full text-sm mb-2">
+                            <strong>Authentication Error:</strong> The email you logged in with ({currentUser?.email}) does not match the invitation email ({invitation.email}). Please log out and sign in with the correct account.
+                        </div>
                     )}
+
+                    {actionButtons}
                 </CardFooter>
             </Card>
         </div>
+    );
+}
+
+// Extracted Components with ReadOnly Props
+
+function LogoutButton({ token }: { readonly token: string }) {
+    const redirectUrl = `/auth/accept-invitation?token=${token}`;
+    const logoutUrl = `/api/auth/logout?post_logout_redirect_url=${encodeURIComponent(redirectUrl)}`;
+
+    return (
+        <Button asChild className="w-full h-12 text-lg" variant="destructive">
+            <Link href={logoutUrl}>
+                <LogOut className="mr-2 h-4 w-4" /> Log Out & Switch Account
+            </Link>
+        </Button>
+    );
+}
+
+function ConfirmButton({ token }: { readonly token: string }) {
+    const confirmUrl = `/api/invitations/accept?token=${token}`;
+    return (
+        <Button asChild className="w-full h-12 text-lg bg-green-600 hover:bg-green-700">
+            <Link href={confirmUrl}>
+                Confirm & Join <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+        </Button>
+    );
+}
+
+function LoginButton({ email, token }: { readonly email: string; readonly token: string }) {
+    // Construct URLs separately to avoid nested template literals
+    const postLoginRedirect = `/api/invitations/accept?token=${token}`;
+    const encodedRedirect = encodeURIComponent(postLoginRedirect);
+    const loginUrl = `/api/auth/login?login_hint=${email}&post_login_redirect_url=${encodedRedirect}`;
+
+    return (
+        <Button asChild className="w-full h-12 text-lg">
+            <Link href={loginUrl}>
+                Accept & Login <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+        </Button>
     );
 }
