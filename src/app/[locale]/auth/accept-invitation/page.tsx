@@ -5,7 +5,7 @@ import { CheckCircle, XCircle, ArrowRight, LogOut } from 'lucide-react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
-import { cookies } from "next/headers";
+
 
 interface PageProps {
     readonly searchParams: Promise<{ token?: string; error?: string }>;
@@ -18,13 +18,7 @@ export default async function AcceptInvitationPage({ searchParams }: PageProps) 
     const isAuth = await isAuthenticated();
     const currentUser = isAuth ? await getUser() : null;
 
-    if (token && !currentUser) {
-        (await cookies()).set('invitation_token', token, {
-            httpOnly: true,
-            path: '/',
-            maxAge: 60 * 60 * 24 // 24 hours
-        });
-    }
+
 
     if (!token) {
         if (currentUser) {
