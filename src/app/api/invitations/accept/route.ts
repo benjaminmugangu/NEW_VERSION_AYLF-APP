@@ -44,9 +44,22 @@ export async function GET(request: Request) {
         // Usually, Kinde Webhook handles creation. But to be safe, we can upsert or just update.
         // Let's assume Profile exists (handled by sync). If not, we might fail or should create.
 
-        await prisma.profile.update({
-            where: { email: user.email }, // Update by email to be safe, or id if we have mapped it
-            data: {
+        // 1. Upsert the User Profile (Create if missing, Update if exists)
+        // This handles cases where Kinde webhook hasn't run yet or failed.
+        const name = `${user.given_name || ''} ${user.family_name || ''}`.trim() || 'Unknown User';
+
+        await prisma.profile.upsert({
+            where: { email: user.email },
+            update: {
+                role: invitation.role,
+                siteId: invitation.siteId,
+                smallGroupId: invitation.smallGroupId,
+                status: 'active'
+            },
+            create: {
+                id: user.id, // Important: Use Kinde ID as Profile ID
+                email: user.email!,
+                name: name,
                 role: invitation.role,
                 siteId: invitation.siteId,
                 smallGroupId: invitation.smallGroupId,
