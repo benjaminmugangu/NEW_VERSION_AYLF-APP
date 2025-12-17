@@ -116,7 +116,7 @@ const mapPrismaReportToModel = (report: any): ReportWithDetails => {
     girlsCount: report.girlsCount || undefined,
     boysCount: report.boysCount || undefined,
     participantsCountReported: report.participantsCountReported || undefined,
-    totalExpenses: report.totalExpenses || undefined,
+    totalExpenses: report.totalExpenses || undefined, // Mapped
     currency: report.currency || undefined,
     financialSummary: report.financialSummary || undefined,
     reviewNotes: report.reviewNotes || undefined,
@@ -166,7 +166,7 @@ export async function createReport(reportData: ReportFormData): Promise<Report> 
       girlsCount: reportData.girlsCount,
       boysCount: reportData.boysCount,
       participantsCountReported: reportData.participantsCountReported,
-      totalExpenses: reportData.totalExpenses,
+      totalExpenses: reportData.totalExpenses, // Added
       currency: reportData.currency,
       financialSummary: reportData.financialSummary,
       images: reportData.images as any, // Prisma handles JSON
@@ -269,12 +269,7 @@ function buildReportWhereClause(filters: ReportFilters) {
 
   // 3. Date Filter
   if (dateFilter) {
-    const { startDate, endDate } = computeDateRange(dateFilter);
-    if (startDate || endDate) {
-      where.activityDate = {};
-      if (startDate) where.activityDate.gte = startDate;
-      if (endDate) where.activityDate.lte = endDate;
-    }
+    applyDateFilter(where, dateFilter);
   }
 
   // 4. Search
@@ -284,15 +279,29 @@ function buildReportWhereClause(filters: ReportFilters) {
 
   // 5. Status
   if (statusFilter) {
-    const activeStatuses = Object.entries(statusFilter)
-      .filter(([, isActive]) => isActive)
-      .map(([status]) => status);
-    if (activeStatuses.length > 0) {
-      where.status = { in: activeStatuses };
-    }
+    applyStatusFilter(where, statusFilter);
   }
 
   return where;
+}
+
+function applyDateFilter(where: any, dateFilter: ServerDateFilter) {
+  const { startDate, endDate } = computeDateRange(dateFilter);
+  if (startDate || endDate) {
+    where.activityDate = {};
+    if (startDate) where.activityDate.gte = startDate;
+    if (endDate) where.activityDate.lte = endDate;
+  }
+}
+
+function applyStatusFilter(where: any, statusFilter: Record<Report['status'], boolean>) {
+  const activeStatuses = Object.entries(statusFilter)
+    .filter(([, isActive]) => isActive)
+    .map(([status]) => status);
+
+  if (activeStatuses.length > 0) {
+    where.status = { in: activeStatuses };
+  }
 }
 
 function applyEntityFilter(where: any, entity: { type: 'site' | 'smallGroup'; id: string }) {

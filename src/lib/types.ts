@@ -115,7 +115,7 @@ export interface Member extends BaseEntity {
   phone?: string;
   email?: string;
   level: EntityLevel;
-  siteId: string;
+  siteId?: string;
   smallGroupId?: string;
 }
 

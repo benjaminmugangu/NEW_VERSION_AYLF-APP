@@ -85,8 +85,10 @@ const mapPrismaMemberToBase = (m: any): Member => {
       ? m.joinDate.toISOString().substring(0, 10)
       : m.joinDate ?? new Date().toISOString().substring(0, 10);
   const siteId: string | null | undefined = m.siteId;
-  if (!siteId) {
-    throw new Error('Invalid member data: missing siteId');
+  // National members might not have a siteId, so we verify level instead or just allow it
+  if (!siteId && m.level !== 'national') {
+    // Optional warning or fallback, but don't crash
+    // console.warn('Member missing siteId:', m.id);
   }
   return {
     id: m.id,
@@ -97,7 +99,7 @@ const mapPrismaMemberToBase = (m: any): Member => {
     phone: m.phone ?? undefined,
     email: m.email ?? undefined,
     level,
-    siteId,
+    siteId: siteId ?? undefined,
     smallGroupId: m.smallGroupId ?? undefined,
     userId: m.userId ?? undefined,
   };
@@ -213,7 +215,7 @@ export async function createMember(formData: MemberFormData): Promise<Member> {
       phone: formData.phone,
       email: formData.email,
       level: formData.level,
-      siteId: formData.siteId!,
+      siteId: formData.siteId, // Removed ! assertion to allow optional
       smallGroupId: formData.smallGroupId,
     },
   });

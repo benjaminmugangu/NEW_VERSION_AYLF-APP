@@ -25,7 +25,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/components/ui/use-toast';
 import { UserRole } from '@prisma/client';
-import { CheckCircle, Copy, AlertTriangle } from 'lucide-react';
+import { CheckCircle, Copy, AlertTriangle, CalendarIcon } from 'lucide-react';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -36,11 +36,17 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { useTranslations } from 'next-intl';
 
 interface InviteUserFormProps {
-    sites: { id: string; name: string }[];
-    smallGroups: { id: string; name: string; siteId: string }[];
+    readonly sites: { id: string; name: string }[];
+    readonly smallGroups: { id: string; name: string; siteId: string }[];
 }
 
 interface ConflictData {
@@ -76,6 +82,7 @@ export default function InviteUserForm({ sites, smallGroups }: InviteUserFormPro
         role: z.nativeEnum(UserRole), // We might want to add custom error map here if needed
         siteId: z.string().optional(),
         smallGroupId: z.string().optional(),
+        mandateStartDate: z.string().optional(),
     }), [t]);
 
     const [pendingInvitation, setPendingInvitation] = useState<z.infer<typeof formSchema> | null>(null);
@@ -128,15 +135,13 @@ export default function InviteUserForm({ sites, smallGroups }: InviteUserFormPro
             }
 
             // Generate invitation link
-            const baseUrl = window.location.origin;
+            const baseUrl = globalThis.location.origin;
             const inviteLink = `${baseUrl}/auth/accept-invitation?token=${data.invitation.token}`;
             setInvitationLink(inviteLink);
 
             toast({
                 title: t('forms.success_invite'),
-                description: data.kindeCreated
-                    ? t('forms.success_invite_desc')
-                    : t('forms.success_invite_desc'), // Using same message for simplicity or add specific translation
+                description: t('forms.success_invite_desc'),
             });
         } catch (error) {
             console.error('Invitation error:', error);
@@ -180,7 +185,6 @@ export default function InviteUserForm({ sites, smallGroups }: InviteUserFormPro
     };
 
     const existingPerson = conflictData?.existingCoordinator || conflictData?.existingLeader;
-    const roleLabel = conflictData?.conflictType === 'site_coordinator' ? 'Site Coordinator' : 'Small Group Leader';
 
     return (
         <>
@@ -200,7 +204,7 @@ export default function InviteUserForm({ sites, smallGroups }: InviteUserFormPro
                                     <p className="text-sm"><strong>{t('table.name')} :</strong> {existingPerson.name}</p>
                                     <p className="text-sm"><strong>{t('table.email')} :</strong> {existingPerson.email}</p>
                                     <p className="text-sm">
-                                        <strong>{t('Profile.mandate_start')} :</strong>{' '}
+                                        <strong>{t('forms.mandate_start_label')} :</strong>{' '}
                                         {new Date(existingPerson.mandateStartDate).toLocaleDateString()}
                                     </p>
                                 </div>
@@ -371,6 +375,45 @@ export default function InviteUserForm({ sites, smallGroups }: InviteUserFormPro
                             )}
                         />
                     )}
+
+                    <FormField
+                        control={form.control}
+                        name="mandateStartDate"
+                        render={({ field }) => (
+                            <FormItem className="flex flex-col">
+                                <FormLabel>{t('forms.mandate_start_label')}</FormLabel>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <FormControl>
+                                            <Button
+                                                variant={"outline"}
+                                                className={`w-full pl-3 text-left font-normal ${field.value ? "" : "text-muted-foreground"}`}
+                                            >
+                                                {field.value ? (
+                                                    new Date(field.value).toLocaleDateString()
+                                                ) : (
+                                                    <span>{t('forms.pick_date')}</span>
+                                                )}
+                                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                            </Button>
+                                        </FormControl>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                        <Calendar
+                                            mode="single"
+                                            selected={field.value ? new Date(field.value) : undefined}
+                                            onSelect={(date) => field.onChange(date?.toISOString())}
+                                            disabled={(date) =>
+                                                date < new Date("1900-01-01")
+                                            }
+                                            initialFocus
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
 
                     <Button type="submit" disabled={isLoading || !!invitationLink}>
                         {isLoading ? t('forms.sending') : t('forms.send_invitation')}

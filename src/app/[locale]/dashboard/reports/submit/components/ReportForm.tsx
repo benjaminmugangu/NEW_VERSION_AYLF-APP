@@ -339,7 +339,7 @@ export function ReportForm({ onSubmitSuccess, user }: ReportFormProps) {
 
               <div>
                 <Label>{t("attendance")}</Label>
-                <div className="grid grid-cols-2 gap-6 p-4 border rounded-md">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 border rounded-md">
                   <div>
                     <Label htmlFor="girlsCount">{t("girls")}</Label>
                     <Input id="girlsCount" type="number" {...register("girlsCount", { valueAsNumber: true })} placeholder="0" />
@@ -349,6 +349,11 @@ export function ReportForm({ onSubmitSuccess, user }: ReportFormProps) {
                     <Label htmlFor="boysCount">{t("boys")}</Label>
                     <Input id="boysCount" type="number" {...register("boysCount", { valueAsNumber: true })} placeholder="0" />
                     {errors.boysCount && <p className="text-sm text-destructive mt-1">{errors.boysCount.message}</p>}
+                  </div>
+                  <div>
+                    <Label htmlFor="totalExpenses">{t("total_expenses")}</Label>
+                    <Input id="totalExpenses" type="number" {...register("totalExpenses", { valueAsNumber: true })} placeholder="0.00" />
+                    {errors.totalExpenses && <p className="text-sm text-destructive mt-1">{errors.totalExpenses.message}</p>}
                   </div>
                 </div>
               </div>

@@ -3,6 +3,8 @@
 import { prisma } from '@/lib/prisma';
 import { User, UserRole } from '@/lib/types';
 
+
+
 /**
  * Retrieves a user's profile by their ID, including enriched data.
  */

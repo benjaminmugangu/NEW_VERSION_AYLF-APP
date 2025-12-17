@@ -17,14 +17,18 @@ export const useEntityFinancials = (options: FinancialOptions) => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchFinancials = useCallback(async () => {
-    // FIXME: This function is disabled because it's causing a build-breaking type error.
-    // The `financialsService.getFinancials` function expects a `User` object, but this hook
-    // passes an `entity` object (`{ type: 'site' | 'smallGroup', id: string }`).
-    // The service layer needs to be refactored to support fetching financials for a specific entity.
-    // To unblock the build, the content of this function is temporarily commented out.
-    setIsLoading(false);
-    setError(null);
-  }, []);
+    try {
+      setIsLoading(true);
+      const data = await financialsService.getEntityFinancials(options.entity, options.dateFilter);
+      setStats(data);
+      setError(null);
+    } catch (err) {
+      console.error(err);
+      setError('Failed to load entity financials.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [options.entity, options.dateFilter]);
 
   useEffect(() => {
     fetchFinancials();

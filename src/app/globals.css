@@ -283,7 +283,5 @@ body {
   }
 
   /* Applying a more selective hover if needed, or keeping it general */
-  /* .card:hover {
-    @apply shadow-xl transform scale-[1.01]; 
-  } */
+
 }

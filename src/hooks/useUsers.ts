@@ -83,10 +83,7 @@ export const useUsers = () => {
     isError,
     error,
     createUser,
-    isCreatingUser,
     updateUser,
-    isUpdatingUser,
     deleteUser,
-    isDeletingUser,
   };
 };

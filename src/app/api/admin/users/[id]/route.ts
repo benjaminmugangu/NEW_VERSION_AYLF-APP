@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import { prisma } from '@/lib/prisma';
+import * as profileService from '@/services/profileService';
+import { checkDeletionEligibility } from '@/lib/safetyChecks';
 import { z } from 'zod';
 import { UserRole } from '@prisma/client';
 import { MESSAGES } from '@/lib/messages';
@@ -38,7 +40,7 @@ export async function PATCH(
             where: { id: user.id },
         });
 
-        if (!currentUser || currentUser.role !== 'national_coordinator') {
+        if (currentUser?.role !== 'national_coordinator') {
             return NextResponse.json({ error: MESSAGES.errors.forbidden }, { status: 403 });
         }
 
@@ -89,12 +91,22 @@ export async function DELETE(
             where: { id: user.id },
         });
 
-        if (!currentUser || currentUser.role !== 'national_coordinator') {
+        if (currentUser?.role !== 'national_coordinator') {
             return NextResponse.json({ error: MESSAGES.errors.forbidden }, { status: 403 });
         }
 
-        // Optional: Check if user can be deleted (e.g., has no related data)
-        // For now, we'll just delete the profile. Kinde user deletion is separate.
+        // Check for related data before deleting via Service
+        const eligibility = await checkDeletionEligibility(id);
+
+        if (!eligibility.canDelete) {
+            return NextResponse.json(
+                {
+                    error: eligibility.reason,
+                    details: "Data Integrity Violation"
+                },
+                { status: 409 }
+            );
+        }
 
         await prisma.profile.delete({
             where: { id },

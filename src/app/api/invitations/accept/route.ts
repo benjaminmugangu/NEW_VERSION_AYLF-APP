@@ -54,15 +54,19 @@ export async function GET(request: Request) {
                 role: invitation.role,
                 siteId: invitation.siteId,
                 smallGroupId: invitation.smallGroupId,
+                mandateStartDate: invitation.mandateStartDate, // ✅ Apply mandate dates
+                mandateEndDate: invitation.mandateEndDate,
                 status: 'active'
             },
             create: {
                 id: user.id, // Important: Use Kinde ID as Profile ID
-                email: user.email!,
+                email: user.email,
                 name: name,
                 role: invitation.role,
                 siteId: invitation.siteId,
                 smallGroupId: invitation.smallGroupId,
+                mandateStartDate: invitation.mandateStartDate, // ✅ Apply mandate dates
+                mandateEndDate: invitation.mandateEndDate,
                 status: 'active'
             }
         });

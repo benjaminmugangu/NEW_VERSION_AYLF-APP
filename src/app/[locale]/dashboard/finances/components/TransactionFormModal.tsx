@@ -8,9 +8,9 @@ import { useTransactions } from '@/hooks/useTransactions';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface TransactionFormModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  transaction: FinancialTransaction | null; // Pass transaction for editing, null for creating
+  readonly isOpen: boolean;
+  readonly onClose: () => void;
+  readonly transaction: FinancialTransaction | null; // Pass transaction for editing, null for creating
 }
 
 export function TransactionFormModal({ isOpen, onClose, transaction }: TransactionFormModalProps) {
@@ -18,14 +18,27 @@ export function TransactionFormModal({ isOpen, onClose, transaction }: Transacti
   const { createTransaction, updateTransaction, isCreating, isUpdating } = useTransactions({ user: currentUser });
 
   const handleSubmit = async (formData: TransactionFormData) => {
+    if (!currentUser) {
+      alert('You must be logged in to perform this action.');
+      return;
+    }
+
+    // Inject context data
+    const finalData = {
+      ...formData,
+      recordedById: currentUser.id,
+      siteId: formData.siteId || currentUser.siteId || undefined,
+      smallGroupId: formData.smallGroupId || currentUser.smallGroupId || undefined,
+    };
+
     try {
       if (transaction) {
         // Update existing transaction
-        await updateTransaction({ id: transaction.id, formData });
+        await updateTransaction({ id: transaction.id, formData: finalData });
         alert('Transaction updated successfully!');
       } else {
         // Create new transaction
-        await createTransaction(formData);
+        await createTransaction(finalData);
         alert('Transaction created successfully!');
       }
       onClose(); // Close modal on success

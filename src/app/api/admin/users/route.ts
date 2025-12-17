@@ -15,6 +15,8 @@ const inviteSchema = z.object({
     smallGroupId: z.string().optional(),
     replaceExisting: z.boolean().optional(),
     existingCoordinatorId: z.string().optional(),
+    mandateStartDate: z.string().optional(), // Expect ISO string from frontend
+    mandateEndDate: z.string().optional(),
 });
 
 export async function POST(req: Request) {
@@ -100,6 +102,8 @@ async function handleReplacementFlow(payload: any) {
             role: payload.role,
             siteId: payload.siteId,
             smallGroupId: payload.smallGroupId,
+            mandateStartDate: payload.mandateStartDate ? new Date(payload.mandateStartDate) : undefined,
+            mandateEndDate: payload.mandateEndDate ? new Date(payload.mandateEndDate) : undefined,
         });
 
         // 3. Try to create Kinde user
@@ -123,7 +127,7 @@ async function handleReplacementFlow(payload: any) {
         // 4. Trigger certificate generation
         const { generateCoordinatorCertificate } = await import('@/services/certificateGenerationService');
         try {
-            await generateCoordinatorCertificate(payload.existingCoordinatorId!);
+            await generateCoordinatorCertificate(payload.existingCoordinatorId);
         } catch (error: any) {
             console.error('[CERTIFICATE_GENERATION_FAILED]', {
                 type: error?.constructor?.name
@@ -205,6 +209,8 @@ async function handleRegularFlow(payload: any) {
         role,
         siteId,
         smallGroupId,
+        mandateStartDate: payload.mandateStartDate ? new Date(payload.mandateStartDate) : undefined,
+        mandateEndDate: payload.mandateEndDate ? new Date(payload.mandateEndDate) : undefined,
     });
 
     let kindeId = null;

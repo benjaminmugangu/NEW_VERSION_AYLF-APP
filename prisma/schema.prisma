@@ -208,8 +208,8 @@ model Member {
 
   level ActivityLevel
 
-  siteId String @map("site_id")
-  site   Site   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  siteId String? @map("site_id")
+  site   Site?   @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
   smallGroupId String?     @map("small_group_id")
   smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id])
@@ -415,6 +415,9 @@ model UserInvitation {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   expiresAt DateTime @default(dbgenerated("NOW() + INTERVAL '7 days'")) @map("expires_at")
+
+  mandateStartDate DateTime? @map("mandate_start_date")
+  mandateEndDate   DateTime? @map("mandate_end_date")
 
   @@index([token])
   @@index([expiresAt])

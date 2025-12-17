@@ -7,6 +7,8 @@ export interface CreateInvitationData {
     role: UserRole;
     siteId?: string;
     smallGroupId?: string;
+    mandateStartDate?: Date;
+    mandateEndDate?: Date;
 }
 
 export async function createInvitation(data: CreateInvitationData) {
@@ -28,6 +30,8 @@ export async function createInvitation(data: CreateInvitationData) {
                 role: data.role,
                 siteId: data.siteId,
                 smallGroupId: data.smallGroupId,
+                mandateStartDate: data.mandateStartDate, // ✅ Save mandate dates
+                mandateEndDate: data.mandateEndDate,
                 status: 'pending',
                 expiresAt, // ✅ Reset expiration
             },
@@ -42,6 +46,8 @@ export async function createInvitation(data: CreateInvitationData) {
             role: data.role,
             siteId: data.siteId,
             smallGroupId: data.smallGroupId,
+            mandateStartDate: data.mandateStartDate, // ✅ Save mandate dates
+            mandateEndDate: data.mandateEndDate,
             expiresAt, // ✅ FIX INV-003: 7-day expiration
         },
     });

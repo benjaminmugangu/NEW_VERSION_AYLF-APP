@@ -11,9 +11,9 @@ import * as activityService from '@/services/activityService';
 import * as siteService from '@/services/siteService';
 import * as smallGroupService from '@/services/smallGroupService';
 import type { Activity, Site, SmallGroup } from '@/lib/types';
-import { ActivityTypeEnum } from '@prisma/client';
+
 import { ROLES } from '@/lib/constants';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -63,7 +63,12 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
   const selectedSiteId = form.watch('siteId');
 
   useEffect(() => {
-    const determinedLevel = currentUser?.role === ROLES.NATIONAL_COORDINATOR ? 'national' : currentUser?.role === ROLES.SITE_COORDINATOR ? 'site' : 'small_group';
+    let determinedLevel: 'national' | 'site' | 'small_group' = 'small_group';
+    if (currentUser?.role === ROLES.NATIONAL_COORDINATOR) {
+      determinedLevel = 'national';
+    } else if (currentUser?.role === ROLES.SITE_COORDINATOR) {
+      determinedLevel = 'site';
+    }
 
     if (isEditMode && initialActivity) {
       form.reset({
@@ -131,9 +136,9 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
       const payload = {
         ...data,
         siteId: data.level === 'national' ? undefined : data.siteId,
-        smallGroupId: data.level !== 'small_group' ? undefined : data.smallGroupId,
+        smallGroupId: data.level === 'small_group' ? data.smallGroupId : undefined,
         participantsCountPlanned: Number(data.participantsCountPlanned) || 0,
-        createdBy: data.createdBy,
+        createdBy: currentUser.id, // Ensure createdBy is set from current session
       };
 
       let savedActivity;
@@ -173,6 +178,13 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
   const canChangeSite = currentUser?.role === ROLES.NATIONAL_COORDINATOR;
   const canChangeSmallGroup = !!currentUser?.role && [ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR].includes(currentUser.role);
 
+  let btnLabel = t('create_activity');
+  if (form.formState.isSubmitting) {
+    btnLabel = t('saving');
+  } else if (initialActivity) {
+    btnLabel = t('save_changes');
+  }
+
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 
@@ -189,7 +201,7 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
           </Button>
           <Button type="submit" className="flex-1 sm:flex-none" disabled={form.formState.isSubmitting}>
             <Save className="mr-2 h-4 w-4" />
-            {form.formState.isSubmitting ? t('saving') : (initialActivity ? t('save_changes') : t('create_activity'))}
+            {btnLabel}
           </Button>
         </div>
       </div>
