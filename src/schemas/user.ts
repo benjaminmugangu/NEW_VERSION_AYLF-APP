@@ -9,7 +9,7 @@ export const userFormSchema = z.object({
   smallGroupId: z.string().nullable().optional(),
   mandateStartDate: z.coerce.date().nullable().optional(),
   mandateEndDate: z.coerce.date().nullable().optional(),
-  status: z.enum(["active", "inactive"]).optional().default("active"),
+  status: z.enum(["active", "inactive", "invited"]).optional().default("active"),
 });
 
 export const refinedUserFormSchema = userFormSchema

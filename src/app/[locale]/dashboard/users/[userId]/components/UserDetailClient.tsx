@@ -12,26 +12,30 @@ import { Button } from '@/components/ui/button';
 import { User as UserIcon, Mail, Briefcase, Building, Users, Calendar, CheckCircle, XCircle } from 'lucide-react';
 
 interface UserDetailClientProps {
-  user: User;
-  canEdit: boolean;
+  readonly user: User;
+  readonly canEdit: boolean;
 }
 
 export function UserDetailClient({ user, canEdit }: UserDetailClientProps) {
   const router = useRouter();
 
-  const getStatusBadgeVariant = (status?: 'active' | 'inactive') => {
-    return status === 'active' ? 'default' : 'destructive';
+  const getStatusBadgeVariant = (status?: 'active' | 'inactive' | 'invited') => {
+    if (status === 'active') return 'default';
+    if (status === 'invited') return 'secondary';
+    return 'destructive';
   };
 
-  const getStatusIcon = (status?: 'active' | 'inactive') => {
+  const getStatusIcon = (status?: 'active' | 'inactive' | 'invited') => {
     if (!status) return null;
-    return status === 'active' ? <CheckCircle className="h-4 w-4 text-green-500" /> : <XCircle className="h-4 w-4 text-red-500" />;
+    if (status === 'active') return <CheckCircle className="h-4 w-4 text-green-500" />;
+    if (status === 'invited') return <Mail className="h-4 w-4 text-blue-500" />;
+    return <XCircle className="h-4 w-4 text-red-500" />;
   };
 
   return (
     <>
-      <PageHeader 
-        title={user.name} 
+      <PageHeader
+        title={user.name}
         icon={UserIcon}
         description={`Details for user: ${user.name}`}
         actions={
@@ -55,12 +59,14 @@ export function UserDetailClient({ user, canEdit }: UserDetailClientProps) {
             </div>
             <div className="flex items-center">
               <Briefcase className="h-5 w-5 mr-3 text-muted-foreground" />
-              <span className="text-foreground capitalize">{user.role.replace(/_/g, ' ')}</span>
+              <span className="text-foreground capitalize">{user.role.replaceAll('_', ' ')}</span>
             </div>
             {user.status && (
               <div className="flex items-center">
-                  {getStatusIcon(user.status)}
-                  <Badge variant={getStatusBadgeVariant(user.status)} className="ml-2">{user.status.charAt(0).toUpperCase() + user.status.slice(1)}</Badge>
+                {getStatusIcon(user.status)}
+                <Badge variant={getStatusBadgeVariant(user.status)} className="ml-2">
+                  {user.status ? user.status.charAt(0).toUpperCase() + user.status.slice(1) : 'Unknown'}
+                </Badge>
               </div>
             )}
             {user.siteId && user.siteName && (
@@ -83,29 +89,29 @@ export function UserDetailClient({ user, canEdit }: UserDetailClientProps) {
         </Card>
 
         <Card>
-            <CardHeader>
-                <CardTitle>Mandate Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                {user.mandateStartDate ? (
-                    <div className="flex items-center">
-                        <Calendar className="h-5 w-5 mr-3 text-muted-foreground" />
-                        <div>
-                            <p className="font-medium">Start Date</p>
-                            <p className="text-muted-foreground">{new Date(user.mandateStartDate).toLocaleDateString()}</p>
-                        </div>
-                    </div>
-                ) : <p className="text-muted-foreground">No start date set.</p>}
-                {user.mandateEndDate ? (
-                    <div className="flex items-center">
-                        <Calendar className="h-5 w-5 mr-3 text-muted-foreground" />
-                        <div>
-                            <p className="font-medium">End Date</p>
-                            <p className="text-muted-foreground">{new Date(user.mandateEndDate).toLocaleDateString()}</p>
-                        </div>
-                    </div>
-                ) : <p className="text-muted-foreground">No end date set.</p>}
-            </CardContent>
+          <CardHeader>
+            <CardTitle>Mandate Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {user.mandateStartDate ? (
+              <div className="flex items-center">
+                <Calendar className="h-5 w-5 mr-3 text-muted-foreground" />
+                <div>
+                  <p className="font-medium">Start Date</p>
+                  <p className="text-muted-foreground">{new Date(user.mandateStartDate).toLocaleDateString()}</p>
+                </div>
+              </div>
+            ) : <p className="text-muted-foreground">No start date set.</p>}
+            {user.mandateEndDate ? (
+              <div className="flex items-center">
+                <Calendar className="h-5 w-5 mr-3 text-muted-foreground" />
+                <div>
+                  <p className="font-medium">End Date</p>
+                  <p className="text-muted-foreground">{new Date(user.mandateEndDate).toLocaleDateString()}</p>
+                </div>
+              </div>
+            ) : <p className="text-muted-foreground">No end date set.</p>}
+          </CardContent>
         </Card>
       </div>
       <Button onClick={() => router.back()} className="mt-6">Go Back</Button>

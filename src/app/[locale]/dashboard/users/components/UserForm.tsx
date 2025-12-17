@@ -1,4 +1,3 @@
-// src/app/dashboard/users/components/UserForm.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -11,21 +10,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import type { User, UserRole, Site, SmallGroup } from "@/lib/types";
+import type { User, Site, SmallGroup } from "@/lib/types";
 import { ROLES } from "@/lib/constants";
 import * as siteService from '@/services/siteService';
 import * as smallGroupService from '@/services/smallGroupService';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, Save, UserPlus, UsersRound } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { CalendarIcon, Save, UsersRound } from "lucide-react";
+import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { refinedUserFormSchema, type UserFormData } from "@/schemas/user";
 
 interface UserFormProps {
-  user?: User;
-  onSubmitForm: (data: UserFormData) => Promise<void>;
-  isSubmitting: boolean;
+  readonly user?: User;
+  readonly onSubmitForm: (data: UserFormData) => Promise<void>;
+  readonly isSubmitting: boolean;
 }
 
 export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }: UserFormProps) {
@@ -36,13 +35,13 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
 
   const defaultValues: Partial<UserFormData> = user ? {
     ...user,
-    mandateStartDate: user.mandateStartDate ? parseISO(user.mandateStartDate) : undefined,
-    mandateEndDate: user.mandateEndDate ? parseISO(user.mandateEndDate) : undefined,
+    mandateStartDate: user.mandateStartDate ? new Date(user.mandateStartDate) : undefined,
+    mandateEndDate: user.mandateEndDate ? new Date(user.mandateEndDate) : undefined,
     status: user.status || "active",
   } : {
     name: '',
     email: '',
-    role: ROLES.SMALL_GROUP_LEADER as UserRole,
+    role: ROLES.SMALL_GROUP_LEADER,
     mandateStartDate: new Date(),
     status: "active" as const,
     siteId: null,
@@ -101,7 +100,7 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
         }
 
         // Reset small group selection if the site changes
-        if (!user || watchedSiteId !== user.siteId) {
+        if (!user || watchedSiteId !== user?.siteId) {
           setValue("smallGroupId", null);
         }
       } else {
@@ -116,6 +115,13 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
     if (!user) {
       reset(defaultValues);
     }
+  };
+
+  const getButtonText = () => {
+    if (isFormSubmitting || isSubmittingProp) {
+      return user ? 'Saving...' : 'Sending Invitation...';
+    }
+    return user ? 'Save Changes' : 'Send Invitation';
   };
 
   return (
@@ -281,7 +287,7 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
 
           <Button type="submit" className="w-full py-3 text-base" disabled={isFormSubmitting || isSubmittingProp}>
             <Save className="mr-2 h-5 w-5" />
-            {(isFormSubmitting || isSubmittingProp) ? (user ? 'Saving...' : 'Sending Invitation...') : (user ? 'Save Changes' : 'Send Invitation')}
+            {getButtonText()}
           </Button>
         </form>
       </CardContent>

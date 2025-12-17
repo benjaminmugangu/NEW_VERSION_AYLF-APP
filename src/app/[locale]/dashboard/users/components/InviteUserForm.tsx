@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import {
     Form,
@@ -69,6 +70,7 @@ interface ConflictData {
 export default function InviteUserForm({ sites, smallGroups }: InviteUserFormProps) {
     const router = useRouter();
     const { toast } = useToast();
+    const queryClient = useQueryClient();
     const [isLoading, setIsLoading] = useState(false);
     const [invitationLink, setInvitationLink] = useState<string | null>(null);
     const [conflictData, setConflictData] = useState<ConflictData | null>(null);
@@ -133,6 +135,9 @@ export default function InviteUserForm({ sites, smallGroups }: InviteUserFormPro
                 }
                 throw new Error(data.error || 'Failed to invite user');
             }
+
+            // Invalidate users list query
+            queryClient.invalidateQueries({ queryKey: ['users'] });
 
             // Generate invitation link
             const baseUrl = globalThis.location.origin;

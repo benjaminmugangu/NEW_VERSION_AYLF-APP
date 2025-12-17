@@ -90,6 +90,7 @@ export const mapReportFormDataToDb = (formData: Partial<ReportFormData>): Partia
   if (formData.moderator !== undefined) dbData.moderator = formData.moderator;
   if (formData.girlsCount !== undefined) dbData.girls_count = formData.girlsCount;
   if (formData.boysCount !== undefined) dbData.boys_count = formData.boysCount;
+  if (formData.participantsCountReported !== undefined) dbData.participants_count_reported = formData.participantsCountReported;
   if (formData.totalExpenses !== undefined) dbData.total_expenses = formData.totalExpenses;
   if (formData.currency !== undefined) dbData.currency = formData.currency;
   if (formData.content !== undefined) dbData.content = formData.content;
@@ -197,6 +198,7 @@ export const mapDbSmallGroupToSmallGroup = (dbSmallGroup: DbSmallGroup): SmallGr
 export const mapSmallGroupFormDataToDb = (formData: SmallGroupFormData): Partial<DbSmallGroup> => {
   return {
     name: formData.name,
+    site_id: formData.siteId,
     leader_id: formData.leaderId,
     logistics_assistant_id: formData.logisticsAssistantId,
     finance_assistant_id: formData.financeAssistantId,

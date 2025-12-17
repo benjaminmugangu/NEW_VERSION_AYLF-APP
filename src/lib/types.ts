@@ -23,7 +23,7 @@ export interface DbUser {
   small_group_id?: string | null;
   mandate_start_date?: string;
   mandate_end_date?: string;
-  status?: 'active' | 'inactive';
+  status?: 'active' | 'inactive' | 'invited';
 }
 
 /**
@@ -39,7 +39,7 @@ export interface User {
   smallGroupId?: string | null;
   mandateStartDate?: string;
   mandateEndDate?: string;
-  status?: 'active' | 'inactive';
+  status?: 'active' | 'inactive' | 'invited';
 
   // Enriched data for UI
   siteName?: string;

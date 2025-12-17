@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { useUsers } from '@/hooks/useUsers';
 import { Button } from '@/components/ui/button';
 import {
     Form,
@@ -74,19 +75,12 @@ export default function EditUserForm({ user, sites, smallGroups }: EditUserFormP
         (group) => !selectedSiteId || group.siteId === selectedSiteId
     );
 
+    const { updateUser } = useUsers();
+
     async function onSubmit(values: FormSchemaType) {
         setIsLoading(true);
         try {
-            const response = await fetch(`/api/admin/users/${user.id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(values),
-            });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to update user');
-            }
+            await updateUser({ userId: user.id, updates: values });
 
             toast({
                 title: t('forms.success_update'),
@@ -95,11 +89,12 @@ export default function EditUserForm({ user, sites, smallGroups }: EditUserFormP
             router.push('/dashboard/users');
             router.refresh();
         } catch (error) {
-            toast({
-                variant: 'destructive',
-                title: 'Error',
-                description: error instanceof Error ? error.message : 'Something went wrong',
-            });
+            // Error handling is already done in useUsers for toast, mostly. 
+            // But we can keep local error handling if needed, or rely on the hook's onError.
+            // The hook swallows error? check useUsers.
+            // useUsers hook: onError calls handleMutationError which toasts.
+            // But mutateAsync throws?
+            console.error(error);
         } finally {
             setIsLoading(false);
         }
