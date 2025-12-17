@@ -60,6 +60,7 @@ export default function NewAllocationPage() {
       status: 'completed',
       allocatedById: user.id,
       notes: data.description,
+      fromSiteId: user.role === ROLES.SITE_COORDINATOR && user.siteId ? user.siteId : undefined,
       ...(data.recipientType === 'site' && { siteId: data.recipientId }),
       ...(data.recipientType === 'smallGroup' && { smallGroupId: data.recipientId }),
     };

@@ -123,8 +123,30 @@ export async function getFilteredMembers(filters: MemberFilters): Promise<Member
 
   const where: any = {};
 
+  // RBAC Enforcement
+  if (user.role === 'site_coordinator') {
+    if (!user.siteId) return []; // Orphaned coordinator sees nothing
+    where.siteId = user.siteId;
+  } else if (user.role === 'small_group_leader') {
+    if (!user.smallGroupId) return []; // Orphaned leader sees nothing
+    where.smallGroupId = user.smallGroupId;
+    // Also implicit specific smallGroupId filter is redundant but safe
+  }
+
+  // Specific filter override (only if allowed)
   if (smallGroupId) {
-    where.smallGroupId = smallGroupId;
+    // If not national, ensure they aren't trying to access another group
+    if (user.role === 'national_coordinator') {
+      where.smallGroupId = smallGroupId;
+    } else if (user.role === 'site_coordinator') {
+      // We already filtered by siteId. smallGroupId must be in that site? 
+      // We trust the query will nicely return empty if intersection is empty.
+      // But let's set it.
+      where.smallGroupId = smallGroupId;
+    } else if (user.role === 'small_group_leader') {
+      if (smallGroupId !== user.smallGroupId) return []; // Trying to access other group
+      where.smallGroupId = smallGroupId;
+    }
   }
 
   if (dateFilter) {

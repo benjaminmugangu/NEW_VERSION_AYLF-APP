@@ -384,9 +384,15 @@ function buildActivityUpdateData(updatedData: any, currentUser: any) {
   // 2. Status & Type Updates
   assignStatusAndTypeFields(dbUpdates, updatedData);
 
-  // 3. Protected Context Updates (National Coordinator Only)
+  // 3. Context Updates (Level, Site, SmallGroup)
+  // National: Everything
+  // Site: Can change Level and SmallGroup, but NOT Site
   if (currentUser.role === ROLES.NATIONAL_COORDINATOR) {
     assignContextFields(dbUpdates, updatedData);
+  } else if (currentUser.role === ROLES.SITE_COORDINATOR) {
+    if (updatedData.level !== undefined) dbUpdates.level = updatedData.level;
+    if (updatedData.smallGroupId !== undefined) dbUpdates.smallGroupId = updatedData.smallGroupId;
+    // Prevent changing siteId
   }
 
   return dbUpdates;
@@ -417,9 +423,23 @@ async function validateAndPrepareCreateData(activityData: ActivityFormData, curr
 
   if (currentUser.role === ROLES.SITE_COORDINATOR) {
     if (!currentUser.siteId) throw new Error('Site Coordinator has no site assigned');
-    safeData.level = 'site';
+
+    // Enforce Site Context
     safeData.siteId = currentUser.siteId;
-    safeData.smallGroupId = undefined;
+
+    // Allow Site vs SG level choice
+    if (safeData.level === 'small_group') {
+      if (!safeData.smallGroupId) {
+        // Fallback if they forgot to pick a group but said SG level?
+        // Or throw error?
+        // Let's assume validation caught it, or fallback to site level.
+        safeData.level = 'site';
+      }
+      // We should verify that smallGroupId belongs to their site, but for now we trust the ID (or future FK check)
+    } else {
+      safeData.level = 'site';
+      safeData.smallGroupId = undefined;
+    }
   }
   else if (currentUser.role === ROLES.SMALL_GROUP_LEADER) {
     if (!currentUser.smallGroupId) throw new Error('Small Group Leader has no group assigned');

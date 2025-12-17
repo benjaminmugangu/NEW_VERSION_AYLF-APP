@@ -44,6 +44,8 @@ import {
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { useTranslations } from 'next-intl';
+import { useAuth } from '@/contexts/AuthContext';
+import { ROLES } from '@/lib/constants';
 
 interface InviteUserFormProps {
     readonly sites: { id: string; name: string }[];
@@ -71,28 +73,44 @@ export default function InviteUserForm({ sites, smallGroups }: InviteUserFormPro
     const router = useRouter();
     const { toast } = useToast();
     const queryClient = useQueryClient();
+    const { currentUser } = useAuth();
+
     const [isLoading, setIsLoading] = useState(false);
     const [invitationLink, setInvitationLink] = useState<string | null>(null);
     const [conflictData, setConflictData] = useState<ConflictData | null>(null);
     const t = useTranslations('Users');
     const tRoles = useTranslations('Roles');
 
-    // Memoize the schema to use translations
+    // Context / RBAC flags
+    const isSiteCoord = currentUser?.role === ROLES.SITE_COORDINATOR;
+    const isSGL = currentUser?.role === ROLES.SMALL_GROUP_LEADER;
+
+    // Filter roles based on permissions to prevent escalation
+    const allowedRoles = useMemo(() => {
+        const roles = [
+            { value: 'member', label: tRoles('member') },
+            { value: 'small_group_leader', label: tRoles('small_group_leader') },
+            { value: 'site_coordinator', label: tRoles('site_coordinator') },
+            { value: 'national_coordinator', label: tRoles('national_coordinator') },
+        ];
+
+        if (isSGL) return roles.filter(r => r.value === 'member');
+        if (isSiteCoord) return roles.filter(r => r.value === 'member' || r.value === 'small_group_leader');
+        return roles;
+    }, [isSGL, isSiteCoord, tRoles]);
+
     const formSchema = useMemo(() => z.object({
         email: z.string().email(t('forms.email_error')),
         name: z.string().min(2, t('forms.name_error')),
-        role: z.nativeEnum(UserRole), // We might want to add custom error map here if needed
+        role: z.nativeEnum(UserRole),
         siteId: z.string().optional(),
         smallGroupId: z.string().optional(),
         mandateStartDate: z.string().optional(),
     }), [t]);
 
-    const [pendingInvitation, setPendingInvitation] = useState<z.infer<typeof formSchema> | null>(null);
-
-    // Note: TypeScript might complain about formSchema type inference inside generic useForm if it's dynamic
-    // We cast to any for the schema generic if needed, or rely on TS inference.
-    // However, defining type separately is cleaner.
     type FormSchemaType = z.infer<typeof formSchema>;
+
+    const [pendingInvitation, setPendingInvitation] = useState<FormSchemaType | null>(null);
 
     const form = useForm<FormSchemaType>({
         resolver: zodResolver(formSchema),
@@ -100,6 +118,9 @@ export default function InviteUserForm({ sites, smallGroups }: InviteUserFormPro
             email: '',
             name: '',
             role: 'member',
+            // Context injection
+            siteId: isSiteCoord && currentUser.siteId ? currentUser.siteId : undefined,
+            smallGroupId: isSGL && currentUser.smallGroupId ? currentUser.smallGroupId : undefined,
         },
     });
 
@@ -126,20 +147,17 @@ export default function InviteUserForm({ sites, smallGroups }: InviteUserFormPro
             const data = await response.json();
 
             if (!response.ok) {
-                // Handle 409 Conflict (duplicate coordinator)
                 if (response.status === 409 && (data.conflictType === 'site_coordinator' || data.conflictType === 'small_group_leader')) {
                     setConflictData(data);
                     setPendingInvitation(values);
                     setIsLoading(false);
-                    return; // Don't throw, show dialog instead
+                    return;
                 }
                 throw new Error(data.error || 'Failed to invite user');
             }
 
-            // Invalidate users list query
             queryClient.invalidateQueries({ queryKey: ['users'] });
 
-            // Generate invitation link
             const baseUrl = globalThis.location.origin;
             const inviteLink = `${baseUrl}/auth/accept-invitation?token=${data.invitation.token}`;
             setInvitationLink(inviteLink);
@@ -152,7 +170,7 @@ export default function InviteUserForm({ sites, smallGroups }: InviteUserFormPro
             console.error('Invitation error:', error);
             toast({
                 variant: 'destructive',
-                title: 'Erreur', // Ideally translate 'Error' too like tCommon('error')
+                title: 'Erreur',
                 description: error instanceof Error ? error.message : 'Une erreur est survenue',
             });
         } finally {
@@ -172,14 +190,9 @@ export default function InviteUserForm({ sites, smallGroups }: InviteUserFormPro
 
     const handleReplaceConfirm = async () => {
         if (!pendingInvitation || !conflictData) return;
-
         const existingPerson = conflictData.existingCoordinator || conflictData.existingLeader;
         if (!existingPerson) return;
-
-        // Retry submission with replace flag
         await onSubmit(pendingInvitation, true, existingPerson.id);
-
-        // Clear conflict state
         setConflictData(null);
         setPendingInvitation(null);
     };
@@ -193,7 +206,6 @@ export default function InviteUserForm({ sites, smallGroups }: InviteUserFormPro
 
     return (
         <>
-            {/* Conflict Resolution Dialog */}
             <AlertDialog open={!!conflictData} onOpenChange={(open) => !open && handleReplaceCancel()}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
@@ -316,10 +328,9 @@ export default function InviteUserForm({ sites, smallGroups }: InviteUserFormPro
                                         </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                        <SelectItem value="national_coordinator">{tRoles('national_coordinator')}</SelectItem>
-                                        <SelectItem value="site_coordinator">{tRoles('site_coordinator')}</SelectItem>
-                                        <SelectItem value="small_group_leader">{tRoles('small_group_leader')}</SelectItem>
-                                        <SelectItem value="member">{tRoles('member')}</SelectItem>
+                                        {allowedRoles.map(role => (
+                                            <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                                 <FormMessage />
@@ -334,7 +345,12 @@ export default function InviteUserForm({ sites, smallGroups }: InviteUserFormPro
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>{t('forms.site_label')}</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <Select
+                                        onValueChange={field.onChange}
+                                        defaultValue={field.value}
+                                        value={field.value}
+                                        disabled={isSiteCoord || isSGL}
+                                    >
                                         <FormControl>
                                             <SelectTrigger>
                                                 <SelectValue placeholder={t('forms.select_site')} />
@@ -361,7 +377,12 @@ export default function InviteUserForm({ sites, smallGroups }: InviteUserFormPro
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>{t('forms.group_label')}</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <Select
+                                        onValueChange={field.onChange}
+                                        defaultValue={field.value}
+                                        value={field.value}
+                                        disabled={isSGL}
+                                    >
                                         <FormControl>
                                             <SelectTrigger>
                                                 <SelectValue placeholder={t('forms.select_group')} />

@@ -97,6 +97,7 @@ export default async function SiteCoordinatorDashboard(props: any) {
 
     const profile = await prisma.profile.findUnique({
         where: { id: kindeUser.id },
+        include: { site: true },
     });
 
     if (!profile || profile.role !== ROLES.SITE_COORDINATOR) {
@@ -124,6 +125,7 @@ export default async function SiteCoordinatorDashboard(props: any) {
                 userName={profile.name || 'Coordinator'}
                 userRole={profile.role}
                 initialDateFilter={dateFilter}
+                siteName={profile.site?.name}
             />
         );
     } catch (error) {

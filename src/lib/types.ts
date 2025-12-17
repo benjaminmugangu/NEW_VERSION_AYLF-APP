@@ -382,17 +382,7 @@ export interface TransactionFormData {
   recordedById: string; // Set to current user's ID
 }
 
-export interface FundAllocationFormData {
-  amount: number;
-  allocationDate: string; // ISO date string
-  goal: string;
-  source: string;
-  status: 'planned' | 'completed';
-  allocatedById: string; // Set to current user's ID
-  siteId?: string;
-  smallGroupId?: string;
-  notes?: string;
-}
+// Duplicate FundAllocationFormData removed. Using definition at line 292.
 
 export type SiteFormData = Omit<Site, 'id' | 'coordinator' | 'memberCount' | 'smallGroupCount'>;
 

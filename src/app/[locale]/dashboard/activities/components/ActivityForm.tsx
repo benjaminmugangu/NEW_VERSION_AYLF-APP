@@ -62,13 +62,24 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
   const selectedLevel = form.watch('level');
   const selectedSiteId = form.watch('siteId');
 
+  /* PERMISSIONS LOGIC */
+  // National: Can change everything.
+  // Site Coord: Can change Level (Site <-> SG), Can change SG. Cannot change Site (locked to own).
+  // SG Leader: Cannot change anything content-wise (locked to own SG).
+  const isNational = currentUser?.role === ROLES.NATIONAL_COORDINATOR;
+  const isSiteCoord = currentUser?.role === ROLES.SITE_COORDINATOR;
+  const isSGL = currentUser?.role === ROLES.SMALL_GROUP_LEADER;
+
+  const canChangeLevel = isNational || isSiteCoord;
+  const canChangeSite = isNational;
+  const canChangeSmallGroup = isNational || isSiteCoord;
+
   useEffect(() => {
-    let determinedLevel: 'national' | 'site' | 'small_group' = 'small_group';
-    if (currentUser?.role === ROLES.NATIONAL_COORDINATOR) {
-      determinedLevel = 'national';
-    } else if (currentUser?.role === ROLES.SITE_COORDINATOR) {
-      determinedLevel = 'site';
-    }
+    // Determine the logical default level based on role
+    let defaultLevel: 'national' | 'site' | 'small_group' = 'national';
+
+    if (isSiteCoord) defaultLevel = 'site';
+    if (isSGL) defaultLevel = 'small_group';
 
     if (isEditMode && initialActivity) {
       form.reset({
@@ -81,11 +92,30 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
         createdBy: initialActivity.createdBy || currentUser?.id || '',
       });
     } else if (!isEditMode && currentUser) {
-      form.setValue('level', determinedLevel);
-      if (currentUser.siteId) form.setValue('siteId', currentUser.siteId);
-      if (currentUser.smallGroupId) form.setValue('smallGroupId', currentUser.smallGroupId);
+      // Sync default values on load
+      const currentLevel = form.getValues('level');
+
+      // Only override if the current mismatch is invalid for the role (e.g. defaulting to National for a Site Coord)
+      // Or if it's the first load (we can't easily detect first load here without refs, but we can check logic)
+
+      // Simple logic: If current level is National but user is SiteCoord, force Site.
+      if (isSiteCoord && currentLevel === 'national') {
+        form.setValue('level', 'site');
+      }
+      if (isSGL && currentLevel !== 'small_group') {
+        form.setValue('level', 'small_group');
+      }
+
+      // Auto-fill Context
+      if (isSiteCoord && currentUser.siteId) {
+        form.setValue('siteId', currentUser.siteId);
+      }
+      if (isSGL) {
+        if (currentUser.siteId) form.setValue('siteId', currentUser.siteId);
+        if (currentUser.smallGroupId) form.setValue('smallGroupId', currentUser.smallGroupId);
+      }
     }
-  }, [initialActivity, isEditMode, currentUser, form]);
+  }, [initialActivity, isEditMode, currentUser, form, isSiteCoord, isSGL]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -174,10 +204,6 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
     }
   };
 
-  const canChangeLevel = currentUser?.role === ROLES.NATIONAL_COORDINATOR;
-  const canChangeSite = currentUser?.role === ROLES.NATIONAL_COORDINATOR;
-  const canChangeSmallGroup = !!currentUser?.role && [ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR].includes(currentUser.role);
-
   let btnLabel = t('create_activity');
   if (form.formState.isSubmitting) {
     btnLabel = t('saving');
@@ -230,7 +256,6 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
           </Card>
 
           {/* Activity Status / Execution (Visible only if Edit Mode) */}
-          {/* If we strictly follow the plan, Status might be better in the sidebar, but 'Execution actions' are main actions */}
           {isEditMode && initialActivity?.status === 'planned' && (
             <Card className="bg-muted/30 border-dashed">
               <CardHeader>
@@ -327,8 +352,8 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
                   <Select onValueChange={field.onChange} value={field.value} disabled={!canChangeLevel}>
                     <SelectTrigger id="level" className="mt-1"><SelectValue placeholder={t('level_placeholder')} /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="national">{tLevel("national")}</SelectItem>
-                      <SelectItem value="site">{tLevel("site")}</SelectItem>
+                      {isNational && <SelectItem value="national">{tLevel("national")}</SelectItem>}
+                      {(isNational || isSiteCoord) && <SelectItem value="site">{tLevel("site")}</SelectItem>}
                       <SelectItem value="small_group">{tLevel("small_group")}</SelectItem>
                     </SelectContent>
                   </Select>

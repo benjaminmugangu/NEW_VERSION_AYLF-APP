@@ -21,17 +21,18 @@ import { DateRangeFilter, type DateFilterValue } from '@/components/shared/DateR
 import { useRouter, useSearchParams } from 'next/navigation';
 import { OnboardingChecklist } from '@/components/shared/OnboardingChecklist';
 import { useTranslations, useFormatter } from 'next-intl';
-
-
+import { Badge } from '@/components/ui/badge';
 
 interface DashboardClientProps {
   initialStats: DashboardStats;
   userName: string;
   userRole: string;
   initialDateFilter: DateFilterValue;
+  siteName?: string;
+  smallGroupName?: string;
 }
 
-export function DashboardClient({ initialStats, userName, userRole, initialDateFilter }: DashboardClientProps) {
+export function DashboardClient({ initialStats, userName, userRole, initialDateFilter, siteName, smallGroupName }: DashboardClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const t = useTranslations('Dashboard');
@@ -62,15 +63,12 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
     }
     if (filter.rangeKey === 'specific_period' && filter.specificYear) {
       if (filter.specificMonth && filter.specificMonth !== 'all') {
-        // We need authorized month name manually or formatted date
-        // Since we have month number (0-11), we can format it
         const date = new Date(parseInt(filter.specificYear), parseInt(filter.specificMonth));
         const monthName = format.dateTime(date, { month: 'long' });
         return tDateRanges('specific_period_display_month', { month: monthName, year: filter.specificYear });
       }
       return tDateRanges('specific_period_display_year', { year: filter.specificYear });
     }
-    // Fallback for predefined ranges
     return tDateRanges(filter.rangeKey);
   };
 
@@ -80,14 +78,12 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
     const params = new URLSearchParams();
     params.set('rangeKey', filter.rangeKey);
 
-    // For custom ranges, the 'from' and 'to' are now top-level properties
     if (filter.rangeKey === 'custom' && filter.from) {
       params.set('from', filter.from);
       if (filter.to) {
         params.set('to', filter.to);
       }
     } else if (filter.rangeKey === 'specific_period' && filter.specificYear) {
-      // The server will calculate the range, but we pass the selectors' state
       params.set('year', filter.specificYear);
       if (filter.specificMonth) {
         params.set('month', filter.specificMonth);
@@ -105,7 +101,16 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
     <>
       <PageHeader
         title={t('welcome', { name: userName })}
-        description={t('overview', { period: periodLabel })}
+        description={
+          <div className="flex flex-col gap-1">
+            <span>{t('overview', { period: periodLabel })}</span>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {userRole === ROLES.NATIONAL_COORDINATOR && <Badge variant="secondary">National Level</Badge>}
+              {siteName && <Badge variant="outline" className="bg-background"><Building className="w-3 h-3 mr-1" /> {siteName}</Badge>}
+              {smallGroupName && <Badge variant="outline" className="bg-background"><UsersRound className="w-3 h-3 mr-1" /> {smallGroupName}</Badge>}
+            </div>
+          </div>
+        }
         actions={
           <div className="flex items-center gap-2">
             <DateRangeFilter onFilterChange={handleDateFilterChange} initialRangeKey={initialDateFilter.rangeKey} />
@@ -161,7 +166,6 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
         />
       </div>
 
-      {/* Onboarding Checklist */}
       <OnboardingChecklist />
 
       <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-7">

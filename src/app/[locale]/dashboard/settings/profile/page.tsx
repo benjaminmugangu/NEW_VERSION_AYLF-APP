@@ -14,7 +14,7 @@ import { useTranslations } from 'next-intl';
 export default function ProfileSettingsPage() {
   const { currentUser, isLoading } = useCurrentUser();
 
-  if (isLoading || !currentUser) {
+  if (isLoading) {
     return (
       <div>
         <PageHeader title="My Profile" icon={UserCircle} />
@@ -25,6 +25,19 @@ export default function ProfileSettingsPage() {
             <Skeleton className="h-8 w-1/4 mb-4" />
             <Skeleton className="h-10 w-full mb-4" />
             <Skeleton className="h-10 w-1/3 mt-6" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <div>
+        <PageHeader title="Profile Error" icon={UserCircle} />
+        <Card>
+          <CardContent>
+            <p className="text-destructive">User not found. Please log in again.</p>
           </CardContent>
         </Card>
       </div>

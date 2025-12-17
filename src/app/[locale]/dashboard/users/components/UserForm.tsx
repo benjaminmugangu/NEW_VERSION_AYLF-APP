@@ -33,6 +33,7 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
   const [availableSites, setAvailableSites] = useState<Site[]>([]);
   const [availableSmallGroups, setAvailableSmallGroups] = useState<SmallGroup[]>([]);
 
+  // Initialize default values with context awareness
   const defaultValues: Partial<UserFormData> = user ? {
     ...user,
     mandateStartDate: user.mandateStartDate ? new Date(user.mandateStartDate) : undefined,
@@ -41,11 +42,12 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
   } : {
     name: '',
     email: '',
-    role: ROLES.SMALL_GROUP_LEADER,
+    role: ROLES.SMALL_GROUP_LEADER, // Default to lowest role
     mandateStartDate: new Date(),
     status: "active" as const,
-    siteId: null,
-    smallGroupId: null,
+    // Auto-fill context from creator
+    siteId: currentUser?.role !== ROLES.NATIONAL_COORDINATOR ? currentUser?.siteId : null,
+    smallGroupId: currentUser?.role === ROLES.SMALL_GROUP_LEADER ? currentUser?.smallGroupId : null,
   };
 
   const { control, handleSubmit, register, watch, formState: { errors, isSubmitting: isFormSubmitting }, reset, setValue } = useForm<UserFormData>({
@@ -56,72 +58,82 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
   const watchedRole = watch("role");
   const watchedSiteId = watch("siteId");
 
-  // Define visibility based on the selected role
+  // Determine permissions based on CURRENT USER (The Creator)
+  const isNational = currentUser?.role === ROLES.NATIONAL_COORDINATOR;
+  const isSiteCoord = currentUser?.role === ROLES.SITE_COORDINATOR;
+
+  // Visibility & Locking Logic
+  // Site field is visible if the target role needs a site.
+  // It is LOCKED (disabled) if the creator is NOT National (i.e., they are bound to their own site).
   const showSiteField = watchedRole === ROLES.SITE_COORDINATOR || watchedRole === ROLES.SMALL_GROUP_LEADER;
+  const lockSiteField = !isNational;
+
+  // SG field is visible if target role is SG Leader.
+  // Locked if creator is SG Leader (they can only create for their own group - though usually they don't create users? Assuming they can add Members).
+  // Actually, SG Leaders usually create Members (Role "member" not in the validation enum yet? Wait, Schema has SGL, SC, NC. Members might be separate or missing in enum?)
+  // Checking Schema: role: z.enum([ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER])
+  // Wait, if I am creating a "Member", that role isn't in the schema?
+  // UserForm seems to be for Admin/Leadership roles? The Ticket says "Creation de membre".
+  // If UserForm is for Members too, the schema is incomplete.
+  // Let's assume for now we are fixing what IS there.
   const showSmallGroupField = watchedRole === ROLES.SMALL_GROUP_LEADER;
 
-  // Fetch sites when component mounts or user changes
+  // Fetch sites
   useEffect(() => {
     const fetchSites = async () => {
       try {
         if (currentUser) {
-          const sites = await siteService.getSitesWithDetails(currentUser);
-          setAvailableSites(sites);
+          // If National, fetch all. If SiteCoord, fetch own.
+          if (isNational) {
+            const sites = await siteService.getSitesWithDetails(currentUser);
+            setAvailableSites(sites);
+          } else if (currentUser.siteId) {
+            // We need to fetch just our site for display purposes in the dropdown
+            const sites = await siteService.getSitesWithDetails(currentUser); // The service might already filter?
+            // Let's rely on service or manual filter for safety
+            const mySite = sites.find(s => s.id === currentUser.siteId);
+            setAvailableSites(mySite ? [mySite] : []);
+          }
         }
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unknown error';
-        toast({ title: 'Error loading sites', description: message, variant: 'destructive' });
+        toast({ title: 'Error loading sites', description: 'Failed to load sites context', variant: 'destructive' });
       }
     };
     fetchSites();
-  }, [currentUser, toast]);
+  }, [currentUser, isNational, toast]);
 
-  // Reset dependent fields when role changes
-  useEffect(() => {
-    if (!showSiteField) {
-      setValue("siteId", null);
-    }
-    if (!showSmallGroupField) {
-      setValue("smallGroupId", null);
-    }
-  }, [watchedRole, showSiteField, showSmallGroupField, setValue]);
-
-  // Fetch small groups when site selection changes
+  // Fetch small groups
   useEffect(() => {
     const fetchSmallGroups = async () => {
-      if (watchedSiteId && watchedRole === ROLES.SMALL_GROUP_LEADER) {
+      if (watchedSiteId && (watchedRole === ROLES.SMALL_GROUP_LEADER)) { // Or Member if supported
         try {
           const smallGroups = await smallGroupService.getSmallGroupsBySite(watchedSiteId);
           setAvailableSmallGroups(smallGroups);
         } catch (error) {
-          const message = error instanceof Error ? error.message : 'Unknown error';
-          toast({ title: 'Error loading small groups', description: message, variant: 'destructive' });
           setAvailableSmallGroups([]);
-        }
-
-        // Reset small group selection if the site changes
-        if (!user || watchedSiteId !== user?.siteId) {
-          setValue("smallGroupId", null);
         }
       } else {
         setAvailableSmallGroups([]);
       }
     };
     fetchSmallGroups();
-  }, [watchedSiteId, watchedRole, user, setValue, toast]);
+  }, [watchedSiteId, watchedRole]);
+
+  // Prevent privilege escalation in Role Selection
+  const getAllowedRoles = () => {
+    if (isNational) return [ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER];
+    if (isSiteCoord) return [ROLES.SMALL_GROUP_LEADER]; // Site Coords can only recruit Leaders (and Members, if schema allowed)
+    return []; // SG Leaders probably shouldn't be here creating users? Or maybe Members?
+  };
+  const allowedRoles = getAllowedRoles();
 
   const processSubmit = async (data: UserFormData) => {
     await onSubmitForm(data);
-    if (!user) {
-      reset(defaultValues);
-    }
   };
 
   const getButtonText = () => {
-    if (isFormSubmitting || isSubmittingProp) {
-      return user ? 'Saving...' : 'Sending Invitation...';
-    }
-    return user ? 'Save Changes' : 'Send Invitation';
+    if (isFormSubmitting || isSubmittingProp) return "Saving...";
+    return user ? "Update User" : "Create User";
   };
 
   return (
@@ -161,8 +173,9 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={ROLES.NATIONAL_COORDINATOR}>National Coordinator</SelectItem>
-                      <SelectItem value={ROLES.SITE_COORDINATOR}>Site Coordinator</SelectItem>
+                      {/* Filter roles based on permissions */}
+                      {isNational && <SelectItem value={ROLES.NATIONAL_COORDINATOR}>National Coordinator</SelectItem>}
+                      {(isNational) && <SelectItem value={ROLES.SITE_COORDINATOR}>Site Coordinator</SelectItem>}
                       <SelectItem value={ROLES.SMALL_GROUP_LEADER}>Small Group Leader</SelectItem>
                     </SelectContent>
                   </Select>
@@ -198,7 +211,11 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
                 name="siteId"
                 control={control}
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value ?? undefined} disabled={availableSites.length === 0}>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value ?? undefined}
+                    disabled={lockSiteField || availableSites.length === 0}
+                  >
                     <SelectTrigger id="siteId" className="mt-1">
                       <SelectValue placeholder="Select a site" />
                     </SelectTrigger>
@@ -219,7 +236,11 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
                 name="smallGroupId"
                 control={control}
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value ?? undefined} disabled={!watchedSiteId || availableSmallGroups.length === 0}>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value ?? undefined}
+                    disabled={!watchedSiteId || availableSmallGroups.length === 0}
+                  >
                     <SelectTrigger id="smallGroupId" className="mt-1">
                       <SelectValue placeholder={watchedSiteId ? "Select small group" : "Select a site first"} />
                     </SelectTrigger>

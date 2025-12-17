@@ -97,6 +97,7 @@ export default async function SmallGroupLeaderDashboard(props: any) {
 
     const profile = await prisma.profile.findUnique({
         where: { id: kindeUser.id },
+        include: { site: true, smallGroup: true },
     });
 
     if (!profile || profile.role !== ROLES.SMALL_GROUP_LEADER) {
@@ -124,6 +125,8 @@ export default async function SmallGroupLeaderDashboard(props: any) {
                 userName={profile.name || 'Leader'}
                 userRole={profile.role}
                 initialDateFilter={dateFilter}
+                siteName={profile.site?.name}
+                smallGroupName={profile.smallGroup?.name}
             />
         );
     } catch (error) {
