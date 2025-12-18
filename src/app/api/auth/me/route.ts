@@ -31,44 +31,47 @@ export async function GET() {
     // 2. Si l'utilisateur n'existe pas, on le crée (Auto-Sync)
     if (!dbUser) {
       logInfo(`Creating new user from Kinde: ${kindeUser.email}`, { userId: kindeUser.id });
+      console.log(`[AUTH_SYNC] User not found in DB. Attempting auto-sync for ${kindeUser.email}...`);
 
-      // Check for pending invitation
-      const invitation = await prisma.userInvitation.findUnique({
-        where: { email: kindeUser.email },
+      // Look for an existing invitation for this email
+      const invitation = await prisma.userInvitation.findFirst({
+        where: { email: kindeUser.email, status: "pending" },
+        orderBy: { createdAt: "desc" }
       });
 
-      let role: UserRole = "member";
-      let siteId: string | undefined;
-      let smallGroupId: string | undefined;
+      const role: UserRole = invitation?.role || "member"; // Default role if no invitation or role not specified
+      const siteId = invitation?.siteId || null;
+      const smallGroupId = invitation?.smallGroupId || null;
 
-      if (invitation) {
-        logInfo(`Found invitation for ${kindeUser.email}: ${invitation.role}`, { invitationId: invitation.id });
-        role = invitation.role;
-        siteId = invitation.siteId || undefined;
-        smallGroupId = invitation.smallGroupId || undefined;
-
-        // Mark invitation as accepted (or delete it)
-        await prisma.userInvitation.update({
-          where: { id: invitation.id },
-          data: { status: 'accepted' }
+      try {
+        dbUser = await prisma.profile.create({
+          data: {
+            id: kindeUser.id,
+            email: kindeUser.email,
+            name: `${kindeUser.given_name ?? ''} ${kindeUser.family_name ?? ''}`.trim() || kindeUser.email,
+            role: role,
+            siteId: siteId,
+            smallGroupId: smallGroupId,
+            status: "active",
+          },
+          include: {
+            site: true,
+            smallGroup: true,
+          }
         });
-      }
+        console.log(`[AUTH_SYNC] Auto-sync successful for ${dbUser.email}`);
 
-      dbUser = await prisma.profile.create({
-        data: {
-          id: kindeUser.id,
-          email: kindeUser.email,
-          name: `${kindeUser.given_name ?? ''} ${kindeUser.family_name ?? ''}`.trim() || kindeUser.email,
-          role: role,
-          siteId: siteId,
-          smallGroupId: smallGroupId,
-          status: "active",
-        },
-        include: {
-          site: true,
-          smallGroup: true,
+        // Update invitation if exists
+        if (invitation) {
+          await prisma.userInvitation.update({
+            where: { id: invitation.id },
+            data: { status: "accepted" }
+          });
         }
-      });
+      } catch (createError) {
+        console.error(`[AUTH_SYNC] Auto-sync FAILED for ${kindeUser.email}:`, createError);
+        throw createError; // Re-throw to be caught by the main catch block
+      }
     }
 
     // 3. Construire l'objet User pour le frontend
@@ -88,6 +91,7 @@ export async function GET() {
     return NextResponse.json({ user: frontendUser });
 
   } catch (error) {
+    console.error("[AUTH_SYNC_ERROR] Complete error details:", error);
     logError("[AUTH_SYNC_ERROR]", error);
     return NextResponse.json({ error: MESSAGES.errors.serverError }, { status: 500 });
   }

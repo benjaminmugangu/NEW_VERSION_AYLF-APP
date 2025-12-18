@@ -13,7 +13,7 @@ import * as smallGroupService from '@/services/smallGroupService';
 import type { Activity, Site, SmallGroup } from '@/lib/types';
 
 import { ROLES } from '@/lib/constants';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
