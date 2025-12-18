@@ -29,9 +29,26 @@ interface UserFormProps {
 
 export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }: UserFormProps) {
   const { toast } = useToast();
-  const { currentUser } = useAuth();
+  const { currentUser, isLoading: isAuthLoading } = useAuth();
   const [availableSites, setAvailableSites] = useState<Site[]>([]);
   const [availableSmallGroups, setAvailableSmallGroups] = useState<SmallGroup[]>([]);
+
+  if (isAuthLoading) {
+    return <div className="p-8 text-center text-muted-foreground">Loading user context...</div>;
+  }
+
+  if (!currentUser) {
+    return (
+      <Card className="shadow-xl w-full max-w-xl mx-auto border-destructive/50">
+        <CardHeader>
+          <CardTitle className="text-destructive">Authentication Error</CardTitle>
+          <CardDescription>
+            Unable to load user context. Please try refreshing or logging in again.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
   // Initialize default values with context awareness
   const defaultValues: Partial<UserFormData> = user ? {

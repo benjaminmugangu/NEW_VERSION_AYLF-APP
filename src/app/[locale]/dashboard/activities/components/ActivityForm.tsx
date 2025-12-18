@@ -32,12 +32,29 @@ interface ActivityFormProps {
 }
 
 export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onSave, onCancel }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, isLoading: isAuthLoading } = useAuth();
   const { toast } = useToast();
   const isEditMode = !!initialActivity;
   const t = useTranslations('ActivityForm');
   const tStatus = useTranslations('ActivityStatus');
   const tLevel = useTranslations('ActivityLevel');
+
+  if (isAuthLoading) {
+    return <div className="p-8 text-center text-muted-foreground">Loading activity context...</div>;
+  }
+
+  if (!currentUser) {
+    return (
+      <Card className="shadow-xl w-full max-w-xl mx-auto border-destructive/50">
+        <CardHeader>
+          <CardTitle className="text-destructive">Authentication Error</CardTitle>
+          <CardDescription>
+            Unable to load user context. Please try refreshing or logging in again.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
   const [sites, setSites] = useState<Site[]>([]);
   const [smallGroups, setSmallGroups] = useState<SmallGroup[]>([]);

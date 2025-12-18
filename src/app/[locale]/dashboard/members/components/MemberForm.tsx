@@ -27,12 +27,29 @@ interface MemberFormProps {
 }
 
 export function MemberForm({ member, onSubmitForm }: MemberFormProps) {
-  const { currentUser } = useAuth();
+  const { currentUser, isLoading: isAuthLoading } = useAuth();
   const t = useTranslations('MemberForm');
   const tLevel = useTranslations('ActivityLevel');
 
   const [sites, setSites] = useState<Site[]>([]);
   const [smallGroups, setSmallGroups] = useState<SmallGroup[]>([]);
+
+  if (isAuthLoading) {
+    return <div className="p-8 text-center text-muted-foreground">Loading user profile...</div>;
+  }
+
+  if (!currentUser) {
+    return (
+      <Card className="shadow-xl w-full max-w-xl mx-auto border-destructive/50">
+        <CardHeader>
+          <CardTitle className="text-destructive">Authentication Error</CardTitle>
+          <CardDescription>
+            Unable to load user profile. Please try refreshing the page or logging in again.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
   // Move schema definition inside component to use translations
   const memberFormSchema = useMemo(() => z.object({
