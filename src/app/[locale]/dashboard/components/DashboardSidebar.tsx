@@ -11,7 +11,8 @@ import {
   SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
   SidebarMenuBadge // Import Badge
 } from '@/components/ui/sidebar';
-import { LogOut, ChevronDown, ChevronUp } from 'lucide-react';
+import { LogOut, ChevronDown, ChevronUp, Building, UsersRound } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import { NAVIGATION_LINKS } from '@/lib/constants';
 import type { NavItem } from '@/lib/types';
@@ -26,6 +27,7 @@ export function DashboardSidebar({ user }: DashboardSidebarProps) {
   const pathname = usePathname();
   const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>({});
   const t = useTranslations();
+  const tRole = useTranslations('Roles');
 
   const handleLogout = async () => {
     // Redirection vers l'API de logout Kinde
@@ -129,6 +131,30 @@ export function DashboardSidebar({ user }: DashboardSidebarProps) {
         <div className="mb-2 px-2">
           <LanguageSwitcher />
         </div>
+        {user && (
+          <div className="mb-4 px-4 py-3 bg-muted/30 rounded-lg mx-2 border border-border/50">
+            <div className="flex flex-col gap-1.5">
+              <span className="font-semibold text-sm truncate">{user.name}</span>
+              <div className="flex flex-wrap gap-1">
+                <Badge variant="secondary" className="text-[10px] h-4 px-1">
+                  {tRole(user.role as any)}
+                </Badge>
+                {user.siteName && (
+                  <Badge variant="outline" className="text-[10px] h-4 px-1 bg-background flex items-center gap-1">
+                    <Building className="w-2.5 h-2.5" />
+                    {user.siteName}
+                  </Badge>
+                )}
+                {user.smallGroupName && (
+                  <Badge variant="outline" className="text-[10px] h-4 px-1 bg-background flex items-center gap-1">
+                    <UsersRound className="w-2.5 h-2.5" />
+                    {user.smallGroupName}
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
         {user && (
           <SidebarMenu>
             <SidebarMenuItem>

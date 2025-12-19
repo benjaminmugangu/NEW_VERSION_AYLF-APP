@@ -105,14 +105,18 @@ export function MemberForm({ member, onSubmitForm }: MemberFormProps) {
 
   useEffect(() => {
     const fetchSites = async () => {
-      if (currentUser?.role === ROLES.NATIONAL_COORDINATOR) {
-        try {
+      if (!currentUser) return;
+      try {
+        if (currentUser.role === ROLES.NATIONAL_COORDINATOR) {
           const sitesData = await siteService.getSitesWithDetails(currentUser);
           setSites(sitesData);
-        } catch (error) {
-          console.error('Failed to fetch sites:', error);
-          setSites([]);
+        } else if (currentUser.role === ROLES.SITE_COORDINATOR && currentUser.siteId) {
+          const siteData = await siteService.getSiteById(currentUser.siteId);
+          if (siteData) setSites([siteData]);
         }
+      } catch (error) {
+        console.error('Failed to fetch sites:', error);
+        setSites([]);
       }
     };
     fetchSites();
@@ -233,7 +237,7 @@ export function MemberForm({ member, onSubmitForm }: MemberFormProps) {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="student">{t('type_options.student')}</SelectItem>
-                      <SelectItem value="non-student">{t('type_options.non_student')}</SelectItem>
+                      <SelectItem value="non_student">{t('type_options.non_student')}</SelectItem>
                     </SelectContent>
                   </Select>
                 )}

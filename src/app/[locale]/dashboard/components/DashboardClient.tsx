@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatCard } from '@/components/shared/StatCard';
@@ -24,19 +24,17 @@ import { useTranslations, useFormatter } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
 
 interface DashboardClientProps {
-  initialStats: DashboardStats;
-  userName: string;
-  userRole: string;
-  initialDateFilter: DateFilterValue;
-  siteName?: string;
-  smallGroupName?: string;
+  readonly initialStats: DashboardStats;
+  readonly userName: string;
+  readonly userRole: string;
+  readonly initialDateFilter: DateFilterValue;
+  readonly siteName?: string;
+  readonly smallGroupName?: string;
 }
 
 export function DashboardClient({ initialStats, userName, userRole, initialDateFilter, siteName, smallGroupName }: DashboardClientProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const t = useTranslations('Dashboard');
-  const tCommon = useTranslations('Common');
   const tDateRanges = useTranslations('DateRanges');
   const tStatus = useTranslations('ActivityStatus');
   const tLevel = useTranslations('ActivityLevel');
@@ -63,7 +61,7 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
     }
     if (filter.rangeKey === 'specific_period' && filter.specificYear) {
       if (filter.specificMonth && filter.specificMonth !== 'all') {
-        const date = new Date(parseInt(filter.specificYear), parseInt(filter.specificMonth));
+        const date = new Date(Number.parseInt(filter.specificYear, 10), Number.parseInt(filter.specificMonth, 10));
         const monthName = format.dateTime(date, { month: 'long' });
         return tDateRanges('specific_period_display_month', { month: monthName, year: filter.specificYear });
       }
@@ -94,7 +92,7 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
   };
 
   const handlePrintPage = () => {
-    window.print();
+    globalThis.print();
   };
 
   return (
@@ -183,8 +181,8 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <ChartLegend content={<ChartLegendContent />} />
                 <Bar dataKey="count" radius={4}>
-                  {initialStats.activityStatusData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  {initialStats.activityStatusData.map((entry) => (
+                    <Cell key={entry.status} fill={entry.fill} />
                   ))}
                 </Bar>
               </BarChart>
@@ -202,8 +200,8 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <ChartLegend content={<ChartLegendContent />} />
                 <Pie data={initialStats.memberTypeData} dataKey="count" nameKey="type" cx="50%" cy="50%" outerRadius={80} label>
-                  {initialStats.memberTypeData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  {initialStats.memberTypeData.map((entry) => (
+                    <Cell key={entry.type} fill={entry.fill} />
                   ))}
                 </Pie>
               </PieChart>
@@ -390,10 +388,10 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
                       <h4 className="font-semibold text-md hover:underline">{activity.title}</h4>
                     </Link>
                   </Button>
-                  <p className="text-sm text-muted-foreground">{activity.level.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} level - {new Date(activity.date).toLocaleDateString()}</p>
+                  <p className="text-sm text-muted-foreground">{tLevel(activity.level as any)} - {new Date(activity.date).toLocaleDateString()}</p>
                 </div>
                 <span className={`px-2 py-1 text-xs rounded-full font-medium ${activity.status === 'executed' ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'}`}>
-                  {activity.status.charAt(0).toUpperCase() + activity.status.slice(1)}
+                  {tStatus(activity.status as any)}
                 </span>
               </div>
               <p className="text-sm mt-1">{activity.thematic}</p>

@@ -286,6 +286,7 @@ export interface FundAllocation extends BaseEntity {
   siteName?: string;
   smallGroupName?: string;
   fromSiteId?: string;
+  fromSiteName?: string;
   proofUrl?: string;
 }
 
@@ -300,6 +301,7 @@ export interface FundAllocationFormData {
   smallGroupId?: string;
   notes?: string;
   fromSiteId?: string;
+  fromSiteName?: string;
   proofUrl?: string;
 }
 

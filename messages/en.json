@@ -35,7 +35,11 @@
         "level": "Level",
         "date": "Date",
         "success": "Success",
-        "try_again": "Try Again"
+        "try_again": "Try Again",
+        "unknown": "Unknown",
+        "unknown_site": "Unknown Site",
+        "unknown_group": "Unknown Group",
+        "level_national": "National"
     },
     "Dashboard": {
         "welcome": "Welcome, {name}!",
@@ -372,6 +376,9 @@
         "desc_reallocated": "Total funds transferred to other entities",
         "recent_allocations": "Recent Allocations",
         "no_allocations": "No allocations have been recorded for this entity yet.",
+        "sender_source": "Source / Sender",
+        "recipient": "Recipient",
+        "recipient_national": "National Coordination",
         "recent_transactions": "Recent Transactions",
         "recent_transactions_desc": "The 5 most recent financial movements.",
         "view_all_transactions": "View All Transactions",

@@ -5,6 +5,8 @@ import { UserRole } from "@prisma/client";
 import { logInfo, logError } from "@/lib/logger";
 import { MESSAGES } from "@/lib/messages";
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const { getUser, isAuthenticated } = getKindeServerSession();
@@ -19,27 +21,48 @@ export async function GET() {
       return NextResponse.json({ error: MESSAGES.errors.validation }, { status: 400 });
     }
 
-    // 1. Chercher l'utilisateur dans notre DB
+    // 1. First, try to find user by Kinde ID
     let dbUser = await prisma.profile.findUnique({
       where: { id: kindeUser.id },
-      include: {
-        site: true,
-        smallGroup: true,
-      }
+      include: { site: true, smallGroup: true }
     });
 
-    // 2. Si l'utilisateur n'existe pas, on le crée (Auto-Sync)
-    if (!dbUser) {
-      logInfo(`Creating new user from Kinde: ${kindeUser.email}`, { userId: kindeUser.id });
-      console.log(`[AUTH_SYNC] User not found in DB. Attempting auto-sync for ${kindeUser.email}...`);
+    // 2. If not found by ID, try finding by email (in case of manual creation or ID change)
+    if (!dbUser && kindeUser.email) {
+      console.log(`[AUTH_SYNC] Searching by email for: ${kindeUser.email}`);
+      const userByEmail = await prisma.profile.findUnique({
+        where: { email: kindeUser.email.toLowerCase() },
+        include: { site: true, smallGroup: true }
+      });
 
-      // Look for an existing invitation for this email
+      if (userByEmail) {
+        console.log(`[AUTH_SYNC] Found existing profile by email. Updating ID to Kinde ID: ${kindeUser.id}`);
+        try {
+          dbUser = await prisma.profile.update({
+            where: { id: userByEmail.id },
+            data: { id: kindeUser.id }, // Update the primary key to match Kinde
+            include: { site: true, smallGroup: true }
+          });
+        } catch (updateError) {
+          console.error(`[AUTH_SYNC] Could not update ID. Using existing profile.`, updateError);
+          dbUser = userByEmail;
+        }
+      }
+    }
+
+    // 3. Auto-Sync: Create profile if it still doesn't exist
+    if (!dbUser) {
+      console.log(`[AUTH_SYNC] Creating new profile for: ${kindeUser.email}`);
+
       const invitation = await prisma.userInvitation.findFirst({
-        where: { email: kindeUser.email, status: "pending" },
+        where: {
+          email: { equals: kindeUser.email, mode: 'insensitive' },
+          status: "pending"
+        },
         orderBy: { createdAt: "desc" }
       });
 
-      const role: UserRole = invitation?.role || "member"; // Default role if no invitation or role not specified
+      const role: UserRole = invitation?.role || "member";
       const siteId = invitation?.siteId || null;
       const smallGroupId = invitation?.smallGroupId || null;
 
@@ -47,21 +70,16 @@ export async function GET() {
         dbUser = await prisma.profile.create({
           data: {
             id: kindeUser.id,
-            email: kindeUser.email,
+            email: kindeUser.email.toLowerCase(),
             name: `${kindeUser.given_name ?? ''} ${kindeUser.family_name ?? ''}`.trim() || kindeUser.email,
             role: role,
             siteId: siteId,
             smallGroupId: smallGroupId,
             status: "active",
           },
-          include: {
-            site: true,
-            smallGroup: true,
-          }
+          include: { site: true, smallGroup: true }
         });
-        console.log(`[AUTH_SYNC] Auto-sync successful for ${dbUser.email}`);
 
-        // Update invitation if exists
         if (invitation) {
           await prisma.userInvitation.update({
             where: { id: invitation.id },
@@ -69,12 +87,12 @@ export async function GET() {
           });
         }
       } catch (createError) {
-        console.error(`[AUTH_SYNC] Auto-sync FAILED for ${kindeUser.email}:`, createError);
-        throw createError; // Re-throw to be caught by the main catch block
+        console.error(`[AUTH_SYNC] Profile creation FAILED:`, createError);
+        throw createError;
       }
     }
 
-    // 3. Construire l'objet User pour le frontend
+    // 4. Final object for frontend
     const frontendUser = {
       id: dbUser.id,
       name: dbUser.name,
@@ -91,7 +109,7 @@ export async function GET() {
     return NextResponse.json({ user: frontendUser });
 
   } catch (error) {
-    console.error("[AUTH_SYNC_ERROR] Complete error details:", error);
+    console.error("[AUTH_SYNC_ERROR]", error);
     logError("[AUTH_SYNC_ERROR]", error);
     return NextResponse.json({ error: MESSAGES.errors.serverError }, { status: 500 });
   }

@@ -21,6 +21,7 @@ export async function getAllocations(filters?: { siteId?: string; smallGroupId?:
       allocatedBy: true,
       site: true,
       smallGroup: true,
+      fromSite: true,
     },
     orderBy: {
       allocationDate: 'desc'
@@ -41,7 +42,8 @@ export async function getAllocations(filters?: { siteId?: string; smallGroupId?:
     allocatedByName: allocation.allocatedBy.name,
     siteName: allocation.site?.name,
     smallGroupName: allocation.smallGroup?.name,
-    sourceTransactionId: null, // Legacy field, not in new schema
+    fromSiteName: (allocation as any).fromSite?.name || 'National', // map the source name
+    sourceTransactionId: null,
     fromSiteId: allocation.fromSiteId,
     proofUrl: allocation.proofUrl,
   } as FundAllocation));
@@ -54,6 +56,7 @@ export async function getAllocationById(id: string): Promise<FundAllocation> {
       allocatedBy: true,
       site: true,
       smallGroup: true,
+      fromSite: true,
     }
   });
 
@@ -75,6 +78,7 @@ export async function getAllocationById(id: string): Promise<FundAllocation> {
     allocatedByName: allocation.allocatedBy.name,
     siteName: allocation.site?.name,
     smallGroupName: allocation.smallGroup?.name,
+    fromSiteName: (allocation as any).fromSite?.name || 'National',
     sourceTransactionId: null,
     fromSiteId: allocation.fromSiteId,
     proofUrl: allocation.proofUrl,
@@ -86,7 +90,7 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
   // Only check for Site and Small Group allocations (fromSiteId exists)
   if (formData.fromSiteId) {
     const budget = await calculateAvailableBudget({ siteId: formData.fromSiteId });
-    
+
     if (budget.available < formData.amount) {
       throw new Error(
         `Budget insuffisant. Disponible: ${budget.available.toFixed(2)} FCFA, Demandé: ${formData.amount.toFixed(2)} FCFA`

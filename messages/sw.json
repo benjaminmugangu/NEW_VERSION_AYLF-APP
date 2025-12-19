@@ -35,7 +35,11 @@
         "level": "Ngazi",
         "date": "Tarehe",
         "success": "Imefaulu",
-        "try_again": "Jaribu Tena"
+        "try_again": "Jaribu Tena",
+        "unknown": "Isiyojulikana",
+        "unknown_site": "Tovuti Isiyojulikana",
+        "unknown_group": "Kikundi Kisichojulikana",
+        "level_national": "Kitaifa"
     },
     "Dashboard": {
         "welcome": "Karibu, {name} !",
@@ -371,6 +375,9 @@
         "desc_reallocated": "Jumla ya pesa zilizohamishiwa kwa mashirika mengine",
         "recent_allocations": "Mgawanyo wa Hivi Karibuni",
         "no_allocations": "Hakuna mgawanyo umerekodiwa kwa shirika hili bado.",
+        "sender_source": "Chanzo / Mtumaji",
+        "recipient": "Mpokeaji",
+        "recipient_national": "Uratibu wa Kitaifa",
         "recent_transactions": "Miamala ya Hivi Karibuni",
         "recent_transactions_desc": "Harakati 5 za hivi karibuni za kifedha.",
         "view_all_transactions": "Tazama Miamala Yote",

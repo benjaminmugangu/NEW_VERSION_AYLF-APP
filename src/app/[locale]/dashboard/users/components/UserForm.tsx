@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,20 +31,23 @@ interface UserFormProps {
 export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }: UserFormProps) {
   const { toast } = useToast();
   const { currentUser, isLoading: isAuthLoading } = useAuth();
+  const t = useTranslations('Users.forms');
+  const tCommon = useTranslations('Common');
+  const tRole = useTranslations('Roles');
   const [availableSites, setAvailableSites] = useState<Site[]>([]);
   const [availableSmallGroups, setAvailableSmallGroups] = useState<SmallGroup[]>([]);
 
   if (isAuthLoading) {
-    return <div className="p-8 text-center text-muted-foreground">Loading user context...</div>;
+    return <div className="p-8 text-center text-muted-foreground">{tCommon('loading')}</div>;
   }
 
   if (!currentUser) {
     return (
       <Card className="shadow-xl w-full max-w-xl mx-auto border-destructive/50">
         <CardHeader>
-          <CardTitle className="text-destructive">Authentication Error</CardTitle>
+          <CardTitle className="text-destructive">{tCommon('error')}</CardTitle>
           <CardDescription>
-            Unable to load user context. Please try refreshing or logging in again.
+            {tCommon('error')}
           </CardDescription>
         </CardHeader>
       </Card>
@@ -158,42 +162,42 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
       <CardHeader>
         <CardTitle className="flex items-center text-2xl">
           <UsersRound className="mr-3 h-7 w-7 text-primary" />
-          {user ? "Edit User" : "Add New User"}
+          {user ? t('edit_user') : t('add_new')}
         </CardTitle>
         <CardDescription>
-          {user ? `Update details for ${user.name}.` : "Fill in the details for the new user."}
+          {user ? t('update_details', { name: user.name }) : t('fill_details')}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(processSubmit)} className="space-y-6">
           <div>
-            <Label htmlFor="name">Full Name</Label>
+            <Label htmlFor="name">{t('name_label')}</Label>
             <Input id="name" {...register("name")} placeholder="e.g., Jane Doe" className="mt-1" />
             {errors.name && <p className="text-sm text-destructive mt-1">{errors.name.message}</p>}
           </div>
 
           <div>
-            <Label htmlFor="email">Email Address</Label>
+            <Label htmlFor="email">{t('email_label')}</Label>
             <Input id="email" type="email" {...register("email")} placeholder="user@example.com" className="mt-1" />
             {errors.email && <p className="text-sm text-destructive mt-1">{errors.email.message}</p>}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <Label htmlFor="role">Role</Label>
+              <Label htmlFor="role">{t('role_label')}</Label>
               <Controller
                 name="role"
                 control={control}
                 render={({ field }) => (
                   <Select onValueChange={field.onChange} value={field.value}>
                     <SelectTrigger id="role" className="mt-1">
-                      <SelectValue placeholder="Select role" />
+                      <SelectValue placeholder={t('select_role')} />
                     </SelectTrigger>
                     <SelectContent>
                       {/* Filter roles based on permissions */}
-                      {isNational && <SelectItem value={ROLES.NATIONAL_COORDINATOR}>National Coordinator</SelectItem>}
-                      {(isNational) && <SelectItem value={ROLES.SITE_COORDINATOR}>Site Coordinator</SelectItem>}
-                      <SelectItem value={ROLES.SMALL_GROUP_LEADER}>Small Group Leader</SelectItem>
+                      {isNational && <SelectItem value={ROLES.NATIONAL_COORDINATOR}>{tRole('national_coordinator')}</SelectItem>}
+                      {(isNational) && <SelectItem value={ROLES.SITE_COORDINATOR}>{tRole('site_coordinator')}</SelectItem>}
+                      <SelectItem value={ROLES.SMALL_GROUP_LEADER}>{tRole('small_group_leader')}</SelectItem>
                     </SelectContent>
                   </Select>
                 )}
@@ -201,18 +205,18 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
               {errors.role && <p className="text-sm text-destructive mt-1">{errors.role.message}</p>}
             </div>
             <div>
-              <Label htmlFor="status">Status</Label>
+              <Label htmlFor="status">{t('status_label')}</Label>
               <Controller
                 name="status"
                 control={control}
                 render={({ field }) => (
                   <Select onValueChange={field.onChange} value={field.value || "active"}>
                     <SelectTrigger id="status" className="mt-1">
-                      <SelectValue placeholder="Select status" />
+                      <SelectValue placeholder={t('select_status')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="inactive">Inactive</SelectItem>
+                      <SelectItem value="active">{tRole('active') || 'Active'}</SelectItem>
+                      <SelectItem value="inactive">{tRole('inactive') || 'Inactive'}</SelectItem>
                     </SelectContent>
                   </Select>
                 )}
@@ -223,7 +227,7 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
 
           {showSiteField && (
             <div>
-              <Label htmlFor="siteId">Assigned Site</Label>
+              <Label htmlFor="siteId">{t('site_label')}</Label>
               <Controller
                 name="siteId"
                 control={control}
@@ -234,7 +238,7 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
                     disabled={lockSiteField || availableSites.length === 0}
                   >
                     <SelectTrigger id="siteId" className="mt-1">
-                      <SelectValue placeholder="Select a site" />
+                      <SelectValue placeholder={t('select_site')} />
                     </SelectTrigger>
                     <SelectContent>
                       {availableSites.map((site: Site) => <SelectItem key={site.id} value={site.id}>{site.name}</SelectItem>)}
@@ -248,7 +252,7 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
 
           {showSmallGroupField && (
             <div>
-              <Label htmlFor="smallGroupId">Assigned Small Group</Label>
+              <Label htmlFor="smallGroupId">{t('group_label')}</Label>
               <Controller
                 name="smallGroupId"
                 control={control}
@@ -259,7 +263,7 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
                     disabled={!watchedSiteId || availableSmallGroups.length === 0}
                   >
                     <SelectTrigger id="smallGroupId" className="mt-1">
-                      <SelectValue placeholder={watchedSiteId ? "Select small group" : "Select a site first"} />
+                      <SelectValue placeholder={watchedSiteId ? t('select_group') : t('select_site')} />
                     </SelectTrigger>
                     <SelectContent>
                       {availableSmallGroups.map((sg: SmallGroup) => <SelectItem key={sg.id} value={sg.id}>{sg.name}</SelectItem>)}
@@ -273,7 +277,7 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <Label htmlFor="mandateStartDate">Mandate Start Date (Optional)</Label>
+              <Label htmlFor="mandateStartDate">{t('mandate_start_label')}</Label>
               <Controller
                 name="mandateStartDate"
                 control={control}
@@ -285,7 +289,7 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
                         className={cn("w-full justify-start text-left font-normal mt-1", !field.value && "text-muted-foreground")}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                        {field.value ? format(field.value, "PPP") : <span>{tCommon('pick_date')}</span>}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
@@ -297,7 +301,7 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
               {errors.mandateStartDate && <p className="text-sm text-destructive mt-1">{errors.mandateStartDate.message}</p>}
             </div>
             <div>
-              <Label htmlFor="mandateEndDate">Mandate End Date (Optional)</Label>
+              <Label htmlFor="mandateEndDate">{t('mandate_end_label') || 'Mandate End Date'}</Label>
               <Controller
                 name="mandateEndDate"
                 control={control}
@@ -309,7 +313,7 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
                         className={cn("w-full justify-start text-left font-normal mt-1", !field.value && "text-muted-foreground")}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                        {field.value ? format(field.value, "PPP") : <span>{tCommon('pick_date')}</span>}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">

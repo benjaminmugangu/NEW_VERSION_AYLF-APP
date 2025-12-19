@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +17,8 @@ interface AllocationListProps {
 
 export const AllocationList: React.FC<AllocationListProps> = ({ allocations, title, emptyStateMessage, linkGenerator }) => {
   const [isClient, setIsClient] = React.useState(false);
+  const t = useTranslations('Finances');
+  const tCommon = useTranslations('Common');
 
   React.useEffect(() => {
     setIsClient(true);
@@ -50,42 +53,43 @@ export const AllocationList: React.FC<AllocationListProps> = ({ allocations, tit
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Sender</TableHead>
-              <TableHead>Recipient</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
+              <TableHead>{tCommon('date')}</TableHead>
+              <TableHead>{t('sender_source')}</TableHead>
+              <TableHead>{t('recipient')}</TableHead>
+              <TableHead className="text-right">{tCommon('amount') ?? 'Amount'}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {allocations.map((allocation) => {
-              // New logic using correct properties from FundAllocation type
-              const senderName = allocation.allocatedByName || 'Unknown User';
+              const senderName = allocation.allocatedByName || tCommon('unknown');
+              const sourceName = allocation.fromSiteName || tCommon('level_national');
 
               let recipientName: string;
               let recipientType: 'site' | 'smallGroup' | 'national' = 'national';
               let recipientId: string | undefined;
 
               if (allocation.siteId && !allocation.smallGroupId) {
-                recipientName = allocation.siteName || 'Unknown Site';
+                recipientName = allocation.siteName || tCommon('unknown_site');
                 recipientType = 'site';
                 recipientId = allocation.siteId;
               } else if (allocation.smallGroupId) {
-                recipientName = allocation.smallGroupName || 'Unknown Group';
+                recipientName = allocation.smallGroupName || tCommon('unknown_group');
                 recipientType = 'smallGroup';
                 recipientId = allocation.smallGroupId;
               } else {
-                recipientName = 'National Coordination'; // Or other appropriate fallback
+                recipientName = t('recipient_national');
               }
 
               return (
                 <TableRow key={allocation.id}>
                   <TableCell>{isClient ? new Date(allocation.allocationDate).toLocaleDateString() : allocation.allocationDate}</TableCell>
-                  <TableCell className="font-medium">
-                    {/* Sender is always a user, not a linkable entity here */}
-                    {senderName}
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span className="font-medium text-sm">{sourceName}</span>
+                      <span className="text-xs text-muted-foreground">{senderName}</span>
+                    </div>
                   </TableCell>
                   <TableCell>
-                    {/* Recipient can be a site or small group */}
                     {recipientId ? renderEntity(recipientType, recipientId, recipientName) : recipientName}
                   </TableCell>
                   <TableCell className="text-right">

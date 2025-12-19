@@ -26,44 +26,43 @@ export default async function DashboardLayout({
   let userProfile: User | null = null;
 
   if (isAuth && kindeUser) {
-    // Récupérer le profil depuis notre DB Prisma
-    const profile = await prisma.profile.findUnique({
+    // 1. Try by ID
+    let profile = await prisma.profile.findUnique({
       where: { id: kindeUser.id },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        siteId: true,
-        smallGroupId: true,
-        status: true,
-        mandateStartDate: true,
-        mandateEndDate: true,
-      }
+      include: { site: true, smallGroup: true }
     });
+
+    // 2. Try by Email if not found by ID
+    if (!profile && kindeUser.email) {
+      profile = await prisma.profile.findUnique({
+        where: { email: kindeUser.email.toLowerCase() },
+        include: { site: true, smallGroup: true }
+      });
+    }
 
     if (profile) {
       userProfile = {
         id: profile.id,
         name: profile.name,
         email: profile.email,
-        role: profile.role, // Prisma Enum matches App Type
+        role: profile.role as any,
         siteId: profile.siteId,
         smallGroupId: profile.smallGroupId,
+        siteName: profile.site?.name,
+        smallGroupName: profile.smallGroup?.name,
         status: profile.status,
         mandateStartDate: profile.mandateStartDate?.toISOString(),
         mandateEndDate: profile.mandateEndDate?.toISOString(),
       };
     } else {
-      // Fallback si l'utilisateur est auth Kinde mais pas encore sync en DB
-      // Note: Normalement /api/auth/me s'en charge, ou on pourrait l'auto-créer ici aussi par sécurité
+      // Fallback if not sync'd yet
       userProfile = {
         id: kindeUser.id,
         name: `${kindeUser.given_name ?? ''} ${kindeUser.family_name ?? ''}`.trim() || kindeUser.email || 'User',
         email: kindeUser.email || '',
-        role: 'member', // Rôle par défaut temporaire
+        role: 'member' as any,
         status: 'active'
-      }
+      };
     }
   }
 
