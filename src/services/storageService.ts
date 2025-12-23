@@ -55,7 +55,7 @@ const storageService = {
     const { getUser } = getKindeServerSession();
     const user = await getUser();
 
-    if (!user || !user.id) {
+    if (!user?.id) {
       throw new Error('Unauthorized: User must be authenticated to upload files');
     }
 
@@ -145,7 +145,7 @@ const storageService = {
     const { getUser } = getKindeServerSession();
     const user = await getUser();
 
-    if (!user || !user.id) {
+    if (!user?.id) {
       throw new Error('Unauthorized: User must be authenticated');
     }
 

@@ -150,7 +150,7 @@ export async function createReport(reportData: ReportFormData): Promise<Report> 
   const { getUser } = getKindeServerSession();
   const user = await getUser();
 
-  if (!user || !user.id) {
+  if (!user?.id) {
     throw new Error('Unauthorized: User must be authenticated to submit a report.');
   }
 

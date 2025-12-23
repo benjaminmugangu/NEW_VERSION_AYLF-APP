@@ -21,7 +21,7 @@
  * https://benjaminmugangu.kinde.com/admin/users
  */
 
-import { prisma } from '@/lib/prisma';
+
 
 export interface CreateUserData {
     email: string;

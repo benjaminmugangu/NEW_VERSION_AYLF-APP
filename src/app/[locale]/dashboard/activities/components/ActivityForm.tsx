@@ -59,6 +59,27 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
     },
   });
 
+  const selectedLevel = form.watch('level');
+  const selectedSiteId = form.watch('siteId');
+
+  useEffect(() => {
+    if (!currentUser || isAuthLoading) return;
+    initializeForm(form, currentUser, initialActivity);
+  }, [initialActivity, currentUser, form, isAuthLoading]);
+
+  useEffect(() => {
+    if (!currentUser || isAuthLoading) return;
+    const fetchData = async () => {
+      try {
+        await loadContextData(currentUser, setSites, setSmallGroups);
+      } catch (error) {
+        console.error("Error fetching data for activity form:", error);
+        toast({ title: 'Error', description: t('error_fetch'), variant: 'destructive' });
+      }
+    };
+    fetchData();
+  }, [currentUser, isAuthLoading, toast, t]);
+
   if (isAuthLoading) {
     return <div className="p-8 text-center text-muted-foreground">Loading activity context...</div>;
   }
@@ -76,9 +97,6 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
     );
   }
 
-  const selectedLevel = form.watch('level');
-  const selectedSiteId = form.watch('siteId');
-
   /* PERMISSIONS LOGIC */
   // National: Can change everything.
   // Site Coord: Can change Level (Site <-> SG), Can change SG. Cannot change Site (locked to own).
@@ -90,69 +108,6 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
   const canChangeLevel = isNational || isSiteCoord;
   const canChangeSite = isNational;
   const canChangeSmallGroup = isNational || isSiteCoord;
-
-  useEffect(() => {
-    if (!currentUser) return;
-
-    if (isEditMode && initialActivity) {
-      form.reset({
-        ...initialActivity,
-        date: new Date(initialActivity.date),
-        siteId: initialActivity.siteId ?? '',
-        smallGroupId: initialActivity.smallGroupId ?? '',
-        participantsCountPlanned: initialActivity.participantsCountPlanned ?? 0,
-        activityTypeEnum: (initialActivity as any).activityTypeEnum ?? 'small_group_meeting',
-        createdBy: initialActivity.createdBy || currentUser.id,
-      });
-    } else if (!isEditMode) {
-      const currentLevel = form.getValues('level');
-
-      if (isSiteCoord && currentLevel === 'national') {
-        form.setValue('level', 'site');
-      }
-      if (isSGL && currentLevel !== 'small_group') {
-        form.setValue('level', 'small_group');
-      }
-
-      if (isSiteCoord && currentUser.siteId) {
-        form.setValue('siteId', currentUser.siteId);
-      }
-      if (isSGL) {
-        if (currentUser.siteId) form.setValue('siteId', currentUser.siteId);
-        if (currentUser.smallGroupId) form.setValue('smallGroupId', currentUser.smallGroupId);
-      }
-    }
-  }, [initialActivity, isEditMode, currentUser, form, isSiteCoord, isSGL]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!currentUser) return;
-      try {
-        if (currentUser.role === ROLES.NATIONAL_COORDINATOR) {
-          const sitesData = await siteService.getSitesWithDetails(currentUser);
-          setSites(sitesData);
-          const smallGroupsData = await smallGroupService.getFilteredSmallGroups({ user: currentUser });
-          setSmallGroups(smallGroupsData);
-        } else if (currentUser.role === ROLES.SITE_COORDINATOR && currentUser.siteId) {
-          const siteData = await siteService.getSiteById(currentUser.siteId);
-          if (siteData) setSites([siteData]);
-          const smallGroupsData = await smallGroupService.getSmallGroupsBySite(currentUser.siteId);
-          setSmallGroups(smallGroupsData);
-        } else if (currentUser.role === ROLES.SMALL_GROUP_LEADER && currentUser.smallGroupId) {
-          const smallGroupData = await smallGroupService.getSmallGroupById(currentUser.smallGroupId);
-          if (smallGroupData) {
-            setSmallGroups([smallGroupData]);
-            const siteData = await siteService.getSiteById(smallGroupData.siteId);
-            if (siteData) setSites([siteData]);
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching data for activity form:", error);
-        toast({ title: 'Error', description: t('error_fetch'), variant: 'destructive' });
-      }
-    };
-    fetchData();
-  }, [currentUser, toast, t]);
 
   useEffect(() => {
     if (selectedSiteId) {
@@ -408,3 +363,56 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
     </form>
   );
 };
+
+function initializeForm(form: any, user: any, initialActivity: any) {
+  const isEditMode = !!initialActivity;
+  if (isEditMode && initialActivity) {
+    form.reset({
+      ...initialActivity,
+      date: new Date(initialActivity.date),
+      siteId: initialActivity.siteId ?? '',
+      smallGroupId: initialActivity.smallGroupId ?? '',
+      participantsCountPlanned: initialActivity.participantsCountPlanned ?? 0,
+      activityTypeEnum: (initialActivity as any).activityTypeEnum ?? 'small_group_meeting',
+      createdBy: initialActivity.createdBy || user.id,
+    });
+  } else if (!isEditMode) {
+    const currentLevel = form.getValues('level');
+    const isSiteCoord = user.role === ROLES.SITE_COORDINATOR;
+    const isSGL = user.role === ROLES.SMALL_GROUP_LEADER;
+
+    if (isSiteCoord && currentLevel === 'national') form.setValue('level', 'site');
+    if (isSGL && currentLevel !== 'small_group') form.setValue('level', 'small_group');
+
+    if (isSiteCoord && user.siteId) form.setValue('siteId', user.siteId);
+    if (isSGL) {
+      if (user.siteId) form.setValue('siteId', user.siteId);
+      if (user.smallGroupId) form.setValue('smallGroupId', user.smallGroupId);
+    }
+  }
+}
+
+async function loadContextData(user: any, setSites: any, setSmallGroups: any) {
+  if (user.role === ROLES.NATIONAL_COORDINATOR) {
+    const [sitesData, smallGroupsData] = await Promise.all([
+      siteService.getSitesWithDetails(user),
+      smallGroupService.getFilteredSmallGroups({ user })
+    ]);
+    setSites(sitesData);
+    setSmallGroups(smallGroupsData);
+  } else if (user.role === ROLES.SITE_COORDINATOR && user.siteId) {
+    const [siteData, smallGroupsData] = await Promise.all([
+      siteService.getSiteById(user.siteId),
+      smallGroupService.getSmallGroupsBySite(user.siteId)
+    ]);
+    if (siteData) setSites([siteData]);
+    setSmallGroups(smallGroupsData);
+  } else if (user.role === ROLES.SMALL_GROUP_LEADER && user.smallGroupId) {
+    const smallGroupData = await smallGroupService.getSmallGroupById(user.smallGroupId);
+    if (smallGroupData) {
+      setSmallGroups([smallGroupData]);
+      const siteData = await siteService.getSiteById(smallGroupData.siteId);
+      if (siteData) setSites([siteData]);
+    }
+  }
+}

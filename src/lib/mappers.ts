@@ -82,29 +82,39 @@ export const mapDbReportToReport = (dbReport: DbReport): FrontendReport => {
 };
 
 export const mapReportFormDataToDb = (formData: Partial<ReportFormData>): Partial<DbReport> => {
-  const dbData: Partial<DbReport> = {};
-  if (formData.title !== undefined) dbData.title = formData.title;
+  const dbData: any = {};
+  const mapping: Record<string, keyof DbReport | 'submittedById'> = {
+    title: 'title',
+    thematic: 'thematic',
+    speaker: 'speaker',
+    moderator: 'moderator',
+    girlsCount: 'girlsCount',
+    boysCount: 'boysCount',
+    participantsCountReported: 'participantsCountReported',
+    totalExpenses: 'totalExpenses',
+    currency: 'currency',
+    content: 'content',
+    financialSummary: 'financialSummary',
+    images: 'images',
+    siteId: 'siteId',
+    smallGroupId: 'smallGroupId',
+    activityTypeId: 'activityTypeId',
+    activityId: 'activityId',
+    reviewNotes: 'reviewNotes',
+    submittedBy: 'submittedById'
+  };
+
+  Object.entries(mapping).forEach(([formKey, dbKey]) => {
+    if ((formData as any)[formKey] !== undefined) {
+      dbData[dbKey] = (formData as any)[formKey];
+    }
+  });
+
   if (formData.activityDate !== undefined) dbData.activityDate = new Date(formData.activityDate);
   if (formData.level !== undefined) dbData.level = formData.level as any;
-  if (formData.siteId !== undefined) dbData.siteId = formData.siteId;
-  if (formData.smallGroupId !== undefined) dbData.smallGroupId = formData.smallGroupId;
-  if (formData.activityTypeId !== undefined) dbData.activityTypeId = formData.activityTypeId;
-  if (formData.activityId !== undefined) dbData.activityId = formData.activityId;
-  if (formData.thematic !== undefined) dbData.thematic = formData.thematic;
-  if (formData.speaker !== undefined) dbData.speaker = formData.speaker;
-  if (formData.moderator !== undefined) dbData.moderator = formData.moderator;
-  if (formData.girlsCount !== undefined) dbData.girlsCount = formData.girlsCount;
-  if (formData.boysCount !== undefined) dbData.boysCount = formData.boysCount;
-  if (formData.participantsCountReported !== undefined) dbData.participantsCountReported = formData.participantsCountReported;
-  if (formData.totalExpenses !== undefined) dbData.totalExpenses = formData.totalExpenses;
-  if (formData.currency !== undefined) dbData.currency = formData.currency;
-  if (formData.content !== undefined) dbData.content = formData.content;
-  if (formData.financialSummary !== undefined) dbData.financialSummary = formData.financialSummary;
-  if (formData.images !== undefined) dbData.images = formData.images;
-  if (formData.submittedBy !== undefined) dbData.submittedById = formData.submittedBy;
   if (formData.status !== undefined) dbData.status = formData.status as any;
-  if (formData.reviewNotes !== undefined) dbData.reviewNotes = formData.reviewNotes;
-  return dbData;
+
+  return dbData as Partial<DbReport>;
 };
 
 // --- Activity Mappers ---

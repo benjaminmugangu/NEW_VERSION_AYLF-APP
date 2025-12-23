@@ -2,12 +2,14 @@
 
 import { prisma } from '@/lib/prisma';
 
+export type EntityType = 'national' | 'site' | 'small_group';
+
 export interface CoordinatorHistory {
     id: string;
     name: string;
     email: string;
     role: string;
-    entityType: 'national' | 'site' | 'small_group';
+    entityType: EntityType;
     entityName: string;
     mandateStartDate: Date;
     mandateEndDate: Date | null;
@@ -19,7 +21,7 @@ export interface CoordinatorHistory {
  * Get all coordinator history (national level view)
  */
 export async function getCoordinatorHistory(filters?: {
-    entityType?: 'national' | 'site' | 'small_group';
+    entityType?: EntityType;
     siteId?: string;
     smallGroupId?: string;
     includeActive?: boolean;
@@ -81,7 +83,7 @@ export async function getCoordinatorHistory(filters?: {
     });
 }
 
-function resolveEntityType(role: string): 'national' | 'site' | 'small_group' {
+function resolveEntityType(role: string): EntityType {
     if (role === 'NATIONAL_COORDINATOR') return 'national';
     if (role === 'SITE_COORDINATOR') return 'site';
     return 'small_group';

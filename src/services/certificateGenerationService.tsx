@@ -2,7 +2,7 @@
 
 import { renderToBuffer } from '@react-pdf/renderer';
 import { createClient } from '@/utils/supabase/server';
-// import { prisma } from '@/lib/prisma';
+
 import { CertificateTemplate, CertificateData } from '@/components/certificates/CertificateTemplate';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -50,7 +50,7 @@ export async function generateCoordinatorCertificate(profileId: string) {
         }
     });
 
-    if (!profile || !profile.mandateStartDate || !profile.mandateEndDate) {
+    if (!profile?.mandateStartDate || !profile?.mandateEndDate) {
         throw new Error('Profil invalide ou mandat non terminé pour la génération de certificat');
     }
 

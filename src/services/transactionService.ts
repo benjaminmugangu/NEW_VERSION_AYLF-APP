@@ -81,17 +81,9 @@ function buildTransactionWhereClause(filters: TransactionFilters) {
   const where: any = {};
 
   if (entity) {
-    if (entity.type === 'site') {
-      where.siteId = entity.id;
-    } else {
-      where.smallGroupId = entity.id;
-    }
+    applyEntityFilter(where, entity);
   } else if (user) {
-    if (user.role === 'SITE_COORDINATOR' && user.siteId) {
-      where.siteId = user.siteId;
-    } else if (user.role === 'SMALL_GROUP_LEADER' && user.smallGroupId) {
-      where.smallGroupId = user.smallGroupId;
-    }
+    applyUserRoleFilter(where, user);
   }
 
   if (dateFilter) {
@@ -359,3 +351,18 @@ export async function createReversalTransaction(
   return mapPrismaTransactionToModel(reversalTx);
 }
 
+function applyEntityFilter(where: any, entity: { type: 'site' | 'smallGroup'; id: string }) {
+  if (entity.type === 'site') {
+    where.siteId = entity.id;
+  } else {
+    where.smallGroupId = entity.id;
+  }
+}
+
+function applyUserRoleFilter(where: any, user: User) {
+  if (user.role === 'SITE_COORDINATOR' && user.siteId) {
+    where.siteId = user.siteId;
+  } else if (user.role === 'SMALL_GROUP_LEADER' && user.smallGroupId) {
+    where.smallGroupId = user.smallGroupId;
+  }
+}
