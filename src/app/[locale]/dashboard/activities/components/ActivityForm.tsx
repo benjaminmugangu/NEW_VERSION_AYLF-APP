@@ -39,23 +39,6 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
   const tStatus = useTranslations('ActivityStatus');
   const tLevel = useTranslations('ActivityLevel');
 
-  if (isAuthLoading) {
-    return <div className="p-8 text-center text-muted-foreground">Loading activity context...</div>;
-  }
-
-  if (!currentUser) {
-    return (
-      <Card className="shadow-xl w-full max-w-xl mx-auto border-destructive/50">
-        <CardHeader>
-          <CardTitle className="text-destructive">Authentication Error</CardTitle>
-          <CardDescription>
-            Unable to load user context. Please try refreshing or logging in again.
-          </CardDescription>
-        </CardHeader>
-      </Card>
-    );
-  }
-
   const [sites, setSites] = useState<Site[]>([]);
   const [smallGroups, setSmallGroups] = useState<SmallGroup[]>([]);
   const [filteredSmallGroups, setFilteredSmallGroups] = useState<SmallGroup[]>([]);
@@ -76,6 +59,23 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
     },
   });
 
+  if (isAuthLoading) {
+    return <div className="p-8 text-center text-muted-foreground">Loading activity context...</div>;
+  }
+
+  if (!currentUser) {
+    return (
+      <Card className="shadow-xl w-full max-w-xl mx-auto border-destructive/50">
+        <CardHeader>
+          <CardTitle className="text-destructive">Authentication Error</CardTitle>
+          <CardDescription>
+            Unable to load user context. Please try refreshing or logging in again.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
   const selectedLevel = form.watch('level');
   const selectedSiteId = form.watch('siteId');
 
@@ -92,11 +92,7 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
   const canChangeSmallGroup = isNational || isSiteCoord;
 
   useEffect(() => {
-    // Determine the logical default level based on role
-    let defaultLevel: 'national' | 'site' | 'small_group' = 'national';
-
-    if (isSiteCoord) defaultLevel = 'site';
-    if (isSGL) defaultLevel = 'small_group';
+    if (!currentUser) return;
 
     if (isEditMode && initialActivity) {
       form.reset({
@@ -106,16 +102,11 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
         smallGroupId: initialActivity.smallGroupId ?? '',
         participantsCountPlanned: initialActivity.participantsCountPlanned ?? 0,
         activityTypeEnum: (initialActivity as any).activityTypeEnum ?? 'small_group_meeting',
-        createdBy: initialActivity.createdBy || currentUser?.id || '',
+        createdBy: initialActivity.createdBy || currentUser.id,
       });
-    } else if (!isEditMode && currentUser) {
-      // Sync default values on load
+    } else if (!isEditMode) {
       const currentLevel = form.getValues('level');
 
-      // Only override if the current mismatch is invalid for the role (e.g. defaulting to National for a Site Coord)
-      // Or if it's the first load (we can't easily detect first load here without refs, but we can check logic)
-
-      // Simple logic: If current level is National but user is SiteCoord, force Site.
       if (isSiteCoord && currentLevel === 'national') {
         form.setValue('level', 'site');
       }
@@ -123,7 +114,6 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
         form.setValue('level', 'small_group');
       }
 
-      // Auto-fill Context
       if (isSiteCoord && currentUser.siteId) {
         form.setValue('siteId', currentUser.siteId);
       }

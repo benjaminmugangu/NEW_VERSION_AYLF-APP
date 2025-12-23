@@ -123,7 +123,7 @@ export const PATCH = withApiRLS(async (request: NextRequest) => {
 export const DELETE = withApiRLS(async (request: NextRequest) => {
     try {
         const { getUser } = getKindeServerSession();
-        const user = await getUser();
+        await getUser();
 
         const body = await request.json();
 

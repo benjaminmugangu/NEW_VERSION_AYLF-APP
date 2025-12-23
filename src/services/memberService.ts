@@ -121,49 +121,7 @@ export async function getFilteredMembers(filters: MemberFilters): Promise<Member
     throw new Error('Authentication required.');
   }
 
-  const where: any = {};
-
-  // 1. RBAC Enforcement
-  if (user.role === 'SITE_COORDINATOR') {
-    if (!user.siteId) return [];
-    where.siteId = user.siteId;
-  } else if (user.role === 'SMALL_GROUP_LEADER') {
-    if (!user.smallGroupId) return [];
-    where.smallGroupId = user.smallGroupId;
-  }
-
-  // 2. Specific Group Filter (Hierarchical Guard)
-  if (smallGroupId) {
-    if (user.role === 'SMALL_GROUP_LEADER' && smallGroupId !== user.smallGroupId) {
-      return [];
-    }
-    where.smallGroupId = smallGroupId;
-  }
-
-  // 3. Date Range Filter
-  if (dateFilter) {
-    const { startDate, endDate } = computeDateRange(dateFilter);
-    if (startDate || endDate) {
-      where.joinDate = {};
-      if (startDate) where.joinDate.gte = startDate;
-      if (endDate) where.joinDate.lte = endDate;
-    }
-  }
-
-  // 4. Type Filter
-  if (typeFilter) {
-    const activeTypes = Object.entries(typeFilter)
-      .filter(([, value]) => value)
-      .map(([key]) => key as Member['type']);
-    if (activeTypes.length > 0) {
-      where.type = { in: activeTypes.map(t => t === 'non-student' ? 'non_student' : 'student') };
-    }
-  }
-
-  // 5. Search Term
-  if (searchTerm) {
-    where.name = { contains: searchTerm, mode: 'insensitive' };
-  }
+  const where = buildMemberWhereClause(user, filters);
 
   const members = await prisma.member.findMany({
     where,
@@ -175,6 +133,54 @@ export async function getFilteredMembers(filters: MemberFilters): Promise<Member
   });
 
   return members.map(mapPrismaMemberToWithDetails);
+}
+
+function buildMemberWhereClause(user: User, filters: Omit<MemberFilters, 'user'>) {
+  const { searchTerm, dateFilter, typeFilter, smallGroupId } = filters;
+  const where: any = {};
+
+  // 1. RBAC & Hierarchy Guard
+  if (user.role === 'SITE_COORDINATOR' && user.siteId) {
+    where.siteId = user.siteId;
+  } else if (user.role === 'SMALL_GROUP_LEADER' && user.smallGroupId) {
+    where.smallGroupId = user.smallGroupId;
+  }
+
+  if (smallGroupId) {
+    if (user.role === 'SMALL_GROUP_LEADER' && smallGroupId !== user.smallGroupId) {
+      // Small Group Leader can't filter for other groups
+    } else {
+      where.smallGroupId = smallGroupId;
+    }
+  }
+
+  // 2. Metadata Filters
+  if (dateFilter) {
+    const { startDate, endDate } = computeDateRange(dateFilter);
+    if (startDate || endDate) {
+      where.joinDate = {};
+      if (startDate) where.joinDate.gte = startDate;
+      if (endDate) where.joinDate.lte = endDate;
+    }
+  }
+
+  if (typeFilter) {
+    const activeTypes = Object.entries(typeFilter)
+      .filter(([, value]) => value)
+      .map(([key]) => key as Member['type']);
+    if (activeTypes.length > 0) {
+      where.type = { in: activeTypes.map(t => t === 'non-student' ? 'non_student' : 'student') };
+    }
+  }
+
+  if (searchTerm) {
+    where.name = { contains: searchTerm, mode: 'insensitive' };
+  }
+
+  return where;
+}
+
+return members.map(mapPrismaMemberToWithDetails);
 }
 
 export async function getMemberById(memberId: string): Promise<MemberWithDetails> {

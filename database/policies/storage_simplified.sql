@@ -12,97 +12,31 @@
 -- NOTE: Appliquez ces policies via Supabase Dashboard
 -- Storage > report-images > Policies > New Policy
 
--- =====================================================
--- POLICY 1: Upload Access (INSERT)
--- =====================================================
--- Policy name: Hierarchical upload for report-images
--- Allowed operation: INSERT
--- Target roles: authenticated
+DO $$
+DECLARE
+    bucket_val TEXT := 'report-images';
+    role_nc TEXT := 'national_coordinator';
+    role_sc TEXT := 'site_coordinator';
+    role_sgl TEXT := 'small_group_leader';
+BEGIN
+    -- DROP EXISTING
+    DROP POLICY IF EXISTS "Hierarchical upload for report-images" ON storage.objects;
+    DROP POLICY IF EXISTS "Hierarchical view for report-images" ON storage.objects;
+    DROP POLICY IF EXISTS "National coordinators can delete report-images" ON storage.objects;
+    DROP POLICY IF EXISTS "National coordinators can update report-images" ON storage.objects;
 
--- WITH CHECK expression (copiez-collez ceci):
+    -- UPLOAD POLICY
+    EXECUTE format('CREATE POLICY "Hierarchical upload for report-images" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = %L AND (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid()::text AND role = %L) OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid()::text AND role = %L AND site_id = split_part(name, %L, 1)) OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid()::text AND role = %L AND small_group_id = split_part(name, %L, 2))))', bucket_val, role_nc, role_sc, '/', role_sgl, '/');
 
-bucket_id = 'report-images' AND (
-  EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE id = auth.uid()::text 
-    AND role = 'national_coordinator'
-  )
-  OR
-  EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE id = auth.uid()::text 
-    AND role = 'site_coordinator'
-    AND site_id = split_part(name, '/', 1)
-  )
-  OR
-  EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE id = auth.uid()::text 
-    AND role = 'small_group_leader'
-    AND small_group_id = split_part(name, '/', 2)
-  )
-)
+    -- VIEW POLICY
+    EXECUTE format('CREATE POLICY "Hierarchical view for report-images" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = %L AND (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid()::text AND role = %L) OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid()::text AND role = %L AND site_id = split_part(name, %L, 1)) OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid()::text AND role = %L AND small_group_id = split_part(name, %L, 2))))', bucket_val, role_nc, role_sc, '/', role_sgl, '/');
 
--- =====================================================
--- POLICY 2: View/Download Access (SELECT)
--- =====================================================
--- Policy name: Hierarchical view for report-images
--- Allowed operation: SELECT
--- Target roles: authenticated
+    -- DELETE POLICY
+    EXECUTE format('CREATE POLICY "National coordinators can delete report-images" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = %L AND EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid()::text AND role = %L))', bucket_val, role_nc);
 
--- USING expression (copiez-collez ceci):
-
-bucket_id = 'report-images' AND (
-  EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE id = auth.uid()::text 
-    AND role = 'national_coordinator'
-  )
-  OR
-  EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE id = auth.uid()::text 
-    AND role = 'site_coordinator'
-    AND site_id = split_part(name, '/', 1)
-  )
-  OR
-  EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE id = auth.uid()::text 
-    AND role = 'small_group_leader'
-    AND small_group_id = split_part(name, '/', 2)
-  )
-)
-
--- =====================================================
--- POLICY 3: Delete Access (DELETE)
--- =====================================================
--- Policy name: National coordinators can delete report-images
--- Allowed operation: DELETE
--- Target roles: authenticated
-
--- USING expression (copiez-collez ceci):
-
-bucket_id = 'report-images' AND EXISTS (
-  SELECT 1 FROM public.profiles 
-  WHERE id = auth.uid()::text 
-  AND role = 'national_coordinator'
-)
-
--- =====================================================
--- POLICY 4: Update Access (UPDATE)
--- =====================================================
--- Policy name: National coordinators can update report-images
--- Allowed operation: UPDATE
--- Target roles: authenticated
-
--- USING expression (copiez-collez ceci):
-
-bucket_id = 'report-images' AND EXISTS (
-  SELECT 1 FROM public.profiles 
-  WHERE id = auth.uid()::text 
-  AND role = 'national_coordinator'
-)
+    -- UPDATE POLICY
+    EXECUTE format('CREATE POLICY "National coordinators can update report-images" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = %L AND EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid()::text AND role = %L))', bucket_val, role_nc);
+END $$;
 
 -- =====================================================
 -- DIFFÉRENCES AVEC LA VERSION PRÉCÉDENTE

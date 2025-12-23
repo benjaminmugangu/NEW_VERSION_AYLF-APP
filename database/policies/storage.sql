@@ -12,98 +12,31 @@
 -- NOTE: These policies must be applied via Supabase Dashboard
 -- at: Storage > report-images > Policies
 
--- =====================================================
--- POLICY 1: Upload Access
--- =====================================================
--- Description: Users can upload images for reports in their scope
--- National coordinators can upload anywhere
--- Site coordinators can upload for their site
--- Small group leaders can upload for their group
+DO $$
+DECLARE
+    bucket_val TEXT := 'report-images';
+    role_nc TEXT := 'national_coordinator';
+    role_sc TEXT := 'site_coordinator';
+    role_sgl TEXT := 'small_group_leader';
+BEGIN
+    -- DROP EXISTING
+    DROP POLICY IF EXISTS "Hierarchical upload for report-images" ON storage.objects;
+    DROP POLICY IF EXISTS "Hierarchical view for report-images" ON storage.objects;
+    DROP POLICY IF EXISTS "National coordinators can delete report-images" ON storage.objects;
+    DROP POLICY IF EXISTS "National coordinators can update report-images" ON storage.objects;
 
-CREATE POLICY "Hierarchical upload for report-images"
-ON storage.objects
-FOR INSERT
-TO authenticated
-WITH CHECK (
-  bucket_id = 'report-images' AND (
-    -- National Coordinator: Can upload anywhere
-    (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'national_coordinator'
-    OR
-    -- Site Coordinator: Can upload for their site
-    (
-      (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'site_coordinator'
-      AND
-      -- File path should contain their site ID (format: {siteId}/...)
-      (SELECT site_id::text FROM public.profiles WHERE id = auth.uid()) = split_part(name, '/', 1)
-    )
-    OR
-    -- Small Group Leader: Can upload for their group
-    (
-      (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'small_group_leader'
-      AND
-      -- File path should contain their group ID (format: {siteId}/{groupId}/...)
-      (SELECT small_group_id::text FROM public.profiles WHERE id = auth.uid()) = split_part(name, '/', 2)
-    )
-  )
-);
+    -- UPLOAD POLICY
+    EXECUTE format('CREATE POLICY "Hierarchical upload for report-images" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = %L AND ((SELECT role FROM public.profiles WHERE id = auth.uid()) = %L OR ((SELECT role FROM public.profiles WHERE id = auth.uid()) = %L AND (SELECT site_id::text FROM public.profiles WHERE id = auth.uid()) = split_part(name, %L, 1)) OR ((SELECT role FROM public.profiles WHERE id = auth.uid()) = %L AND (SELECT small_group_id::text FROM public.profiles WHERE id = auth.uid()) = split_part(name, %L, 2))))', bucket_val, role_nc, role_sc, '/', role_sgl, '/');
 
--- =====================================================
--- POLICY 2: Download/View Access
--- =====================================================
--- Description: Users can view images within their hierarchical scope
+    -- VIEW POLICY
+    EXECUTE format('CREATE POLICY "Hierarchical view for report-images" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = %L AND ((SELECT role FROM public.profiles WHERE id = auth.uid()) = %L OR ((SELECT role FROM public.profiles WHERE id = auth.uid()) = %L AND (SELECT site_id::text FROM public.profiles WHERE id = auth.uid()) = split_part(name, %L, 1)) OR ((SELECT role FROM public.profiles WHERE id = auth.uid()) = %L AND (SELECT small_group_id::text FROM public.profiles WHERE id = auth.uid()) = split_part(name, %L, 2))))', bucket_val, role_nc, role_sc, '/', role_sgl, '/');
 
-CREATE POLICY "Hierarchical view for report-images"
-ON storage.objects
-FOR SELECT
-TO authenticated
-USING (
-  bucket_id = 'report-images' AND (
-    -- National Coordinator: Can view all images
-    (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'national_coordinator'
-    OR
-    -- Site Coordinator: Can view images from their site
-    (
-      (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'site_coordinator'
-      AND
-      (SELECT site_id::text FROM public.profiles WHERE id = auth.uid()) = split_part(name, '/', 1)
-    )
-    OR
-    -- Small Group Leader: Can view images from their group
-    (
-      (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'small_group_leader'
-      AND
-      (SELECT small_group_id::text FROM public.profiles WHERE id = auth.uid()) = split_part(name, '/', 2)
-    )
-  )
-);
+    -- DELETE POLICY
+    EXECUTE format('CREATE POLICY "National coordinators can delete report-images" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = %L AND (SELECT role FROM public.profiles WHERE id = auth.uid()) = %L)', bucket_val, role_nc);
 
--- =====================================================
--- POLICY 3: Delete Access
--- =====================================================
--- Description: Only National Coordinators can delete images
-
-CREATE POLICY "National coordinators can delete report-images"
-ON storage.objects
-FOR DELETE
-TO authenticated
-USING (
-  bucket_id = 'report-images' AND
-  (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'national_coordinator'
-);
-
--- =====================================================
--- POLICY 4: Update Access (Metadata)
--- =====================================================
--- Description: Only National Coordinators can update file metadata
-
-CREATE POLICY "National coordinators can update report-images"
-ON storage.objects
-FOR UPDATE
-TO authenticated
-USING (
-  bucket_id = 'report-images' AND
-  (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'national_coordinator'
-);
+    -- UPDATE POLICY
+    EXECUTE format('CREATE POLICY "National coordinators can update report-images" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = %L AND (SELECT role FROM public.profiles WHERE id = auth.uid()) = %L)', bucket_val, role_nc);
+END $$;
 
 -- =====================================================
 -- IMPLEMENTATION NOTES

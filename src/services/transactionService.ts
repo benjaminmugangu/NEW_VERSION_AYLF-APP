@@ -58,9 +58,26 @@ export async function getTransactionById(id: string): Promise<FinancialTransacti
 }
 
 export async function getFilteredTransactions(filters: TransactionFilters): Promise<FinancialTransaction[]> {
-  const { user, entity, searchTerm, dateFilter, typeFilter } = filters;
+  const { user, entity } = filters;
   if (!user && !entity) throw new Error('Authentication or entity required');
 
+  const where = buildTransactionWhereClause(filters);
+
+  const transactions = await prisma.financialTransaction.findMany({
+    where,
+    include: {
+      site: true,
+      smallGroup: true,
+      recordedBy: true,
+    },
+    orderBy: { date: 'desc' }
+  });
+
+  return transactions.map(mapPrismaTransactionToModel);
+}
+
+function buildTransactionWhereClause(filters: TransactionFilters) {
+  const { user, entity, searchTerm, dateFilter, typeFilter } = filters;
   const where: any = {};
 
   if (entity) {
@@ -70,22 +87,10 @@ export async function getFilteredTransactions(filters: TransactionFilters): Prom
       where.smallGroupId = entity.id;
     }
   } else if (user) {
-    // Role-based filtering
-    switch (user.role) {
-      case 'SITE_COORDINATOR':
-        if (user.siteId) {
-          where.siteId = user.siteId;
-        }
-        break;
-      case 'SMALL_GROUP_LEADER':
-        if (user.smallGroupId) {
-          where.smallGroupId = user.smallGroupId;
-        }
-        break;
-      // NATIONAL_COORDINATOR sees everything, so no additional filter is needed.
-      case 'NATIONAL_COORDINATOR':
-      default:
-        break;
+    if (user.role === 'SITE_COORDINATOR' && user.siteId) {
+      where.siteId = user.siteId;
+    } else if (user.role === 'SMALL_GROUP_LEADER' && user.smallGroupId) {
+      where.smallGroupId = user.smallGroupId;
     }
   }
 
@@ -106,17 +111,7 @@ export async function getFilteredTransactions(filters: TransactionFilters): Prom
     where.type = typeFilter;
   }
 
-  const transactions = await prisma.financialTransaction.findMany({
-    where,
-    include: {
-      site: true,
-      smallGroup: true,
-      recordedBy: true,
-    },
-    orderBy: { date: 'desc' }
-  });
-
-  return transactions.map(mapPrismaTransactionToModel);
+  return where;
 }
 
 export async function createTransaction(formData: TransactionFormData): Promise<FinancialTransaction> {

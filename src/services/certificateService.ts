@@ -2,7 +2,6 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import type { Profile } from '@prisma/client';
 
 export interface CertificateRosterFilters {
   startDate: Date | null;
@@ -85,7 +84,7 @@ export async function getCertificateRoster(filters: CertificateRosterFilters): P
   });
 
   // Map profiles to RosterMember format
-  const rosterMembers: RosterMember[] = profiles.map(profile => {
+  const rosterMembers: RosterMember[] = (profiles as any[]).map(profile => {
     // Determine entity name based on role
     let entityName = 'N/A';
     if (profile.role === 'NATIONAL_COORDINATOR') {
