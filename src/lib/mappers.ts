@@ -1,25 +1,31 @@
 import type {
-  User, DbUser,
-  Report, DbReport, ReportFormData,
-  Activity, DbActivity,
-  SmallGroup, DbSmallGroup, SmallGroupFormData
+  User,
+  Report as FrontendReport, ReportFormData,
+  Activity as FrontendActivity,
+  SmallGroup as FrontendSmallGroup, SmallGroupFormData
 } from './types';
+import type {
+  Profile,
+  Report as DbReport,
+  Activity as DbActivity,
+  SmallGroup as DbSmallGroup
+} from '@prisma/client';
 import type { UserFormData } from '@/schemas/user';
 import type { ActivityFormData } from '@/schemas/activity';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 
 // --- User Mappers ---
-export const mapDbUserToUser = (dbUser: DbUser & { siteName?: string, smallGroupName?: string }, supabaseUser?: SupabaseUser): User => {
+export const mapDbUserToUser = (dbUser: Profile & { siteName?: string, smallGroupName?: string }, supabaseUser?: SupabaseUser): User => {
   return {
     id: dbUser.id,
     name: dbUser.name,
     email: dbUser.email,
-    role: dbUser.role,
-    status: dbUser.status,
-    siteId: dbUser.site_id,
-    smallGroupId: dbUser.small_group_id,
-    mandateStartDate: dbUser.mandate_start_date,
-    mandateEndDate: dbUser.mandate_end_date,
+    role: dbUser.role as any, // Cast if enum mismatch
+    status: dbUser.status as any,
+    siteId: dbUser.siteId,
+    smallGroupId: dbUser.smallGroupId,
+    mandateStartDate: dbUser.mandateStartDate?.toISOString(),
+    mandateEndDate: dbUser.mandateEndDate?.toISOString(),
     app_metadata: supabaseUser?.app_metadata,
     user_metadata: supabaseUser?.user_metadata,
     aud: supabaseUser?.aud,
@@ -29,45 +35,45 @@ export const mapDbUserToUser = (dbUser: DbUser & { siteName?: string, smallGroup
   };
 };
 
-export const mapUserToDb = (updates: Partial<User>): Partial<DbUser> => {
-  const dbUpdates: Partial<DbUser> = {};
+export const mapUserToDb = (updates: Partial<User>): Partial<Profile> => {
+  const dbUpdates: Partial<Profile> = {};
   if (updates.name !== undefined) dbUpdates.name = updates.name;
   if (updates.email !== undefined) dbUpdates.email = updates.email;
-  if (updates.role !== undefined) dbUpdates.role = updates.role;
-  if (updates.status !== undefined) dbUpdates.status = updates.status;
-  if (updates.siteId !== undefined) dbUpdates.site_id = updates.siteId;
-  if (updates.smallGroupId !== undefined) dbUpdates.small_group_id = updates.smallGroupId;
-  if (updates.mandateStartDate !== undefined) dbUpdates.mandate_start_date = updates.mandateStartDate;
-  if (updates.mandateEndDate !== undefined) dbUpdates.mandate_end_date = updates.mandateEndDate;
+  if (updates.role !== undefined) dbUpdates.role = updates.role as any;
+  if (updates.status !== undefined) dbUpdates.status = updates.status as any;
+  if (updates.siteId !== undefined) dbUpdates.siteId = updates.siteId;
+  if (updates.smallGroupId !== undefined) dbUpdates.smallGroupId = updates.smallGroupId;
+  if (updates.mandateStartDate !== undefined) dbUpdates.mandateStartDate = updates.mandateStartDate ? new Date(updates.mandateStartDate) : null;
+  if (updates.mandateEndDate !== undefined) dbUpdates.mandateEndDate = updates.mandateEndDate ? new Date(updates.mandateEndDate) : null;
   return dbUpdates;
 };
 
 // --- Report Mappers ---
-export const mapDbReportToReport = (dbReport: DbReport): Report => {
+export const mapDbReportToReport = (dbReport: DbReport): FrontendReport => {
   return {
     id: dbReport.id,
     title: dbReport.title,
-    activityDate: dbReport.activity_date,
-    submittedBy: dbReport.submitted_by,
-    submissionDate: dbReport.submission_date,
-    level: dbReport.level,
-    siteId: dbReport.site_id,
-    smallGroupId: dbReport.small_group_id,
-    activityTypeId: dbReport.activity_type_id,
+    activityDate: dbReport.activityDate.toISOString(),
+    submittedBy: dbReport.submittedById,
+    submissionDate: dbReport.submissionDate.toISOString(),
+    level: dbReport.level as any,
+    siteId: dbReport.siteId ?? undefined,
+    smallGroupId: dbReport.smallGroupId ?? undefined,
+    activityTypeId: dbReport.activityTypeId,
     thematic: dbReport.thematic,
-    speaker: dbReport.speaker,
-    moderator: dbReport.moderator,
-    girlsCount: dbReport.girls_count,
-    boysCount: dbReport.boys_count,
-    participantsCountReported: dbReport.participants_count_reported,
-    totalExpenses: dbReport.total_expenses,
-    currency: dbReport.currency,
+    speaker: dbReport.speaker ?? undefined,
+    moderator: dbReport.moderator ?? undefined,
+    girlsCount: dbReport.girlsCount ?? undefined,
+    boysCount: dbReport.boysCount ?? undefined,
+    participantsCountReported: dbReport.participantsCountReported ?? undefined,
+    totalExpenses: dbReport.totalExpenses ?? undefined,
+    currency: dbReport.currency ?? undefined,
     content: dbReport.content,
-    images: dbReport.images,
-    financialSummary: dbReport.financial_summary,
-    status: dbReport.status,
-    reviewNotes: dbReport.review_notes,
-    attachments: dbReport.attachments,
+    images: dbReport.images ? (dbReport.images as any) : undefined,
+    financialSummary: dbReport.financialSummary ?? undefined,
+    status: dbReport.status as any,
+    reviewNotes: dbReport.reviewNotes ?? undefined,
+    attachments: dbReport.attachments ? (dbReport.attachments as any) : undefined,
     // Handle optional relation fields
     submittedByName: 'submittedByName' in dbReport ? (dbReport as any).submittedByName : undefined,
     siteName: 'siteName' in dbReport ? (dbReport as any).siteName : undefined,
@@ -79,45 +85,43 @@ export const mapDbReportToReport = (dbReport: DbReport): Report => {
 export const mapReportFormDataToDb = (formData: Partial<ReportFormData>): Partial<DbReport> => {
   const dbData: Partial<DbReport> = {};
   if (formData.title !== undefined) dbData.title = formData.title;
-  if (formData.activityDate !== undefined) dbData.activity_date = formData.activityDate;
-  if (formData.level !== undefined) dbData.level = formData.level;
-  if (formData.siteId !== undefined) dbData.site_id = formData.siteId;
-  if (formData.smallGroupId !== undefined) dbData.small_group_id = formData.smallGroupId;
-  if (formData.activityTypeId !== undefined) dbData.activity_type_id = formData.activityTypeId;
-  if (formData.activityId !== undefined) dbData.activity_id = formData.activityId;
+  if (formData.activityDate !== undefined) dbData.activityDate = new Date(formData.activityDate);
+  if (formData.level !== undefined) dbData.level = formData.level as any;
+  if (formData.siteId !== undefined) dbData.siteId = formData.siteId;
+  if (formData.smallGroupId !== undefined) dbData.smallGroupId = formData.smallGroupId;
+  if (formData.activityTypeId !== undefined) dbData.activityTypeId = formData.activityTypeId;
+  if (formData.activityId !== undefined) dbData.activityId = formData.activityId;
   if (formData.thematic !== undefined) dbData.thematic = formData.thematic;
   if (formData.speaker !== undefined) dbData.speaker = formData.speaker;
   if (formData.moderator !== undefined) dbData.moderator = formData.moderator;
-  if (formData.girlsCount !== undefined) dbData.girls_count = formData.girlsCount;
-  if (formData.boysCount !== undefined) dbData.boys_count = formData.boysCount;
-  if (formData.participantsCountReported !== undefined) dbData.participants_count_reported = formData.participantsCountReported;
-  if (formData.totalExpenses !== undefined) dbData.total_expenses = formData.totalExpenses;
+  if (formData.girlsCount !== undefined) dbData.girlsCount = formData.girlsCount;
+  if (formData.boysCount !== undefined) dbData.boysCount = formData.boysCount;
+  if (formData.participantsCountReported !== undefined) dbData.participantsCountReported = formData.participantsCountReported;
+  if (formData.totalExpenses !== undefined) dbData.totalExpenses = formData.totalExpenses;
   if (formData.currency !== undefined) dbData.currency = formData.currency;
   if (formData.content !== undefined) dbData.content = formData.content;
-  if (formData.financialSummary !== undefined) dbData.financial_summary = formData.financialSummary;
-  if (formData.images !== undefined) dbData.images = formData.images;
-  if (formData.submittedBy !== undefined) dbData.submitted_by = formData.submittedBy;
-  if (formData.status !== undefined) dbData.status = formData.status;
-  if (formData.reviewNotes !== undefined) dbData.review_notes = formData.reviewNotes;
+  if (formData.financialSummary !== undefined) dbData.financialSummary = formData.financialSummary;
+  if (formData.images !== undefined) dbData.images = formData.images as any;
+  if (formData.submittedBy !== undefined) dbData.submittedById = formData.submittedBy;
+  if (formData.status !== undefined) dbData.status = formData.status as any;
+  if (formData.reviewNotes !== undefined) dbData.reviewNotes = formData.reviewNotes;
   return dbData;
 };
 
 // --- Activity Mappers ---
-export const mapDbActivityToActivity = (dbActivity: DbActivity): Activity => ({
-  // The 'as any' cast is used for enriched fields that are not part of the base DbActivity type.
-  // This allows the mapper to handle both base and enriched objects gracefully.
+export const mapDbActivityToActivity = (dbActivity: DbActivity): FrontendActivity => ({
   id: dbActivity.id,
   title: dbActivity.title,
   thematic: dbActivity.thematic,
-  date: dbActivity.date,
-  level: dbActivity.level,
-  status: dbActivity.status,
-  siteId: dbActivity.site_id,
-  smallGroupId: dbActivity.small_group_id,
-  activityTypeId: dbActivity.activity_type_id,
-  participantsCountPlanned: dbActivity.participants_count_planned,
-  createdBy: dbActivity.created_by,
-  createdAt: dbActivity.created_at,
+  date: dbActivity.date.toISOString(),
+  level: dbActivity.level as any,
+  status: dbActivity.status as any,
+  siteId: dbActivity.siteId ?? undefined,
+  smallGroupId: dbActivity.smallGroupId ?? undefined,
+  activityTypeId: dbActivity.activityTypeId,
+  participantsCountPlanned: dbActivity.participantsCountPlanned ?? undefined,
+  createdBy: dbActivity.createdById,
+  createdAt: dbActivity.createdAt.toISOString(),
   siteName: 'siteName' in dbActivity ? (dbActivity as any).siteName : undefined,
   smallGroupName: 'smallGroupName' in dbActivity ? (dbActivity as any).smallGroupName : undefined,
   activityTypeName: 'activityTypeName' in dbActivity ? (dbActivity as any).activityTypeName : undefined,
@@ -128,47 +132,45 @@ export const mapActivityFormDataToDb = (formData: Partial<ActivityFormData>): Pa
   const dbData: Partial<DbActivity> = {};
   if (formData.title !== undefined) dbData.title = formData.title;
   if (formData.thematic !== undefined) dbData.thematic = formData.thematic;
-  if (formData.date !== undefined) dbData.date = formData.date.toISOString();
-  if (formData.level !== undefined) dbData.level = formData.level;
-  if (formData.status !== undefined) dbData.status = formData.status;
-  if (formData.siteId !== undefined) dbData.site_id = formData.siteId;
-  if (formData.smallGroupId !== undefined) dbData.small_group_id = formData.smallGroupId;
-  if (formData.activityTypeId !== undefined) dbData.activity_type_id = formData.activityTypeId;
-  if (formData.participantsCountPlanned !== undefined) dbData.participants_count_planned = formData.participantsCountPlanned;
-  if (formData.createdBy !== undefined) dbData.created_by = formData.createdBy;
+  if (formData.date !== undefined) dbData.date = formData.date;
+  if (formData.level !== undefined) dbData.level = formData.level as any;
+  if (formData.status !== undefined) dbData.status = formData.status as any;
+  if (formData.siteId !== undefined) dbData.siteId = formData.siteId;
+  if (formData.smallGroupId !== undefined) dbData.smallGroupId = formData.smallGroupId;
+  if (formData.activityTypeId !== undefined) dbData.activityTypeId = formData.activityTypeId;
+  if (formData.participantsCountPlanned !== undefined) dbData.participantsCountPlanned = formData.participantsCountPlanned;
+  if (formData.createdBy !== undefined) dbData.createdById = formData.createdBy;
   return dbData;
 };
 
 // --- Small Group Mappers ---
-export const mapDbSmallGroupToSmallGroup = (dbSmallGroup: DbSmallGroup): SmallGroup => {
-  // The 'as any' cast is used for enriched fields that are not part of the base DbSmallGroup type.
+export const mapDbSmallGroupToSmallGroup = (dbSmallGroup: DbSmallGroup): FrontendSmallGroup => {
   const enrichedDbSmallGroup = dbSmallGroup as any;
-  const memberSource = enrichedDbSmallGroup.small_group_members || enrichedDbSmallGroup.members;
-  const memberCountObject = Array.isArray(memberSource) && memberSource.length > 0 ? memberSource[0] : { count: 0 };
+  const memberCount = enrichedDbSmallGroup._count?.registeredMembers ?? 0;
 
   return {
     id: dbSmallGroup.id,
     name: dbSmallGroup.name,
-    siteId: dbSmallGroup.site_id,
-    leaderId: dbSmallGroup.leader_id ?? undefined,
-    logisticsAssistantId: dbSmallGroup.logistics_assistant_id ?? undefined,
-    financeAssistantId: dbSmallGroup.finance_assistant_id ?? undefined,
-    meetingDay: dbSmallGroup.meeting_day ?? undefined,
-    meetingTime: dbSmallGroup.meeting_time ?? undefined,
-    meetingLocation: dbSmallGroup.meeting_location ?? undefined,
-    siteName: enrichedDbSmallGroup.sites?.name,
+    siteId: dbSmallGroup.siteId,
+    leaderId: dbSmallGroup.leaderId ?? undefined,
+    logisticsAssistantId: dbSmallGroup.logisticsAssistantId ?? undefined,
+    financeAssistantId: dbSmallGroup.financeAssistantId ?? undefined,
+    meetingDay: dbSmallGroup.meetingDay ?? undefined,
+    meetingTime: dbSmallGroup.meetingTime ?? undefined,
+    meetingLocation: dbSmallGroup.meetingLocation ?? undefined,
+    siteName: enrichedDbSmallGroup.site?.name,
     leaderName: enrichedDbSmallGroup.leader?.name,
-    memberCount: memberCountObject?.count ?? 0,
+    memberCount: memberCount,
     leader: enrichedDbSmallGroup.leader ? {
       id: enrichedDbSmallGroup.leader.id,
       name: enrichedDbSmallGroup.leader.name,
       email: enrichedDbSmallGroup.leader.email,
       role: enrichedDbSmallGroup.leader.role,
       status: enrichedDbSmallGroup.leader.status,
-      siteId: enrichedDbSmallGroup.leader.site_id,
-      smallGroupId: enrichedDbSmallGroup.leader.small_group_id,
-      mandateStartDate: enrichedDbSmallGroup.leader.mandate_start_date,
-      mandateEndDate: enrichedDbSmallGroup.leader.mandate_end_date,
+      siteId: enrichedDbSmallGroup.leader.siteId,
+      smallGroupId: enrichedDbSmallGroup.leader.smallGroupId,
+      mandateStartDate: enrichedDbSmallGroup.leader.mandateStartDate?.toISOString(),
+      mandateEndDate: enrichedDbSmallGroup.leader.mandateEndDate?.toISOString(),
     } : undefined,
     logisticsAssistant: enrichedDbSmallGroup.logisticsAssistant ? {
       id: enrichedDbSmallGroup.logisticsAssistant.id,
@@ -176,10 +178,10 @@ export const mapDbSmallGroupToSmallGroup = (dbSmallGroup: DbSmallGroup): SmallGr
       email: enrichedDbSmallGroup.logisticsAssistant.email,
       role: enrichedDbSmallGroup.logisticsAssistant.role,
       status: enrichedDbSmallGroup.logisticsAssistant.status,
-      siteId: enrichedDbSmallGroup.logisticsAssistant.site_id,
-      smallGroupId: enrichedDbSmallGroup.logisticsAssistant.small_group_id,
-      mandateStartDate: enrichedDbSmallGroup.logisticsAssistant.mandate_start_date,
-      mandateEndDate: enrichedDbSmallGroup.logisticsAssistant.mandate_end_date,
+      siteId: enrichedDbSmallGroup.logisticsAssistant.siteId,
+      smallGroupId: enrichedDbSmallGroup.logisticsAssistant.smallGroupId,
+      mandateStartDate: enrichedDbSmallGroup.logisticsAssistant.mandateStartDate?.toISOString(),
+      mandateEndDate: enrichedDbSmallGroup.logisticsAssistant.mandateEndDate?.toISOString(),
     } : undefined,
     financeAssistant: enrichedDbSmallGroup.financeAssistant ? {
       id: enrichedDbSmallGroup.financeAssistant.id,
@@ -187,10 +189,10 @@ export const mapDbSmallGroupToSmallGroup = (dbSmallGroup: DbSmallGroup): SmallGr
       email: enrichedDbSmallGroup.financeAssistant.email,
       role: enrichedDbSmallGroup.financeAssistant.role,
       status: enrichedDbSmallGroup.financeAssistant.status,
-      siteId: enrichedDbSmallGroup.financeAssistant.site_id,
-      smallGroupId: enrichedDbSmallGroup.financeAssistant.small_group_id,
-      mandateStartDate: enrichedDbSmallGroup.financeAssistant.mandate_start_date,
-      mandateEndDate: enrichedDbSmallGroup.financeAssistant.mandate_end_date,
+      siteId: enrichedDbSmallGroup.financeAssistant.siteId,
+      smallGroupId: enrichedDbSmallGroup.financeAssistant.smallGroupId,
+      mandateStartDate: enrichedDbSmallGroup.financeAssistant.mandateStartDate?.toISOString(),
+      mandateEndDate: enrichedDbSmallGroup.financeAssistant.mandateEndDate?.toISOString(),
     } : undefined,
   };
 };
@@ -198,12 +200,12 @@ export const mapDbSmallGroupToSmallGroup = (dbSmallGroup: DbSmallGroup): SmallGr
 export const mapSmallGroupFormDataToDb = (formData: SmallGroupFormData): Partial<DbSmallGroup> => {
   return {
     name: formData.name,
-    site_id: formData.siteId,
-    leader_id: formData.leaderId,
-    logistics_assistant_id: formData.logisticsAssistantId,
-    finance_assistant_id: formData.financeAssistantId,
-    meeting_day: formData.meetingDay,
-    meeting_time: formData.meetingTime,
-    meeting_location: formData.meetingLocation,
+    siteId: formData.siteId || "",
+    leaderId: formData.leaderId,
+    logisticsAssistantId: formData.logisticsAssistantId,
+    financeAssistantId: formData.financeAssistantId,
+    meetingDay: formData.meetingDay,
+    meetingTime: formData.meetingTime,
+    meetingLocation: formData.meetingLocation,
   };
 };

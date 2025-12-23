@@ -30,7 +30,7 @@ export default async function CertificatesPage() {
     where: { id: user.id },
   });
 
-  if (!currentUser || currentUser.role !== 'national_coordinator') {
+  if (!currentUser || currentUser.role !== 'NATIONAL_COORDINATOR') {
     redirect('/dashboard');
   }
 
@@ -48,13 +48,21 @@ export default async function CertificatesPage() {
     orderBy: { generatedAt: 'desc' }
   });
 
-  const formattedCertificates = certificates.map(cert => ({
+  const getEntityName = (cert: any) => {
+    if (cert.role === 'NATIONAL_COORDINATOR') return 'National';
+    if (cert.role === 'SITE_COORDINATOR') return cert.profile.site?.name || 'N/A';
+    if (cert.profile.smallGroup) {
+      const siteName = cert.profile.smallGroup.site?.name ? ` (${cert.profile.smallGroup.site.name})` : '';
+      return `${cert.profile.smallGroup.name}${siteName}`;
+    }
+    return 'N/A';
+  };
+
+  const formattedCertificates = certificates.map((cert: any) => ({
     id: cert.id,
     coordinatorName: cert.profile.name,
     role: cert.role,
-    entityName: cert.role === 'national_coordinator' ? 'National' :
-      cert.role === 'site_coordinator' ? cert.profile.site?.name || 'N/A' :
-        cert.profile.smallGroup ? `${cert.profile.smallGroup.name} (${cert.profile.smallGroup.site?.name})` : 'N/A',
+    entityName: getEntityName(cert),
     generatedAt: cert.generatedAt,
     pdfUrl: cert.pdfUrl
   }));

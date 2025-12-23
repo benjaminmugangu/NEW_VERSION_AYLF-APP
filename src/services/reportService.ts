@@ -1,8 +1,10 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { Report, ReportWithDetails, ReportFormData, User } from '@/lib/types';
 import { logReportApproval, createAuditLog } from './auditLogService';
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 
 // ... existing code ...
 
@@ -43,53 +45,49 @@ type ServerDateFilter = {
 };
 
 const computeDateRange = (dateFilter?: ServerDateFilter): { startDate?: Date; endDate?: Date } => {
-  if (!dateFilter) return {};
+  if (!dateFilter || (!dateFilter.from && !dateFilter.to && !dateFilter.rangeKey) || dateFilter.rangeKey === 'all_time') return {};
   if (dateFilter.from || dateFilter.to) return { startDate: dateFilter.from, endDate: dateFilter.to };
-  const key = dateFilter.rangeKey;
-  if (!key || key === 'all_time') return {};
+
   const now = new Date();
   const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  switch (key) {
-    case 'today': {
-      const s = startOfDay(now);
+  const s = startOfDay(now);
+
+  const rangeMap: Record<string, () => { startDate: Date; endDate: Date }> = {
+    today: () => {
       const e = new Date(s);
       e.setDate(e.getDate() + 1);
       return { startDate: s, endDate: e };
-    }
-    case 'this_week': {
-      const s = startOfDay(now);
-      const day = s.getDay();
-      const diff = (day + 6) % 7; // Monday start
+    },
+    this_week: () => {
+      const diff = (s.getDay() + 6) % 7;
       s.setDate(s.getDate() - diff);
       const e = new Date(s);
       e.setDate(e.getDate() + 7);
       return { startDate: s, endDate: e };
+    },
+    this_month: () => {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      return { startDate: start, endDate: end };
+    },
+    last_30_days: () => {
+      const start = new Date(s);
+      start.setDate(start.getDate() - 30);
+      return { startDate: start, endDate: s };
+    },
+    last_90_days: () => {
+      const start = new Date(s);
+      start.setDate(start.getDate() - 90);
+      return { startDate: start, endDate: s };
+    },
+    this_year: () => {
+      const start = new Date(now.getFullYear(), 0, 1);
+      const end = new Date(now.getFullYear() + 1, 0, 1);
+      return { startDate: start, endDate: end };
     }
-    case 'this_month': {
-      const s = new Date(now.getFullYear(), now.getMonth(), 1);
-      const e = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-      return { startDate: s, endDate: e };
-    }
-    case 'last_30_days': {
-      const e = startOfDay(now);
-      const s = new Date(e);
-      s.setDate(s.getDate() - 30);
-      return { startDate: s, endDate: e };
-    }
-    case 'last_90_days': {
-      const e = startOfDay(now);
-      const s = new Date(e);
-      s.setDate(s.getDate() - 90);
-      return { startDate: s, endDate: e };
-    }
-    case 'this_year': {
-      const s = new Date(now.getFullYear(), 0, 1);
-      const e = new Date(now.getFullYear() + 1, 0, 1);
-      return { startDate: s, endDate: e };
-    }
-    default:
-      return {};
-  }
+  };
+
+  return rangeMap[dateFilter.rangeKey!]?.() ?? {};
 };
 
 export interface ReportFilters {
@@ -105,26 +103,26 @@ const mapPrismaReportToModel = (report: any): ReportWithDetails => {
   return {
     id: report.id,
     title: report.title,
-    activityDate: report.activityDate ? report.activityDate.toISOString() : '',
-    submissionDate: report.submissionDate ? report.submissionDate.toISOString() : '',
+    activityDate: report.activityDate?.toISOString() ?? '',
+    submissionDate: report.submissionDate?.toISOString() ?? '',
     level: report.level,
     status: report.status,
     content: report.content,
     thematic: report.thematic,
-    speaker: report.speaker || undefined,
-    moderator: report.moderator || undefined,
-    girlsCount: report.girlsCount || undefined,
-    boysCount: report.boysCount || undefined,
-    participantsCountReported: report.participantsCountReported || undefined,
-    totalExpenses: report.totalExpenses || undefined, // Mapped
-    currency: report.currency || undefined,
-    financialSummary: report.financialSummary || undefined,
-    reviewNotes: report.reviewNotes || undefined,
+    speaker: report.speaker ?? undefined,
+    moderator: report.moderator ?? undefined,
+    girlsCount: report.girlsCount ?? undefined,
+    boysCount: report.boysCount ?? undefined,
+    participantsCountReported: report.participantsCountReported ?? undefined,
+    totalExpenses: report.totalExpenses ?? undefined,
+    currency: report.currency ?? undefined,
+    financialSummary: report.financialSummary ?? undefined,
+    reviewNotes: report.reviewNotes ?? undefined,
     images: normalizeImages(report.images),
     attachments: normalizeAttachments(report.attachments),
     submittedBy: report.submittedById,
-    siteId: report.siteId || undefined,
-    smallGroupId: report.smallGroupId || undefined,
+    siteId: report.siteId ?? undefined,
+    smallGroupId: report.smallGroupId ?? undefined,
     activityTypeId: report.activityTypeId,
 
     // Enriched fields
@@ -153,6 +151,24 @@ export async function getReportById(id: string): Promise<Report> {
 }
 
 export async function createReport(reportData: ReportFormData): Promise<Report> {
+  const { getUser } = getKindeServerSession();
+  const user = await getUser();
+
+  if (!user || !user.id) {
+    throw new Error('Unauthorized: User must be authenticated to submit a report.');
+  }
+
+  // Mutual Exclusivity & Level Validation
+  if (reportData.level === 'national') {
+    reportData.siteId = undefined;
+    reportData.smallGroupId = undefined;
+  } else if (reportData.level === 'site') {
+    if (!reportData.siteId) throw new Error('Site ID is required for site-level reports.');
+    reportData.smallGroupId = undefined;
+  } else if (reportData.level === 'small_group' && !reportData.smallGroupId) {
+    throw new Error('Small Group ID is required for small-group-level reports.');
+  }
+
   const report = await prisma.report.create({
     data: {
       title: reportData.title,
@@ -166,12 +182,12 @@ export async function createReport(reportData: ReportFormData): Promise<Report> 
       girlsCount: reportData.girlsCount,
       boysCount: reportData.boysCount,
       participantsCountReported: reportData.participantsCountReported,
-      totalExpenses: reportData.totalExpenses, // Added
+      totalExpenses: reportData.totalExpenses,
       currency: reportData.currency,
       financialSummary: reportData.financialSummary,
-      images: reportData.images as any, // Prisma handles JSON
+      images: reportData.images as any,
       attachments: reportData.attachments as any,
-      submittedById: reportData.submittedBy,
+      submittedById: user.id,
       siteId: reportData.siteId,
       smallGroupId: reportData.smallGroupId,
       activityTypeId: reportData.activityTypeId,
@@ -189,6 +205,14 @@ export async function createReport(reportData: ReportFormData): Promise<Report> 
 }
 
 export async function updateReport(reportId: string, updatedData: Partial<ReportFormData>): Promise<ReportWithDetails> {
+  // If level is changing, enforce exclusivity
+  if (updatedData.level === 'national') {
+    updatedData.siteId = undefined;
+    updatedData.smallGroupId = undefined;
+  } else if (updatedData.level === 'site') {
+    updatedData.smallGroupId = undefined;
+  }
+
   const updateData = mapUpdateDataFields(updatedData);
 
   const report = await prisma.report.update({
@@ -206,7 +230,7 @@ export async function updateReport(reportId: string, updatedData: Partial<Report
 }
 
 function mapUpdateDataFields(updatedData: Partial<ReportFormData>) {
-  const updateData: any = {};
+  const updateData: Record<string, any> = {};
   const fields = [
     'title', 'activityDate', 'level', 'status', 'content', 'thematic',
     'speaker', 'moderator', 'girlsCount', 'boysCount',
@@ -312,13 +336,13 @@ function applyEntityFilter(where: any, entity: { type: 'site' | 'smallGroup'; id
 
 function applyUserRoleFilter(where: any, user: User) {
   switch (user.role) {
-    case 'site_coordinator':
+    case 'SITE_COORDINATOR':
       if (user.siteId) {
         where.siteId = user.siteId;
         return where;
       }
       return null;
-    case 'small_group_leader':
+    case 'SMALL_GROUP_LEADER':
       if (user.smallGroupId) {
         where.smallGroupId = user.smallGroupId;
         return where;
@@ -361,7 +385,7 @@ export async function approveReport(
   const generatedTransactionIds: string[] = [];
 
   // Update report and generate transactions in a transaction
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     // 1. Mark report as approved
     const approvedReport = await tx.report.update({
       where: { id: reportId },

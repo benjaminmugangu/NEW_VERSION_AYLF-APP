@@ -8,23 +8,9 @@ export interface BaseEntity {
   id: string;
 }
 
-export type UserRole = 'national_coordinator' | 'site_coordinator' | 'small_group_leader' | 'member';
+export type UserRole = 'NATIONAL_COORDINATOR' | 'SITE_COORDINATOR' | 'SMALL_GROUP_LEADER' | 'MEMBER';
 
-/**
- * Represents the raw user profile data as it is stored in the 'profiles' table.
- * Uses snake_case for database column names.
- */
-export interface DbUser {
-  id: string;
-  name: string;
-  email: string;
-  role: UserRole;
-  site_id?: string | null;
-  small_group_id?: string | null;
-  mandate_start_date?: string;
-  mandate_end_date?: string;
-  status?: 'active' | 'inactive' | 'invited';
-}
+// DbUser removed - use Profile from @prisma/client
 
 /**
  * Represents the enriched User object used throughout the frontend application.
@@ -89,17 +75,7 @@ export interface SmallGroup {
   financeAssistant?: User;
 }
 
-export interface DbSmallGroup {
-  id: string;
-  name: string;
-  site_id: string;
-  leader_id?: string | null;
-  logistics_assistant_id?: string | null;
-  finance_assistant_id?: string | null;
-  meeting_day?: string | null; // assoupli: valeur libre côté BD
-  meeting_time?: string | null;
-  meeting_location?: string | null;
-}
+// DbSmallGroup removed - use SmallGroup from @prisma/client
 
 // Type aliases for common unions (SonarLint fix)
 export type Gender = 'male' | 'female';
@@ -152,21 +128,7 @@ export interface Activity extends BaseEntity {
   participantsCount?: number;
 }
 
-export interface DbActivity {
-  id: string;
-  title: string;
-  thematic: string;
-  date: string;
-  level: EntityLevel;
-  status: ActivityStatus;
-  site_id?: string;
-  small_group_id?: string;
-  activity_type_id: string;
-  activity_type_enum?: 'small_group_meeting' | 'conference' | 'apostolat' | 'deuil' | 'other';
-  participants_count_planned?: number;
-  created_by: string;
-  created_at: string;
-}
+// DbActivity removed - use Activity from @prisma/client
 
 export interface ActivityType {
   id: string;
@@ -177,36 +139,7 @@ export interface ActivityType {
 
 export type ReportStatus = 'pending' | 'submitted' | 'approved' | 'rejected';
 
-/**
- * Represents the raw report data as it is stored in the 'reports' table.
- * Uses snake_case for database column names.
- */
-export interface DbReport {
-  id: string;
-  title: string;
-  activity_date: string;
-  submitted_by: string; // User ID
-  submission_date: string; // ISO date string
-  level: EntityLevel;
-  site_id?: string;
-  small_group_id?: string;
-  activity_type_id: string;
-  activity_id?: string;
-  thematic: string;
-  speaker?: string;
-  moderator?: string;
-  girls_count?: number;
-  boys_count?: number;
-  participants_count_reported?: number;
-  total_expenses?: number;
-  currency?: string;
-  content: string;
-  images?: Array<{ name: string; url: string }>;
-  financial_summary?: string;
-  status: ReportStatus;
-  review_notes?: string;
-  attachments?: string[];
-}
+// DbReport removed - use Report from @prisma/client
 
 export interface Report extends BaseEntity {
   title: string;

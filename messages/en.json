@@ -36,10 +36,7 @@
         "date": "Date",
         "success": "Success",
         "try_again": "Try Again",
-        "unknown": "Unknown",
-        "unknown_site": "Unknown Site",
-        "unknown_group": "Unknown Group",
-        "level_national": "National"
+        "unknown": "Unknown"
     },
     "Dashboard": {
         "welcome": "Welcome, {name}!",
@@ -524,10 +521,10 @@
         }
     },
     "Roles": {
-        "national_coordinator": "National Coordinator",
-        "site_coordinator": "Site Coordinator",
-        "small_group_leader": "Small Group Leader",
-        "member": "Member"
+        "NATIONAL_COORDINATOR": "National Coordinator",
+        "SITE_COORDINATOR": "Site Coordinator",
+        "SMALL_GROUP_LEADER": "Small Group Leader",
+        "MEMBER": "Member"
     },
     "Notifications": {
         "title": "Notifications",

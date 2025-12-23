@@ -27,36 +27,46 @@ export async function GET() {
       include: { site: true, smallGroup: true }
     });
 
-    // 2. If not found by ID, try finding by email (in case of manual creation or ID change)
+    // 2. Fallback: Search by email if not found by ID
     if (!dbUser && kindeUser.email) {
-      console.log(`[AUTH_SYNC] Searching by email for: ${kindeUser.email}`);
+      const normalizedEmail = kindeUser.email.toLowerCase();
       const userByEmail = await prisma.profile.findUnique({
-        where: { email: kindeUser.email.toLowerCase() },
+        where: { email: normalizedEmail },
         include: { site: true, smallGroup: true }
       });
 
       if (userByEmail) {
-        console.log(`[AUTH_SYNC] Found existing profile by email. Updating ID to Kinde ID: ${kindeUser.id}`);
-        try {
-          dbUser = await prisma.profile.update({
-            where: { id: userByEmail.id },
-            data: { id: kindeUser.id }, // Update the primary key to match Kinde
-            include: { site: true, smallGroup: true }
-          });
-        } catch (updateError) {
-          console.error(`[AUTH_SYNC] Could not update ID. Using existing profile.`, updateError);
-          dbUser = userByEmail;
-        }
+        // SECURITY FIX: ID mismatch detected - this is a critical security issue
+        // The user authenticated with Kinde ID X, but a profile exists with ID Y
+        // This can happen if:
+        // 1. User was created before Kinde integration
+        // 2. Manual database manipulation
+        // 3. Identity provider migration
+
+        console.error(`[AUTH_SYNC] CRITICAL: ID Mismatch for ${normalizedEmail}. Kinde ID: ${kindeUser.id}, Profile ID: ${userByEmail.id}`);
+        logError(`[AUTH_SYNC] ID Mismatch Detected`, new Error(`User ${normalizedEmail} has mismatched IDs`));
+
+        // SECURITY: DO NOT allow login with mismatched IDs
+        // This prevents user A from accessing user B's data
+        return NextResponse.json({
+          error: "Identity synchronization error. Please contact administrator.",
+          code: "ID_MISMATCH",
+          details: {
+            email: normalizedEmail,
+            hint: "Your account needs to be re-synchronized by an administrator"
+          }
+        }, { status: 403 });
       }
     }
 
-    // 3. Auto-Sync: Create profile if it still doesn't exist
+    // 3. Create profile if it still doesn't exist
     if (!dbUser) {
-      console.log(`[AUTH_SYNC] Creating new profile for: ${kindeUser.email}`);
+      console.log(`[AUTH_SYNC] No profile found for ${kindeUser.email}. Creating new...`);
 
+      const normalizedEmail = kindeUser.email.toLowerCase();
       const invitation = await prisma.userInvitation.findFirst({
         where: {
-          email: { equals: kindeUser.email, mode: 'insensitive' },
+          email: { equals: normalizedEmail, mode: 'insensitive' },
           status: "pending"
         },
         orderBy: { createdAt: "desc" }
@@ -70,7 +80,7 @@ export async function GET() {
         dbUser = await prisma.profile.create({
           data: {
             id: kindeUser.id,
-            email: kindeUser.email.toLowerCase(),
+            email: normalizedEmail,
             name: `${kindeUser.given_name ?? ''} ${kindeUser.family_name ?? ''}`.trim() || kindeUser.email,
             role: role,
             siteId: siteId,
@@ -87,7 +97,7 @@ export async function GET() {
           });
         }
       } catch (createError) {
-        console.error(`[AUTH_SYNC] Profile creation FAILED:`, createError);
+        console.error(`[AUTH_SYNC] Profile creation FAILED for ${normalizedEmail}:`, createError);
         throw createError;
       }
     }

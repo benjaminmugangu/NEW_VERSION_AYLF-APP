@@ -1,23 +1,19 @@
 // src/app/api/users/[id]/route.ts
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { MESSAGES } from '@/lib/messages';
+import { withApiRLS } from '@/lib/apiWrapper';
 
-export async function DELETE(
-  request: Request,
+export const DELETE = withApiRLS(async (
+  request: NextRequest,
   context: { params: Promise<{ id: string }> }
-) {
+) => {
   const { id: userId } = await context.params;
 
-  // Authenticate via Kinde
   const { getUser } = getKindeServerSession();
   const user = await getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
-  }
 
   // Get user profile from Supabase to check role
   const supabase = await createClient();
@@ -27,7 +23,7 @@ export async function DELETE(
     .eq('id', user.id)
     .single();
 
-  if (profile?.role !== 'national_coordinator') {
+  if (profile?.role !== 'NATIONAL_COORDINATOR') {
     return NextResponse.json({ error: MESSAGES.errors.forbidden }, { status: 403 });
   }
 
@@ -67,4 +63,4 @@ export async function DELETE(
     console.error('Failed to delete Kinde user:', error);
     return NextResponse.json({ error: MESSAGES.errors.serverError }, { status: 500 });
   }
-}
+});

@@ -153,6 +153,7 @@ model Site {
   reports           Report[]
   invitations       UserInvitation[]
   inventoryItems    InventoryItem[] // NEW - for Inventory Management
+  inventoryMovements InventoryMovement[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -190,6 +191,7 @@ model SmallGroup {
   allocations       FundAllocation[]
   reports           Report[]
   invitations       UserInvitation[]
+  inventoryMovements InventoryMovement[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -212,7 +214,7 @@ model Member {
   site   Site?   @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
   smallGroupId String?     @map("small_group_id")
-  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id])
+  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -241,10 +243,10 @@ model Activity {
   level    ActivityLevel
 
   siteId String? @map("site_id")
-  site   Site?   @relation(fields: [siteId], references: [id])
+  site   Site?   @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
   smallGroupId String?     @map("small_group_id")
-  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id])
+  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id], onDelete: Cascade)
 
   activityTypeId String       @map("activity_type_id")
   activityType   ActivityType @relation(fields: [activityTypeId], references: [id])
@@ -301,16 +303,16 @@ model Report {
   rejectionReason String?   @map("rejection_reason") // Reason for rejection
 
   siteId String? @map("site_id")
-  site   Site?   @relation(fields: [siteId], references: [id])
+  site   Site?   @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
   smallGroupId String?     @map("small_group_id")
-  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id])
+  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id], onDelete: Cascade)
 
   activityTypeId String       @map("activity_type_id")
   activityType   ActivityType @relation(fields: [activityTypeId], references: [id])
 
   activityId String?   @map("activity_id")
-  activity   Activity? @relation(fields: [activityId], references: [id])
+  activity   Activity? @relation(fields: [activityId], references: [id], onDelete: Cascade)
 
   linkedTransactions FinancialTransaction[]
 
@@ -330,10 +332,10 @@ model FinancialTransaction {
 
   // Entity Links
   siteId String? @map("site_id")
-  site   Site?   @relation(fields: [siteId], references: [id])
+  site   Site?   @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
   smallGroupId String?     @map("small_group_id")
-  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id])
+  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id], onDelete: Cascade)
 
   recordedById String  @map("recorded_by")
   recordedBy   Profile @relation("RecordedBy", fields: [recordedById], references: [id])
@@ -348,10 +350,10 @@ model FinancialTransaction {
 
   // Context Links (NEW)
   relatedReportId String? @map("related_report_id")
-  relatedReport   Report? @relation(fields: [relatedReportId], references: [id])
+  relatedReport   Report? @relation(fields: [relatedReportId], references: [id], onDelete: Cascade)
 
   relatedActivityId String?   @map("related_activity_id")
-  relatedActivity   Activity? @relation(fields: [relatedActivityId], references: [id])
+  relatedActivity   Activity? @relation(fields: [relatedActivityId], references: [id], onDelete: Cascade)
 
   // Reversal Support (NEW)
   isReversalOfId String?                @map("is_reversal_of_id")
@@ -387,10 +389,10 @@ model FundAllocation {
   fromSite   Site?   @relation("AllocationsFrom", fields: [fromSiteId], references: [id])
 
   siteId String? @map("site_id")
-  site   Site?   @relation(fields: [siteId], references: [id])
+  site   Site?   @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
   smallGroupId String?     @map("small_group_id")
-  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id])
+  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -404,10 +406,10 @@ model UserInvitation {
   role  UserRole
 
   siteId String? @map("site_id")
-  site   Site?   @relation(fields: [siteId], references: [id])
+  site   Site?   @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
   smallGroupId String?     @map("small_group_id")
-  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id])
+  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id], onDelete: Cascade)
 
   token  String @unique @default(uuid())
   status String @default("pending") // pending, accepted, expired
@@ -447,7 +449,7 @@ model AuditLog {
 
   // Who performed the action
   actorId String  @map("actor_id")
-  actor   Profile @relation(fields: [actorId], references: [id])
+  actor   Profile @relation(fields: [actorId], references: [id], onDelete: Cascade)
 
   // What was done
   action String // 'create' | 'update' | 'approve' | 'reject' | 'complete' | 'reverse' | 'delete'
@@ -509,7 +511,7 @@ model InventoryItem {
 
   // Ownership
   siteId String? @map("site_id")
-  site   Site?   @relation(fields: [siteId], references: [id])
+  site   Site?   @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
   movements InventoryMovement[]
 
@@ -536,7 +538,9 @@ model InventoryMovement {
 
   // Context
   siteId       String? @map("site_id")
+  site         Site?   @relation(fields: [siteId], references: [id], onDelete: Cascade)
   smallGroupId String? @map("small_group_id")
+  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now()) @map("created_at")
 

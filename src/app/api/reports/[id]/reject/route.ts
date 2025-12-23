@@ -5,29 +5,26 @@ import * as reportService from '@/services/reportService';
 import { MESSAGES } from '@/lib/messages';
 import * as z from 'zod';
 import { safeParseJSON } from '@/lib/safeJSON';
+import { withApiRLS } from '@/lib/apiWrapper';
 
-// ✅ Zod schema for validation (ADDED - FIX FOR ITERATION 4)
 const rejectReportSchema = z.object({
     rejectionReason: z.string().min(10, "Rejection reason must be at least 10 characters").max(500, "Rejection reason is too long").optional()
 });
 
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withApiRLS(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
     try {
         const { getUser } = getKindeServerSession();
         const user = await getUser();
-
         if (!user) {
             return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
         }
 
         const profile = await prisma.profile.findUnique({ where: { id: user.id } });
-        if (!profile || profile.role !== 'national_coordinator') {
+        if (!profile || profile.role !== 'NATIONAL_COORDINATOR') {
             return NextResponse.json({ error: MESSAGES.errors.forbidden }, { status: 403 });
         }
 
         const body = await safeParseJSON(request);
-
-        // ✅ Zod validation (ADDED - FIX FOR ITERATION 4)
         const validation = rejectReportSchema.safeParse(body);
         if (!validation.success) {
             return NextResponse.json(
@@ -37,7 +34,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         }
 
         const { rejectionReason } = validation.data;
-
         const resolvedParams = await params;
         const reportId = resolvedParams.id;
 
@@ -45,7 +41,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             return NextResponse.json({ error: MESSAGES.errors.validation }, { status: 400 });
         }
 
-        // Fix: rejectReport signature is (reportId, rejectedById, reason, ipAddress?, userAgent?)
         const rejectedReport = await reportService.rejectReport(reportId, user.id, rejectionReason || '');
 
         return NextResponse.json({
@@ -61,4 +56,4 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             { status: 500 }
         );
     }
-}
+});

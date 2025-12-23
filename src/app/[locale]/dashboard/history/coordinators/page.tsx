@@ -31,7 +31,7 @@ export default async function CoordinatorHistoryPage() {
         where: { id: user.id },
     });
 
-    if (!currentUser || currentUser.role !== 'national_coordinator') {
+    if (currentUser?.role !== 'NATIONAL_COORDINATOR') {
         redirect('/dashboard');
     }
 

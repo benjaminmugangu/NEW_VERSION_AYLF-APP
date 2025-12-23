@@ -3,8 +3,9 @@ import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import { exportTransactionsToCSV } from '@/services/exportService';
 import { MESSAGES } from '@/lib/messages';
 import { rateLimit } from '@/lib/rateLimit';
+import { withApiRLS } from '@/lib/apiWrapper';
 
-export async function GET(request: NextRequest) {
+export const GET = withApiRLS(async (request: NextRequest) => {
     try {
         // 1. Rate Limit
         const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
@@ -12,13 +13,6 @@ export async function GET(request: NextRequest) {
 
         if (!success) {
             return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
-        }
-
-        const { isAuthenticated } = getKindeServerSession();
-        const isAuth = await isAuthenticated();
-
-        if (!isAuth) {
-            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
         }
 
         const searchParams = request.nextUrl.searchParams;
@@ -46,4 +40,4 @@ export async function GET(request: NextRequest) {
             { status: 500 }
         );
     }
-}
+});

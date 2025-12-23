@@ -27,18 +27,18 @@ export async function getCoordinatorHistory(filters?: {
 }): Promise<CoordinatorHistory[]> {
     const where: any = {
         role: {
-            in: ['national_coordinator', 'site_coordinator', 'small_group_leader']
+            in: ['NATIONAL_COORDINATOR', 'SITE_COORDINATOR', 'SMALL_GROUP_LEADER']
         }
     };
 
     if (filters?.entityType === 'site') {
-        where.role = 'site_coordinator';
+        where.role = 'SITE_COORDINATOR';
         if (filters.siteId) where.siteId = filters.siteId;
     } else if (filters?.entityType === 'small_group') {
-        where.role = 'small_group_leader';
+        where.role = 'SMALL_GROUP_LEADER';
         if (filters.smallGroupId) where.smallGroupId = filters.smallGroupId;
     } else if (filters?.entityType === 'national') {
-        where.role = 'national_coordinator';
+        where.role = 'NATIONAL_COORDINATOR';
     }
 
     // Filter by active/past
@@ -67,10 +67,10 @@ export async function getCoordinatorHistory(filters?: {
         name: p.name,
         email: p.email,
         role: p.role,
-        entityType: p.role === 'national_coordinator' ? 'national' :
-            p.role === 'site_coordinator' ? 'site' : 'small_group',
-        entityName: p.role === 'national_coordinator' ? 'National' :
-            p.role === 'site_coordinator' ? p.site?.name || 'N/A' :
+        entityType: p.role === 'NATIONAL_COORDINATOR' ? 'national' :
+            p.role === 'SITE_COORDINATOR' ? 'site' : 'small_group',
+        entityName: p.role === 'NATIONAL_COORDINATOR' ? 'National' :
+            p.role === 'SITE_COORDINATOR' ? p.site?.name || 'N/A' :
                 p.smallGroup ? `${p.smallGroup.name} (${p.smallGroup.site?.name})` : 'N/A',
         mandateStartDate: p.mandateStartDate!,
         mandateEndDate: p.mandateEndDate,

@@ -34,6 +34,12 @@ const FinancialsPage = () => {
     { name: 'Financials', income: financials.income, expenses: financials.expenses },
   ];
 
+  const getAllocationButtonText = () => {
+    if (currentUser?.role === ROLES.NATIONAL_COORDINATOR) return 'Send Funds to Site';
+    if (currentUser?.role === ROLES.SITE_COORDINATOR) return 'Send Funds to Small Group';
+    return 'Add Allocation';
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -78,11 +84,10 @@ const FinancialsPage = () => {
             <Button asChild>
               <Link href="/dashboard/financials/transactions/new">Add Income/Expense</Link>
             </Button>
-            {currentUser?.role !== 'member' && (
+            {currentUser?.role !== ROLES.MEMBER && (
               <Button asChild variant="secondary">
                 <Link href="/dashboard/financials/allocations/new">
-                  {currentUser?.role === 'national_coordinator' ? 'Send Funds to Site' :
-                    currentUser?.role === 'site_coordinator' ? 'Send Funds to Small Group' : 'Add Allocation'}
+                  {getAllocationButtonText()}
                 </Link>
               </Button>
             )}
@@ -119,7 +124,7 @@ const FinancialsPage = () => {
             <CardTitle>Recent Reports with Expenses</CardTitle>
           </CardHeader>
           <CardContent>
-            {financials.reports.filter(r => (r.totalExpenses || 0) > 0).length > 0 ? (
+            {financials.reports.some(r => (r.totalExpenses || 0) > 0) ? (
               <ul className="space-y-3">
                 {financials.reports.filter(r => (r.totalExpenses || 0) > 0).slice(0, 5).map(report => (
                   <li key={report.id} className="flex justify-between items-center p-2 rounded-md hover:bg-muted">

@@ -59,7 +59,7 @@ export function CommandPalette() {
                         <FileText className="mr-2 h-4 w-4" />
                         <span>Rapports</span>
                     </CommandItem>
-                    {currentUser?.role === 'national_coordinator' && (
+                    {currentUser?.role === 'NATIONAL_COORDINATOR' && (
                         <CommandItem
                             onSelect={() => runCommand(() => router.push('/dashboard/sites'))}
                         >
@@ -97,7 +97,7 @@ export function CommandPalette() {
                         <Plus className="mr-2 h-4 w-4" />
                         <span>Soumettre Rapport</span>
                     </CommandItem>
-                    {currentUser?.role === 'national_coordinator' && (
+                    {currentUser?.role === 'NATIONAL_COORDINATOR' && (
                         <>
                             <CommandItem
                                 onSelect={() => runCommand(() => router.push('/dashboard/sites/new'))}
@@ -113,7 +113,7 @@ export function CommandPalette() {
                             </CommandItem>
                         </>
                     )}
-                    {currentUser?.role === 'site_coordinator' && (
+                    {currentUser?.role === 'SITE_COORDINATOR' && (
                         <CommandItem
                             onSelect={() => runCommand(() => router.push('/dashboard/small-groups/new'))}
                         >

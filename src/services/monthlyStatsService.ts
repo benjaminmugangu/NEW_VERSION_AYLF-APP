@@ -24,21 +24,43 @@ export interface PeriodStats {
 }
 
 export async function getActivityStatsInPeriod(start: Date, end: Date, label?: string): Promise<PeriodStats> {
-  // Ensure we cover the full day for the end date if it's at 00:00:00
-  // Actually, better to assume the caller provides correct boundaries, 
-  // but if end is same as start (single day) or user picked a day, usually we want end of that day.
-  // Let's force end of day for the end date if needed, or assume 'end' is inclusive 23:59:59.
-  // Best practice: The Service takes exact dates. The Controller/UI handles "End of Day".
-  // However, specifically for generic usage:
   const queryStart = new Date(start);
   const queryEnd = new Date(end);
 
-  // If end doesn't have time set (00:00:00), set it to 23:59:59
   if (queryEnd.getHours() === 0 && queryEnd.getMinutes() === 0) {
     queryEnd.setHours(23, 59, 59, 999);
   }
 
-  // Fetch Activities
+  // ANTI-MIRAGE: Check if this period is closed
+  const closedPeriod = await prisma.accountingPeriod.findFirst({
+    where: {
+      status: 'closed',
+      startDate: { equals: queryStart },
+      endDate: { equals: queryEnd }
+    }
+  });
+
+  if (closedPeriod && closedPeriod.snapshotData) {
+    const data = closedPeriod.snapshotData as any;
+    if (data.totalActivities !== undefined) {
+      return {
+        period: { start: queryStart, end: queryEnd, label: label || closedPeriod.id },
+        totalActivities: data.totalActivities,
+        activitiesByType: {}, // Snapshots are aggregate, detailed type breakdown not stored yet
+        specialActivities: [],
+        participation: {
+          total: data.totalParticipants || 0,
+          boys: data.totalBoysCount || 0,
+          girls: data.totalGirlsCount || 0,
+          men: data.totalBoysCount || 0,
+          women: data.totalGirlsCount || 0
+        },
+        activeSites: (data.sitePerformance || []).map((s: any) => s.siteName)
+      };
+    }
+  }
+
+  // Fetch Activities...
   const activities = await prisma.activity.findMany({
     where: {
       date: {

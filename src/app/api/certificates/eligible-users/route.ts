@@ -4,11 +4,11 @@ import * as certificateService from '@/services/certificateService';
 import { parseISO, isValid } from 'date-fns';
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { MESSAGES } from '@/lib/messages';
+import { withApiRLS } from '@/lib/apiWrapper';
 
-export async function GET(request: NextRequest) {
+export const GET = withApiRLS(async (request: NextRequest) => {
   const { getUser } = getKindeServerSession();
   const user = await getUser();
-
   if (!user) {
     return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
   }
@@ -17,10 +17,10 @@ export async function GET(request: NextRequest) {
   const { data: profile } = await supabase
     .from('profiles')
     .select('role')
-    .eq('id', user.id) // Use Kinde user ID
+    .eq('id', user.id)
     .single();
 
-  if (profile?.role !== 'national_coordinator') {
+  if (profile?.role !== 'NATIONAL_COORDINATOR') {
     return NextResponse.json({ error: MESSAGES.errors.forbidden }, { status: 403 });
   }
 
@@ -39,4 +39,4 @@ export async function GET(request: NextRequest) {
     logError('ELIGIBLE_USERS', error);
     return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
   }
-}
+});

@@ -41,12 +41,20 @@ export default async function MyCertificatesPage() {
         orderBy: { generatedAt: 'desc' }
     });
 
-    const formattedCertificates = certificates.map(cert => ({
+    const getEntityName = (cert: any) => {
+        if (cert.role === 'NATIONAL_COORDINATOR') return 'National';
+        if (cert.role === 'SITE_COORDINATOR') return cert.profile.site?.name || 'N/A';
+        if (cert.profile.smallGroup) {
+            const siteName = cert.profile.smallGroup.site?.name ? ` (${cert.profile.smallGroup.site.name})` : '';
+            return `${cert.profile.smallGroup.name}${siteName}`;
+        }
+        return 'N/A';
+    };
+
+    const formattedCertificates = certificates.map((cert: any) => ({
         id: cert.id,
         role: cert.role,
-        entityName: cert.role === 'national_coordinator' ? 'National' :
-            cert.role === 'site_coordinator' ? cert.profile.site?.name || 'N/A' :
-                cert.profile.smallGroup ? `${cert.profile.smallGroup.name} (${cert.profile.smallGroup.site?.name})` : 'N/A',
+        entityName: getEntityName(cert),
         generatedAt: cert.generatedAt,
         pdfUrl: cert.pdfUrl
     }));
@@ -57,7 +65,13 @@ export default async function MyCertificatesPage() {
                 <h2 className="text-3xl font-bold tracking-tight">{t('my_certificates')}</h2>
             </div>
             <div className="hidden h-full flex-1 flex-col space-y-8 md:flex">
-                <MyCertificatesList certificates={formattedCertificates} />
+                {formattedCertificates.length > 0 ? (
+                    <MyCertificatesList certificates={formattedCertificates} />
+                ) : (
+                    <div className="text-center py-20 bg-muted/30 rounded-lg border-2 border-dashed">
+                        <p className="text-muted-foreground">No certificates available yet.</p>
+                    </div>
+                )}
             </div>
         </div>
     );

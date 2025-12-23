@@ -2,16 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import { exportAllocationsToCSV } from '@/services/exportService';
 import { MESSAGES } from '@/lib/messages';
+import { withApiRLS } from '@/lib/apiWrapper';
 
-export async function GET(request: NextRequest) {
+export const GET = withApiRLS(async (request: NextRequest) => {
     try {
-        const { isAuthenticated } = getKindeServerSession();
-        const isAuth = await isAuthenticated();
-
-        if (!isAuth) {
-            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
-        }
-
         const searchParams = request.nextUrl.searchParams;
         const filters = {
             from: searchParams.get('from') || undefined,
@@ -37,4 +31,4 @@ export async function GET(request: NextRequest) {
             { status: 500 }
         );
     }
-}
+});

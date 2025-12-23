@@ -19,6 +19,7 @@ export const AllocationList: React.FC<AllocationListProps> = ({ allocations, tit
   const [isClient, setIsClient] = React.useState(false);
   const t = useTranslations('Finances');
   const tCommon = useTranslations('Common');
+  const tActivityLevel = useTranslations('ActivityLevel');
 
   React.useEffect(() => {
     setIsClient(true);
@@ -62,22 +63,22 @@ export const AllocationList: React.FC<AllocationListProps> = ({ allocations, tit
           <TableBody>
             {allocations.map((allocation) => {
               const senderName = allocation.allocatedByName || tCommon('unknown');
-              const sourceName = allocation.fromSiteName || tCommon('level_national');
+              const sourceName = allocation.fromSiteName || tActivityLevel('national');
 
               let recipientName: string;
               let recipientType: 'site' | 'smallGroup' | 'national' = 'national';
               let recipientId: string | undefined;
 
               if (allocation.siteId && !allocation.smallGroupId) {
-                recipientName = allocation.siteName || tCommon('unknown_site');
+                recipientName = allocation.siteName || tCommon('unknown');
                 recipientType = 'site';
                 recipientId = allocation.siteId;
               } else if (allocation.smallGroupId) {
-                recipientName = allocation.smallGroupName || tCommon('unknown_group');
+                recipientName = allocation.smallGroupName || tCommon('unknown');
                 recipientType = 'smallGroup';
                 recipientId = allocation.smallGroupId;
               } else {
-                recipientName = t('recipient_national');
+                recipientName = tActivityLevel('national');
               }
 
               return (

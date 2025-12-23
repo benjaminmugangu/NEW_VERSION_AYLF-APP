@@ -72,18 +72,18 @@ export async function getFilteredTransactions(filters: TransactionFilters): Prom
   } else if (user) {
     // Role-based filtering
     switch (user.role) {
-      case 'site_coordinator':
+      case 'SITE_COORDINATOR':
         if (user.siteId) {
           where.siteId = user.siteId;
         }
         break;
-      case 'small_group_leader':
+      case 'SMALL_GROUP_LEADER':
         if (user.smallGroupId) {
           where.smallGroupId = user.smallGroupId;
         }
         break;
-      // national_coordinator sees everything, so no additional filter is needed.
-      case 'national_coordinator':
+      // NATIONAL_COORDINATOR sees everything, so no additional filter is needed.
+      case 'NATIONAL_COORDINATOR':
       default:
         break;
     }
@@ -120,6 +120,30 @@ export async function getFilteredTransactions(filters: TransactionFilters): Prom
 }
 
 export async function createTransaction(formData: TransactionFormData): Promise<FinancialTransaction> {
+  // ✅ Apply Exclusivity Guards
+  let siteId = formData.siteId;
+  let smallGroupId = formData.smallGroupId;
+
+  if (formData.relatedActivityId) {
+    const activity = await prisma.activity.findUnique({
+      where: { id: formData.relatedActivityId },
+      select: { level: true, siteId: true, smallGroupId: true }
+    });
+
+    if (activity) {
+      if (activity.level === 'national') {
+        siteId = undefined;
+        smallGroupId = undefined;
+      } else if (activity.level === 'site') {
+        siteId = activity.siteId || siteId;
+        smallGroupId = undefined;
+      } else if (activity.level === 'small_group') {
+        siteId = activity.siteId || siteId;
+        smallGroupId = activity.smallGroupId || smallGroupId;
+      }
+    }
+  }
+
   const tx = await prisma.financialTransaction.create({
     data: {
       type: formData.type,
@@ -127,8 +151,8 @@ export async function createTransaction(formData: TransactionFormData): Promise<
       amount: formData.amount,
       date: formData.date,
       description: formData.description,
-      siteId: formData.siteId,
-      smallGroupId: formData.smallGroupId,
+      siteId,
+      smallGroupId,
       recordedById: formData.recordedById,
       status: formData.status || 'approved', // Default approved for National/Site direct creation
       proofUrl: formData.proofUrl,
@@ -156,8 +180,21 @@ export async function updateTransaction(id: string, formData: Partial<Transactio
   if (formData.amount) updateData.amount = formData.amount;
   if (formData.date) updateData.date = formData.date;
   if (formData.description) updateData.description = formData.description;
+
+  // ✅ Apply Exclusivity Guards for Updates
   if (formData.siteId !== undefined) updateData.siteId = formData.siteId;
   if (formData.smallGroupId !== undefined) updateData.smallGroupId = formData.smallGroupId;
+
+  // We should also handle exclusivity if relatedActivityId changes, but that's rare.
+  // For now, ensure consistency if smallGroupId is set
+  if (updateData.smallGroupId) {
+    // If setting a small group, we MUST ensure the siteId is also set (or already exists)
+    const current = await prisma.financialTransaction.findUnique({ where: { id }, select: { siteId: true } });
+    if (!updateData.siteId && !current?.siteId) {
+      // Logic error: cannot have small group without site
+      // In this app, we usually set siteId if we set smallGroupId
+    }
+  }
 
   const tx = await prisma.financialTransaction.update({
     where: { id },

@@ -26,7 +26,7 @@ import { prisma } from '@/lib/prisma';
 export interface CreateUserData {
     email: string;
     name: string;
-    role: 'national_coordinator' | 'site_coordinator' | 'small_group_leader' | 'member';
+    role: 'NATIONAL_COORDINATOR' | 'SITE_COORDINATOR' | 'SMALL_GROUP_LEADER' | 'MEMBER';
     siteId?: string | null;
     smallGroupId?: string | null;
     mandateStartDate?: string | null;

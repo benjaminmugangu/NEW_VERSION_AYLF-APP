@@ -14,41 +14,39 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, MoreHorizontal, Pencil, Trash } from 'lucide-react';
+import { Plus, Search, MoreHorizontal, Pencil } from 'lucide-react';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuLabel,
-    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Profile, UserRole } from '@prisma/client';
 import { useTranslations } from 'next-intl';
 
 interface UsersClientProps {
-    initialUsers: (Profile & { site?: { name: string } | null, smallGroup?: { name: string } | null })[];
+    readonly initialUsers: (Profile & { readonly site?: { readonly name: string } | null, readonly smallGroup?: { readonly name: string } | null })[];
 }
 
 export default function UsersClient({ initialUsers }: UsersClientProps) {
     const router = useRouter();
     const [searchTerm, setSearchTerm] = useState('');
-    const [users, setUsers] = useState(initialUsers);
     const t = useTranslations('Users');
     const tRoles = useTranslations('Roles');
 
-    const filteredUsers = users.filter((user) =>
+    const filteredUsers = initialUsers.filter((user) =>
         user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.email?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     const getRoleBadgeColor = (role: UserRole) => {
         switch (role) {
-            case 'national_coordinator':
+            case 'NATIONAL_COORDINATOR':
                 return 'destructive';
-            case 'site_coordinator':
+            case 'SITE_COORDINATOR':
                 return 'default';
-            case 'small_group_leader':
+            case 'SMALL_GROUP_LEADER':
                 return 'secondary';
             default:
                 return 'outline';

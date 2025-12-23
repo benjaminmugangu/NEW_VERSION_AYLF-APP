@@ -55,6 +55,18 @@ export async function updateProfile(userId: string, updates: Partial<User>): Pro
   if (updates.mandateStartDate !== undefined) dbUpdates.mandateStartDate = updates.mandateStartDate;
   if (updates.mandateEndDate !== undefined) dbUpdates.mandateEndDate = updates.mandateEndDate;
 
+  // ✅ Apply Exclusivity Guards if role, siteId, or smallGroupId are updated
+  // We need the current role to apply logic properly if it's not being updated
+  const currentProfile = await prisma.profile.findUnique({ where: { id: userId }, select: { role: true } });
+  const finalRole = updates.role || currentProfile?.role;
+
+  if (finalRole === 'NATIONAL_COORDINATOR') {
+    dbUpdates.siteId = null;
+    dbUpdates.smallGroupId = null;
+  } else if (finalRole === 'SITE_COORDINATOR') {
+    dbUpdates.smallGroupId = null;
+  }
+
   const data = await prisma.profile.update({
     where: { id: userId },
     data: dbUpdates,
@@ -117,14 +129,14 @@ export async function getEligiblePersonnel(siteId: string, smallGroupId?: string
   const whereClause: any = {
     status: { not: 'inactive' },
     OR: [
-      { role: 'national_coordinator' },
-      { role: 'site_coordinator', siteId: siteId },
+      { role: 'NATIONAL_COORDINATOR' },
+      { role: 'SITE_COORDINATOR', siteId: siteId },
     ]
   };
 
   if (smallGroupId) {
     whereClause.OR.push({
-      role: 'small_group_leader',
+      role: 'SMALL_GROUP_LEADER',
       OR: [
         { smallGroupId: null },
         { smallGroupId: smallGroupId }
@@ -132,7 +144,7 @@ export async function getEligiblePersonnel(siteId: string, smallGroupId?: string
     });
   } else {
     whereClause.OR.push({
-      role: 'small_group_leader',
+      role: 'SMALL_GROUP_LEADER',
       smallGroupId: null
     });
   }

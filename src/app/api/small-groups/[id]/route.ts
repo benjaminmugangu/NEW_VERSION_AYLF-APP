@@ -1,8 +1,9 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import * as z from 'zod';
 import * as smallGroupService from '@/services/smallGroupService';
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { MESSAGES } from '@/lib/messages';
+import { withApiRLS } from '@/lib/apiWrapper';
 
 const smallGroupUpdateSchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters long').optional(),
@@ -14,14 +15,9 @@ const smallGroupUpdateSchema = z.object({
   meetingLocation: z.string().optional(),
 }).partial();
 
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const PATCH = withApiRLS(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   try {
     const { id } = await params;
-    const { getUser } = getKindeServerSession();
-    const user = await getUser();
-    if (!user) {
-      return new NextResponse(JSON.stringify({ error: MESSAGES.errors.unauthorized }), { status: 401 });
-    }
 
     const json = await request.json();
     const parsedData = smallGroupUpdateSchema.safeParse(json);
@@ -39,16 +35,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     logError('UPDATE_SMALL_GROUP', error);
     return new NextResponse(JSON.stringify({ error: sanitizeError(error) }), { status: 500 });
   }
-}
+});
 
-export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const DELETE = withApiRLS(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   try {
     const { id } = await params;
-    const { getUser } = getKindeServerSession();
-    const user = await getUser();
-    if (!user) {
-      return new NextResponse(JSON.stringify({ error: MESSAGES.errors.unauthorized }), { status: 401 });
-    }
 
     // The service handles un-assigning members before deleting the group
     await smallGroupService.deleteSmallGroup(id);
@@ -59,4 +50,4 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     logError('DELETE_SMALL_GROUP', error);
     return new NextResponse(JSON.stringify({ error: sanitizeError(error) }), { status: 500 });
   }
-}
+});

@@ -50,8 +50,8 @@ interface Report {
 }
 
 interface PendingReportsClientProps {
-    reports: Report[];
-    userRole: string;
+    readonly reports: Report[];
+    readonly userRole: string;
 }
 
 export default function PendingReportsClient({ reports, userRole }: PendingReportsClientProps) {
@@ -63,7 +63,7 @@ export default function PendingReportsClient({ reports, userRole }: PendingRepor
     const [isLoading, setIsLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
 
-    const canApprove = userRole === 'national_coordinator';
+    const canApprove = userRole === 'NATIONAL_COORDINATOR';
 
     const filteredReports = reports.filter(report =>
         report.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -151,9 +151,16 @@ export default function PendingReportsClient({ reports, userRole }: PendingRepor
             site: 'bg-blue-100 text-blue-800',
             small_group: 'bg-green-100 text-green-800',
         };
+
+        const getLevelLabel = (l: string) => {
+            if (l === 'small_group') return 'Petit Groupe';
+            if (l === 'site') return 'Site';
+            return 'National';
+        };
+
         return (
             <Badge className={colors[level] || 'bg-gray-100 text-gray-800'}>
-                {level === 'small_group' ? 'Petit Groupe' : level === 'site' ? 'Site' : 'National'}
+                {getLevelLabel(level)}
             </Badge>
         );
     };

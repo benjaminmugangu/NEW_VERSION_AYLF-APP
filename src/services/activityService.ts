@@ -421,33 +421,35 @@ async function validateAndPrepareCreateData(activityData: ActivityFormData, curr
   const safeData = { ...activityData } as any; // Cast to allow adding fields
   safeData.createdBy = currentUser.id;
 
-  if (currentUser.role === ROLES.SITE_COORDINATOR) {
-    if (!currentUser.siteId) throw new Error('Site Coordinator has no site assigned');
-
-    // Enforce Site Context
-    safeData.siteId = currentUser.siteId;
-
-    // Allow Site vs SG level choice
-    if (safeData.level === 'small_group') {
-      if (!safeData.smallGroupId) {
-        // Fallback if they forgot to pick a group but said SG level?
-        // Or throw error?
-        // Let's assume validation caught it, or fallback to site level.
-        safeData.level = 'site';
-      }
-      // We should verify that smallGroupId belongs to their site, but for now we trust the ID (or future FK check)
-    } else {
-      safeData.level = 'site';
-      safeData.smallGroupId = undefined;
+  // Level-based Exclusivity Guards
+  if (safeData.level === 'national') {
+    safeData.siteId = undefined;
+    safeData.smallGroupId = undefined;
+  } else if (safeData.level === 'site') {
+    safeData.smallGroupId = undefined;
+    if (currentUser.role === ROLES.SITE_COORDINATOR) {
+      safeData.siteId = currentUser.siteId || undefined;
+    }
+  } else if (safeData.level === 'small_group') {
+    if (currentUser.role === ROLES.SMALL_GROUP_LEADER) {
+      safeData.smallGroupId = currentUser.smallGroupId || undefined;
+      safeData.siteId = currentUser.siteId || undefined;
     }
   }
-  else if (currentUser.role === ROLES.SMALL_GROUP_LEADER) {
+
+  // RBAC overrides... (keeping existing logic but integrated)
+  if (currentUser.role === ROLES.SITE_COORDINATOR) {
+    if (!currentUser.siteId) throw new Error('Site Coordinator has no site assigned');
+    safeData.siteId = currentUser.siteId;
+    if (safeData.level === 'small_group' && !safeData.smallGroupId) {
+      safeData.level = 'site';
+    }
+  } else if (currentUser.role === ROLES.SMALL_GROUP_LEADER) {
     if (!currentUser.smallGroupId) throw new Error('Small Group Leader has no group assigned');
     safeData.level = 'small_group';
     safeData.smallGroupId = currentUser.smallGroupId;
     safeData.siteId = currentUser.siteId || undefined;
-  }
-  else if (currentUser.role === ROLES.MEMBER) {
+  } else if (currentUser.role === ROLES.MEMBER) {
     throw new Error('Unauthorized: Members cannot create activities');
   }
 

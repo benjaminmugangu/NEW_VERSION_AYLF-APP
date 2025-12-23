@@ -12,7 +12,7 @@ export default function middleware(req: NextRequest) {
 
   // 1. Define public paths (both root and localized)
   // These paths bypass Kinde authentication
-  const publicPathPrefixes = ['/login', '/signup', '/auth', '/api/auth', '/api/webhooks', '/impact'];
+  const publicPathPrefixes = ['/login', '/signup', '/auth', '/api/auth', '/api/webhooks', '/impact', '/favicon.ico', '/manifest.json'];
 
   const isPublic =
     pathname === '/' ||
@@ -41,7 +41,13 @@ export default function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    // Match all paths except static files and next internals
-    '/((?!api|_next|.*\\..*).*)'
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public files (e.g. manifest.json, sw.js)
+     */
+    String.raw`/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|workbox-.*\.js|.*\.((?:svg|png|jpg|jpeg|gif|webp)$)).*)`
   ]
 };

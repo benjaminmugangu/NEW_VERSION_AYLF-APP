@@ -30,7 +30,7 @@ describe('Financial Logic', () => {
         (allocationService.getAllocations as any).mockResolvedValue([]);
         (reportService.getFilteredReports as any).mockResolvedValue([]);
 
-        const user = { id: 'u1', role: 'national_coordinator' } as any;
+        const user = { id: 'u1', role: 'NATIONAL_COORDINATOR' } as any;
         const result = await getFinancials(user, 'all');
 
         expect(result.income).toBe(1000);

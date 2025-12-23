@@ -1,23 +1,17 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { prisma } from '@/lib/prisma';
 import { ROLES } from '@/lib/constants';
 import { MESSAGES } from '@/lib/messages';
+import { withApiRLS } from '@/lib/apiWrapper';
 
-export async function DELETE(
-    req: Request,
+export const DELETE = withApiRLS(async (
+    req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
-) {
+) => {
     try {
-        const { getUser, isAuthenticated } = getKindeServerSession();
-        if (!(await isAuthenticated())) {
-            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
-        }
-
+        const { getUser } = getKindeServerSession();
         const user = await getUser();
-        if (!user) {
-            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
-        }
 
         const currentUser = await prisma.profile.findUnique({
             where: { id: user.id },
@@ -39,4 +33,4 @@ export async function DELETE(
         console.error('[DELETE_INVITATION_ERROR]', error);
         return NextResponse.json({ error: MESSAGES.errors.serverError }, { status: 500 });
     }
-}
+});

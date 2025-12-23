@@ -13,12 +13,14 @@ export const activityFormSchema = z.object({
     activityTypeEnum: z.enum(["small_group_meeting", "conference", "apostolat", "deuil", "other"]).optional(),
     participantsCountPlanned: z.number().int().min(0).optional(),
     createdBy: z.string(),
-}).refine(data => data.level !== 'site' || !!data.siteId, {
-    message: 'Site is required for site-level activities.',
-    path: ['siteId'],
-}).refine(data => data.level !== 'small_group' || !!data.smallGroupId, {
-    message: 'Small group is required for small group level activities.',
-    path: ['smallGroupId'],
+}).refine(data => {
+    if (data.level === 'national') return !data.siteId && !data.smallGroupId;
+    if (data.level === 'site') return !!data.siteId && !data.smallGroupId;
+    if (data.level === 'small_group') return !!data.smallGroupId && !data.siteId;
+    return true;
+}, {
+    message: 'Invalid level-entity mapping: Site and SmallGroup dependencies must match the selected level.',
+    path: ['level'],
 });
 
 export type ActivityFormData = z.infer<typeof activityFormSchema>;

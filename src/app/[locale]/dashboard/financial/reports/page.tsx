@@ -18,7 +18,7 @@ export default async function FinancialReportsPage() {
     const profile = await profileService.getProfile(user.id);
 
     // Only National Coordinators can access this page
-    if (profile.role !== 'national_coordinator') {
+    if (profile.role !== 'NATIONAL_COORDINATOR') {
         redirect('/dashboard');
     }
 

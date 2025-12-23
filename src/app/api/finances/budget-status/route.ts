@@ -1,12 +1,19 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { MESSAGES } from '@/lib/messages';
+import { withApiRLS } from '@/lib/apiWrapper';
 
-export async function GET(request: Request) {
+export const GET = withApiRLS(async (request: NextRequest) => {
     try {
-        const { user: currentUser } = await getAuthenticatedUser();
+        const { getUser } = getKindeServerSession();
+        const user = await getUser();
+
+        const currentUser = await prisma.profile.findUnique({
+            where: { id: user.id }
+        });
+
         if (!currentUser) {
             return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
         }
@@ -51,28 +58,17 @@ export async function GET(request: Request) {
             { status: 500 }
         );
     }
-}
-
-async function getAuthenticatedUser() {
-    const { isAuthenticated, getUser } = getKindeServerSession();
-    if (!(await isAuthenticated())) return { user: null };
-
-    const user = await getUser();
-    if (!user) return { user: null };
-
-    const dbUser = await prisma.profile.findUnique({ where: { id: user.id } });
-    return { user: dbUser };
-}
+});
 
 async function validateBudgetAccess(currentUser: any, siteId: string | null, smallGroupId: string | null) {
-    if (currentUser.role === 'national_coordinator') return null;
+    if (currentUser.role === 'NATIONAL_COORDINATOR') return null;
 
     if (siteId && currentUser.siteId !== siteId) {
         return 'Forbidden';
     }
 
     if (smallGroupId) {
-        if (currentUser.role === 'site_coordinator' && currentUser.siteId) {
+        if (currentUser.role === 'SITE_COORDINATOR' && currentUser.siteId) {
             const group = await prisma.smallGroup.findUnique({ where: { id: smallGroupId } });
             if (group?.siteId !== currentUser.siteId) return 'Forbidden';
         } else if (currentUser.smallGroupId !== smallGroupId) {

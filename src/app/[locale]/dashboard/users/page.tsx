@@ -21,7 +21,7 @@ export default async function UsersPage() {
     where: { id: user.id },
   });
 
-  if (!currentUser || currentUser.role !== 'national_coordinator') {
+  if (currentUser?.role !== 'NATIONAL_COORDINATOR') {
     redirect("/dashboard");
   }
 

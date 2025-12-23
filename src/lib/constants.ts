@@ -2,10 +2,10 @@ import type { NavItem, UserRole } from "@/lib/types";
 import { LayoutDashboard, Activity, Users, FileText, Lightbulb, Building, UsersRound, Briefcase, Award, UserCircle as UserProfileIcon, History as HistoryIcon, Bell } from "lucide-react";
 
 export const ROLES: Record<string, UserRole> = {
-  NATIONAL_COORDINATOR: "national_coordinator",
-  SITE_COORDINATOR: "site_coordinator",
-  SMALL_GROUP_LEADER: "small_group_leader",
-  MEMBER: "member",
+  NATIONAL_COORDINATOR: "NATIONAL_COORDINATOR",
+  SITE_COORDINATOR: "SITE_COORDINATOR",
+  SMALL_GROUP_LEADER: "SMALL_GROUP_LEADER",
+  MEMBER: "MEMBER",
 };
 
 export const NAVIGATION_LINKS: NavItem[] = [

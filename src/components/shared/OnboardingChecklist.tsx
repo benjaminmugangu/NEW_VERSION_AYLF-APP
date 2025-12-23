@@ -31,7 +31,7 @@ export function OnboardingChecklist() {
 
         // Tâches par rôle
         const tasksByRole: Record<string, OnboardingTask[]> = {
-            national_coordinator: [
+            NATIONAL_COORDINATOR: [
                 {
                     id: 'profile',
                     label: t('tasks.profile.label'),
@@ -61,7 +61,20 @@ export function OnboardingChecklist() {
                     completed: (currentUser as any).hasActivities || false,
                 },
             ],
-            site_coordinator: [
+            SITE_COORDINATOR: [
+
+
+
+
+
+
+
+
+
+
+
+
+
                 {
                     id: 'profile',
                     label: t('tasks.profile.label'),
@@ -87,7 +100,20 @@ export function OnboardingChecklist() {
                     completed: (currentUser as any).hasActivities || false,
                 },
             ],
-            small_group_leader: [
+            SMALL_GROUP_LEADER: [
+
+
+
+
+
+
+
+
+
+
+
+
+
                 {
                     id: 'profile',
                     label: t('tasks.profile.label'),
@@ -113,7 +139,7 @@ export function OnboardingChecklist() {
                     completed: (currentUser as any).hasReports || false,
                 },
             ],
-            member: [
+            MEMBER: [
                 {
                     id: 'profile',
                     label: t('tasks.profile.label'),

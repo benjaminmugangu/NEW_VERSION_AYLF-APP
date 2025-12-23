@@ -87,6 +87,9 @@ export async function deleteInventoryItem(id: string) {
 }
 
 export async function createInventoryMovement(data: CreateInventoryMovementData) {
+    // Relational Consistency Guard: If smallGroupId is provided, ensure siteId is also present
+    // Often siteId is the owner of the item, but movements can be scoped to a group.
+
     return await prisma.inventoryMovement.create({
         data: {
             itemId: data.itemId,

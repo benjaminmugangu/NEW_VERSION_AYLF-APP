@@ -29,17 +29,17 @@ import { useTranslations } from 'next-intl';
 // ...
 
 interface EditUserFormProps {
-    user: {
-        id: string;
-        name: string;
-        email: string;
-        role: UserRole;
-        siteId?: string | null;
-        smallGroupId?: string | null;
-        status?: string | null;
+    readonly user: {
+        readonly id: string;
+        readonly name: string;
+        readonly email: string;
+        readonly role: UserRole;
+        readonly siteId?: string | null;
+        readonly smallGroupId?: string | null;
+        readonly status?: string | null;
     };
-    sites: { id: string; name: string }[];
-    smallGroups: { id: string; name: string; siteId: string }[];
+    readonly sites: { readonly id: string; readonly name: string }[];
+    readonly smallGroups: { readonly id: string; readonly name: string; readonly siteId: string }[];
 }
 
 export default function EditUserForm({ user, sites, smallGroups }: EditUserFormProps) {
@@ -147,10 +147,10 @@ export default function EditUserForm({ user, sites, smallGroups }: EditUserFormP
                                     </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                    <SelectItem value="national_coordinator">{tRoles('national_coordinator')}</SelectItem>
-                                    <SelectItem value="site_coordinator">{tRoles('site_coordinator')}</SelectItem>
-                                    <SelectItem value="small_group_leader">{tRoles('small_group_leader')}</SelectItem>
-                                    <SelectItem value="member">{tRoles('member')}</SelectItem>
+                                    <SelectItem value="NATIONAL_COORDINATOR">{tRoles('NATIONAL_COORDINATOR')}</SelectItem>
+                                    <SelectItem value="SITE_COORDINATOR">{tRoles('SITE_COORDINATOR')}</SelectItem>
+                                    <SelectItem value="SMALL_GROUP_LEADER">{tRoles('SMALL_GROUP_LEADER')}</SelectItem>
+                                    <SelectItem value="MEMBER">{tRoles('MEMBER')}</SelectItem>
                                 </SelectContent>
                             </Select>
                             <FormMessage />
@@ -158,7 +158,7 @@ export default function EditUserForm({ user, sites, smallGroups }: EditUserFormP
                     )}
                 />
 
-                {(selectedRole === 'site_coordinator' || selectedRole === 'small_group_leader' || selectedRole === 'member') && (
+                {(selectedRole === 'SITE_COORDINATOR' || selectedRole === 'SMALL_GROUP_LEADER' || selectedRole === 'MEMBER') && (
                     <FormField
                         control={form.control}
                         name="siteId"
@@ -189,7 +189,7 @@ export default function EditUserForm({ user, sites, smallGroups }: EditUserFormP
                     />
                 )}
 
-                {(selectedRole === 'small_group_leader' || selectedRole === 'member') && (
+                {(selectedRole === 'SMALL_GROUP_LEADER' || selectedRole === 'MEMBER') && (
                     <FormField
                         control={form.control}
                         name="smallGroupId"

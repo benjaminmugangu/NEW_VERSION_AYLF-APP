@@ -24,7 +24,7 @@ export default async function InviteUserPage() {
     where: { id: user.id },
   });
 
-  if (!currentUser || currentUser.role !== 'national_coordinator') {
+  if (currentUser?.role !== 'NATIONAL_COORDINATOR') {
     redirect("/dashboard");
   }
 

@@ -5,24 +5,23 @@ import React from 'react';
 import Image from 'next/image';
 import { format } from 'date-fns';
 import type { RosterMember } from '@/services/certificateService';
-import { ROLES } from '@/lib/constants';
 
 interface Props {
-  user: RosterMember;
-  entityName: string;
-  appName: string;
+  readonly user: RosterMember;
+  readonly entityName: string;
+  readonly appName: string;
 }
 
 export function PrintableCertificate({ user, entityName, appName }: Props) {
 
   const getRoleDescription = () => {
     let roleDesc = "";
-    if (user.role === 'site_coordinator') {
+    if (user.role === 'SITE_COORDINATOR') {
       roleDesc = `Site Coordinator of ${entityName}`;
-    } else if (user.role === 'small_group_leader') {
+    } else if (user.role === 'SMALL_GROUP_LEADER') {
       roleDesc = `Small Group Leader for ${entityName}`;
     } else {
-      roleDesc = user.role.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+      roleDesc = user.role.replaceAll('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
     }
     return roleDesc;
   };

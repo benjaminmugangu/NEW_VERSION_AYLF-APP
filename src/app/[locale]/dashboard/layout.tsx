@@ -45,7 +45,7 @@ export default async function DashboardLayout({
         id: profile.id,
         name: profile.name,
         email: profile.email,
-        role: profile.role as any,
+        role: profile.role,
         siteId: profile.siteId,
         smallGroupId: profile.smallGroupId,
         siteName: profile.site?.name,
@@ -60,7 +60,7 @@ export default async function DashboardLayout({
         id: kindeUser.id,
         name: `${kindeUser.given_name ?? ''} ${kindeUser.family_name ?? ''}`.trim() || kindeUser.email || 'User',
         email: kindeUser.email || '',
-        role: 'member' as any,
+        role: 'MEMBER',
         status: 'active'
       };
     }

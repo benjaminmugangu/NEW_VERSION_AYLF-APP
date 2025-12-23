@@ -3,17 +3,6 @@
 
 export const dynamic = 'force-dynamic';
 
-import React, { useState, useEffect } from 'react';
-import { AllocationForm } from '@/components/financials/AllocationForm';
-import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useAuth } from '@/contexts/AuthContext';
-import * as allocationService from '@/services/allocations.service';
-import * as siteService from '@/services/siteService';
-import * as smallGroupService from '@/services/smallGroupService';
-import { useRouter } from 'next/navigation';
-import type { FundAllocationFormData, Site, SmallGroup } from '@/lib/types';
 
 const NewAllocationPage = () => {
   const { currentUser } = useAuth();
@@ -35,7 +24,7 @@ const NewAllocationPage = () => {
       ...data,
       allocatedById: currentUser?.id || '',
       status: 'planned',
-      fromSiteId: currentUser?.role === 'site_coordinator' ? currentUser.siteId || undefined : undefined,
+      fromSiteId: currentUser?.role === 'SITE_COORDINATOR' ? currentUser.siteId || undefined : undefined,
     };
 
     if (!fullData.allocatedById) {

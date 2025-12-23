@@ -23,7 +23,6 @@ import * as siteService from '@/services/siteService';
 import * as reportService from '@/services/reportService';
 import * as smallGroupService from '@/services/smallGroupService';
 import * as activityService from '@/services/activityService'; // Import activity service
-import { storageService } from '@/services/storageService';
 import { ROLES } from "@/lib/constants";
 import { useTranslations } from "next-intl";
 
@@ -180,8 +179,28 @@ export function ReportForm({ onSubmitSuccess, user }: ReportFormProps) {
     try {
       let imageUrls: Array<{ name: string; url: string }> = [];
       if (selectedFiles.length > 0) {
-        // Use the consistent 'report-images' bucket
-        const uploadPromises = selectedFiles.map(file => storageService.uploadFile(file, 'report-images'));
+        // Upload files via API route (server-side storage with RLS)
+        const uploadPromises = selectedFiles.map(async (file) => {
+          const formData = new FormData();
+          formData.append('file', file);
+          // Add metadata for RLS path generation
+          if (data.activityId) {
+            formData.append('reportId', 'temp'); // Will be updated with real reportId after creation
+          }
+
+          const response = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Upload failed');
+          }
+
+          return response.json();
+        });
+
         const uploadedFiles = await Promise.all(uploadPromises);
         imageUrls = uploadedFiles.map(uploadedFile => ({
           name: uploadedFile.filePath,

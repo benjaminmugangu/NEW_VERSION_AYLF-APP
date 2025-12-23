@@ -13,7 +13,7 @@ interface TourStep {
 }
 
 const TOURS_BY_ROLE: Record<string, TourStep[]> = {
-    national_coordinator: [
+    NATIONAL_COORDINATOR: [
         {
             target: '[data-tour="sidebar"]',
             title: '🎯 Bienvenue, Coordinateur National!',
@@ -45,7 +45,7 @@ const TOURS_BY_ROLE: Record<string, TourStep[]> = {
             position: 'right'
         }
     ],
-    site_coordinator: [
+    SITE_COORDINATOR: [
         {
             target: '[data-tour="sidebar"]',
             title: '🎯 Bienvenue, Coordinateur de Site!',
@@ -71,7 +71,7 @@ const TOURS_BY_ROLE: Record<string, TourStep[]> = {
             position: 'right'
         }
     ],
-    small_group_leader: [
+    SMALL_GROUP_LEADER: [
         {
             target: '[data-tour="sidebar"]',
             title: '🎯 Bienvenue, Leader de Petit Groupe!',
@@ -103,7 +103,7 @@ const TOURS_BY_ROLE: Record<string, TourStep[]> = {
             position: 'right'
         }
     ],
-    member: [
+    MEMBER: [
         {
             target: '[data-tour="sidebar"]',
             title: '🎯 Bienvenue dans AYLF Connect!',
@@ -140,7 +140,7 @@ export function CustomOnboardingTour() {
 
         // Délai pour laisser la page se charger
         const timer = setTimeout(() => {
-            const steps = TOURS_BY_ROLE[currentUser.role] || TOURS_BY_ROLE.member
+            const steps = TOURS_BY_ROLE[currentUser.role] || TOURS_BY_ROLE.MEMBER
             setTourSteps(steps)
             setIsActive(true)
             setCurrentStep(0)

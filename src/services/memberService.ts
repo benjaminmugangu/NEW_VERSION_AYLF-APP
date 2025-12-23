@@ -124,10 +124,10 @@ export async function getFilteredMembers(filters: MemberFilters): Promise<Member
   const where: any = {};
 
   // RBAC Enforcement
-  if (user.role === 'site_coordinator') {
+  if (user.role === 'SITE_COORDINATOR') {
     if (!user.siteId) return []; // Orphaned coordinator sees nothing
     where.siteId = user.siteId;
-  } else if (user.role === 'small_group_leader') {
+  } else if (user.role === 'SMALL_GROUP_LEADER') {
     if (!user.smallGroupId) return []; // Orphaned leader sees nothing
     where.smallGroupId = user.smallGroupId;
     // Also implicit specific smallGroupId filter is redundant but safe
@@ -136,14 +136,14 @@ export async function getFilteredMembers(filters: MemberFilters): Promise<Member
   // Specific filter override (only if allowed)
   if (smallGroupId) {
     // If not national, ensure they aren't trying to access another group
-    if (user.role === 'national_coordinator') {
+    if (user.role === 'NATIONAL_COORDINATOR') {
       where.smallGroupId = smallGroupId;
-    } else if (user.role === 'site_coordinator') {
+    } else if (user.role === 'SITE_COORDINATOR') {
       // We already filtered by siteId. smallGroupId must be in that site? 
       // We trust the query will nicely return empty if intersection is empty.
       // But let's set it.
       where.smallGroupId = smallGroupId;
-    } else if (user.role === 'small_group_leader') {
+    } else if (user.role === 'SMALL_GROUP_LEADER') {
       if (smallGroupId !== user.smallGroupId) return []; // Trying to access other group
       where.smallGroupId = smallGroupId;
     }
@@ -201,16 +201,18 @@ export async function getMemberById(memberId: string): Promise<MemberWithDetails
 }
 
 export async function updateMember(memberId: string, formData: MemberFormData): Promise<Member> {
+  // Exclusivity Guard
+  if (formData.level === 'national') {
+    formData.siteId = undefined;
+    formData.smallGroupId = undefined;
+  } else if (formData.level === 'site') {
+    formData.smallGroupId = undefined;
+  }
+
   const updateData: any = {
-    name: formData.name,
-    gender: formData.gender === 'female' ? 'female' : 'male',
-    type: formData.type === 'non-student' ? 'non_student' : 'student',
+    ...formData,
     joinDate: new Date(formData.joinDate),
-    phone: formData.phone,
-    email: formData.email,
-    level: formData.level,
-    siteId: formData.siteId,
-    smallGroupId: formData.smallGroupId,
+    type: formData.type === 'non-student' ? 'non_student' : 'student',
   };
 
   const member = await prisma.member.update({
@@ -228,17 +230,19 @@ export async function deleteMember(memberId: string): Promise<void> {
 }
 
 export async function createMember(formData: MemberFormData): Promise<Member> {
+  // Exclusivity Guard
+  if (formData.level === 'national') {
+    formData.siteId = undefined;
+    formData.smallGroupId = undefined;
+  } else if (formData.level === 'site') {
+    formData.smallGroupId = undefined;
+  }
+
   const member = await prisma.member.create({
     data: {
-      name: formData.name,
-      gender: formData.gender === 'female' ? 'female' : 'male',
-      type: formData.type === 'non-student' ? 'non_student' : 'student',
+      ...formData,
       joinDate: new Date(formData.joinDate),
-      phone: formData.phone,
-      email: formData.email,
-      level: formData.level,
-      siteId: formData.siteId, // Removed ! assertion to allow optional
-      smallGroupId: formData.smallGroupId,
+      type: formData.type === 'non-student' ? 'non_student' : 'student', // Keeps DB enum sync
     },
   });
 

@@ -36,10 +36,7 @@
         "date": "Tarehe",
         "success": "Imefaulu",
         "try_again": "Jaribu Tena",
-        "unknown": "Isiyojulikana",
-        "unknown_site": "Tovuti Isiyojulikana",
-        "unknown_group": "Kikundi Kisichojulikana",
-        "level_national": "Kitaifa"
+        "unknown": "Haijulikani"
     },
     "Dashboard": {
         "welcome": "Karibu, {name} !",
@@ -512,10 +509,10 @@
         }
     },
     "Roles": {
-        "national_coordinator": "Mratibu wa Kitaifa",
-        "site_coordinator": "Mratibu wa Tovuti",
-        "small_group_leader": "Kiongozi wa Kikundi Kidogo",
-        "member": "Mwanachama"
+        "NATIONAL_COORDINATOR": "Mratibu wa Kitaifa",
+        "SITE_COORDINATOR": "Mratibu wa Tovuti",
+        "SMALL_GROUP_LEADER": "Kiongozi wa Kikundi Kidogo",
+        "MEMBER": "Mwanachama"
     },
     "Notifications": {
         "title": "Arifa",

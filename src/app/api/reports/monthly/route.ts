@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getMonthlyActivitySummary, getActivityStatsInPeriod, generateNarrative } from '@/services/monthlyStatsService';
+import { withApiRLS } from '@/lib/apiWrapper';
 
-export async function GET(req: NextRequest) {
+export const GET = withApiRLS(async (req: NextRequest) => {
     try {
         const { searchParams } = new URL(req.url);
         const month = searchParams.get('month');
@@ -22,8 +23,8 @@ export async function GET(req: NextRequest) {
         }
         // Mode 2: Legacy Monthly Reports
         else if (month && year) {
-            const m = parseInt(month);
-            const y = parseInt(year);
+            const m = Number.parseInt(month);
+            const y = Number.parseInt(year);
             if (isNaN(m) || isNaN(y)) {
                 return NextResponse.json({ error: 'Month and Year required' }, { status: 400 });
             }
@@ -41,4 +42,4 @@ export async function GET(req: NextRequest) {
         console.error('Error generating monthly report:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
-}
+});

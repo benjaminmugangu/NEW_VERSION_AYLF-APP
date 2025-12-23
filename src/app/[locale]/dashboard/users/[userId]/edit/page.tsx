@@ -7,8 +7,8 @@ import { getTranslations } from 'next-intl/server';
 export const dynamic = 'force-dynamic';
 
 interface EditUserPageProps {
-  params: Promise<{
-    userId: string;
+  readonly params: Promise<{
+    readonly userId: string;
   }>;
 }
 
@@ -31,7 +31,7 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
     where: { id: user.id },
   });
 
-  if (!currentUser || currentUser.role !== 'national_coordinator') {
+  if (currentUser?.role !== 'NATIONAL_COORDINATOR') {
     redirect("/dashboard");
   }
 

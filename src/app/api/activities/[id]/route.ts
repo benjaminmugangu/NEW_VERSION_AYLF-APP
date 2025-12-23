@@ -3,6 +3,7 @@ import * as z from 'zod';
 import * as activityService from '@/services/activityService';
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { MESSAGES } from '@/lib/messages';
+import { withApiRLS } from '@/lib/apiWrapper';
 
 const activityUpdateSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters long.').optional(),
@@ -16,14 +17,8 @@ const activityUpdateSchema = z.object({
   participants_count_planned: z.number().int().min(0).optional(),
 }).partial();
 
-export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const PATCH = withApiRLS(async (request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   const { id } = await context.params;
-  const { getUser } = getKindeServerSession();
-  const user = await getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
-  }
 
   try {
     const json = await request.json();
@@ -46,17 +41,12 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
     logError('ACTIVITY_UPDATE', error);
     return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
   }
-}
+});
 
 
-export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+
+export const DELETE = withApiRLS(async (request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   const { id } = await context.params;
-  const { getUser } = getKindeServerSession();
-  const user = await getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
-  }
 
   try {
     await activityService.deleteActivity(id);
@@ -67,4 +57,4 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
     logError('ACTIVITY_DELETE', error);
     return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
   }
-}
+});

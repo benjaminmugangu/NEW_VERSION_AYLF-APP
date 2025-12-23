@@ -1,37 +1,27 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { format } from 'date-fns';
 import { MESSAGES } from '@/lib/messages';
+import { withApiRLS } from '@/lib/apiWrapper';
 
-export async function GET(request: Request) {
+export const GET = withApiRLS(async (request: NextRequest) => {
     try {
-        const { isAuthenticated, getUser } = getKindeServerSession();
-        const isAuth = await isAuthenticated();
-
-        if (!isAuth) {
-            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
-        }
-
+        const { getUser } = getKindeServerSession();
         const user = await getUser();
-        if (!user) {
-            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
-        }
 
         const currentUser = await prisma.profile.findUnique({
             where: { id: user.id },
         });
 
-        if (currentUser?.role !== 'national_coordinator') {
+        if (currentUser?.role !== 'NATIONAL_COORDINATOR') {
             return NextResponse.json({ error: MESSAGES.errors.forbidden }, { status: 403 });
         }
 
-        // Parse query params
         const { searchParams } = new URL(request.url);
         const year = searchParams.get('year');
 
-        // Build filter with proper typing
         const where: Prisma.FundAllocationWhereInput = {};
 
         if (year) {
@@ -53,7 +43,6 @@ export async function GET(request: Request) {
             orderBy: { allocationDate: 'desc' },
         });
 
-        // Generate CSV
         const csvRows = [
             ['Date', 'Goal', 'Amount', 'Site', 'Small Group', 'Allocated By'],
         ];
@@ -74,7 +63,7 @@ export async function GET(request: Request) {
         return new NextResponse(csvContent, {
             headers: {
                 'Content-Type': 'text/csv',
-                'Content-Disposition': `attachment; filename="allocations-${format(new Date(), 'yyyyMMdd')}.csv"`,
+                'Content-Disposition': `attachment; filename=" allocations-${format(new Date(), 'yyyyMMdd')}.csv"`,
             },
         });
 
@@ -85,4 +74,4 @@ export async function GET(request: Request) {
             { status: 500 }
         );
     }
-}
+});

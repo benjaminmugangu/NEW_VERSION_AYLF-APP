@@ -36,7 +36,7 @@ export default async function PendingReportsPage() {
     // National Coordinator sees ALL pending reports
     // Site Coordinators see reports from their site
     // Others see their own reports
-    if (currentUser.role === 'site_coordinator' && currentUser.siteId) {
+    if (currentUser.role === 'SITE_COORDINATOR' && currentUser.siteId) {
         where.OR = [
             { siteId: currentUser.siteId },
             {
@@ -44,11 +44,11 @@ export default async function PendingReportsPage() {
                     in: await prisma.smallGroup.findMany({
                         where: { siteId: currentUser.siteId },
                         select: { id: true }
-                    }).then(groups => groups.map(g => g.id))
+                    }).then((groups: any[]) => groups.map((g: any) => g.id))
                 }
             }
         ];
-    } else if (currentUser.role !== 'national_coordinator') {
+    } else if (currentUser.role !== 'NATIONAL_COORDINATOR') {
         where.submittedById = user.id;
     }
 
@@ -69,11 +69,7 @@ export default async function PendingReportsPage() {
             <div>
                 <h1 className="text-3xl font-bold tracking-tight">{t('view_title')}</h1>
                 <p className="text-muted-foreground">
-                    {currentUser.role === 'national_coordinator'
-                        ? t('view_desc')
-                        : currentUser.role === 'site_coordinator'
-                            ? t('view_desc')
-                            : t('view_desc')}
+                    {t('view_desc')}
                 </p>
             </div>
             <PendingReportsClient reports={reports} userRole={currentUser.role} />

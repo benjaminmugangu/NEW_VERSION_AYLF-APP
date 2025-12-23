@@ -1,8 +1,9 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { MESSAGES } from '@/lib/messages';
+import { withApiRLS } from '@/lib/apiWrapper';
 
 const createTransactionSchema = z.object({
     description: z.string().min(1),
@@ -12,30 +13,21 @@ const createTransactionSchema = z.object({
     type: z.enum(['income', 'expense']),
 });
 
-export async function POST(
-    request: Request,
+export const POST = withApiRLS(async (
+    request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
-) {
+) => {
     try {
         const { id } = await params;
-        const { isAuthenticated, getUser } = getKindeServerSession();
-        const isAuth = await isAuthenticated();
-
-        if (!isAuth) {
-            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
-        }
-
+        const { getUser } = getKindeServerSession();
         const user = await getUser();
-        if (!user) {
-            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
-        }
 
         // Verify user is National Coordinator
         const currentUser = await prisma.profile.findUnique({
             where: { id: user.id },
         });
 
-        if (currentUser?.role !== 'national_coordinator') {
+        if (currentUser?.role !== 'NATIONAL_COORDINATOR') {
             return NextResponse.json({ error: MESSAGES.errors.forbidden }, { status: 403 });
         }
 
@@ -84,4 +76,4 @@ export async function POST(
             { status: 500 }
         );
     }
-}
+});

@@ -1,8 +1,9 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import * as z from 'zod';
 import * as siteService from '@/services/siteService';
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { MESSAGES } from '@/lib/messages';
+import { withApiRLS } from '@/lib/apiWrapper';
 
 // Schema for partial updates (PATCH)
 const siteUpdateSchema = z.object({
@@ -37,14 +38,9 @@ const siteUpdateSchema = z.object({
  *       404: {description: "Site not found"}
  *       500: {description: "Internal server error"}
  */
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const PATCH = withApiRLS(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   try {
     const { id } = await params;
-    const { getUser } = getKindeServerSession();
-    const user = await getUser();
-    if (!user) {
-      return new NextResponse(JSON.stringify({ error: MESSAGES.errors.unauthorized }), { status: 401 });
-    }
 
     const json = await request.json();
     const parsedData = siteUpdateSchema.safeParse(json);
@@ -62,7 +58,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const safeMessage = sanitizeError(error);
     return new NextResponse(JSON.stringify({ error: safeMessage }), { status: 500 });
   }
-}
+});
 
 /**
  * @swagger
@@ -82,14 +78,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
  *       404: {description: "Site not found"}
  *       500: {description: "Internal server error"}
  */
-export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const DELETE = withApiRLS(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   try {
     const { id } = await params;
-    const { getUser } = getKindeServerSession();
-    const user = await getUser();
-    if (!user) {
-      return new NextResponse(JSON.stringify({ error: MESSAGES.errors.unauthorized }), { status: 401 });
-    }
 
     await siteService.deleteSite(id);
     return new NextResponse(null, { status: 204 });
@@ -100,4 +91,4 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const safeMessage = sanitizeError(error);
     return new NextResponse(JSON.stringify({ error: safeMessage }), { status: 500 });
   }
-}
+});

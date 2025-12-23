@@ -27,16 +27,16 @@ function formatRole(role: string): string {
 
 // Helper to get entity name
 function getEntityName(profile: any): string {
-    if (profile.role === 'national_coordinator') return 'National';
-    if (profile.role === 'site_coordinator') return `Site de ${profile.site?.name || 'N/A'}`;
-    if (profile.role === 'small_group_leader') return `Groupe ${profile.smallGroup?.name || 'N/A'} (${profile.smallGroup?.site?.name || 'N/A'})`;
+    if (profile.role === 'NATIONAL_COORDINATOR') return 'National';
+    if (profile.role === 'SITE_COORDINATOR') return `Site de ${profile.site?.name || 'N/A'}`;
+    if (profile.role === 'SMALL_GROUP_LEADER') return `Groupe ${profile.smallGroup?.name || 'N/A'} (${profile.smallGroup?.site?.name || 'N/A'})`;
     return 'N/A';
 }
 
 // Mock function for National Coordinator name - in real app, fetch from config or active NC
 async function getNationalCoordinatorName(): Promise<string> {
     const nc = await prisma.profile.findFirst({
-        where: { role: 'national_coordinator', status: 'active' }
+        where: { role: 'NATIONAL_COORDINATOR', status: 'active' }
     });
     return nc?.name || 'Direction Nationale';
 }
@@ -66,7 +66,7 @@ export async function generateCoordinatorCertificate(profileId: string) {
 
     // Generate PDF
     // @ts-ignore - renderToBuffer types might conflict in some environments
-    const pdfBuffer = await renderToBuffer(<CertificateTemplate data={ certificateData } />);
+    const pdfBuffer = await renderToBuffer(<CertificateTemplate data={certificateData} />);
 
     // Upload to Supabase Storage
     const supabase = await createClient();

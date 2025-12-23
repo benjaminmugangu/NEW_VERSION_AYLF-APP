@@ -4,7 +4,7 @@ import { ROLES } from '@/lib/constants';
 export const userFormSchema = z.object({
   name: z.string().min(3, "Name must be at least 3 characters."),
   email: z.string().email("Invalid email address."),
-  role: z.enum([ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER]),
+  role: z.enum([ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER, ROLES.MEMBER]),
   siteId: z.string().nullable().optional(),
   smallGroupId: z.string().nullable().optional(),
   mandateStartDate: z.coerce.date().nullable().optional(),
@@ -20,6 +20,10 @@ export const refinedUserFormSchema = userFormSchema
   .refine(data => data.role !== ROLES.SMALL_GROUP_LEADER || (!!data.siteId && !!data.smallGroupId), {
     message: "Site and Small Group assignment are required for Small Group Leaders.",
     path: ["smallGroupId"],
+  })
+  .refine(data => data.role !== ROLES.NATIONAL_COORDINATOR || (!data.siteId && !data.smallGroupId), {
+    message: "National Coordinators cannot be assigned to a specific site or small group.",
+    path: ["role"],
   })
   .refine(data => !data.mandateEndDate || !data.mandateStartDate || (data.mandateEndDate >= data.mandateStartDate), {
     message: "End date cannot be before start date.",

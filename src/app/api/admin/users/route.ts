@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { prisma } from '@/lib/prisma';
 import { createInvitation } from '@/services/invitationService';
@@ -6,6 +6,7 @@ import { createKindeUser } from '@/services/kindeManagementService';
 import { UserRole } from '@prisma/client';
 import { z } from 'zod';
 import { MESSAGES } from '@/lib/messages';
+import { withApiRLS } from '@/lib/apiWrapper';
 
 const inviteSchema = z.object({
     email: z.string().email(),
@@ -19,13 +20,9 @@ const inviteSchema = z.object({
     mandateEndDate: z.string().optional(),
 });
 
-export async function POST(req: Request) {
+export const POST = withApiRLS(async (req: NextRequest) => {
     try {
-        const { getUser, isAuthenticated } = getKindeServerSession();
-        if (!(await isAuthenticated())) {
-            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
-        }
-
+        const { getUser } = getKindeServerSession();
         const user = await getUser();
         if (!user) {
             return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
@@ -35,7 +32,7 @@ export async function POST(req: Request) {
             where: { id: user.id },
         });
 
-        if (currentUser?.role !== 'national_coordinator') {
+        if (currentUser?.role !== 'NATIONAL_COORDINATOR') {
             return NextResponse.json({ error: MESSAGES.errors.forbidden }, { status: 403 });
         }
 
@@ -81,7 +78,7 @@ export async function POST(req: Request) {
         console.error('[INVITE_USER_ERROR]', error);
         return NextResponse.json({ error: MESSAGES.errors.serverError }, { status: 500 });
     }
-}
+});
 
 // Helper Functions
 
@@ -151,11 +148,11 @@ async function handleRegularFlow(payload: any) {
     }
 
     // Uniqueness Validaition logic
-    if (role === 'site_coordinator' && siteId) {
+    if (role === 'SITE_COORDINATOR' && siteId) {
         const existingCoordinator = await prisma.profile.findFirst({
             where: {
                 siteId: siteId,
-                role: 'site_coordinator',
+                role: 'SITE_COORDINATOR',
                 status: 'active',
                 mandateEndDate: null
             },
@@ -165,7 +162,7 @@ async function handleRegularFlow(payload: any) {
         if (existingCoordinator) {
             return {
                 error: `${existingCoordinator.name} est déjà coordinateur de ${existingCoordinator.site?.name}. Voulez-vous le remplacer ?`,
-                conflictType: 'site_coordinator',
+                conflictType: 'SITE_COORDINATOR',
                 existingCoordinator: {
                     id: existingCoordinator.id,
                     name: existingCoordinator.name,
@@ -177,11 +174,11 @@ async function handleRegularFlow(payload: any) {
         }
     }
 
-    if (role === 'small_group_leader' && smallGroupId) {
+    if (role === 'SMALL_GROUP_LEADER' && smallGroupId) {
         const existingLeader = await prisma.profile.findFirst({
             where: {
                 smallGroupId: smallGroupId,
-                role: 'small_group_leader',
+                role: 'SMALL_GROUP_LEADER',
                 status: 'active',
                 mandateEndDate: null
             },
@@ -191,7 +188,7 @@ async function handleRegularFlow(payload: any) {
         if (existingLeader) {
             return {
                 error: `${existingLeader.name} est déjà leader de ${existingLeader.smallGroup?.name}. Voulez-vous le remplacer ?`,
-                conflictType: 'small_group_leader',
+                conflictType: 'SMALL_GROUP_LEADER',
                 existingLeader: {
                     id: existingLeader.id,
                     name: existingLeader.name,

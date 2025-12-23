@@ -1,10 +1,11 @@
 // src/app/api/users/route.ts
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/utils/supabase/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { MESSAGES } from '@/lib/messages';
+import { withApiRLS } from '@/lib/apiWrapper';
 
 // Helper to generate a random password
 const generatePassword = (length = 12) => {
@@ -20,7 +21,7 @@ const generatePassword = (length = 12) => {
 const userCreateSchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters long'),
   email: z.string().email('Invalid email address'),
-  role: z.enum(['national_coordinator', 'site_coordinator', 'small_group_leader', 'member']),
+  role: z.enum(['NATIONAL_COORDINATOR', 'SITE_COORDINATOR', 'SMALL_GROUP_LEADER', 'MEMBER']),
   siteId: z.string().optional().nullable(),
   smallGroupId: z.string().optional().nullable(),
   status: z.enum(['active', 'inactive']).optional().default('active'),
@@ -36,14 +37,9 @@ const userCreateSchema = z.object({
   path: ['mandateEndDate'],
 });
 
-export async function POST(request: Request) {
-  // Authenticate via Kinde
+export const POST = withApiRLS(async (request: NextRequest) => {
   const { getUser } = getKindeServerSession();
   const user = await getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
-  }
 
   // Get user profile from Supabase to check role
   const supabase = await createClient();
@@ -53,7 +49,7 @@ export async function POST(request: Request) {
     .eq('id', user.id)
     .single();
 
-  if (profile?.role !== 'national_coordinator') {
+  if (profile?.role !== 'NATIONAL_COORDINATOR') {
     return NextResponse.json({ error: MESSAGES.errors.forbidden }, { status: 403 });
   }
 
@@ -81,10 +77,10 @@ export async function POST(request: Request) {
         name,
         role,
         status,
-        site_id: siteId,
-        small_group_id: smallGroupId,
-        mandate_start_date: mandateStartDate,
-        mandate_end_date: mandateEndDate,
+        siteId: siteId,
+        smallGroupId: smallGroupId,
+        mandateStartDate: mandateStartDate,
+        mandateEndDate: mandateEndDate,
       },
     });
 
@@ -103,7 +99,7 @@ export async function POST(request: Request) {
       message: MESSAGES.success.created,
       user: {
         email,
-        // ✅ SECURITY: Password never returned in response
+        // SECURITY: Password never returned in response
         // It should be sent via email only
       }
     }, { status: 201 });
@@ -112,4 +108,4 @@ export async function POST(request: Request) {
     console.error('Failed to create Kinde user:', kindeError);
     return NextResponse.json({ error: MESSAGES.errors.serverError }, { status: 500 });
   }
-}
+});

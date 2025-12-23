@@ -53,6 +53,16 @@ export async function getAdvancedDashboard(
     const where = buildUserFilter(user);
     const periodRange = getPeriodRange(timeRange);
 
+    // 1. Check if the requested period range contains closed periods
+    const closedPeriods = await prisma.accountingPeriod.findMany({
+        where: {
+            status: 'closed',
+            startDate: { lte: endOfMonth(new Date()) },
+            endDate: { gte: subMonths(new Date(), periodRange) },
+        },
+        orderBy: { endDate: 'desc' }
+    });
+
     // Calculate metrics
     const [
         activeMembers,
@@ -63,7 +73,7 @@ export async function getAdvancedDashboard(
         countActiveMembers(where),
         countOngoingActivities(where),
         countPendingReports(where),
-        getBudgetUtilization(user),
+        getBudgetUtilization(user, closedPeriods),
     ]);
 
     // Calculate trends
@@ -103,9 +113,9 @@ export async function getAdvancedDashboard(
 function buildUserFilter(user: User): any {
     const where: any = {};
 
-    if (user.role === 'site_coordinator' && user.siteId) {
+    if (user.role === 'SITE_COORDINATOR' && user.siteId) {
         where.siteId = user.siteId;
-    } else if (user.role === 'small_group_leader' && user.smallGroupId) {
+    } else if (user.role === 'SMALL_GROUP_LEADER' && user.smallGroupId) {
         where.smallGroupId = user.smallGroupId;
     }
 
@@ -156,16 +166,28 @@ async function countPendingReports(where: any): Promise<number> {
     });
 }
 
-async function getBudgetUtilization(user: User): Promise<{ utilization: number }> {
+async function getBudgetUtilization(user: User, closedPeriods: any[]): Promise<{ utilization: number }> {
     let entityId: string | null = null;
     let entityType: 'site' | 'smallGroup' | 'national' = 'national';
 
-    if (user.role === 'site_coordinator' && user.siteId) {
+    if (user.role === 'SITE_COORDINATOR' && user.siteId) {
         entityId = user.siteId;
         entityType = 'site';
-    } else if (user.role === 'small_group_leader' && user.smallGroupId) {
+    } else if (user.role === 'SMALL_GROUP_LEADER' && user.smallGroupId) {
         entityId = user.smallGroupId;
         entityType = 'smallGroup';
+    }
+
+    // ANTI-MIRAGE: Check if current month is closed
+    const currentMonthStart = startOfMonth(new Date());
+    const snapshot = closedPeriods.find(p => p.startDate.getTime() === currentMonthStart.getTime());
+
+    if (snapshot && snapshot.snapshotData) {
+        const data = snapshot.snapshotData as any;
+        const entityKey = entityId || 'national';
+        if (data[entityKey]) {
+            return { utilization: Math.round(data[entityKey].utilization || 0) };
+        }
     }
 
     if (!entityId && entityType !== 'national') {
@@ -185,6 +207,7 @@ async function getBudgetUtilization(user: User): Promise<{ utilization: number }
             where: {
                 ...where,
                 type: 'income',
+                status: 'approved'
             },
             _sum: { amount: true },
         }),
@@ -192,6 +215,7 @@ async function getBudgetUtilization(user: User): Promise<{ utilization: number }
             where: {
                 ...where,
                 type: 'expense',
+                status: 'approved'
             },
             _sum: { amount: true },
         }),
@@ -292,8 +316,24 @@ async function getBudgetForecastTrend(user: User, periods: number): Promise<Tren
 }
 
 async function getSitePerformanceComparison(user: User): Promise<SitePerformance[]> {
-    if (user.role !== 'national_coordinator') {
+    if (user.role !== 'NATIONAL_COORDINATOR') {
         return [];
+    }
+
+    // ANTI-MIRAGE: Check if current month is closed
+    const currentMonthStart = startOfMonth(new Date());
+    const closedPeriod = await prisma.accountingPeriod.findFirst({
+        where: {
+            status: 'closed',
+            startDate: { equals: currentMonthStart }
+        }
+    });
+
+    if (closedPeriod && closedPeriod.snapshotData) {
+        const data = closedPeriod.snapshotData as any;
+        if (data.sitePerformance) {
+            return data.sitePerformance as SitePerformance[];
+        }
     }
 
     const sites = await prisma.site.findMany({

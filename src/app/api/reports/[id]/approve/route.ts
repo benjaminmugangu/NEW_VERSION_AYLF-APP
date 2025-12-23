@@ -4,20 +4,17 @@ import * as profileService from '@/services/profileService';
 import * as reportService from '@/services/reportService';
 import notificationService from '@/services/notificationService';
 import { MESSAGES } from '@/lib/messages';
+import { withApiRLS } from '@/lib/apiWrapper';
 
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withApiRLS(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
     try {
         const { getUser } = getKindeServerSession();
         const user = await getUser();
 
-        if (!user) {
-            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
-        }
-
         const profile = await profileService.getProfile(user.id);
 
         // Only National Coordinators can approve reports
-        if (profile.role !== 'national_coordinator') {
+        if (profile.role !== 'NATIONAL_COORDINATOR') {
             return NextResponse.json({ error: MESSAGES.errors.forbidden }, { status: 403 });
         }
 
@@ -55,4 +52,4 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             { status: 500 }
         );
     }
-}
+});

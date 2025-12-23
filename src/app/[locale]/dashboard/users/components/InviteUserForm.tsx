@@ -53,7 +53,7 @@ interface InviteUserFormProps {
 }
 
 interface ConflictData {
-    conflictType: 'site_coordinator' | 'small_group_leader';
+    conflictType: 'SITE_COORDINATOR' | 'SMALL_GROUP_LEADER';
     existingCoordinator?: {
         id: string;
         name: string;
@@ -88,14 +88,14 @@ export default function InviteUserForm({ sites, smallGroups }: InviteUserFormPro
     // Filter roles based on permissions to prevent escalation
     const allowedRoles = useMemo(() => {
         const roles = [
-            { value: 'member', label: tRoles('member') },
-            { value: 'small_group_leader', label: tRoles('small_group_leader') },
-            { value: 'site_coordinator', label: tRoles('site_coordinator') },
-            { value: 'national_coordinator', label: tRoles('national_coordinator') },
+            { value: 'MEMBER', label: tRoles('MEMBER') },
+            { value: 'SMALL_GROUP_LEADER', label: tRoles('SMALL_GROUP_LEADER') },
+            { value: 'SITE_COORDINATOR', label: tRoles('SITE_COORDINATOR') },
+            { value: 'NATIONAL_COORDINATOR', label: tRoles('NATIONAL_COORDINATOR') },
         ];
 
-        if (isSGL) return roles.filter(r => r.value === 'member');
-        if (isSiteCoord) return roles.filter(r => r.value === 'member' || r.value === 'small_group_leader');
+        if (isSGL) return roles.filter(r => r.value === 'MEMBER');
+        if (isSiteCoord) return roles.filter(r => r.value === 'MEMBER' || r.value === 'SMALL_GROUP_LEADER');
         return roles;
     }, [isSGL, isSiteCoord, tRoles]);
 
@@ -117,7 +117,7 @@ export default function InviteUserForm({ sites, smallGroups }: InviteUserFormPro
         defaultValues: {
             email: '',
             name: '',
-            role: 'member',
+            role: 'MEMBER' as UserRole,
             // Context injection
             siteId: isSiteCoord && currentUser.siteId ? currentUser.siteId : undefined,
             smallGroupId: isSGL && currentUser.smallGroupId ? currentUser.smallGroupId : undefined,
@@ -147,7 +147,7 @@ export default function InviteUserForm({ sites, smallGroups }: InviteUserFormPro
             const data = await response.json();
 
             if (!response.ok) {
-                if (response.status === 409 && (data.conflictType === 'site_coordinator' || data.conflictType === 'small_group_leader')) {
+                if (response.status === 409 && (data.conflictType === 'SITE_COORDINATOR' || data.conflictType === 'SMALL_GROUP_LEADER')) {
                     setConflictData(data);
                     setPendingInvitation(values);
                     setIsLoading(false);
@@ -338,7 +338,7 @@ export default function InviteUserForm({ sites, smallGroups }: InviteUserFormPro
                         )}
                     />
 
-                    {(selectedRole === 'site_coordinator' || selectedRole === 'small_group_leader' || selectedRole === 'member') && (
+                    {(selectedRole === 'SITE_COORDINATOR' || selectedRole === 'SMALL_GROUP_LEADER' || selectedRole === 'MEMBER') && (
                         <FormField
                             control={form.control}
                             name="siteId"
@@ -370,7 +370,7 @@ export default function InviteUserForm({ sites, smallGroups }: InviteUserFormPro
                         />
                     )}
 
-                    {(selectedRole === 'small_group_leader' || selectedRole === 'member') && (
+                    {(selectedRole === 'SMALL_GROUP_LEADER' || selectedRole === 'MEMBER') && (
                         <FormField
                             control={form.control}
                             name="smallGroupId"

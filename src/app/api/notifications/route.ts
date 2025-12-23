@@ -3,6 +3,7 @@ import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import notificationService from '@/services/notificationService';
 import { MESSAGES } from '@/lib/messages';
 import * as z from 'zod';
+import { withApiRLS } from '@/lib/apiWrapper';
 
 // ✅ Zod schemas for validation (ADDED - FIX FOR ITERATION 4)
 const notificationPatchSchema = z.object({
@@ -23,24 +24,13 @@ const notificationDeleteSchema = z.object({
  *   - unread: 'true' to get only unread notifications
  *   - limit: number of notifications to fetch (default 50)
  */
-export async function GET(request: NextRequest) {
+export const GET = withApiRLS(async (request: NextRequest) => {
     try {
-        const { getUser, isAuthenticated } = getKindeServerSession();
-        const isAuth = await isAuthenticated();
-
-        if (!isAuth) {
-            return NextResponse.json(
-                { error: MESSAGES.errors.unauthorized },
-                { status: 401 }
-            );
-        }
-
+        const { getUser } = getKindeServerSession();
         const user = await getUser();
+
         if (!user) {
-            return NextResponse.json(
-                { error: MESSAGES.errors.unauthorized },
-                { status: 401 }
-            );
+            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
         }
 
         const { searchParams } = new URL(request.url);
@@ -65,30 +55,19 @@ export async function GET(request: NextRequest) {
             { status: 500 }
         );
     }
-}
+});
 
 /**
  * PATCH /api/notifications/[id]
  * Mark a notification as read
  */
-export async function PATCH(request: NextRequest) {
+export const PATCH = withApiRLS(async (request: NextRequest) => {
     try {
-        const { getUser, isAuthenticated } = getKindeServerSession();
-        const isAuth = await isAuthenticated();
-
-        if (!isAuth) {
-            return NextResponse.json(
-                { error: MESSAGES.errors.unauthorized },
-                { status: 401 }
-            );
-        }
-
+        const { getUser } = getKindeServerSession();
         const user = await getUser();
+
         if (!user) {
-            return NextResponse.json(
-                { error: MESSAGES.errors.unauthorized },
-                { status: 401 }
-            );
+            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
         }
 
         const body = await request.json();
@@ -135,31 +114,16 @@ export async function PATCH(request: NextRequest) {
             { status: 500 }
         );
     }
-}
+});
 
 /**
  * DELETE /api/notifications/[id]
  * Delete a notification
  */
-export async function DELETE(request: NextRequest) {
+export const DELETE = withApiRLS(async (request: NextRequest) => {
     try {
-        const { getUser, isAuthenticated } = getKindeServerSession();
-        const isAuth = await isAuthenticated();
-
-        if (!isAuth) {
-            return NextResponse.json(
-                { error: MESSAGES.errors.unauthorized },
-                { status: 401 }
-            );
-        }
-
+        const { getUser } = getKindeServerSession();
         const user = await getUser();
-        if (!user) {
-            return NextResponse.json(
-                { error: MESSAGES.errors.unauthorized },
-                { status: 401 }
-            );
-        }
 
         const body = await request.json();
 
@@ -187,4 +151,4 @@ export async function DELETE(request: NextRequest) {
             { status: 500 }
         );
     }
-}
+});

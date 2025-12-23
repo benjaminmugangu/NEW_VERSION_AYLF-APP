@@ -1,26 +1,29 @@
 import { describe, it, expect } from 'vitest';
 import { mapDbUserToUser, mapUserToDb } from './mappers';
-import type { DbUser, User } from './types';
+import type { User } from './types';
+import type { Profile } from '@prisma/client';
 
 describe('User Mappers', () => {
   it('mapDbUserToUser should convert snake_case to camelCase', () => {
-    const dbUser: DbUser = {
+    const dbUser: Profile = {
       id: 'user-1',
       name: 'John Doe',
       email: 'john.doe@example.com',
-      role: 'site_coordinator',
+      role: 'SITE_COORDINATOR',
       status: 'active',
-      site_id: 'site-1',
-      small_group_id: 'sg-1',
-      mandate_start_date: '2023-01-01T00:00:00.000Z',
-      mandate_end_date: '2024-01-01T00:00:00.000Z',
+      siteId: 'site-1',
+      smallGroupId: 'sg-1',
+      mandateStartDate: new Date('2023-01-01T00:00:00.000Z'),
+      mandateEndDate: new Date('2024-01-01T00:00:00.000Z'),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
 
     const expectedUser: User = {
       id: 'user-1',
       name: 'John Doe',
       email: 'john.doe@example.com',
-      role: 'site_coordinator',
+      role: 'SITE_COORDINATOR',
       status: 'active',
       siteId: 'site-1',
       smallGroupId: 'sg-1',
@@ -39,13 +42,9 @@ describe('User Mappers', () => {
       mandateStartDate: '2023-02-01T00:00:00.000Z',
     };
 
-    const expectedDbUser: Partial<DbUser> = {
-      name: 'Jane Doe',
-      site_id: 'site-2',
-      mandate_start_date: '2023-02-01T00:00:00.000Z',
-    };
+  };
 
-    const result = mapUserToDb(userUpdate);
-    expect(result).toEqual(expectedDbUser);
-  });
+  const result = mapUserToDb(userUpdate);
+  expect(result).toEqual(expectedDbUser);
+});
 });

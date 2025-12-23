@@ -3,20 +3,12 @@ import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { MESSAGES } from '@/lib/messages';
+import { withApiRLS } from '@/lib/apiWrapper';
 
-export async function GET(request: NextRequest) {
+export const GET = withApiRLS(async (request: NextRequest) => {
     try {
-        const { getUser, isAuthenticated } = getKindeServerSession();
-        const isAuth = await isAuthenticated();
-
-        if (!isAuth) {
-            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
-        }
-
+        const { getUser } = getKindeServerSession();
         const user = await getUser();
-        if (!user) {
-            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
-        }
 
         // Check if user is National Coordinator
         const profile = await prisma.profile.findUnique({
@@ -24,7 +16,7 @@ export async function GET(request: NextRequest) {
             select: { role: true }
         });
 
-        if (profile?.role !== 'national_coordinator') {
+        if (profile?.role !== 'NATIONAL_COORDINATOR') {
             return NextResponse.json({ error: MESSAGES.errors.forbidden }, { status: 403 });
         }
 
@@ -33,7 +25,7 @@ export async function GET(request: NextRequest) {
         const actorId = searchParams.get('actorId') || undefined;
         const from = searchParams.get('from') || undefined;
         const to = searchParams.get('to') || undefined;
-        const limit = parseInt(searchParams.get('limit') || '100', 10);
+        const limit = Number.parseInt(searchParams.get('limit') || '100', 10);
 
         const where: Prisma.AuditLogWhereInput = {};
 
@@ -77,4 +69,4 @@ export async function GET(request: NextRequest) {
             { status: 500 }
         );
     }
-}
+});

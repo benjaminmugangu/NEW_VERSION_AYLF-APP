@@ -34,19 +34,18 @@ export async function getAllocations(filters?: { siteId?: string; smallGroupId?:
     allocationDate: allocation.allocationDate.toISOString(),
     goal: allocation.goal,
     source: allocation.source,
-    status: allocation.status,
+    status: allocation.status as any,
     allocatedById: allocation.allocatedById,
-    siteId: allocation.siteId,
-    smallGroupId: allocation.smallGroupId,
-    notes: allocation.notes,
+    siteId: allocation.siteId || undefined,
+    smallGroupId: allocation.smallGroupId || undefined,
+    notes: allocation.notes || undefined,
     allocatedByName: allocation.allocatedBy.name,
     siteName: allocation.site?.name,
     smallGroupName: allocation.smallGroup?.name,
-    fromSiteName: (allocation as any).fromSite?.name || 'National', // map the source name
-    sourceTransactionId: null,
-    fromSiteId: allocation.fromSiteId,
-    proofUrl: allocation.proofUrl,
-  } as FundAllocation));
+    fromSiteName: allocation.fromSite?.name || 'National',
+    fromSiteId: allocation.fromSiteId || undefined,
+    proofUrl: allocation.proofUrl || undefined,
+  }));
 }
 
 export async function getAllocationById(id: string): Promise<FundAllocation> {
@@ -70,32 +69,34 @@ export async function getAllocationById(id: string): Promise<FundAllocation> {
     allocationDate: allocation.allocationDate.toISOString(),
     goal: allocation.goal,
     source: allocation.source,
-    status: allocation.status,
+    status: allocation.status as any,
     allocatedById: allocation.allocatedById,
-    siteId: allocation.siteId,
-    smallGroupId: allocation.smallGroupId,
-    notes: allocation.notes,
+    siteId: allocation.siteId || undefined,
+    smallGroupId: allocation.smallGroupId || undefined,
+    notes: allocation.notes || undefined,
     allocatedByName: allocation.allocatedBy.name,
     siteName: allocation.site?.name,
     smallGroupName: allocation.smallGroup?.name,
-    fromSiteName: (allocation as any).fromSite?.name || 'National',
-    sourceTransactionId: null,
-    fromSiteId: allocation.fromSiteId,
-    proofUrl: allocation.proofUrl,
-  } as FundAllocation;
+    fromSiteName: allocation.fromSite?.name || 'National',
+    fromSiteId: allocation.fromSiteId || undefined,
+    proofUrl: allocation.proofUrl || undefined,
+  };
 }
 
 export async function createAllocation(formData: FundAllocationFormData): Promise<FundAllocation> {
   // Budget validation: Check if sender has sufficient funds
-  // Only check for Site and Small Group allocations (fromSiteId exists)
   if (formData.fromSiteId) {
     const budget = await calculateAvailableBudget({ siteId: formData.fromSiteId });
-
     if (budget.available < formData.amount) {
-      throw new Error(
-        `Budget insuffisant. Disponible: ${budget.available.toFixed(2)} FCFA, Demandé: ${formData.amount.toFixed(2)} FCFA`
-      );
+      throw new Error(`Budget insuffisant. Disponible: ${budget.available.toFixed(2)} FCFA`);
     }
+  }
+
+  // Exclusivity Guard
+  // (Allocations usually go to a Site OR a SmallGroup)
+  if (formData.smallGroupId) {
+    // If it's for a group, it MUST have a siteId (the parent site)
+    if (!formData.siteId) throw new Error('Site ID is required for small group allocations.');
   }
 
   const allocation = await prisma.fundAllocation.create({
@@ -116,36 +117,18 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
       allocatedBy: true,
       site: true,
       smallGroup: true,
+      fromSite: true,
     }
   });
 
-  return {
-    id: allocation.id,
-    amount: allocation.amount,
-    allocationDate: allocation.allocationDate.toISOString(),
-    goal: allocation.goal,
-    source: allocation.source,
-    status: allocation.status,
-    allocatedById: allocation.allocatedById,
-    siteId: allocation.siteId,
-    smallGroupId: allocation.smallGroupId,
-    notes: allocation.notes,
-    allocatedByName: allocation.allocatedBy.name,
-    siteName: allocation.site?.name,
-    smallGroupName: allocation.smallGroup?.name,
-    sourceTransactionId: null,
-    fromSiteId: allocation.fromSiteId,
-    proofUrl: allocation.proofUrl,
-  } as FundAllocation;
+  return getAllocationById(allocation.id);
 }
 
 export async function updateAllocation(id: string, formData: Partial<FundAllocationFormData>): Promise<FundAllocation> {
   const updateData: any = {};
-
   if (formData.amount !== undefined) updateData.amount = formData.amount;
   if (formData.allocationDate) updateData.allocationDate = new Date(formData.allocationDate);
   if (formData.goal !== undefined) updateData.goal = formData.goal;
-  if (formData.source !== undefined) updateData.source = formData.source;
   if (formData.status !== undefined) updateData.status = formData.status;
   if (formData.siteId !== undefined) updateData.siteId = formData.siteId;
   if (formData.smallGroupId !== undefined) updateData.smallGroupId = formData.smallGroupId;

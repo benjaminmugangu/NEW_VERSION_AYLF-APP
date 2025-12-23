@@ -12,14 +12,23 @@ export interface CreateInvitationData {
 }
 
 export async function createInvitation(data: CreateInvitationData) {
-    // Check if invitation already exists
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
     const existingInvitation = await prisma.userInvitation.findUnique({
         where: { email: data.email },
     });
 
-    // ✅ Calculate expiration (7 days from now)
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
+    // ✅ Apply Exclusivity Guards based on Role
+    let siteId = data.siteId;
+    let smallGroupId = data.smallGroupId;
+
+    if (data.role === 'NATIONAL_COORDINATOR') {
+        siteId = undefined;
+        smallGroupId = undefined;
+    } else if (data.role === 'SITE_COORDINATOR') {
+        smallGroupId = undefined;
+    }
 
     if (existingInvitation) {
         // ✅ FIX INV-004: Regenerate token on update (security)
@@ -28,8 +37,8 @@ export async function createInvitation(data: CreateInvitationData) {
             data: {
                 token: randomUUID(), // ✅ New token (prevents old token reuse)
                 role: data.role,
-                siteId: data.siteId,
-                smallGroupId: data.smallGroupId,
+                siteId: siteId,
+                smallGroupId: smallGroupId,
                 mandateStartDate: data.mandateStartDate, // ✅ Save mandate dates
                 mandateEndDate: data.mandateEndDate,
                 status: 'pending',
@@ -44,8 +53,8 @@ export async function createInvitation(data: CreateInvitationData) {
             email: data.email,
             token: randomUUID(), // ✅ Cryptographically secure UUIDv4
             role: data.role,
-            siteId: data.siteId,
-            smallGroupId: data.smallGroupId,
+            siteId: siteId,
+            smallGroupId: smallGroupId,
             mandateStartDate: data.mandateStartDate, // ✅ Save mandate dates
             mandateEndDate: data.mandateEndDate,
             expiresAt, // ✅ FIX INV-003: 7-day expiration

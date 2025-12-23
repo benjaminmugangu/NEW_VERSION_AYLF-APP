@@ -110,10 +110,10 @@ const MEMBER_STEPS: Step[] = [
 ]
 
 const STEPS_BY_ROLE: Record<string, Step[]> = {
-    national_coordinator: NATIONAL_COORDINATOR_STEPS,
-    site_coordinator: SITE_COORDINATOR_STEPS,
-    small_group_leader: SMALL_GROUP_LEADER_STEPS,
-    member: MEMBER_STEPS,
+    NATIONAL_COORDINATOR: NATIONAL_COORDINATOR_STEPS,
+    SITE_COORDINATOR: SITE_COORDINATOR_STEPS,
+    SMALL_GROUP_LEADER: SMALL_GROUP_LEADER_STEPS,
+    MEMBER: MEMBER_STEPS,
 }
 
 export function OnboardingTour() {

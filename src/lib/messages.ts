@@ -122,10 +122,10 @@ export const MESSAGES = {
 
     // Roles
     roles: {
-        national_coordinator: 'Coordinateur National',
-        site_coordinator: 'Coordinateur de Site',
-        small_group_leader: 'Leader de Petit Groupe',
-        member: 'Membre',
+        NATIONAL_COORDINATOR: 'Coordinateur National',
+        SITE_COORDINATOR: 'Coordinateur de Site',
+        SMALL_GROUP_LEADER: 'Leader de Petit Groupe',
+        MEMBER: 'Membre',
     },
 } as const;
 

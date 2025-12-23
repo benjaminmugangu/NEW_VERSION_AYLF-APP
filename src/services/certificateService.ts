@@ -36,7 +36,7 @@ export async function getCertificateRoster(filters: CertificateRosterFilters): P
   // Build where clause for date filtering
   const where: any = {
     role: {
-      in: ['national_coordinator', 'site_coordinator', 'small_group_leader']
+      in: ['NATIONAL_COORDINATOR', 'SITE_COORDINATOR', 'SMALL_GROUP_LEADER']
     },
     mandateStartDate: {
       not: null
@@ -88,11 +88,11 @@ export async function getCertificateRoster(filters: CertificateRosterFilters): P
   const rosterMembers: RosterMember[] = profiles.map(profile => {
     // Determine entity name based on role
     let entityName = 'N/A';
-    if (profile.role === 'national_coordinator') {
+    if (profile.role === 'NATIONAL_COORDINATOR') {
       entityName = 'National';
-    } else if (profile.role === 'site_coordinator' && profile.site) {
+    } else if (profile.role === 'SITE_COORDINATOR' && profile.site) {
       entityName = profile.site.name;
-    } else if (profile.role === 'small_group_leader' && profile.smallGroup) {
+    } else if (profile.role === 'SMALL_GROUP_LEADER' && profile.smallGroup) {
       const siteName = profile.smallGroup.site?.name || 'Unknown Site';
       entityName = `${profile.smallGroup.name} (${siteName})`;
     }
