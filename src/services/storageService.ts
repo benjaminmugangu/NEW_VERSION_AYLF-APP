@@ -124,7 +124,7 @@ const storageService = {
       .from('report-images')
       .getPublicUrl(filePath);
 
-    if (!urlData || !urlData.publicUrl) {
+    if (!urlData?.publicUrl) {
       console.error('[StorageService] Could not retrieve public URL.');
       throw new Error('Could not retrieve public URL for the uploaded file.');
     }

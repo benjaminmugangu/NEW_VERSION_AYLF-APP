@@ -27,7 +27,7 @@ export interface RosterMember {
 
 const getRoleDisplayName = (role: string) => {
   // Replace underscores with spaces, capitalize words, fix SG
-  return role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()).replace('Sg', 'SG');
+  return role.replaceAll('_', ' ').replace(/\b\w/g, l => l.toUpperCase()).replace('Sg', 'SG');
 };
 
 export async function getCertificateRoster(filters: CertificateRosterFilters): Promise<RosterMember[]> {

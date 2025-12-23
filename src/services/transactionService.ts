@@ -1,7 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import { FinancialTransaction, User, TransactionFormData, UserRole } from '@/lib/types';
+import { FinancialTransaction, User, TransactionFormData } from '@/lib/types';
 import { getDateRangeFromFilterValue, type DateFilterValue } from '@/lib/dateUtils';
 import { logTransactionCreation, logTransactionApproval, createAuditLog } from './auditLogService';
 
@@ -120,29 +120,7 @@ export async function getFilteredTransactions(filters: TransactionFilters): Prom
 }
 
 export async function createTransaction(formData: TransactionFormData): Promise<FinancialTransaction> {
-  // ✅ Apply Exclusivity Guards
-  let siteId = formData.siteId;
-  let smallGroupId = formData.smallGroupId;
-
-  if (formData.relatedActivityId) {
-    const activity = await prisma.activity.findUnique({
-      where: { id: formData.relatedActivityId },
-      select: { level: true, siteId: true, smallGroupId: true }
-    });
-
-    if (activity) {
-      if (activity.level === 'national') {
-        siteId = undefined;
-        smallGroupId = undefined;
-      } else if (activity.level === 'site') {
-        siteId = activity.siteId || siteId;
-        smallGroupId = undefined;
-      } else if (activity.level === 'small_group') {
-        siteId = activity.siteId || siteId;
-        smallGroupId = activity.smallGroupId || smallGroupId;
-      }
-    }
-  }
+  const { siteId, smallGroupId } = await resolveTransactionContext(formData);
 
   const tx = await prisma.financialTransaction.create({
     data: {
@@ -154,7 +132,7 @@ export async function createTransaction(formData: TransactionFormData): Promise<
       siteId,
       smallGroupId,
       recordedById: formData.recordedById,
-      status: formData.status || 'approved', // Default approved for National/Site direct creation
+      status: formData.status || 'approved',
       proofUrl: formData.proofUrl,
       relatedActivityId: formData.relatedActivityId,
       relatedReportId: formData.relatedReportId,
@@ -167,10 +145,28 @@ export async function createTransaction(formData: TransactionFormData): Promise<
     }
   });
 
-  // Audit log
   await logTransactionCreation(formData.recordedById, tx.id, tx).catch(console.error);
-
   return mapPrismaTransactionToModel(tx);
+}
+
+/** Helper to resolve site/group context from related activity if present */
+async function resolveTransactionContext(formData: TransactionFormData) {
+  let { siteId, smallGroupId } = formData;
+
+  if (formData.relatedActivityId) {
+    const activity = await prisma.activity.findUnique({
+      where: { id: formData.relatedActivityId },
+      select: { level: true, siteId: true, smallGroupId: true }
+    });
+
+    if (activity) {
+      if (activity.level === 'national') return { siteId: undefined, smallGroupId: undefined };
+      if (activity.level === 'site') return { siteId: activity.siteId || siteId, smallGroupId: undefined };
+      return { siteId: activity.siteId || siteId, smallGroupId: activity.smallGroupId || smallGroupId };
+    }
+  }
+
+  return { siteId, smallGroupId };
 }
 
 export async function updateTransaction(id: string, formData: Partial<TransactionFormData>): Promise<FinancialTransaction> {

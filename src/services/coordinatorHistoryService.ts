@@ -62,21 +62,35 @@ export async function getCoordinatorHistory(filters?: {
         ]
     });
 
-    return profiles.map(p => ({
-        id: p.id,
-        name: p.name,
-        email: p.email,
-        role: p.role,
-        entityType: p.role === 'NATIONAL_COORDINATOR' ? 'national' :
-            p.role === 'SITE_COORDINATOR' ? 'site' : 'small_group',
-        entityName: p.role === 'NATIONAL_COORDINATOR' ? 'National' :
-            p.role === 'SITE_COORDINATOR' ? p.site?.name || 'N/A' :
-                p.smallGroup ? `${p.smallGroup.name} (${p.smallGroup.site?.name})` : 'N/A',
-        mandateStartDate: p.mandateStartDate!,
-        mandateEndDate: p.mandateEndDate,
-        isActive: p.mandateEndDate === null,
-        duration: calculateDuration(p.mandateStartDate, p.mandateEndDate)
-    }));
+    return profiles.map(p => {
+        const entityType = resolveEntityType(p.role);
+        const entityName = resolveEntityName(p);
+
+        return {
+            id: p.id,
+            name: p.name,
+            email: p.email,
+            role: p.role,
+            entityType,
+            entityName,
+            mandateStartDate: p.mandateStartDate!,
+            mandateEndDate: p.mandateEndDate,
+            isActive: p.mandateEndDate === null,
+            duration: calculateDuration(p.mandateStartDate, p.mandateEndDate)
+        };
+    });
+}
+
+function resolveEntityType(role: string): 'national' | 'site' | 'small_group' {
+    if (role === 'NATIONAL_COORDINATOR') return 'national';
+    if (role === 'SITE_COORDINATOR') return 'site';
+    return 'small_group';
+}
+
+function resolveEntityName(p: any): string {
+    if (p.role === 'NATIONAL_COORDINATOR') return 'National';
+    if (p.role === 'SITE_COORDINATOR') return p.site?.name || 'N/A';
+    return p.smallGroup ? `${p.smallGroup.name} (${p.smallGroup.site?.name || 'N/A'})` : 'N/A';
 }
 
 function calculateDuration(start: Date | null, end: Date | null): string {

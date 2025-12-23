@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as z from 'zod';
 import * as smallGroupService from '@/services/smallGroupService';
-import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { MESSAGES } from '@/lib/messages';
 import { withApiRLS } from '@/lib/apiWrapper';
 

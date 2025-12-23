@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import { prisma } from '@/lib/prisma';
-import * as profileService from '@/services/profileService';
 import { checkDeletionEligibility } from '@/lib/safetyChecks';
 import { z } from 'zod';
 import { UserRole } from '@prisma/client';

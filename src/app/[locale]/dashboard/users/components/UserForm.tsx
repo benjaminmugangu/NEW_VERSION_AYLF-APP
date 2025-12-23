@@ -39,7 +39,6 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
 
   // Determine permissions based on CURRENT USER (The Creator)
   const isNational = currentUser?.role === ROLES.NATIONAL_COORDINATOR;
-  const isSiteCoord = currentUser?.role === ROLES.SITE_COORDINATOR;
 
   // Initialize default values with context awareness
   const defaultValues: Partial<UserFormData> = user ? {
@@ -85,6 +84,7 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
           }
         }
       } catch (error) {
+        console.error('Error fetching sites:', error);
         toast({ title: 'Error loading sites', description: 'Failed to load sites context', variant: 'destructive' });
       }
     };
@@ -99,6 +99,7 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
           const smallGroups = await smallGroupService.getSmallGroupsBySite(watchedSiteId);
           setAvailableSmallGroups(smallGroups);
         } catch (error) {
+          console.error('Error fetching small groups:', error);
           setAvailableSmallGroups([]);
         }
       } else {

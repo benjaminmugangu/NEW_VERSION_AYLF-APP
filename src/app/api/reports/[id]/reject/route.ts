@@ -20,7 +20,7 @@ export const POST = withApiRLS(async (request: NextRequest, { params }: { params
         }
 
         const profile = await prisma.profile.findUnique({ where: { id: user.id } });
-        if (!profile || profile.role !== 'NATIONAL_COORDINATOR') {
+        if (profile?.role !== 'NATIONAL_COORDINATOR') {
             return NextResponse.json({ error: MESSAGES.errors.forbidden }, { status: 403 });
         }
 

@@ -16,7 +16,7 @@ export const GET = withApiRLS(async (req: NextRequest) => {
         if (from && to) {
             const startDate = new Date(from);
             const endDate = new Date(to);
-            if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+            if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
                 return NextResponse.json({ error: 'Invalid date format' }, { status: 400 });
             }
             stats = await getActivityStatsInPeriod(startDate, endDate);
@@ -25,7 +25,7 @@ export const GET = withApiRLS(async (req: NextRequest) => {
         else if (month && year) {
             const m = Number.parseInt(month);
             const y = Number.parseInt(year);
-            if (isNaN(m) || isNaN(y)) {
+            if (Number.isNaN(m) || Number.isNaN(y)) {
                 return NextResponse.json({ error: 'Month and Year required' }, { status: 400 });
             }
             stats = await getMonthlyActivitySummary(m, y);

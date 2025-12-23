@@ -22,14 +22,14 @@ function calculateDuration(start: Date, end: Date): string {
 
 // Helper to format role name
 function formatRole(role: string): string {
-    return role.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    return role.split('_').map(word => word[0].toUpperCase() + word.slice(1)).join(' ');
 }
 
 // Helper to get entity name
 function getEntityName(profile: any): string {
     if (profile.role === 'NATIONAL_COORDINATOR') return 'National';
-    if (profile.role === 'SITE_COORDINATOR') return `Site de ${profile.site?.name || 'N/A'}`;
-    if (profile.role === 'SMALL_GROUP_LEADER') return `Groupe ${profile.smallGroup?.name || 'N/A'} (${profile.smallGroup?.site?.name || 'N/A'})`;
+    if (profile.role === 'SITE_COORDINATOR') return `Site de ${profile.site?.name ?? 'N/A'}`;
+    if (profile.role === 'SMALL_GROUP_LEADER') return `Groupe ${profile.smallGroup?.name ?? 'N/A'} (${profile.smallGroup?.site?.name ?? 'N/A'})`;
     return 'N/A';
 }
 

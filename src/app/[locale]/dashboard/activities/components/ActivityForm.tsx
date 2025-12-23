@@ -197,6 +197,7 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
       toast({ title: 'Success', description: isEditMode ? t('success_updated') : t('success_created') });
       if (savedActivity) onSave(savedActivity);
     } catch (error) {
+      console.error('Error saving activity:', error);
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
       toast({ title: 'Error', description: `${t('error_save')}: ${errorMessage}`, variant: 'destructive' });
     }
@@ -212,6 +213,7 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
       });
       onSave(updatedActivity);
     } catch (error) {
+      console.error('Error marking activity as executed:', error);
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
       toast({
         title: 'Error',

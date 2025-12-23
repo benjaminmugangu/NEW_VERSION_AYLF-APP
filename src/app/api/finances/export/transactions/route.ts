@@ -14,14 +14,6 @@ export const GET = withApiRLS(async (request: NextRequest) => {
             return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
         }
 
-        const currentUser = await prisma.profile.findUnique({
-            where: { id: user.id },
-        });
-
-        const currentUser = await prisma.profile.findUnique({
-            where: { id: user.id },
-        });
-
         if (!currentUser) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }

@@ -19,12 +19,8 @@ const normalizeImages = (images: any): Array<{ name: string; url: string }> | un
 
   return slicedImages
     .map((it: any) => {
-      const name = typeof it?.name === 'string' ? it.name : undefined;
-      const url = typeof it?.url === 'string' ? it.url : undefined;
-
-      // Security CHECK: Ensure URL is http/https (not data: or javascript:)
-      if (name && url && (url.startsWith('http://') || url.startsWith('https://'))) {
-        return { name, url };
+      if (typeof it?.name === 'string' && typeof it?.url === 'string' && (it.url.startsWith('http://') || it.url.startsWith('https://'))) {
+        return { name: it.name, url: it.url };
       }
       return undefined;
     })
@@ -87,7 +83,7 @@ const computeDateRange = (dateFilter?: ServerDateFilter): { startDate?: Date; en
     }
   };
 
-  return rangeMap[dateFilter.rangeKey!]?.() ?? {};
+  return rangeMap[dateFilter.rangeKey ?? 'all_time']?.() ?? {};
 };
 
 export interface ReportFilters {

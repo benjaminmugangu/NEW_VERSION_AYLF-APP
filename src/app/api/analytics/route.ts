@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from ' next/server';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import { prisma } from '@/lib/prisma';
 import analyticsService from '@/services/analyticsService';
-import { MESSAGES } from '@/lib/messages';
 import { withApiRLS } from '@/lib/apiWrapper';
 
 export const GET = withApiRLS(async (request: NextRequest) => {

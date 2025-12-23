@@ -123,32 +123,24 @@ export async function getFilteredMembers(filters: MemberFilters): Promise<Member
 
   const where: any = {};
 
-  // RBAC Enforcement
+  // 1. RBAC Enforcement
   if (user.role === 'SITE_COORDINATOR') {
-    if (!user.siteId) return []; // Orphaned coordinator sees nothing
+    if (!user.siteId) return [];
     where.siteId = user.siteId;
   } else if (user.role === 'SMALL_GROUP_LEADER') {
-    if (!user.smallGroupId) return []; // Orphaned leader sees nothing
+    if (!user.smallGroupId) return [];
     where.smallGroupId = user.smallGroupId;
-    // Also implicit specific smallGroupId filter is redundant but safe
   }
 
-  // Specific filter override (only if allowed)
+  // 2. Specific Group Filter (Hierarchical Guard)
   if (smallGroupId) {
-    // If not national, ensure they aren't trying to access another group
-    if (user.role === 'NATIONAL_COORDINATOR') {
-      where.smallGroupId = smallGroupId;
-    } else if (user.role === 'SITE_COORDINATOR') {
-      // We already filtered by siteId. smallGroupId must be in that site? 
-      // We trust the query will nicely return empty if intersection is empty.
-      // But let's set it.
-      where.smallGroupId = smallGroupId;
-    } else if (user.role === 'SMALL_GROUP_LEADER') {
-      if (smallGroupId !== user.smallGroupId) return []; // Trying to access other group
-      where.smallGroupId = smallGroupId;
+    if (user.role === 'SMALL_GROUP_LEADER' && smallGroupId !== user.smallGroupId) {
+      return [];
     }
+    where.smallGroupId = smallGroupId;
   }
 
+  // 3. Date Range Filter
   if (dateFilter) {
     const { startDate, endDate } = computeDateRange(dateFilter);
     if (startDate || endDate) {
@@ -158,16 +150,17 @@ export async function getFilteredMembers(filters: MemberFilters): Promise<Member
     }
   }
 
+  // 4. Type Filter
   if (typeFilter) {
     const activeTypes = Object.entries(typeFilter)
       .filter(([, value]) => value)
       .map(([key]) => key as Member['type']);
     if (activeTypes.length > 0) {
-      const prismaTypes = activeTypes.map((t) => (t === 'non-student' ? 'non_student' : 'student'));
-      where.type = { in: prismaTypes };
+      where.type = { in: activeTypes.map(t => t === 'non-student' ? 'non_student' : 'student') };
     }
   }
 
+  // 5. Search Term
   if (searchTerm) {
     where.name = { contains: searchTerm, mode: 'insensitive' };
   }

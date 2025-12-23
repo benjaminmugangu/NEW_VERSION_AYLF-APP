@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import { calculateAvailableBudget } from '@/services/budgetService';
-import { MESSAGES } from '@/lib/messages';
 import { withApiRLS } from '@/lib/apiWrapper';
 
 export const GET = withApiRLS(async (request: NextRequest) => {

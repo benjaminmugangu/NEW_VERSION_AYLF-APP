@@ -17,7 +17,7 @@ export const GET = withApiRLS(async (request: NextRequest) => {
 
     const invitation = await getInvitationByToken(token);
 
-    if (!invitation || invitation.status !== 'pending') {
+    if (invitation?.status !== 'pending') {
         return NextResponse.redirect(new URL('/dashboard?error=invalid_invitation', request.url));
     }
 

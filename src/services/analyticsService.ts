@@ -182,8 +182,8 @@ async function getBudgetUtilization(user: User, closedPeriods: any[]): Promise<{
     const currentMonthStart = startOfMonth(new Date());
     const snapshot = closedPeriods.find(p => p.startDate.getTime() === currentMonthStart.getTime());
 
-    if (snapshot && snapshot.snapshotData) {
-        const data = snapshot.snapshotData as any;
+    if (snapshot?.snapshotData) {
+        const data = snapshot.snapshotData;
         const entityKey = entityId || 'national';
         if (data[entityKey]) {
             return { utilization: Math.round(data[entityKey].utilization || 0) };
@@ -234,7 +234,6 @@ async function getMemberGrowthTrend(where: any, periods: number): Promise<TrendD
 
     for (let i = periods - 1; i >= 0; i--) {
         const date = subMonths(new Date(), i);
-        const start = startOfMonth(date);
         const end = endOfMonth(date);
 
         const count = await prisma.member.count({
@@ -329,8 +328,8 @@ async function getSitePerformanceComparison(user: User): Promise<SitePerformance
         }
     });
 
-    if (closedPeriod && closedPeriod.snapshotData) {
-        const data = closedPeriod.snapshotData as any;
+    if (closedPeriod?.snapshotData) {
+        const data = closedPeriod.snapshotData;
         if (data.sitePerformance) {
             return data.sitePerformance as SitePerformance[];
         }
@@ -381,7 +380,7 @@ async function getActivityTypeDistribution(where: any): Promise<ActivityTypeDist
     const typeMap = new Map(activityTypes.map(t => [t.id, t.name]));
 
     return activities.map((item, index) => ({
-        type: typeMap.get(item.activityTypeId!) || 'Autre',
+        type: typeMap.get(item.activityTypeId as string) || 'Autre',
         count: item._count,
         fill: COLORS[index % COLORS.length],
     }));

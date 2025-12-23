@@ -418,26 +418,15 @@ function assignContextFields(target: any, source: any) {
 }
 
 async function validateAndPrepareCreateData(activityData: ActivityFormData, currentUser: any) {
-  const safeData = { ...activityData } as any; // Cast to allow adding fields
+  const safeData = { ...activityData } as any;
   safeData.createdBy = currentUser.id;
 
-  // Level-based Exclusivity Guards
-  if (safeData.level === 'national') {
-    safeData.siteId = undefined;
-    safeData.smallGroupId = undefined;
-  } else if (safeData.level === 'site') {
-    safeData.smallGroupId = undefined;
-    if (currentUser.role === ROLES.SITE_COORDINATOR) {
-      safeData.siteId = currentUser.siteId || undefined;
-    }
-  } else if (safeData.level === 'small_group') {
-    if (currentUser.role === ROLES.SMALL_GROUP_LEADER) {
-      safeData.smallGroupId = currentUser.smallGroupId || undefined;
-      safeData.siteId = currentUser.siteId || undefined;
-    }
+  // 1. RBAC Check
+  if (currentUser.role === ROLES.MEMBER) {
+    throw new Error('Unauthorized: Members cannot create activities');
   }
 
-  // RBAC overrides... (keeping existing logic but integrated)
+  // 2. Enforce Scoped Data (Site/Group)
   if (currentUser.role === ROLES.SITE_COORDINATOR) {
     if (!currentUser.siteId) throw new Error('Site Coordinator has no site assigned');
     safeData.siteId = currentUser.siteId;
@@ -449,8 +438,20 @@ async function validateAndPrepareCreateData(activityData: ActivityFormData, curr
     safeData.level = 'small_group';
     safeData.smallGroupId = currentUser.smallGroupId;
     safeData.siteId = currentUser.siteId || undefined;
-  } else if (currentUser.role === ROLES.MEMBER) {
-    throw new Error('Unauthorized: Members cannot create activities');
+  }
+
+  // 3. Level-based Exclusivity (Final Cleanup)
+  switch (safeData.level) {
+    case 'national':
+      safeData.siteId = undefined;
+      safeData.smallGroupId = undefined;
+      break;
+    case 'site':
+      safeData.smallGroupId = undefined;
+      break;
+    case 'small_group':
+      // Handled by RBAC block above for non-national
+      break;
   }
 
   return safeData;
