@@ -125,7 +125,7 @@ export async function getCurrentStock(itemId: string): Promise<number> {
         where: { itemId },
     });
 
-    const stock = movements.reduce((total, movement) => {
+    const stock = movements.reduce((total: number, movement: any) => {
         const quantity = Number(movement.quantity);
         return movement.direction === 'in'
             ? total + quantity

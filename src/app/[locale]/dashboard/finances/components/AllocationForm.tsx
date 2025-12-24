@@ -14,7 +14,7 @@ import { CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import type { FundAllocationFormData, Site } from "@/lib/types";
+import type { FundAllocationFormData } from "@/lib/types";
 
 const allocationFormSchema = z.object({
   recipientId: z.string().min(1, { message: "Vous devez sélectionner un bénéficiaire." }),
@@ -25,14 +25,14 @@ const allocationFormSchema = z.object({
 });
 
 interface AllocationFormProps {
-  recipients: Array<{ id: string; name: string; }>;
-  recipientType: 'site' | 'smallGroup';
-  recipientLabel: string;
-  onSubmit: (data: z.infer<typeof allocationFormSchema>) => Promise<void>;
-  isLoading: boolean;
+  readonly recipients: Array<{ id: string; name: string; }>;
+  readonly recipientType: 'site' | 'smallGroup';
+  readonly recipientLabel: string;
+  readonly onSubmit: (data: z.infer<typeof allocationFormSchema>) => Promise<void>;
+  readonly isLoading: boolean;
 }
 
-export function AllocationForm({ recipients, recipientType, recipientLabel, onSubmit, isLoading }: AllocationFormProps) {
+export function AllocationForm({ recipients, recipientType, recipientLabel, onSubmit, isLoading }: Readonly<AllocationFormProps>) {
   const form = useForm<z.infer<typeof allocationFormSchema>>({
     resolver: zodResolver(allocationFormSchema),
     defaultValues: {
@@ -60,7 +60,7 @@ export function AllocationForm({ recipients, recipientType, recipientLabel, onSu
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder={`Sélectionner un ${recipientLabel.toLowerCase().replace('bénéficiaire', '').trim()}...`} />
+                    <SelectValue placeholder={`Sélectionner un ${recipientLabel.toLowerCase().replaceAll('bénéficiaire', '').trim()}...`} />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>

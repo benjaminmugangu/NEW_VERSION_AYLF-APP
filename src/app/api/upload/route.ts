@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { storageService } from '@/services/storageService';
+export const dynamic = 'force-dynamic';
+
+import { uploadFile } from '@/services/storageService';
 import { withApiRLS } from '@/lib/apiWrapper';
 import { z } from 'zod';
 
@@ -32,7 +34,7 @@ export const POST = withApiRLS(async (request: NextRequest) => {
             smallGroupId: smallGroupId || undefined,
         };
 
-        const result = await storageService.uploadFile(file, options);
+        const result = await uploadFile(file, options);
 
         return NextResponse.json({
             success: true,

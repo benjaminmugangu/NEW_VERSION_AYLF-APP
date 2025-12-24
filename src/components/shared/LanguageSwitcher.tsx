@@ -15,8 +15,8 @@ export default function LanguageSwitcher() {
             // Replace the locale in the pathname
             // Note: In a real app, use next-intl's Link or pathnames navigation
             // Simple hack for now: window.location compatible reload or regex replace
-            const currentPath = window.location.pathname;
-            const newPath = currentPath.replace(`/${locale}`, `/${nextLocale}`);
+            const currentPath = globalThis.location.pathname;
+            const newPath = currentPath.replaceAll(`/${locale}`, `/${nextLocale}`);
 
             // If path didn't have locale (default 'fr' hidden?), force it
             // Standard middleware forces locale prefix, so replace should work unless default hidden

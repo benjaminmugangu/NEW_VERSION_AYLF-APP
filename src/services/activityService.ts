@@ -239,7 +239,7 @@ export const deleteActivity = async (id: string): Promise<void> => {
 export const getActivityTypes = async (): Promise<ActivityType[]> => {
   const types = await prisma.activityType.findMany();
 
-  return types.map(t => ({
+  return types.map((t: any) => ({
     id: t.id,
     name: t.name,
     description: t.description || undefined,
@@ -274,7 +274,7 @@ export const updateActivityStatuses = async () => {
   const delayedCount = activitiesToDelay.length;
   if (delayedCount > 0) {
     await prisma.activity.updateMany({
-      where: { id: { in: activitiesToDelay.map(a => a.id) } },
+      where: { id: { in: activitiesToDelay.map((a: any) => a.id) } },
       data: { status: 'delayed' },
     });
   }
@@ -347,7 +347,7 @@ function applyListFilter(where: any, field: string, filterObj: any) {
 
   const values = Object.entries(filterObj)
     .filter(([_, v]) => v)
-    .map(([k]) => k);
+    .map(([k]: [string, any]) => k);
 
   if (values.length > 0) {
     where[field] = { in: values };
@@ -378,55 +378,42 @@ function validateUpdatePermissions(currentUser: any, existingActivity: any) {
 function buildActivityUpdateData(updatedData: any, currentUser: any) {
   const dbUpdates: any = {};
 
-  // 1. Common Updates (Title, Thematic, Date)
-  assignCommonFields(dbUpdates, updatedData);
+  const fields = [
+    'title', 'thematic', 'date', 'status',
+    'activityTypeId', 'activityTypeEnum', 'participantsCountPlanned'
+  ];
 
-  // 2. Status & Type Updates
-  assignStatusAndTypeFields(dbUpdates, updatedData);
+  fields.forEach((f: string) => {
+    if (updatedData[f] !== undefined) dbUpdates[f] = updatedData[f];
+  });
 
-  // 3. Context Updates (Level, Site, SmallGroup)
-  // National: Everything
-  // Site: Can change Level and SmallGroup, but NOT Site
   if (currentUser.role === ROLES.NATIONAL_COORDINATOR) {
-    assignContextFields(dbUpdates, updatedData);
+    if (updatedData.level !== undefined) dbUpdates.level = updatedData.level;
+    if (updatedData.siteId !== undefined) dbUpdates.siteId = updatedData.siteId;
+    if (updatedData.smallGroupId !== undefined) dbUpdates.smallGroupId = updatedData.smallGroupId;
   } else if (currentUser.role === ROLES.SITE_COORDINATOR) {
     if (updatedData.level !== undefined) dbUpdates.level = updatedData.level;
     if (updatedData.smallGroupId !== undefined) dbUpdates.smallGroupId = updatedData.smallGroupId;
-    // Prevent changing siteId
   }
 
   return dbUpdates;
-}
-
-function assignCommonFields(target: any, source: any) {
-  if (source.title !== undefined) target.title = source.title;
-  if (source.thematic !== undefined) target.thematic = source.thematic;
-  if (source.date !== undefined) target.date = source.date;
-}
-
-function assignStatusAndTypeFields(target: any, source: any) {
-  if (source.status !== undefined) target.status = source.status;
-  if (source.activityTypeId !== undefined) target.activityTypeId = source.activityTypeId;
-  if (source.activityTypeEnum !== undefined) target.activityTypeEnum = source.activityTypeEnum;
-  if (source.participantsCountPlanned !== undefined) target.participantsCountPlanned = source.participantsCountPlanned;
-}
-
-function assignContextFields(target: any, source: any) {
-  if (source.level !== undefined) target.level = source.level;
-  if (source.siteId !== undefined) target.siteId = source.siteId;
-  if (source.smallGroupId !== undefined) target.smallGroupId = source.smallGroupId;
 }
 
 async function validateAndPrepareCreateData(activityData: ActivityFormData, currentUser: any) {
   const safeData = { ...activityData } as any;
   safeData.createdBy = currentUser.id;
 
-  // 1. RBAC Check
   if (currentUser.role === ROLES.MEMBER) {
     throw new Error('Unauthorized: Members cannot create activities');
   }
 
-  // 2. Enforce Scoped Data (Site/Group)
+  enforceUserScope(safeData, currentUser);
+  enforceLevelExclusivity(safeData);
+
+  return safeData;
+}
+
+function enforceUserScope(safeData: any, currentUser: any) {
   if (currentUser.role === ROLES.SITE_COORDINATOR) {
     if (!currentUser.siteId) throw new Error('Site Coordinator has no site assigned');
     safeData.siteId = currentUser.siteId;
@@ -439,22 +426,13 @@ async function validateAndPrepareCreateData(activityData: ActivityFormData, curr
     safeData.smallGroupId = currentUser.smallGroupId;
     safeData.siteId = currentUser.siteId || undefined;
   }
-
-  // 3. Level-based Exclusivity (Final Cleanup)
-  switch (safeData.level) {
-    case 'national':
-      safeData.siteId = undefined;
-      safeData.smallGroupId = undefined;
-      break;
-    case 'site':
-      safeData.smallGroupId = undefined;
-      break;
-    case 'small_group':
-      // Handled by RBAC block above for non-national
-      break;
-  }
-
-  return safeData;
 }
 
-
+function enforceLevelExclusivity(safeData: any) {
+  if (safeData.level === 'national') {
+    safeData.siteId = undefined;
+    safeData.smallGroupId = undefined;
+  } else if (safeData.level === 'site') {
+    safeData.smallGroupId = undefined;
+  }
+}

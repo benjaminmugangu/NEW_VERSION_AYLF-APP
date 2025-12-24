@@ -48,6 +48,6 @@ export const config = {
      * - favicon.ico (favicon file)
      * - public files (e.g. manifest.json, sw.js)
      */
-    String.raw`/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|workbox-.*\.js|.*\.((?:svg|png|jpg|jpeg|gif|webp)$)).*)`
+    '/((?!api|_next/static|_next/image|favicon.ico|manifest.json|sw.js).*)'
   ]
 };

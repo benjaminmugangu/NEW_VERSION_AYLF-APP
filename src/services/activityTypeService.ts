@@ -13,7 +13,7 @@ export const getAllActivityTypes = async (): Promise<ActivityType[]> => {
     orderBy: { name: 'asc' },
   });
 
-  return items.map((item) => ({
+  return items.map((item: any) => ({
     id: item.id,
     name: item.name,
     category: item.category as ActivityType['category'],

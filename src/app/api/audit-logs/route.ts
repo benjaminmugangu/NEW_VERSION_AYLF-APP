@@ -10,6 +10,10 @@ export const GET = withApiRLS(async (request: NextRequest) => {
         const { getUser } = getKindeServerSession();
         const user = await getUser();
 
+        if (!user?.id) {
+            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
+        }
+
         // Check if user is National Coordinator
         const profile = await prisma.profile.findUnique({
             where: { id: user.id },

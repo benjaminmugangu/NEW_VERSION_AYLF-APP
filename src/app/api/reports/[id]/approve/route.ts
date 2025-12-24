@@ -11,6 +11,10 @@ export const POST = withApiRLS(async (request: NextRequest, { params }: { params
         const { getUser } = getKindeServerSession();
         const user = await getUser();
 
+        if (!user) {
+            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
+        }
+
         const profile = await profileService.getProfile(user.id);
 
         // Only National Coordinators can approve reports

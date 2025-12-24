@@ -15,9 +15,9 @@
 DO $$
 DECLARE
     bucket_val TEXT := 'report-images';
-    role_nc TEXT := 'national_coordinator';
-    role_sc TEXT := 'site_coordinator';
-    role_sgl TEXT := 'small_group_leader';
+    role_nc TEXT := 'NATIONAL_COORDINATOR';
+    role_sc TEXT := 'SITE_COORDINATOR';
+    role_sgl TEXT := 'SMALL_GROUP_LEADER';
 BEGIN
     -- DROP EXISTING
     DROP POLICY IF EXISTS "Hierarchical upload for report-images" ON storage.objects;
@@ -26,16 +26,16 @@ BEGIN
     DROP POLICY IF EXISTS "National coordinators can update report-images" ON storage.objects;
 
     -- UPLOAD POLICY
-    EXECUTE format('CREATE POLICY "Hierarchical upload for report-images" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = %L AND ((SELECT role FROM public.profiles WHERE id = auth.uid()) = %L OR ((SELECT role FROM public.profiles WHERE id = auth.uid()) = %L AND (SELECT site_id::text FROM public.profiles WHERE id = auth.uid()) = split_part(name, %L, 1)) OR ((SELECT role FROM public.profiles WHERE id = auth.uid()) = %L AND (SELECT small_group_id::text FROM public.profiles WHERE id = auth.uid()) = split_part(name, %L, 2))))', bucket_val, role_nc, role_sc, '/', role_sgl, '/');
+    EXECUTE format('CREATE POLICY "Hierarchical upload for report-images" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = %L AND ((SELECT role FROM public.profiles WHERE id = auth.uid()::TEXT) = %L OR ((SELECT role FROM public.profiles WHERE id = auth.uid()::TEXT) = %L AND (SELECT site_id::text FROM public.profiles WHERE id = auth.uid()::TEXT) = split_part(name, %L, 1)) OR ((SELECT role FROM public.profiles WHERE id = auth.uid()::TEXT) = %L AND (SELECT small_group_id::text FROM public.profiles WHERE id = auth.uid()::TEXT) = split_part(name, %L, 2))))', bucket_val, role_nc, role_sc, '/', role_sgl, '/');
 
     -- VIEW POLICY
-    EXECUTE format('CREATE POLICY "Hierarchical view for report-images" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = %L AND ((SELECT role FROM public.profiles WHERE id = auth.uid()) = %L OR ((SELECT role FROM public.profiles WHERE id = auth.uid()) = %L AND (SELECT site_id::text FROM public.profiles WHERE id = auth.uid()) = split_part(name, %L, 1)) OR ((SELECT role FROM public.profiles WHERE id = auth.uid()) = %L AND (SELECT small_group_id::text FROM public.profiles WHERE id = auth.uid()) = split_part(name, %L, 2))))', bucket_val, role_nc, role_sc, '/', role_sgl, '/');
+    EXECUTE format('CREATE POLICY "Hierarchical view for report-images" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = %L AND ((SELECT role FROM public.profiles WHERE id = auth.uid()::TEXT) = %L OR ((SELECT role FROM public.profiles WHERE id = auth.uid()::TEXT) = %L AND (SELECT site_id::text FROM public.profiles WHERE id = auth.uid()::TEXT) = split_part(name, %L, 1)) OR ((SELECT role FROM public.profiles WHERE id = auth.uid()::TEXT) = %L AND (SELECT small_group_id::text FROM public.profiles WHERE id = auth.uid()::TEXT) = split_part(name, %L, 2))))', bucket_val, role_nc, role_sc, '/', role_sgl, '/');
 
     -- DELETE POLICY
-    EXECUTE format('CREATE POLICY "National coordinators can delete report-images" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = %L AND (SELECT role FROM public.profiles WHERE id = auth.uid()) = %L)', bucket_val, role_nc);
+    EXECUTE format('CREATE POLICY "National coordinators can delete report-images" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = %L AND (SELECT role FROM public.profiles WHERE id = auth.uid()::TEXT) = %L)', bucket_val, role_nc);
 
     -- UPDATE POLICY
-    EXECUTE format('CREATE POLICY "National coordinators can update report-images" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = %L AND (SELECT role FROM public.profiles WHERE id = auth.uid()) = %L)', bucket_val, role_nc);
+    EXECUTE format('CREATE POLICY "National coordinators can update report-images" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = %L AND (SELECT role FROM public.profiles WHERE id = auth.uid()::TEXT) = %L)', bucket_val, role_nc);
 END $$;
 
 -- =====================================================

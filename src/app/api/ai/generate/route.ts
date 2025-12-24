@@ -9,6 +9,10 @@ export const POST = withApiRLS(async (req: NextRequest) => {
         const { getUser } = getKindeServerSession();
         const user = await getUser();
 
+        if (!user?.id) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         // 2. Rate Limiting to prevent AI abuse (now per user, not IP)
         const { success } = await rateLimit(user.id, { limit: 5, interval: 60 * 1000, uniqueTokenPerInterval: 500 }); // 5 requests per minute per user
 

@@ -13,10 +13,10 @@ datasource db {
 // Enums
 
 enum UserRole {
-  national_coordinator
-  site_coordinator
-  small_group_leader
-  member
+  NATIONAL_COORDINATOR
+  SITE_COORDINATOR
+  SMALL_GROUP_LEADER
+  MEMBER
 }
 
 enum UserStatus {

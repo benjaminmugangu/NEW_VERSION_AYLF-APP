@@ -28,7 +28,7 @@ export async function getAllocations(filters?: { siteId?: string; smallGroupId?:
     }
   });
 
-  return allocations.map(allocation => ({
+  return allocations.map((allocation: any) => ({
     id: allocation.id,
     amount: allocation.amount,
     allocationDate: allocation.allocationDate.toISOString(),

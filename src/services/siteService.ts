@@ -57,7 +57,7 @@ export async function getSitesWithDetails(user: User | null): Promise<SiteWithDe
     }
   });
 
-  return sites.map(site => ({
+  return (sites as any[]).map((site: any) => ({
     id: site.id,
     name: site.name,
     city: site.city,
@@ -99,7 +99,7 @@ export async function getSiteDetails(siteId: string): Promise<{ site: Site; smal
 
   return {
     site: mapPrismaSiteToModel(site),
-    smallGroups: site.smallGroups.map(sg => ({
+    smallGroups: (site.smallGroups as any[]).map((sg: any) => ({
       id: sg.id,
       name: sg.name,
       membersCount: sg._count.registeredMembers,

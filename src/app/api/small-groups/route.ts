@@ -18,6 +18,9 @@ export const POST = withApiRLS(async (request: NextRequest) => {
   try {
     const { getUser } = getKindeServerSession();
     const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
+    }
 
     // Fetch user profile to determine role and siteId
     const profile = await prisma.profile.findUnique({

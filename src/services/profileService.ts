@@ -106,7 +106,7 @@ export async function getUsers(): Promise<User[]> {
     },
   });
 
-  return users.map(u => ({
+  return (users as any[]).map((u: any) => ({
     id: u.id,
     name: u.name || '',
     email: u.email || '',
@@ -157,7 +157,7 @@ export async function getEligiblePersonnel(siteId: string, smallGroupId?: string
     }
   });
 
-  return users.map(u => ({
+  return (users as any[]).map((u: any) => ({
     id: u.id,
     name: u.name || '',
     email: u.email || '',
@@ -200,7 +200,7 @@ export async function getUsersByIds(userIds: string[]): Promise<User[]> {
     }
   });
 
-  return users.map(u => ({
+  return (users as any[]).map((u: any) => ({
     id: u.id,
     name: u.name || '',
     email: u.email || '',

@@ -110,8 +110,8 @@ export async function getAdvancedDashboard(
 
 // ------ Helper Functions ------
 
-function buildUserFilter(user: User): any {
-    const where: any = {};
+function buildUserFilter(user: User): Record<string, any> {
+    const where: Record<string, any> = {};
 
     if (user.role === 'SITE_COORDINATOR' && user.siteId) {
         where.siteId = user.siteId;
@@ -135,7 +135,7 @@ function getPeriodRange(timeRange: 'month' | 'quarter' | 'year'): number {
     }
 }
 
-async function countActiveMembers(where: any): Promise<number> {
+async function countActiveMembers(where: Record<string, any>): Promise<number> {
     return await prisma.member.count({
         where: {
             ...where,
@@ -144,7 +144,7 @@ async function countActiveMembers(where: any): Promise<number> {
     });
 }
 
-async function countOngoingActivities(where: any): Promise<number> {
+async function countOngoingActivities(where: Record<string, any>): Promise<number> {
     return await prisma.activity.count({
         where: {
             ...where,
@@ -155,7 +155,7 @@ async function countOngoingActivities(where: any): Promise<number> {
     });
 }
 
-async function countPendingReports(where: any): Promise<number> {
+async function countPendingReports(where: Record<string, any>): Promise<number> {
     return await prisma.report.count({
         where: {
             ...where,
@@ -180,7 +180,7 @@ async function getBudgetUtilization(user: User, closedPeriods: any[]): Promise<{
 
     // ANTI-MIRAGE: Check if current month is closed
     const currentMonthStart = startOfMonth(new Date());
-    const snapshot = closedPeriods.find(p => p.startDate.getTime() === currentMonthStart.getTime());
+    const snapshot = (closedPeriods as any[]).find((p: any) => p.startDate.getTime() === currentMonthStart.getTime());
 
     if (snapshot?.snapshotData) {
         const data = snapshot.snapshotData;
@@ -229,35 +229,31 @@ async function getBudgetUtilization(user: User, closedPeriods: any[]): Promise<{
     return { utilization: Math.round(utilization) };
 }
 
-async function getMemberGrowthTrend(where: any, periods: number): Promise<TrendData[]> {
-    const trend: TrendData[] = [];
+async function getMemberGrowthTrend(where: Record<string, any>, periods: number): Promise<TrendData[]> {
+    const months = Array.from({ length: periods }, (_, i) => periods - 1 - i);
 
-    for (let i = periods - 1; i >= 0; i--) {
+    return Promise.all(months.map(async (i: number) => {
         const date = subMonths(new Date(), i);
         const end = endOfMonth(date);
 
         const count = await prisma.member.count({
             where: {
                 ...where,
-                createdAt: {
-                    lte: end,
-                },
+                createdAt: { lte: end },
             },
         });
 
-        trend.push({
+        return {
             month: format(date, 'MMM yyyy'),
             count,
-        });
-    }
-
-    return trend;
+        };
+    }));
 }
 
-async function getActivityCompletionTrend(where: any, periods: number): Promise<TrendData[]> {
-    const trend: TrendData[] = [];
+async function getActivityCompletionTrend(where: Record<string, any>, periods: number): Promise<TrendData[]> {
+    const months = Array.from({ length: periods }, (_, i) => periods - 1 - i);
 
-    for (let i = periods - 1; i >= 0; i--) {
+    return Promise.all(months.map(async (i: number) => {
         const date = subMonths(new Date(), i);
         const start = startOfMonth(date);
         const end = endOfMonth(date);
@@ -266,20 +262,15 @@ async function getActivityCompletionTrend(where: any, periods: number): Promise<
             where: {
                 ...where,
                 status: 'executed',
-                date: {
-                    gte: start,
-                    lte: end,
-                },
+                date: { gte: start, lte: end },
             },
         });
 
-        trend.push({
+        return {
             month: format(date, 'MMM yyyy'),
             count: completed,
-        });
-    }
-
-    return trend;
+        };
+    }));
 }
 
 async function getBudgetForecastTrend(user: User, periods: number): Promise<TrendData[]> {
@@ -342,24 +333,20 @@ async function getSitePerformanceComparison(user: User): Promise<SitePerformance
         },
     });
 
-    const performance: SitePerformance[] = [];
-
-    for (const site of sites) {
+    const performance = await Promise.all(sites.map(async (site: any) => {
         const [total, completed] = await Promise.all([
             prisma.activity.count({ where: { siteId: site.id } }),
             prisma.activity.count({ where: { siteId: site.id, status: 'executed' } }),
         ]);
 
-        const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-        performance.push({
+        return {
             siteId: site.id,
             siteName: site.name,
-            completionRate,
+            completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
             totalActivities: total,
             completedActivities: completed,
-        });
-    }
+        };
+    }));
 
     return performance.sort((a, b) => b.completionRate - a.completionRate);
 }
@@ -372,14 +359,14 @@ async function getActivityTypeDistribution(where: any): Promise<ActivityTypeDist
     });
 
     // Fetch activity type names
-    const typeIds = activities.map(a => a.activityTypeId).filter(Boolean);
+    const typeIds = (activities as any[]).map((a: any) => a.activityTypeId).filter(Boolean);
     const activityTypes = await prisma.activityType.findMany({
         where: { id: { in: typeIds as string[] } },
     });
 
-    const typeMap = new Map(activityTypes.map(t => [t.id, t.name]));
+    const typeMap = new Map((activityTypes as any[]).map((t: any) => [t.id, t.name]));
 
-    return activities.map((item, index) => ({
+    return activities.map((item: any, index: number) => ({
         type: typeMap.get(item.activityTypeId as string) || 'Autre',
         count: item._count,
         fill: COLORS[index % COLORS.length],

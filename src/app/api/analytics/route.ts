@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from ' next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import { prisma } from '@/lib/prisma';
 import analyticsService from '@/services/analyticsService';
@@ -9,10 +9,16 @@ export const GET = withApiRLS(async (request: NextRequest) => {
     const { getUser } = getKindeServerSession();
     const user = await getUser();
 
+    if (!user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const profile = await prisma.profile.findUnique({
       where: { id: user.id },
       select: {
         id: true,
+        name: true,
+        email: true,
         role: true,
         siteId: true,
         smallGroupId: true,
@@ -26,7 +32,17 @@ export const GET = withApiRLS(async (request: NextRequest) => {
     const { searchParams } = new URL(request.url);
     const timeRange = (searchParams.get('timeRange') as 'month' | 'quarter' | 'year') || 'month';
 
-    const analytics = await analyticsService.getAnalytics(profile, timeRange);
+    // Construct User object for analytics service
+    const userForAnalytics = {
+      id: profile.id,
+      name: profile.name,
+      email: profile.email,
+      role: profile.role,
+      siteId: profile.siteId,
+      smallGroupId: profile.smallGroupId,
+    };
+
+    const analytics = await analyticsService.getAdvancedDashboard(userForAnalytics, timeRange);
 
     return NextResponse.json(analytics);
   } catch (error: any) {

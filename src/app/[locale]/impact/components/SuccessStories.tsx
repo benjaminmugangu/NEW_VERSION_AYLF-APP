@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, User } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { Activity, Site } from '@prisma/client';
 
 async function getRecentStories() {
     return await prisma.activity.findMany({
@@ -34,7 +35,7 @@ export async function SuccessStories() {
                 </div>
 
                 <div className="mx-auto grid max-w-2xl grid-cols-1 gap-x-8 gap-y-16 lg:mx-0 lg:max-w-none lg:grid-cols-3">
-                    {stories.map((story) => (
+                    {stories.map((story: Activity & { site: Site | null }) => (
                         <Card key={story.id} className="flex flex-col overflow-hidden hover:shadow-lg transition-shadow">
                             {/* Placeholder image if no image in DB (currently DB has no image field for activity, assuming future expansion) */}
                             <div className="h-48 w-full bg-slate-200 flex items-center justify-center text-slate-400">

@@ -21,6 +21,9 @@ export const POST = withApiRLS(async (
         const { id } = await params;
         const { getUser } = getKindeServerSession();
         const user = await getUser();
+        if (!user) {
+            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
+        }
 
         // Verify user is National Coordinator
         const currentUser = await prisma.profile.findUnique({

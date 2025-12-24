@@ -13,6 +13,10 @@ export const DELETE = withApiRLS(async (
         const { getUser } = getKindeServerSession();
         const user = await getUser();
 
+        if (!user?.id) {
+            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
+        }
+
         const currentUser = await prisma.profile.findUnique({
             where: { id: user.id },
         });

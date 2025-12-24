@@ -11,7 +11,7 @@ import { MESSAGES } from './messages';
  * @param handler The API route handler function (GET, POST, etc.)
  * @returns A wrapped handler that enforces session-based RLS
  */
-export function withApiRLS(handler: (req: NextRequest, ...args: any[]) => Promise<NextResponse>) {
+export function withApiRLS(handler: (req: NextRequest, ...args: any[]) => Promise<NextResponse | Response>) {
     return async (req: NextRequest, ...args: any[]) => {
         try {
             const { getUser, isAuthenticated } = getKindeServerSession();

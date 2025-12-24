@@ -142,7 +142,7 @@ export function SmallGroupForm({ smallGroup, siteId, onSubmitForm, isSaving }: S
                     <SelectItem value={UNASSIGNED_VALUE}>{t('none_unassigned')}</SelectItem>
                     {availablePersonnel.map((user: User) => (
                       <SelectItem key={user.id} value={user.id}>
-                        {user.name} ({user.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())})
+                        {user.name} ({user.role.replaceAll('_', ' ').replaceAll(/\b\w/g, l => l.toUpperCase())})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -169,7 +169,7 @@ export function SmallGroupForm({ smallGroup, siteId, onSubmitForm, isSaving }: S
                     <SelectItem value={UNASSIGNED_VALUE}>{t('none_unassigned')}</SelectItem>
                     {availablePersonnel.map((user: User) => (
                       <SelectItem key={user.id} value={user.id}>
-                        {user.name} ({user.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())})
+                        {user.name} ({user.role.replaceAll('_', ' ').replaceAll(/\b\w/g, l => l.toUpperCase())})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -196,7 +196,7 @@ export function SmallGroupForm({ smallGroup, siteId, onSubmitForm, isSaving }: S
                     <SelectItem value={UNASSIGNED_VALUE}>{t('none_unassigned')}</SelectItem>
                     {availablePersonnel.map((user: User) => (
                       <SelectItem key={user.id} value={user.id}>
-                        {user.name} ({user.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())})
+                        {user.name} ({user.role.replaceAll('_', ' ').replaceAll(/\b\w/g, l => l.toUpperCase())})
                       </SelectItem>
                     ))}
                   </SelectContent>

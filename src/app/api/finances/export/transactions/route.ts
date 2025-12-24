@@ -14,6 +14,10 @@ export const GET = withApiRLS(async (request: NextRequest) => {
             return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
         }
 
+        const currentUser = await prisma.profile.findUnique({
+            where: { id: user.id },
+        });
+
         if (!currentUser) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
@@ -61,7 +65,7 @@ export const GET = withApiRLS(async (request: NextRequest) => {
             ['Date', 'Description', 'Amount', 'Type', 'Category', 'Site', 'Small Group', 'Recorded By', 'Report ID'],
         ];
 
-        transactions.forEach(t => {
+        transactions.forEach((t: typeof transactions[0]) => {
             csvRows.push([
                 format(new Date(t.date), 'yyyy-MM-dd'),
                 t.description?.replaceAll(',', ';') || '',

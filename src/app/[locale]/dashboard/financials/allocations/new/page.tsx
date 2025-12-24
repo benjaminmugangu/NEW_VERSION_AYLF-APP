@@ -3,12 +3,20 @@
 
 export const dynamic = 'force-dynamic';
 
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { AllocationForm } from '@/components/financials/AllocationForm';
+import type { FundAllocationFormData } from '@/lib/types';
+import * as allocationService from '@/services/allocations.service';
 
 const NewAllocationPage = () => {
   const { currentUser } = useAuth();
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
-
 
   const handleSave = async (data: FundAllocationFormData) => {
     if (!currentUser) {
@@ -18,12 +26,10 @@ const NewAllocationPage = () => {
 
     setIsSaving(true);
 
-
-
     const fullData: FundAllocationFormData = {
       ...data,
       allocatedById: currentUser?.id || '',
-      status: 'planned',
+      status: 'completed',
       fromSiteId: currentUser?.role === 'SITE_COORDINATOR' ? currentUser.siteId || undefined : undefined,
     };
 

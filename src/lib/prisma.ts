@@ -27,7 +27,7 @@ if (process.env.NODE_ENV !== 'production') {
 export const prisma = basePrisma.$extends({
   query: {
     $allModels: {
-      async $allOperations({ args, query }) {
+      async $allOperations({ args, query }: { args: any; query: (args: any) => Promise<any> }) {
         const context = rlsContext.getStore();
         const userId = context?.userId;
 
@@ -36,7 +36,7 @@ export const prisma = basePrisma.$extends({
         }
 
         // Apply RLS by setting the session variable in a transaction
-        return basePrisma.$transaction(async (tx) => {
+        return basePrisma.$transaction(async (tx: any) => {
           await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${userId}'`);
           return query(args);
         });

@@ -64,7 +64,7 @@ export async function getCoordinatorHistory(filters?: {
         ]
     });
 
-    return profiles.map(p => {
+    return profiles.map((p: any) => {
         const entityType = resolveEntityType(p.role);
         const entityName = resolveEntityName(p);
 

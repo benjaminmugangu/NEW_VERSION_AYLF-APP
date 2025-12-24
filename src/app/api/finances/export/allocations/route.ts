@@ -11,6 +11,10 @@ export const GET = withApiRLS(async (request: NextRequest) => {
         const { getUser } = getKindeServerSession();
         const user = await getUser();
 
+        if (!user?.id) {
+            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
+        }
+
         const currentUser = await prisma.profile.findUnique({
             where: { id: user.id },
         });
@@ -47,7 +51,7 @@ export const GET = withApiRLS(async (request: NextRequest) => {
             ['Date', 'Goal', 'Amount', 'Site', 'Small Group', 'Allocated By'],
         ];
 
-        allocations.forEach(a => {
+        allocations.forEach((a: typeof allocations[0]) => {
             csvRows.push([
                 format(new Date(a.allocationDate), 'yyyy-MM-dd'),
                 a.goal?.replaceAll(',', ';') || '',

@@ -21,7 +21,7 @@ export function PrintableCertificate({ user, entityName, appName }: Props) {
     } else if (user.role === 'SMALL_GROUP_LEADER') {
       roleDesc = `Small Group Leader for ${entityName}`;
     } else {
-      roleDesc = user.role.replaceAll('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+      roleDesc = user.role.replaceAll('_', ' ').replaceAll(/\b\w/g, (l: string) => l.toUpperCase());
     }
     return roleDesc;
   };

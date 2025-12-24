@@ -2,6 +2,7 @@
 
 import { renderToBuffer } from '@react-pdf/renderer';
 import { createClient } from '@/utils/supabase/server';
+import { prisma } from '@/lib/prisma';
 
 import { CertificateTemplate, CertificateData } from '@/components/certificates/CertificateTemplate';
 import { format } from 'date-fns';
@@ -22,7 +23,7 @@ function calculateDuration(start: Date, end: Date): string {
 
 // Helper to format role name
 function formatRole(role: string): string {
-    return role.split('_').map(word => word[0].toUpperCase() + word.slice(1)).join(' ');
+    return role.split('_').map((word: string) => word[0].toUpperCase() + word.slice(1)).join(' ');
 }
 
 // Helper to get entity name

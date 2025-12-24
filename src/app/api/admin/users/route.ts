@@ -86,7 +86,7 @@ async function handleReplacementFlow(payload: any) {
     let invitation = null;
     let kindeId = null;
 
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: Omit<typeof prisma, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">) => {
         // 1. End existing coordinator's mandate
         await tx.profile.update({
             where: { id: payload.existingCoordinatorId },

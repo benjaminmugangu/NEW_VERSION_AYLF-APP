@@ -84,7 +84,7 @@ async function mockGenerate(request: AIRequest): Promise<string> {
             return `[Résumé Exécutif IA 📝]\n\nCe mois-ci, les activités se sont concentrées sur le renforcement communautaire. Points clés à retenir : forte participation, engagement notable des leaders, et impact positif sur le terrain.`;
 
         case 'fix_spelling':
-            return text.replace(/é/g, 'é').replace(/è/g, 'è'); // Dummy fix, would correct actual typos in real version
+            return text.trim(); // Simplified mock behavior
 
         default:
             return text;

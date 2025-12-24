@@ -40,6 +40,9 @@ const userCreateSchema = z.object({
 export const POST = withApiRLS(async (request: NextRequest) => {
   const { getUser } = getKindeServerSession();
   const user = await getUser();
+  if (!user) {
+    return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
+  }
 
   // Get user profile from Supabase to check role
   const supabase = await createClient();

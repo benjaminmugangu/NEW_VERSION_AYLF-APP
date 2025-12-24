@@ -63,87 +63,21 @@ export async function closeAccountingPeriod(id: string, userId: string) {
         if (!period) throw new Error('Accounting period not found');
         if (period.status === 'closed') throw new Error('Accounting period already closed');
 
-        const transactions = await tx.financialTransaction.findMany({
-            where: {
-                date: {
-                    gte: period.startDate,
-                    lte: period.endDate,
-                },
-                status: 'approved',
-            },
-        });
+        const transactions = await fetchPeriodTransactions(tx, period);
+        const { totalIncome, totalExpenses, netBalance } = calculateFinancials(transactions);
 
-        const totalIncome = transactions
-            .filter((t: any) => t.type === 'income')
-            .reduce((sum: number, t: any) => sum + t.amount, 0);
+        const activities = await fetchPeriodActivities(tx, period);
+        const stats = calculateActivityStats(activities);
 
-        const totalExpenses = transactions
-            .filter((t: any) => t.type === 'expense')
-            .reduce((sum: number, t: any) => sum + t.amount, 0);
-
-        const netBalance = totalIncome - totalExpenses;
-
-        // 5. Activity & Participation Snapshots
-        const activities = await tx.activity.findMany({
-            where: {
-                date: {
-                    gte: period.startDate,
-                    lte: period.endDate,
-                },
-                status: { not: 'canceled' },
-            },
-            include: {
-                reports: {
-                    select: {
-                        girlsCount: true,
-                        boysCount: true,
-                        participantsCountReported: true,
-                    },
-                },
-            },
-        });
-
-        const totalActivities = activities.length;
-        const activitiesExecuted = activities.filter((a: any) => a.status === 'executed').length;
-        let totalParticipants = 0;
-        let totalBoysCount = 0;
-        let totalGirlsCount = 0;
-
-        for (const activity of activities) {
-            if (activity.reports && activity.reports.length > 0) {
-                const report = activity.reports[0];
-                totalParticipants += report.participantsCountReported || 0;
-                totalBoysCount += report.boysCount || 0;
-                totalGirlsCount += report.girlsCount || 0;
-            } else {
-                totalParticipants += activity.participantsCountPlanned || 0;
-            }
-        }
-
-        // 6. Site Performance Snapshot
         const sites = await tx.site.findMany({ select: { id: true, name: true } });
-        const sitePerformance = await Promise.all(sites.map(async (site: any) => {
-            const siteActs = activities.filter((a: any) => (a as any).siteId === site.id);
-            const siteExecuted = siteActs.filter((a: any) => (a as any).status === 'executed').length;
-            return {
-                siteId: site.id,
-                siteName: site.name,
-                totalActivities: siteActs.length,
-                completedActivities: siteExecuted,
-                completionRate: siteActs.length > 0 ? Math.round((siteExecuted / siteActs.length) * 100) : 0,
-            };
-        }));
+        const sitePerformance = calculateSitePerformance(sites, activities);
 
         const snapshotData = {
             totalIncome,
             totalExpenses,
             netBalance,
             transactionCount: transactions.length,
-            totalActivities,
-            activitiesExecuted,
-            totalParticipants,
-            totalBoysCount,
-            totalGirlsCount,
+            ...stats,
             sitePerformance,
             generatedAt: new Date().toISOString(),
         };
@@ -157,6 +91,80 @@ export async function closeAccountingPeriod(id: string, userId: string) {
                 snapshotData: snapshotData as Prisma.JsonObject,
             },
         });
+    });
+}
+
+async function fetchPeriodTransactions(tx: any, period: AccountingPeriod) {
+    return await tx.financialTransaction.findMany({
+        where: {
+            date: { gte: period.startDate, lte: period.endDate },
+            status: 'approved',
+        },
+    });
+}
+
+function calculateFinancials(transactions: any[]) {
+    const totalIncome = transactions
+        .filter((t: any) => t.type === 'income')
+        .reduce((sum: number, t: any) => sum + t.amount, 0);
+
+    const totalExpenses = transactions
+        .filter((t: any) => t.type === 'expense')
+        .reduce((sum: number, t: any) => sum + t.amount, 0);
+
+    return { totalIncome, totalExpenses, netBalance: totalIncome - totalExpenses };
+}
+
+async function fetchPeriodActivities(tx: any, period: AccountingPeriod) {
+    return await tx.activity.findMany({
+        where: {
+            date: { gte: period.startDate, lte: period.endDate },
+            status: { not: 'canceled' },
+        },
+        include: {
+            reports: {
+                select: {
+                    girlsCount: true,
+                    boysCount: true,
+                    participantsCountReported: true,
+                },
+            },
+        },
+    });
+}
+
+function calculateActivityStats(activities: any[]) {
+    const totalActivities = activities.length;
+    const activitiesExecuted = activities.filter((a: any) => a.status === 'executed').length;
+    let totalParticipants = 0;
+    let totalBoysCount = 0;
+    let totalGirlsCount = 0;
+
+    for (const activity of activities) {
+        if (activity.reports?.length > 0) {
+            const report = activity.reports[0];
+            totalParticipants += report.participantsCountReported || 0;
+            totalBoysCount += report.boysCount || 0;
+            totalGirlsCount += report.girlsCount || 0;
+        } else {
+            totalParticipants += activity.participantsCountPlanned || 0;
+        }
+    }
+
+    return { totalActivities, activitiesExecuted, totalParticipants, totalBoysCount, totalGirlsCount };
+}
+
+function calculateSitePerformance(sites: any[], activities: any[]) {
+    return sites.map((site: any) => {
+        const siteActs = activities.filter((a: any) => (a as any).siteId === site.id);
+        const siteExecuted = siteActs.filter((a: any) => (a as any).status === 'executed').length;
+        return {
+            siteId: site.id,
+            siteName: site.name,
+            totalActivities: siteActs.length,
+            completedActivities: siteExecuted,
+            completionRate: siteActs.length > 0 ? Math.round((siteExecuted / siteActs.length) * 100) : 0,
+        };
     });
 }
 

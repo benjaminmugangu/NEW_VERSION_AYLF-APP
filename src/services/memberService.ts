@@ -132,7 +132,7 @@ export async function getFilteredMembers(filters: MemberFilters): Promise<Member
     orderBy: { joinDate: 'desc' },
   });
 
-  return members.map(mapPrismaMemberToWithDetails);
+  return (members as any[]).map(mapPrismaMemberToWithDetails);
 }
 
 function buildMemberWhereClause(user: User, filters: Omit<MemberFilters, 'user'>) {
@@ -167,9 +167,9 @@ function buildMemberWhereClause(user: User, filters: Omit<MemberFilters, 'user'>
   if (typeFilter) {
     const activeTypes = Object.entries(typeFilter)
       .filter(([, value]) => value)
-      .map(([key]) => key as Member['type']);
+      .map(([key]: [string, any]) => key as Member['type']);
     if (activeTypes.length > 0) {
-      where.type = { in: activeTypes.map(t => t === 'non-student' ? 'non_student' : 'student') };
+      where.type = { in: activeTypes.map((t: string) => t === 'non-student' ? 'non_student' : 'student') };
     }
   }
 
@@ -178,9 +178,6 @@ function buildMemberWhereClause(user: User, filters: Omit<MemberFilters, 'user'>
   }
 
   return where;
-}
-
-return members.map(mapPrismaMemberToWithDetails);
 }
 
 export async function getMemberById(memberId: string): Promise<MemberWithDetails> {

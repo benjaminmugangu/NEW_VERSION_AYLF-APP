@@ -13,14 +13,14 @@ DROP POLICY IF EXISTS "Site Coordinators can manage profiles in their site" ON p
 -- 1. Users can see and update their own profile.
 CREATE POLICY "Users can see and update their own profile"
   ON public.profiles FOR ALL
-  USING (auth.uid() = id);
+  USING (auth.uid()::TEXT = id::TEXT);
 
 -- 2. National Coordinators can see and update all profiles.
 CREATE POLICY "National Coordinators can manage all profiles"
   ON public.profiles FOR ALL
-  USING (get_my_role() = 'national_coordinator');
+  USING (get_my_role() = 'NATIONAL_COORDINATOR');
 
 -- 3. Site Coordinators can see and update profiles of users in their own site.
 CREATE POLICY "Site Coordinators can manage profiles in their site"
   ON public.profiles FOR ALL
-  USING (get_my_role() = 'site_coordinator' AND site_id = get_my_site_id());
+  USING (get_my_role() = 'SITE_COORDINATOR' AND site_id::TEXT = get_my_site_id());

@@ -123,7 +123,11 @@ export const PATCH = withApiRLS(async (request: NextRequest) => {
 export const DELETE = withApiRLS(async (request: NextRequest) => {
     try {
         const { getUser } = getKindeServerSession();
-        await getUser();
+        const user = await getUser();
+
+        if (!user) {
+            return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
+        }
 
         const body = await request.json();
 

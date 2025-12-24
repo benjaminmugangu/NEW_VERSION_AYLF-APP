@@ -8,6 +8,10 @@ export const GET = withApiRLS(async (request: NextRequest) => {
     const { getUser } = getKindeServerSession();
     const user = await getUser();
 
+    if (!user || !user.email) {
+        return NextResponse.redirect(new URL('/auth/login', request.url));
+    }
+
     const startUrl = new URL(request.url);
     const token = startUrl.searchParams.get('token');
 

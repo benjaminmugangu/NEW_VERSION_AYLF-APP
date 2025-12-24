@@ -48,7 +48,7 @@ export async function exportTransactionsToCSV(filters: {
         'Proof URL',
     ].join(',');
 
-    const rows = transactions.map((t) => {
+    const rows = (transactions as any[]).map((t: any) => {
         const date = new Date(t.date).toLocaleDateString('fr-FR');
         const type = t.type;
         const category = t.category;
@@ -125,7 +125,7 @@ export async function exportAllocationsToCSV(filters: {
         'Notes',
     ].join(',');
 
-    const rows = allocations.map((a) => {
+    const rows = (allocations as any[]).map((a: any) => {
         const date = new Date(a.allocationDate).toLocaleDateString('fr-FR');
         const source = a.source;
         const fromSite = a.fromSite?.name || '';

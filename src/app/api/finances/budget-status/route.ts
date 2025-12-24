@@ -10,6 +10,10 @@ export const GET = withApiRLS(async (request: NextRequest) => {
         const { getUser } = getKindeServerSession();
         const user = await getUser();
 
+        if (!user?.id) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         const currentUser = await prisma.profile.findUnique({
             where: { id: user.id }
         });
