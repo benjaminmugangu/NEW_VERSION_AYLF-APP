@@ -378,6 +378,14 @@ model FundAllocation {
   status         AllocationStatus
   notes          String?
 
+  // Hybrid Allocation Support (NEW)
+  allocationType String  @default("hierarchical") @map("allocation_type")
+  // Values: 'hierarchical' (NC → Site OR SC → Group) or 'direct' (NC → Group bypass)
+  
+  bypassReason   String? @map("bypass_reason")
+  // Required when allocationType = 'direct'. Min 20 characters.
+  // Justification for why NC is bypassing the Site Coordinator.
+
   // Proof (NEW)
   proofUrl String? @map("proof_url") // URL to transfer proof in Supabase
 

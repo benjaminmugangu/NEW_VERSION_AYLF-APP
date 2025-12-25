@@ -25,12 +25,31 @@ BEGIN
         (get_my_role() = %3$L AND small_group_id::TEXT = get_my_small_group_id())
       )', role_nc, role_sc, role_sgl);
 
-    -- 2. Coordinators can create allocations
+    -- 2. Hybrid allocation enforcement for INSERT
     EXECUTE format('
-    CREATE POLICY "Coordinators can create allocations" ON public.fund_allocations
+    CREATE POLICY "Hybrid allocation enforcement" ON public.fund_allocations
       FOR INSERT WITH CHECK (
-        (get_my_role() = %L AND allocated_by_id::TEXT = get_my_id()) OR
-        (get_my_role() = %L AND allocated_by_id::TEXT = get_my_id())
+        -- NC hierarchical: Can allocate to Sites ONLY (not Small Groups)
+        (get_my_role() = %1$L
+         AND allocated_by_id::TEXT = get_my_id()
+         AND allocation_type = ''hierarchical''
+         AND site_id IS NOT NULL
+         AND small_group_id IS NULL)
+        OR
+        -- NC direct: Can allocate to Small Groups with required justification
+        (get_my_role() = %1$L
+         AND allocated_by_id::TEXT = get_my_id()
+         AND allocation_type = ''direct''
+         AND small_group_id IS NOT NULL
+         AND bypass_reason IS NOT NULL
+         AND LENGTH(bypass_reason) >= 20)
+        OR
+        -- SC hierarchical: Can allocate to Small Groups within their site
+        (get_my_role() = %2$L
+         AND allocated_by_id::TEXT = get_my_id()
+         AND allocation_type = ''hierarchical''
+         AND site_id::TEXT = get_my_site_id()
+         AND small_group_id IS NOT NULL)
       )', role_nc, role_sc);
 
     -- 3. National Coordinators can update fund allocations

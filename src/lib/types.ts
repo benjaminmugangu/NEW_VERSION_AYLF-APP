@@ -214,6 +214,9 @@ export interface FundAllocation extends BaseEntity {
   siteId?: string;
   smallGroupId?: string;
   notes?: string;
+  // Hybrid allocation support
+  allocationType: 'hierarchical' | 'direct';
+  bypassReason?: string; // Required when allocationType = 'direct'
   // Enriched data for UI
   allocatedByName?: string;
   siteName?: string;
@@ -236,6 +239,9 @@ export interface FundAllocationFormData {
   fromSiteId?: string;
   fromSiteName?: string;
   proofUrl?: string;
+  // Hybrid allocation support
+  isDirect?: boolean; // UI flag to toggle direct allocation mode
+  bypassReason?: string; // Required when isDirect = true
 }
 
 export interface Financials {
