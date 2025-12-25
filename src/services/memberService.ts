@@ -225,22 +225,36 @@ export async function deleteMember(memberId: string): Promise<void> {
   });
 }
 
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { withRLS } from '@/lib/prisma';
+
+// ... existing code ...
+
 export async function createMember(formData: MemberFormData): Promise<Member> {
-  // Exclusivity Guard
-  if (formData.level === 'national') {
-    formData.siteId = undefined;
-    formData.smallGroupId = undefined;
-  } else if (formData.level === 'site') {
-    formData.smallGroupId = undefined;
+  const { getUser } = getKindeServerSession();
+  const user = await getUser();
+
+  if (!user) {
+    throw new Error("Unauthorized");
   }
 
-  const member = await prisma.member.create({
-    data: {
-      ...formData,
-      joinDate: new Date(formData.joinDate),
-      type: formData.type === 'non-student' ? 'non_student' : 'student', // Keeps DB enum sync
-    },
-  });
+  return await withRLS(user.id, async () => {
+    // Exclusivity Guard
+    if (formData.level === 'national') {
+      formData.siteId = undefined;
+      formData.smallGroupId = undefined;
+    } else if (formData.level === 'site') {
+      formData.smallGroupId = undefined;
+    }
 
-  return mapPrismaMemberToBase(member);
+    const member = await prisma.member.create({
+      data: {
+        ...formData,
+        joinDate: new Date(formData.joinDate),
+        type: formData.type === 'non-student' ? 'non_student' : 'student', // Keeps DB enum sync
+      },
+    });
+
+    return mapPrismaMemberToBase(member);
+  });
 }

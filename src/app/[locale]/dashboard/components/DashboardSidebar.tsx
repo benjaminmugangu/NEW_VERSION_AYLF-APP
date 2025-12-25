@@ -139,13 +139,13 @@ export function DashboardSidebar({ user }: DashboardSidebarProps) {
                 <Badge variant="secondary" className="text-[10px] h-4 px-1">
                   {tRole(user.role as any)}
                 </Badge>
-                {user.siteName && (
+                {!['NATIONAL_COORDINATOR', 'ADMIN'].includes(user.role) && user.siteName && (
                   <Badge variant="outline" className="text-[10px] h-4 px-1 bg-background flex items-center gap-1">
                     <Building className="w-2.5 h-2.5" />
                     {user.siteName}
                   </Badge>
                 )}
-                {user.smallGroupName && (
+                {!['NATIONAL_COORDINATOR', 'ADMIN'].includes(user.role) && user.smallGroupName && (
                   <Badge variant="outline" className="text-[10px] h-4 px-1 bg-background flex items-center gap-1">
                     <UsersRound className="w-2.5 h-2.5" />
                     {user.smallGroupName}
