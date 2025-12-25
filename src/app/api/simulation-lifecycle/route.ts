@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { prisma, withRLS } from "@/lib/prisma";
 import * as activityService from '@/services/activityService';
 import * as reportService from '@/services/reportService';
-import * as dashboardService from '@/services/dashboardService';
+import dashboardService from '@/services/dashboardService';
 
 // This API simulates the "Life Cycle" of data as described in the User Guide
 // It leverages the actual Service layer, ensuring that business logic and RLS are tested.
@@ -76,13 +76,13 @@ export async function GET(request: Request) {
                         activityDate: new Date().toISOString(),
                         girlsCount: 5,
                         boysCount: 5,
-                        expenses: 0,
+                        totalExpenses: 0,
                         financialSummary: "None",
                         submittedBy: user.id,
                         siteId: user.siteId!,
                         smallGroupId: user.smallGroupId!,
                         activityTypeId: activity.activityTypeId,
-                        activityTypeId: activity.activityTypeId,
+
                         level: 'small_group',
                         status: 'submitted',
                         images: []
@@ -227,7 +227,7 @@ export async function GET(request: Request) {
                 result = await executeInContext(async () => {
                     if (user.role !== 'NATIONAL_COORDINATOR') throw new Error("Role must be NC");
 
-                    return await dashboardService.default.getDashboardStats(user as any, 'year');
+                    return await dashboardService.getDashboardStats(user as any, { rangeKey: 'this_year', display: 'This Year' });
                 });
                 break;
 
