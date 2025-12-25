@@ -36,7 +36,7 @@ export async function processInvitation(token?: string) {
                 return { success: false, error: "Invitation already accepted" };
             }
 
-            if (invitation.email.toLowerCase() !== user.email.toLowerCase()) {
+            if (!user.email || invitation.email.toLowerCase() !== user.email.toLowerCase()) {
                 return { success: false, error: "Invitation email does not match logged in user" };
             }
 

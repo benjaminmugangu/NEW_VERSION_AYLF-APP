@@ -51,7 +51,6 @@ export async function GET(request: Request) {
                         status: 'planned',
                         level: 'small_group',
                         activityTypeId: activityType.id,
-                        description: "Automated test activity",
                         siteId: user.siteId!,
                         smallGroupId: user.smallGroupId!,
                         createdById: user.id
