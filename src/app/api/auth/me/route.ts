@@ -64,7 +64,7 @@ export async function GET() {
       if (!dbUser) {
         console.log(`[AUTH_SYNC] No profile found for ${kindeUser.email}. Creating new...`);
 
-        const normalizedEmail = kindeUser.email.toLowerCase();
+        const normalizedEmail = kindeUser.email!.toLowerCase();
         const invitation = await prisma.userInvitation.findFirst({
           where: {
             email: { equals: normalizedEmail, mode: 'insensitive' },
