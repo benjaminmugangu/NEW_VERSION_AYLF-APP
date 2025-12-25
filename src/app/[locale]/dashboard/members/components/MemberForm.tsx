@@ -31,27 +31,11 @@ export function MemberForm({ member, onSubmitForm }: MemberFormProps) {
   const t = useTranslations('MemberForm');
   const tLevel = useTranslations('ActivityLevel');
 
+  // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   const [sites, setSites] = useState<Site[]>([]);
   const [smallGroups, setSmallGroups] = useState<SmallGroup[]>([]);
 
-  if (isAuthLoading) {
-    return <div className="p-8 text-center text-muted-foreground">Loading user profile...</div>;
-  }
-
-  if (!currentUser) {
-    return (
-      <Card className="shadow-xl w-full max-w-xl mx-auto border-destructive/50">
-        <CardHeader>
-          <CardTitle className="text-destructive">Authentication Error</CardTitle>
-          <CardDescription>
-            Unable to load user profile. Please try refreshing the page or logging in again.
-          </CardDescription>
-        </CardHeader>
-      </Card>
-    );
-  }
-
-  // Move schema definition inside component to use translations
+  // Move schema definition to top - it must be called unconditionally
   const memberFormSchema = useMemo(() => z.object({
     name: z.string().min(3, t('validation.name_min')),
     gender: z.enum(["male", "female"]),
@@ -103,6 +87,7 @@ export function MemberForm({ member, onSubmitForm }: MemberFormProps) {
   const canChangeSite = currentUser?.role === ROLES.NATIONAL_COORDINATOR;
   const canChangeSmallGroup = currentUser?.role === ROLES.NATIONAL_COORDINATOR || currentUser?.role === ROLES.SITE_COORDINATOR;
 
+  // ALL useEffect hooks MUST be called unconditionally before any returns
   useEffect(() => {
     const fetchSites = async () => {
       if (!currentUser) return;
@@ -158,6 +143,24 @@ export function MemberForm({ member, onSubmitForm }: MemberFormProps) {
       });
     }
   }, [currentUser, member, reset]);
+
+  // NOW we can do early returns after all hooks are called
+  if (isAuthLoading) {
+    return <div className="p-8 text-center text-muted-foreground">Loading user profile...</div>;
+  }
+
+  if (!currentUser) {
+    return (
+      <Card className="shadow-xl w-full max-w-xl mx-auto border-destructive/50">
+        <CardHeader>
+          <CardTitle className="text-destructive">Authentication Error</CardTitle>
+          <CardDescription>
+            Unable to load user profile. Please try refreshing the page or logging in again.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
   const processSubmit = async (data: MemberFormData) => {
     const finalData = {

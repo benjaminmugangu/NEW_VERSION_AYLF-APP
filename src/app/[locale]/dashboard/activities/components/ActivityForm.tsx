@@ -32,6 +32,7 @@ interface ActivityFormProps {
 }
 
 export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onSave, onCancel }) => {
+  // ALL HOOKS MUST BE CALLED FIRST - BEFORE ANY CONDITIONAL RETURNS
   const { currentUser, isLoading: isAuthLoading } = useAuth();
   const { toast } = useToast();
   const isEditMode = !!initialActivity;
@@ -62,6 +63,7 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
   const selectedLevel = form.watch('level');
   const selectedSiteId = form.watch('siteId');
 
+  // ALL useEffect hooks MUST be called unconditionally
   useEffect(() => {
     if (!currentUser || isAuthLoading) return;
     initializeForm(form, currentUser, initialActivity);
@@ -80,6 +82,25 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
     fetchData();
   }, [currentUser, isAuthLoading, toast, t]);
 
+  useEffect(() => {
+    if (selectedSiteId) {
+      const filtered = smallGroups.filter(sg => sg.siteId === selectedSiteId);
+      setFilteredSmallGroups(filtered);
+    } else {
+      setFilteredSmallGroups([]);
+    }
+  }, [selectedSiteId, smallGroups]);
+
+  // Permission logic constants (can be before returns)
+  const isNational = currentUser?.role === ROLES.NATIONAL_COORDINATOR;
+  const isSiteCoord = currentUser?.role === ROLES.SITE_COORDINATOR;
+  const isSGL = currentUser?.role === ROLES.SMALL_GROUP_LEADER;
+
+  const canChangeLevel = isNational || isSiteCoord;
+  const canChangeSite = isNational;
+  const canChangeSmallGroup = isNational || isSiteCoord;
+
+  // NOW we can do early returns after all hooks are called
   if (isAuthLoading) {
     return <div className="p-8 text-center text-muted-foreground">Loading activity context...</div>;
   }
@@ -101,22 +122,6 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
   // National: Can change everything.
   // Site Coord: Can change Level (Site <-> SG), Can change SG. Cannot change Site (locked to own).
   // SG Leader: Cannot change anything content-wise (locked to own SG).
-  const isNational = currentUser?.role === ROLES.NATIONAL_COORDINATOR;
-  const isSiteCoord = currentUser?.role === ROLES.SITE_COORDINATOR;
-  const isSGL = currentUser?.role === ROLES.SMALL_GROUP_LEADER;
-
-  const canChangeLevel = isNational || isSiteCoord;
-  const canChangeSite = isNational;
-  const canChangeSmallGroup = isNational || isSiteCoord;
-
-  useEffect(() => {
-    if (selectedSiteId) {
-      const filtered = smallGroups.filter(sg => sg.siteId === selectedSiteId);
-      setFilteredSmallGroups(filtered);
-    } else {
-      setFilteredSmallGroups([]);
-    }
-  }, [selectedSiteId, smallGroups]);
 
   const onSubmit = async (data: ActivityFormData) => {
     if (!currentUser?.id) {
