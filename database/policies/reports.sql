@@ -15,12 +15,12 @@ CREATE POLICY "Hierarchical view for reports" ON public.reports
     get_my_role() = 'NATIONAL_COORDINATOR' OR
     (get_my_role() = 'SITE_COORDINATOR' AND site_id::TEXT = get_my_site_id()) OR
     (get_my_role() = 'SMALL_GROUP_LEADER' AND small_group_id::TEXT = get_my_small_group_id()) OR
-    (submitted_by::TEXT = auth.uid()::TEXT)
+    (submitted_by::TEXT = get_my_id())
   );
 
 -- 2. Users can create their own reports
 CREATE POLICY "Users can create their own reports" ON public.reports
-  FOR INSERT WITH CHECK (submitted_by::TEXT = auth.uid()::TEXT);
+  FOR INSERT WITH CHECK (submitted_by::TEXT = get_my_id());
 
 -- 3. Coordinators can update reports in their scope
 CREATE POLICY "Coordinators can update reports in their scope" ON public.reports

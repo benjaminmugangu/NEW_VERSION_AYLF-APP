@@ -13,7 +13,8 @@ CREATE POLICY "Hierarchical view for small groups" ON public.small_groups
   FOR SELECT USING (
     get_my_role() = 'NATIONAL_COORDINATOR' OR
     (get_my_role() = 'SITE_COORDINATOR' AND site_id::TEXT = get_my_site_id()) OR
-    (get_my_role() = 'SMALL_GROUP_LEADER' AND id::TEXT = get_my_small_group_id()) -- Leaders can see their own group
+    (get_my_role() = 'SMALL_GROUP_LEADER' AND id::TEXT = get_my_small_group_id()) OR -- Leaders can see their own group
+    (get_my_role() = 'MEMBER' AND id::TEXT = get_my_small_group_id())
   );
 
 -- 2. Coordinators can manage small groups

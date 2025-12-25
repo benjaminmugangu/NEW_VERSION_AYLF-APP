@@ -7,7 +7,7 @@ import dashboardService from '@/services/dashboardService';
 import { Card, CardContent } from '@/components/ui/card';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
-import { prisma } from "@/lib/prisma";
+import { prisma, withRLS } from "@/lib/prisma";
 import { User } from "@/lib/types";
 // Note: updateActivityStatuses removed - runs via CRON /api/cron/update-statuses
 
@@ -142,89 +142,119 @@ export default async function DashboardPage(props: any) {
     redirect('/api/auth/login');
   }
 
-  // Récupérer le profil Prisma
-  const profile = await prisma.profile.findUnique({
-    where: { id: kindeUser.id },
-    select: {
-      id: true,
-      role: true,
-      name: true,
-      email: true,
-      siteId: true,
-      smallGroupId: true,
-      status: true
+  return await withRLS(kindeUser.id, async () => {
+    // Récupérer le profil Prisma
+    let profile = await prisma.profile.findUnique({
+      where: { id: kindeUser.id },
+      select: {
+        id: true,
+        role: true,
+        name: true,
+        email: true,
+        siteId: true,
+        smallGroupId: true,
+        status: true
+      }
+    });
+
+    // Fallback lookup by email (same as Layout for consistency)
+    if (!profile && kindeUser.email) {
+      profile = await prisma.profile.findUnique({
+        where: { email: kindeUser.email.toLowerCase() },
+        select: {
+          id: true,
+          role: true,
+          name: true,
+          email: true,
+          siteId: true,
+          smallGroupId: true,
+          status: true
+        }
+      });
+    }
+
+    if (!profile) {
+      console.error('Profile not found for user:', kindeUser.id, kindeUser.email);
+      // Instead of immediate redirect loop, let's try to handle the sync
+      // This could also be a newly authenticated user without a profile yet.
+      // The Layout handles the fallback role, but the Page needs it too.
+      return (
+        <div className="p-4">
+          <PageHeader title="Profile Sync Required" description="Your account is being synchronized. Please refresh the page in a few seconds." />
+          <Card className="mt-4">
+            <CardContent className="pt-6">
+              <p>If the problem persists, please contact an administrator.</p>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
+    const userRole = profile.role;
+    const userName = profile.name || profile.email || 'Unknown User';
+
+    // Role-based redirection
+    if (userRole === ROLES.SITE_COORDINATOR) {
+      redirect('/dashboard/site-coordinator');
+    }
+    if (userRole === ROLES.SMALL_GROUP_LEADER) {
+      redirect('/dashboard/small-group-leader');
+    }
+    if (userRole === ROLES.MEMBER) {
+      redirect('/dashboard/member');
+    }
+
+    // Allow access for National Coordinator (or fallback)
+    if (userRole !== ROLES.NATIONAL_COORDINATOR) {
+      return (
+        <div className="p-4">
+          <PageHeader title="Access Denied" description="You do not have permission to view this page." />
+          <Card className="mt-4">
+            <CardContent className="pt-6">
+              <p>Please contact an administrator if you believe this is an error.</p>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
+    const dateFilter = getDateFilterFromParams(searchParams);
+
+    // Construct User object for service
+    const user: User = {
+      id: profile.id,
+      name: profile.name,
+      email: profile.email,
+      role: profile.role as any,
+      siteId: profile.siteId,
+      smallGroupId: profile.smallGroupId,
+      status: profile.status as any
+    };
+
+    try {
+      const stats = await dashboardService.getDashboardStats(user, dateFilter);
+
+      return (
+        <DashboardClient
+          initialStats={stats}
+          userName={userName}
+          userRole={userRole}
+          initialDateFilter={dateFilter}
+        />
+      );
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error('An unknown error occurred');
+      return (
+        <div className="p-4">
+          <PageHeader title="Error" description="Failed to load dashboard data." />
+          <Card className="mt-4">
+            <CardContent className="pt-6">
+              <p className="text-red-500">{err.message}</p>
+            </CardContent>
+          </Card>
+        </div>
+      );
     }
   });
-
-  if (!profile) {
-    console.error('Profile not found for user:', kindeUser.id);
-    redirect('/api/auth/login');
-  }
-
-  const userRole = profile.role;
-  const userName = profile.name || profile.email || 'Unknown User';
-
-  // Role-based redirection
-  if (userRole === ROLES.SITE_COORDINATOR) {
-    redirect('/dashboard/site-coordinator');
-  }
-  if (userRole === ROLES.SMALL_GROUP_LEADER) {
-    redirect('/dashboard/small-group-leader');
-  }
-  if (userRole === ROLES.MEMBER) {
-    redirect('/dashboard/member');
-  }
-
-  // Allow access for National Coordinator (or fallback)
-  if (userRole !== ROLES.NATIONAL_COORDINATOR) {
-    return (
-      <div className="p-4">
-        <PageHeader title="Access Denied" description="You do not have permission to view this page." />
-        <Card className="mt-4">
-          <CardContent className="pt-6">
-            <p>Please contact an administrator if you believe this is an error.</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  const dateFilter = getDateFilterFromParams(searchParams);
-
-  // Construct User object for service
-  const user: User = {
-    id: profile.id,
-    name: profile.name,
-    email: profile.email,
-    role: profile.role as any,
-    siteId: profile.siteId,
-    smallGroupId: profile.smallGroupId,
-    status: profile.status as any
-  };
-
-  try {
-    const stats = await dashboardService.getDashboardStats(user, dateFilter);
-
-    return (
-      <DashboardClient
-        initialStats={stats}
-        userName={userName}
-        userRole={userRole}
-        initialDateFilter={dateFilter}
-      />
-    );
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error('An unknown error occurred');
-    return (
-      <div className="p-4">
-        <PageHeader title="Error" description="Failed to load dashboard data." />
-        <Card className="mt-4">
-          <CardContent className="pt-6">
-            <p className="text-red-500">{err.message}</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 }
 

@@ -20,7 +20,7 @@ CREATE POLICY "Hierarchical view for transactions" ON public.transactions
 
 -- 2. Users can record transactions in their scope
 CREATE POLICY "Users can record transactions in their scope" ON public.transactions
-  FOR INSERT WITH CHECK (recorded_by::TEXT = auth.uid()::TEXT);
+  FOR INSERT WITH CHECK (recorded_by::TEXT = get_my_id());
 
 -- 3. National Coordinators can update transactions
 CREATE POLICY "National Coordinators can update transactions" ON public.transactions

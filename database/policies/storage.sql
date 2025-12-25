@@ -26,16 +26,16 @@ BEGIN
     DROP POLICY IF EXISTS "National coordinators can update report-images" ON storage.objects;
 
     -- UPLOAD POLICY
-    EXECUTE format('CREATE POLICY "Hierarchical upload for report-images" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = %L AND ((SELECT role FROM public.profiles WHERE id = auth.uid()::TEXT) = %L OR ((SELECT role FROM public.profiles WHERE id = auth.uid()::TEXT) = %L AND (SELECT site_id::text FROM public.profiles WHERE id = auth.uid()::TEXT) = split_part(name, %L, 1)) OR ((SELECT role FROM public.profiles WHERE id = auth.uid()::TEXT) = %L AND (SELECT small_group_id::text FROM public.profiles WHERE id = auth.uid()::TEXT) = split_part(name, %L, 2))))', bucket_val, role_nc, role_sc, '/', role_sgl, '/');
+    EXECUTE format('CREATE POLICY "Hierarchical upload for report-images" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = %L AND ((SELECT role FROM public.profiles WHERE id = get_my_id()) = %L OR ((SELECT role FROM public.profiles WHERE id = get_my_id()) = %L AND (SELECT site_id::text FROM public.profiles WHERE id = get_my_id()) = split_part(name, %L, 1)) OR ((SELECT role FROM public.profiles WHERE id = get_my_id()) = %L AND (SELECT small_group_id::text FROM public.profiles WHERE id = get_my_id()) = split_part(name, %L, 2))))', bucket_val, role_nc, role_sc, '/', role_sgl, '/');
 
     -- VIEW POLICY
-    EXECUTE format('CREATE POLICY "Hierarchical view for report-images" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = %L AND ((SELECT role FROM public.profiles WHERE id = auth.uid()::TEXT) = %L OR ((SELECT role FROM public.profiles WHERE id = auth.uid()::TEXT) = %L AND (SELECT site_id::text FROM public.profiles WHERE id = auth.uid()::TEXT) = split_part(name, %L, 1)) OR ((SELECT role FROM public.profiles WHERE id = auth.uid()::TEXT) = %L AND (SELECT small_group_id::text FROM public.profiles WHERE id = auth.uid()::TEXT) = split_part(name, %L, 2))))', bucket_val, role_nc, role_sc, '/', role_sgl, '/');
+    EXECUTE format('CREATE POLICY "Hierarchical view for report-images" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = %L AND ((SELECT role FROM public.profiles WHERE id = get_my_id()) = %L OR ((SELECT role FROM public.profiles WHERE id = get_my_id()) = %L AND (SELECT site_id::text FROM public.profiles WHERE id = get_my_id()) = split_part(name, %L, 1)) OR ((SELECT role FROM public.profiles WHERE id = get_my_id()) = %L AND (SELECT small_group_id::text FROM public.profiles WHERE id = get_my_id()) = split_part(name, %L, 2))))', bucket_val, role_nc, role_sc, '/', role_sgl, '/');
 
     -- DELETE POLICY
-    EXECUTE format('CREATE POLICY "National coordinators can delete report-images" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = %L AND (SELECT role FROM public.profiles WHERE id = auth.uid()::TEXT) = %L)', bucket_val, role_nc);
+    EXECUTE format('CREATE POLICY "National coordinators can delete report-images" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = %L AND (SELECT role FROM public.profiles WHERE id = get_my_id()) = %L)', bucket_val, role_nc);
 
     -- UPDATE POLICY
-    EXECUTE format('CREATE POLICY "National coordinators can update report-images" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = %L AND (SELECT role FROM public.profiles WHERE id = auth.uid()::TEXT) = %L)', bucket_val, role_nc);
+    EXECUTE format('CREATE POLICY "National coordinators can update report-images" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = %L AND (SELECT role FROM public.profiles WHERE id = get_my_id()) = %L)', bucket_val, role_nc);
 END $$;
 
 -- =====================================================

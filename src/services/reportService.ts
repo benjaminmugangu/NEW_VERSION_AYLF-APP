@@ -146,9 +146,9 @@ export async function getReportById(id: string): Promise<Report> {
   return mapPrismaReportToModel(report);
 }
 
-export async function createReport(reportData: ReportFormData): Promise<Report> {
+export async function createReport(reportData: ReportFormData, overrideUser?: any): Promise<Report> {
   const { getUser } = getKindeServerSession();
-  const user = await getUser();
+  const user = overrideUser || await getUser();
 
   if (!user?.id) {
     throw new Error('Unauthorized: User must be authenticated to submit a report.');

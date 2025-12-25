@@ -106,10 +106,10 @@ export const getActivityById = async (id: string): Promise<Activity> => {
   return mapPrismaActivityToActivity(activity);
 };
 
-export const createActivity = async (activityData: ActivityFormData): Promise<Activity> => {
+export const createActivity = async (activityData: ActivityFormData, overrideUser?: any): Promise<Activity> => {
   // Security Check: Get current user to enforce RBAC
   const { getUser } = getKindeServerSession();
-  const user = await getUser();
+  const user = overrideUser || await getUser();
 
   if (!user) {
     throw new Error('Unauthorized: User not authenticated');

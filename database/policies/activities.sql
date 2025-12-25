@@ -21,7 +21,7 @@ BEGIN
         get_my_role() = %L OR
         (get_my_role() = %L AND site_id::TEXT = get_my_site_id()) OR
         (get_my_role() = %L AND small_group_id::TEXT = get_my_small_group_id()) OR
-        (created_by::TEXT = auth.uid()::TEXT)
+        (created_by::TEXT = get_my_id())
       )', role_nc, role_sc, role_sgl);
 
     -- 2. Users can manage activities in their scope

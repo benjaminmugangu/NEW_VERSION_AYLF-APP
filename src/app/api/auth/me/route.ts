@@ -72,7 +72,7 @@ export async function GET() {
         orderBy: { createdAt: "desc" }
       });
 
-      const role: UserRole = invitation?.role || "member";
+      const role: UserRole = invitation?.role || "MEMBER";
       const siteId = invitation?.siteId || null;
       const smallGroupId = invitation?.smallGroupId || null;
 

@@ -29,8 +29,8 @@ BEGIN
     EXECUTE format('
     CREATE POLICY "Coordinators can create allocations" ON public.fund_allocations
       FOR INSERT WITH CHECK (
-        (get_my_role() = %L AND allocated_by_id::TEXT = auth.uid()::TEXT) OR
-        (get_my_role() = %L AND allocated_by_id::TEXT = auth.uid()::TEXT)
+        (get_my_role() = %L AND allocated_by_id::TEXT = get_my_id()) OR
+        (get_my_role() = %L AND allocated_by_id::TEXT = get_my_id())
       )', role_nc, role_sc);
 
     -- 3. National Coordinators can update fund allocations
