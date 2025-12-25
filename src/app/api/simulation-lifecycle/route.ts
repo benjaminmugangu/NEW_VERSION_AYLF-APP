@@ -53,7 +53,7 @@ export async function GET(request: Request) {
                         activityTypeId: activityType.id,
                         siteId: user.siteId!,
                         smallGroupId: user.smallGroupId!,
-                        createdById: user.id
+                        createdBy: user.id
                     }, user); // Pass user context
                 });
                 break;
@@ -73,10 +73,9 @@ export async function GET(request: Request) {
                         activityId: activity.id,
                         content: "We had a great time testing the system.",
                         thematic: activity.thematic,
-                        activityDate: new Date(),
+                        activityDate: new Date().toISOString(),
                         girlsCount: 5,
                         boysCount: 5,
-                        totalParticipants: 10,
                         expenses: 0,
                         financialSummary: "None",
                         submittedBy: user.id,
