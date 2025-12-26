@@ -2,31 +2,45 @@
 // Covers all scenarios: NC hierarchical, NC direct, SC hierarchical, and error cases
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createAllocation } from '@/services/allocations.service';
+import { createAllocation, updateAllocation, deleteAllocation, getAllocations, getAllocationById } from '@/services/allocations.service';
 import type { FundAllocationFormData } from '@/lib/types';
 
-// Mock Prisma
+// Create shared mock instances BEFORE mocks to ensure same instance is used everywhere
+// Use vi.hoisted to ensure these are available when vi.mock calls are hoisted
+const { mockGetUser, mockKindeSession, mockPrisma } = vi.hoisted(() => {
+    const getUser = vi.fn();
+    return {
+        mockGetUser: getUser,
+        mockKindeSession: {
+            getUser: getUser,
+        },
+        mockPrisma: {
+            profile: {
+                findUnique: vi.fn(),
+            },
+            fundAllocation: {
+                create: vi.fn(),
+                update: vi.fn(),
+                delete: vi.fn(),
+                findUnique: vi.fn(),
+                findMany: vi.fn(),
+            },
+            smallGroup: {
+                findUnique: vi.fn(),
+            },
+        }
+    };
+});
+
+// Mock Prisma - return mockPrisma instance
 vi.mock('@/lib/prisma', () => ({
-    prisma: {
-        profile: {
-            findUnique: vi.fn(),
-        },
-        fundAllocation: {
-            create: vi.fn(),
-            findUnique: vi.fn(),
-        },
-        smallGroup: {
-            findUnique: vi.fn(),
-        },
-    },
-    withRLS: vi.fn((userId, callback) => callback()),
+    prisma: mockPrisma,
+    withRLS: vi.fn((userId: string, callback: () => any) => callback()), // Execute callback immediately
 }));
 
-// Mock Kinde Auth
+// Mock Kinde Auth - return shared session instance
 vi.mock('@kinde-oss/kinde-auth-nextjs/server', () => ({
-    getKindeServerSession: vi.fn(() => ({
-        getUser: vi.fn(),
-    })),
+    getKindeServerSession: vi.fn(() => mockKindeSession), // Always return same instance
 }));
 
 // Mock budget service
@@ -38,11 +52,17 @@ describe('Hybrid Fund Allocation System', () => {
     const mockNCUser = {
         id: 'nc-user-123',
         email: 'nc@aylf.org',
+        given_name: 'National',
+        family_name: 'Coordinator',
+        picture: null,
     };
 
     const mockSCUser = {
         id: 'sc-user-456',
         email: 'sc@aylf.org',
+        given_name: 'Site',
+        family_name: 'Coordinator',
+        picture: null,
     };
 
     const mockNCProfile = {
@@ -106,15 +126,11 @@ describe('Hybrid Fund Allocation System', () => {
 
     describe('NC - Hierarchical Allocation (NC → Site)', () => {
         it('should create hierarchical allocation to Site successfully', async () => {
-            // Arrange
-            const { getKindeServerSession } = await import('@kinde-oss/kinde-auth-nextjs/server');
-            const { getUser } = getKindeServerSession();
-            vi.mocked(getUser).mockResolvedValue(mockNCUser);
-
-            const { prisma } = await import('@/lib/prisma');
-            vi.mocked(prisma.profile.findUnique).mockResolvedValue(mockNCProfile as any);
-            vi.mocked(prisma.fundAllocation.create).mockResolvedValue(mockAllocationCreated as any);
-            vi.mocked(prisma.fundAllocation.findUnique).mockResolvedValue({
+            // Arrange - use shared mock instances directly
+            mockGetUser.mockResolvedValue(mockNCUser);
+            mockPrisma.profile.findUnique.mockResolvedValue(mockNCProfile as any);
+            mockPrisma.fundAllocation.create.mockResolvedValue(mockAllocationCreated as any);
+            mockPrisma.fundAllocation.findUnique.mockResolvedValue({
                 ...mockAllocationCreated,
                 allocatedBy: { name: 'National Coordinator' },
                 site: mockSite,
@@ -144,7 +160,7 @@ describe('Hybrid Fund Allocation System', () => {
             expect(result.siteId).toBe('site-kinshasa');
             expect(result.smallGroupId).toBeUndefined();
             expect(result.bypassReason).toBeUndefined();
-            expect(prisma.fundAllocation.create).toHaveBeenCalledWith(
+            expect(mockPrisma.fundAllocation.create).toHaveBeenCalledWith(
                 expect.objectContaining({
                     data: expect.objectContaining({
                         allocationType: 'hierarchical',
@@ -158,12 +174,8 @@ describe('Hybrid Fund Allocation System', () => {
 
         it('should reject hierarchical NC allocation without siteId', async () => {
             // Arrange
-            const { getKindeServerSession } = await import('@kinde-oss/kinde-auth-nextjs/server');
-            const { getUser } = getKindeServerSession();
-            vi.mocked(getUser).mockResolvedValue(mockNCUser);
-
-            const { prisma } = await import('@/lib/prisma');
-            vi.mocked(prisma.profile.findUnique).mockResolvedValue(mockNCProfile as any);
+            mockGetUser.mockResolvedValue(mockNCUser);
+            mockPrisma.profile.findUnique.mockResolvedValue(mockNCProfile as any);
 
             const formData: FundAllocationFormData = {
                 amount: 5000,
@@ -182,12 +194,8 @@ describe('Hybrid Fund Allocation System', () => {
 
         it('should reject hierarchical NC allocation with smallGroupId', async () => {
             // Arrange
-            const { getKindeServerSession } = await import('@kinde-oss/kinde-auth-nextjs/server');
-            const { getUser } = getKindeServerSession();
-            vi.mocked(getUser).mockResolvedValue(mockNCUser);
-
-            const { prisma } = await import('@/lib/prisma');
-            vi.mocked(prisma.profile.findUnique).mockResolvedValue(mockNCProfile as any);
+            mockGetUser.mockResolvedValue(mockNCUser);
+            mockPrisma.profile.findUnique.mockResolvedValue(mockNCProfile as any);
 
             const formData: FundAllocationFormData = {
                 amount: 5000,
@@ -215,13 +223,10 @@ describe('Hybrid Fund Allocation System', () => {
     describe('NC - Direct Allocation (NC → Small Group)', () => {
         it('should create direct allocation to Small Group with valid justification', async () => {
             // Arrange
-            const { getKindeServerSession } = await import('@kinde-oss/kinde-auth-nextjs/server');
-            const { getUser } = getKindeServerSession();
-            vi.mocked(getUser).mockResolvedValue(mockNCUser);
+            mockGetUser.mockResolvedValue(mockNCUser);
 
-            const { prisma } = await import('@/lib/prisma');
-            vi.mocked(prisma.profile.findUnique).mockResolvedValue(mockNCProfile as any);
-            vi.mocked(prisma.smallGroup.findUnique).mockResolvedValue(mockSmallGroup as any);
+            mockPrisma.profile.findUnique.mockResolvedValue(mockNCProfile as any);
+            mockPrisma.smallGroup.findUnique.mockResolvedValue(mockSmallGroup as any);
 
             const directAllocation = {
                 ...mockAllocationCreated,
@@ -229,8 +234,8 @@ describe('Hybrid Fund Allocation System', () => {
                 bypassReason: 'Urgence - Activité communautaire imprévue nécessitant financement immédiat',
                 smallGroupId: 'group-alpha',
             };
-            vi.mocked(prisma.fundAllocation.create).mockResolvedValue(directAllocation as any);
-            vi.mocked(prisma.fundAllocation.findUnique).mockResolvedValue({
+            mockPrisma.fundAllocation.create.mockResolvedValue(directAllocation as any);
+            mockPrisma.fundAllocation.findUnique.mockResolvedValue({
                 ...directAllocation,
                 allocatedBy: { name: 'National Coordinator' },
                 site: mockSite,
@@ -258,7 +263,7 @@ describe('Hybrid Fund Allocation System', () => {
             expect(result.allocationType).toBe('direct');
             expect(result.smallGroupId).toBe('group-alpha');
             expect(result.bypassReason).toBe('Urgence - Activité communautaire imprévue nécessitant financement immédiat');
-            expect(prisma.fundAllocation.create).toHaveBeenCalledWith(
+            expect(mockPrisma.fundAllocation.create).toHaveBeenCalledWith(
                 expect.objectContaining({
                     data: expect.objectContaining({
                         allocationType: 'direct',
@@ -271,12 +276,9 @@ describe('Hybrid Fund Allocation System', () => {
 
         it('should reject direct allocation without bypassReason', async () => {
             // Arrange
-            const { getKindeServerSession } = await import('@kinde-oss/kinde-auth-nextjs/server');
-            const { getUser } = getKindeServerSession();
-            vi.mocked(getUser).mockResolvedValue(mockNCUser);
+            mockGetUser.mockResolvedValue(mockNCUser);
 
-            const { prisma } = await import('@/lib/prisma');
-            vi.mocked(prisma.profile.findUnique).mockResolvedValue(mockNCProfile as any);
+            mockPrisma.profile.findUnique.mockResolvedValue(mockNCProfile as any);
 
             const formData: FundAllocationFormData = {
                 amount: 3500,
@@ -298,12 +300,9 @@ describe('Hybrid Fund Allocation System', () => {
 
         it('should reject direct allocation with short bypassReason (<20 chars)', async () => {
             // Arrange
-            const { getKindeServerSession } = await import('@kinde-oss/kinde-auth-nextjs/server');
-            const { getUser } = getKindeServerSession();
-            vi.mocked(getUser).mockResolvedValue(mockNCUser);
+            mockGetUser.mockResolvedValue(mockNCUser);
 
-            const { prisma } = await import('@/lib/prisma');
-            vi.mocked(prisma.profile.findUnique).mockResolvedValue(mockNCProfile as any);
+            mockPrisma.profile.findUnique.mockResolvedValue(mockNCProfile as any);
 
             const formData: FundAllocationFormData = {
                 amount: 3500,
@@ -325,12 +324,9 @@ describe('Hybrid Fund Allocation System', () => {
 
         it('should reject direct allocation without smallGroupId', async () => {
             // Arrange
-            const { getKindeServerSession } = await import('@kinde-oss/kinde-auth-nextjs/server');
-            const { getUser } = getKindeServerSession();
-            vi.mocked(getUser).mockResolvedValue(mockNCUser);
+            mockGetUser.mockResolvedValue(mockNCUser);
 
-            const { prisma } = await import('@/lib/prisma');
-            vi.mocked(prisma.profile.findUnique).mockResolvedValue(mockNCProfile as any);
+            mockPrisma.profile.findUnique.mockResolvedValue(mockNCProfile as any);
 
             const formData: FundAllocationFormData = {
                 amount: 3500,
@@ -358,21 +354,18 @@ describe('Hybrid Fund Allocation System', () => {
     describe('SC - Hierarchical Allocation (SC → Small Group)', () => {
         it('should create hierarchical allocation to Small Group within site', async () => {
             // Arrange
-            const { getKindeServerSession } = await import('@kinde-oss/kinde-auth-nextjs/server');
-            const { getUser } = getKindeServerSession();
-            vi.mocked(getUser).mockResolvedValue(mockSCUser);
+            mockGetUser.mockResolvedValue(mockSCUser);
 
-            const { prisma } = await import('@/lib/prisma');
-            vi.mocked(prisma.profile.findUnique).mockResolvedValue(mockSCProfile as any);
-            vi.mocked(prisma.smallGroup.findUnique).mockResolvedValue(mockSmallGroup as any);
+            mockPrisma.profile.findUnique.mockResolvedValue(mockSCProfile as any);
+            mockPrisma.smallGroup.findUnique.mockResolvedValue(mockSmallGroup as any);
 
             const scAllocation = {
                 ...mockAllocationCreated,
                 allocatedById: 'sc-user-456',
                 smallGroupId: 'group-alpha',
             };
-            vi.mocked(prisma.fundAllocation.create).mockResolvedValue(scAllocation as any);
-            vi.mocked(prisma.fundAllocation.findUnique).mockResolvedValue({
+            mockPrisma.fundAllocation.create.mockResolvedValue(scAllocation as any);
+            mockPrisma.fundAllocation.findUnique.mockResolvedValue({
                 ...scAllocation,
                 allocatedBy: { name: 'Site Coordinator Kinshasa' },
                 site: mockSite,
@@ -400,7 +393,7 @@ describe('Hybrid Fund Allocation System', () => {
             expect(result.smallGroupId).toBe('group-alpha');
             expect(result.siteId).toBe('site-kinshasa');
             expect(result.bypassReason).toBeUndefined();
-            expect(prisma.fundAllocation.create).toHaveBeenCalledWith(
+            expect(mockPrisma.fundAllocation.create).toHaveBeenCalledWith(
                 expect.objectContaining({
                     data: expect.objectContaining({
                         allocationType: 'hierarchical',
@@ -414,12 +407,9 @@ describe('Hybrid Fund Allocation System', () => {
 
         it('should reject SC allocation without smallGroupId', async () => {
             // Arrange
-            const { getKindeServerSession } = await import('@kinde-oss/kinde-auth-nextjs/server');
-            const { getUser } = getKindeServerSession();
-            vi.mocked(getUser).mockResolvedValue(mockSCUser);
+            mockGetUser.mockResolvedValue(mockSCUser);
 
-            const { prisma } = await import('@/lib/prisma');
-            vi.mocked(prisma.profile.findUnique).mockResolvedValue(mockSCProfile as any);
+            mockPrisma.profile.findUnique.mockResolvedValue(mockSCProfile as any);
 
             const formData: FundAllocationFormData = {
                 amount: 2000,
@@ -439,19 +429,16 @@ describe('Hybrid Fund Allocation System', () => {
 
         it('should reject SC allocation to Small Group from another site', async () => {
             // Arrange
-            const { getKindeServerSession } = await import('@kinde-oss/kinde-auth-nextjs/server');
-            const { getUser } = getKindeServerSession();
-            vi.mocked(getUser).mockResolvedValue(mockSCUser);
+            mockGetUser.mockResolvedValue(mockSCUser);
 
-            const { prisma } = await import('@/lib/prisma');
-            vi.mocked(prisma.profile.findUnique).mockResolvedValue(mockSCProfile as any);
+            mockPrisma.profile.findUnique.mockResolvedValue(mockSCProfile as any);
 
             const otherSiteGroup = {
                 id: 'group-beta',
                 name: 'Beta Group',
                 siteId: 'site-goma', // Different site
             };
-            vi.mocked(prisma.smallGroup.findUnique).mockResolvedValue(otherSiteGroup as any);
+            mockPrisma.smallGroup.findUnique.mockResolvedValue(otherSiteGroup as any);
 
             const formData: FundAllocationFormData = {
                 amount: 2000,
@@ -471,12 +458,9 @@ describe('Hybrid Fund Allocation System', () => {
 
         it('should reject SC without assigned site', async () => {
             // Arrange
-            const { getKindeServerSession } = await import('@kinde-oss/kinde-auth-nextjs/server');
-            const { getUser } = getKindeServerSession();
-            vi.mocked(getUser).mockResolvedValue(mockSCUser);
+            mockGetUser.mockResolvedValue(mockSCUser);
 
-            const { prisma } = await import('@/lib/prisma');
-            vi.mocked(prisma.profile.findUnique).mockResolvedValue({
+            mockPrisma.profile.findUnique.mockResolvedValue({
                 ...mockSCProfile,
                 siteId: null, // No assigned site
             } as any);
@@ -505,9 +489,7 @@ describe('Hybrid Fund Allocation System', () => {
     describe('Authentication & Authorization', () => {
         it('should reject unauthenticated requests', async () => {
             // Arrange
-            const { getKindeServerSession } = await import('@kinde-oss/kinde-auth-nextjs/server');
-            const { getUser } = getKindeServerSession();
-            vi.mocked(getUser).mockResolvedValue(null); // No user
+            mockGetUser.mockResolvedValue(null); // No user
 
             const formData: FundAllocationFormData = {
                 amount: 5000,
@@ -525,12 +507,9 @@ describe('Hybrid Fund Allocation System', () => {
 
         it('should reject users without profile', async () => {
             // Arrange
-            const { getKindeServerSession } = await import('@kinde-oss/kinde-auth-nextjs/server');
-            const { getUser } = getKindeServerSession();
-            vi.mocked(getUser).mockResolvedValue(mockNCUser);
+            mockGetUser.mockResolvedValue(mockNCUser);
 
-            const { prisma } = await import('@/lib/prisma');
-            vi.mocked(prisma.profile.findUnique).mockResolvedValue(null); // No profile
+            mockPrisma.profile.findUnique.mockResolvedValue(null); // No profile
 
             const formData: FundAllocationFormData = {
                 amount: 5000,
@@ -548,12 +527,9 @@ describe('Hybrid Fund Allocation System', () => {
 
         it('should reject unauthorized roles (e.g., SMALL_GROUP_LEADER)', async () => {
             // Arrange
-            const { getKindeServerSession } = await import('@kinde-oss/kinde-auth-nextjs/server');
-            const { getUser } = getKindeServerSession();
-            vi.mocked(getUser).mockResolvedValue({ id: 'sgl-user', email: 'sgl@aylf.org' });
+            mockGetUser.mockResolvedValue({ id: 'sgl-user', email: 'sgl@aylf.org', given_name: 'SGL', family_name: 'User', picture: null });
 
-            const { prisma } = await import('@/lib/prisma');
-            vi.mocked(prisma.profile.findUnique).mockResolvedValue({
+            mockPrisma.profile.findUnique.mockResolvedValue({
                 id: 'sgl-user',
                 role: 'SMALL_GROUP_LEADER',
                 siteId: 'site-kinshasa',
@@ -574,6 +550,110 @@ describe('Hybrid Fund Allocation System', () => {
             // Act & Assert
             await expect(createAllocation(formData)).rejects.toThrow(
                 'Only National Coordinators and Site Coordinators can create fund allocations'
+            );
+        });
+    });
+
+    // ═══════════════════════════════════════════════════════════
+    // UPDATE & DELETE OPERATIONS
+    // ═══════════════════════════════════════════════════════════
+
+    describe('Update & Delete Operations', () => {
+        const mockID = 'allocation-123';
+
+        it('should allow National Coordinator to update allocation', async () => {
+            mockGetUser.mockResolvedValue(mockNCUser);
+            mockPrisma.profile.findUnique.mockResolvedValue(mockNCProfile as any);
+            mockPrisma.fundAllocation.findUnique.mockResolvedValue(mockAllocationCreated as any);
+
+            const updateData = { amount: 6000 };
+            const result = await updateAllocation(mockID, updateData);
+
+            expect(result).toBeDefined();
+            expect(mockPrisma.profile.findUnique).toHaveBeenCalledWith(
+                expect.objectContaining({ where: { id: mockNCUser.id } })
+            );
+        });
+
+        it('should reject Site Coordinator from updating allocation', async () => {
+            mockGetUser.mockResolvedValue(mockSCUser);
+            mockPrisma.profile.findUnique.mockResolvedValue(mockSCProfile as any);
+
+            await expect(updateAllocation(mockID, { amount: 6000 })).rejects.toThrow(
+                'Only National Coordinators can update allocations'
+            );
+        });
+
+        it('should allow National Coordinator to delete allocation', async () => {
+            mockGetUser.mockResolvedValue(mockNCUser);
+            mockPrisma.profile.findUnique.mockResolvedValue(mockNCProfile as any);
+
+            await deleteAllocation(mockID);
+
+            expect(mockPrisma.fundAllocation.delete).toHaveBeenCalledWith(
+                expect.objectContaining({ where: { id: mockID } })
+            );
+        });
+
+        it('should reject Site Coordinator from deleting allocation', async () => {
+            mockGetUser.mockResolvedValue(mockSCUser);
+            mockPrisma.profile.findUnique.mockResolvedValue(mockSCProfile as any);
+
+            await expect(deleteAllocation(mockID)).rejects.toThrow(
+                'Only National Coordinators can delete allocations'
+            );
+        });
+
+        it('should reject changing allocationType after creation', async () => {
+            mockGetUser.mockResolvedValue(mockNCUser);
+            mockPrisma.profile.findUnique.mockResolvedValue(mockNCProfile as any);
+
+            await expect(updateAllocation(mockID, { allocationType: 'direct' } as any)).rejects.toThrow(
+                'Audit Integrity Error: Cannot change allocationType'
+            );
+        });
+
+        it('should enforce 20 chars bypassReason when updating direct allocation', async () => {
+            mockGetUser.mockResolvedValue(mockNCUser);
+            mockPrisma.profile.findUnique.mockResolvedValue(mockNCProfile as any);
+            mockPrisma.fundAllocation.findUnique.mockResolvedValue({ ...mockAllocationCreated, allocationType: 'direct' } as any);
+
+            await expect(updateAllocation(mockID, { bypassReason: 'Too short' })).rejects.toThrow(
+                'minimum 20 characters'
+            );
+        });
+    });
+
+    // ═══════════════════════════════════════════════════════════
+    // READ OPERATIONS WITH RLS
+    // ═══════════════════════════════════════════════════════════
+
+    describe('Read Operations with RLS Context', () => {
+        it('should list allocations within RLS context', async () => {
+            mockGetUser.mockResolvedValue(mockNCUser);
+            mockPrisma.fundAllocation.findMany.mockResolvedValue([mockAllocationCreated] as any);
+
+            const result = await getAllocations();
+
+            expect(result).toHaveLength(1);
+            expect(mockPrisma.fundAllocation.findMany).toHaveBeenCalled();
+        });
+
+        it('should get single allocation within RLS context', async () => {
+            mockGetUser.mockResolvedValue(mockNCUser);
+            mockPrisma.fundAllocation.findUnique.mockResolvedValue(mockAllocationCreated as any);
+
+            const result = await getAllocationById('allocation-123');
+
+            expect(result).toBeDefined();
+            expect(result.id).toBe('allocation-123');
+        });
+
+        it('should reject unauthenticated read access for single allocation', async () => {
+            mockGetUser.mockResolvedValue(null);
+
+            await expect(getAllocationById('allocation-123')).rejects.toThrow(
+                'Unauthorized'
             );
         });
     });
