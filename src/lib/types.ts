@@ -241,6 +241,7 @@ export interface FundAllocationFormData {
   proofUrl?: string;
   // Hybrid allocation support
   isDirect?: boolean; // UI flag to toggle direct allocation mode
+  allocationType?: 'hierarchical' | 'direct'; // Internal/Audit field
   bypassReason?: string; // Required when isDirect = true
 }
 

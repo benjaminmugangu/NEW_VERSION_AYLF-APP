@@ -31,7 +31,8 @@ describe('Financial Logic', () => {
         (reportService.getFilteredReports as any).mockResolvedValue([]);
 
         const user = { id: 'u1', role: 'NATIONAL_COORDINATOR' } as any;
-        const result = await getFinancials(user, 'all');
+        const dateFilter = { rangeKey: 'all_time' as const, display: 'All Time' };
+        const result = await getFinancials(user, dateFilter);
 
         expect(result.income).toBe(1000);
         expect(result.expenses).toBe(500); // 400 + 100
@@ -47,7 +48,8 @@ describe('Financial Logic', () => {
         (allocationService.getAllocations as any).mockResolvedValue([]);
 
         const entity = { type: 'site' as const, id: 'site-1' };
-        const result = await getEntityFinancials(entity, 'all');
+        const dateFilter = { rangeKey: 'all_time' as const, display: 'All Time' };
+        const result = await getEntityFinancials(entity, dateFilter);
 
         // Verify logic calls correct filters (checked via mock spy if needed, but here checking calculation)
         expect(result.income).toBe(500);

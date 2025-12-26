@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { mapDbSmallGroupToSmallGroup, mapSmallGroupFormDataToDb } from './mappers';
-import type { DbSmallGroup, SmallGroup, DbUser } from './types';
+import type { SmallGroup } from './types';
+import type { SmallGroup as DbSmallGroup } from '@prisma/client';
 import type { SmallGroupFormData } from '@/lib/types';
 
 describe('SmallGroup Mappers', () => {
@@ -8,16 +9,16 @@ describe('SmallGroup Mappers', () => {
     const dbSmallGroup: any = {
       id: 'sg-1',
       name: 'Test Group',
-      site_id: 'site-1',
-      leader_id: 'user-leader',
-      logistics_assistant_id: 'user-logistics',
-      finance_assistant_id: 'user-finance',
-      meeting_day: 'Monday',
-      meeting_time: '18:00',
-      meeting_location: 'Online',
-      sites: { name: 'Test Site' },
+      siteId: 'site-1',
+      leaderId: 'user-leader',
+      logisticsAssistantId: 'user-logistics',
+      financeAssistantId: 'user-finance',
+      meetingDay: 'Monday',
+      meetingTime: '18:00',
+      meetingLocation: 'Online',
+      site: { name: 'Test Site' },
       leader: { id: 'user-leader', name: 'Leader Name' },
-      small_group_members: [{ count: 5 }],
+      _count: { registeredMembers: 5 },
     };
 
     const expectedSmallGroup: Partial<SmallGroup> = {
@@ -52,15 +53,15 @@ describe('SmallGroup Mappers', () => {
       meetingLocation: 'Community Hall',
     };
 
-    const expectedDbData: Partial<DbSmallGroup> = {
+    const expectedDbData: any = {
       name: 'New Group',
-      site_id: 'site-2',
-      leader_id: 'new-leader',
-      logistics_assistant_id: 'new-logistics',
-      finance_assistant_id: 'new-finance',
-      meeting_day: 'Wednesday',
-      meeting_time: '19:30',
-      meeting_location: 'Community Hall',
+      siteId: 'site-2',
+      leaderId: 'new-leader',
+      logisticsAssistantId: 'new-logistics',
+      financeAssistantId: 'new-finance',
+      meetingDay: 'Wednesday',
+      meetingTime: '19:30',
+      meetingLocation: 'Community Hall',
     };
 
     const result = mapSmallGroupFormDataToDb(formData);
@@ -68,11 +69,11 @@ describe('SmallGroup Mappers', () => {
   });
 
   it('mapDbSmallGroupToSmallGroup should handle missing optional relations', () => {
-    const dbSmallGroup: DbSmallGroup = {
+    const dbSmallGroup: any = {
       id: 'sg-2',
       name: 'Minimal Group',
-      site_id: 'site-1',
-      leader_id: 'user-leader',
+      siteId: 'site-1',
+      leaderId: 'user-leader',
     };
 
     const expected: Partial<SmallGroup> = {

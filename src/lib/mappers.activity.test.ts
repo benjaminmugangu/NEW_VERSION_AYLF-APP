@@ -1,22 +1,23 @@
 import { describe, it, expect } from 'vitest';
 import { mapDbActivityToActivity, mapActivityFormDataToDb } from './mappers';
-import type { DbActivity, Activity } from './types';
+import type { Activity } from './types';
+import type { Activity as DbActivity } from '@prisma/client';
 import type { ActivityFormData } from '@/schemas/activity';
 
 describe('Activity Mappers', () => {
   it('mapDbActivityToActivity should convert snake_case to camelCase', () => {
-    const dbActivity: DbActivity = {
+    const dbActivity: any = {
       id: 'activity-1',
       title: 'Test Activity',
       thematic: 'Test Thematic',
-      date: '2023-03-10T00:00:00.000Z',
+      date: new Date('2023-03-10T00:00:00.000Z'),
       level: 'site',
       status: 'planned',
-      site_id: 'site-1',
-      activity_type_id: 'type-1',
-      participants_count_planned: 20,
-      created_by: 'user-1',
-      created_at: '2023-03-01T10:00:00.000Z',
+      siteId: 'site-1',
+      activityTypeId: 'type-1',
+      participantsCountPlanned: 20,
+      createdById: 'user-1',
+      createdAt: new Date('2023-03-01T10:00:00.000Z'),
     };
 
     const expectedActivity: Activity = {
@@ -47,13 +48,13 @@ describe('Activity Mappers', () => {
       activityTypeId: 'type-2',
     };
 
-    const expectedDbActivity: Partial<DbActivity> = {
+    const expectedDbActivity: any = {
       title: 'New Activity',
       thematic: 'New Thematic',
-      date: '2023-04-15T00:00:00.000Z',
+      date: new Date('2023-04-15T00:00:00.000Z'),
       level: 'small_group',
-      small_group_id: 'sg-1',
-      activity_type_id: 'type-2',
+      smallGroupId: 'sg-1',
+      activityTypeId: 'type-2',
     };
 
     const result = mapActivityFormDataToDb(activityFormData);

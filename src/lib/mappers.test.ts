@@ -35,16 +35,14 @@ describe('User Mappers', () => {
     expect(result).toEqual(expect.objectContaining(expectedUser));
   });
 
-  it('mapUserToDb should convert camelCase to snake_case', () => {
+  it('mapUserToDb should convert camelCase to Date objects for database', () => {
     const userUpdate: Partial<User> = {
       name: 'Jane Doe',
-      siteId: 'site-2',
       mandateStartDate: '2023-02-01T00:00:00.000Z',
     };
 
-  };
-
-  const result = mapUserToDb(userUpdate);
-  expect(result).toEqual(expectedDbUser);
-});
+    const result = mapUserToDb(userUpdate);
+    expect(result.name).toBe('Jane Doe');
+    expect(result.mandateStartDate).toBeInstanceOf(Date);
+  });
 });
