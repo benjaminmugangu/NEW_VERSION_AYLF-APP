@@ -78,9 +78,8 @@ const dashboardService = {
         .slice(0, 5)
         .map(activity => ({
           ...activity,
-          date: new Date(activity.date).toISOString(),
-          createdAt: new Date(activity.createdAt).toISOString(),
-          updatedAt: new Date(activity.updatedAt).toISOString()
+          date: typeof activity.date === 'string' ? activity.date : new Date(activity.date).toISOString(),
+          createdAt: typeof activity.createdAt === 'string' ? activity.createdAt : new Date(activity.createdAt).toISOString(),
         }));
 
       // Members
