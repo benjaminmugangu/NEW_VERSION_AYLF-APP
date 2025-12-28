@@ -32,6 +32,8 @@ export default function ProfileSettingsPage() {
     );
   }
 
+  const { authError } = useCurrentUser();
+
   if (!currentUser) {
     return (
       <div>
@@ -41,6 +43,11 @@ export default function ProfileSettingsPage() {
             <p className="text-destructive font-semibold">User not found. Please log in again.</p>
             <div className="mt-4 p-2 bg-muted rounded text-xs overflow-auto">
               <p>Debug Info:</p>
+              <div className="mb-2">
+                <strong>Auth Error:</strong>
+                <pre className="text-red-500">{JSON.stringify(authError, null, 2)}</pre>
+              </div>
+              <p>State:</p>
               <pre>{JSON.stringify({ isLoading, hasUser: !!currentUser }, null, 2)}</pre>
             </div>
           </CardContent>
