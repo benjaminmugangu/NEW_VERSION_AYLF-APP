@@ -75,7 +75,13 @@ const dashboardService = {
       const executedActivities = activities.filter(a => a.status === 'executed').length;
       const recentActivities = [...activities]
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        .slice(0, 5);
+        .slice(0, 5)
+        .map(activity => ({
+          ...activity,
+          date: new Date(activity.date).toISOString(),
+          createdAt: new Date(activity.createdAt).toISOString(),
+          updatedAt: new Date(activity.updatedAt).toISOString()
+        }));
 
       // Members
       const totalMembers = members.length;
@@ -119,7 +125,7 @@ const dashboardService = {
         netBalance,
         totalIncome,
         totalExpenses,
-        recentActivities,
+        recentActivities: recentActivities as any, // Cast to any to avoid type conflict with Date vs string if interface expects Date
         activityStatusData,
         memberTypeData,
       };
