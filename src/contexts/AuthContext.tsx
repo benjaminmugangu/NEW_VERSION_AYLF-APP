@@ -40,7 +40,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setAuthError({
               code: data.code || 'UNKNOWN_ERROR',
               message: data.error || 'Failed to fetch profile',
-              details: data.details
+              details: { ...data.details, status: res.status }
             });
             setCurrentUser(null);
           }
