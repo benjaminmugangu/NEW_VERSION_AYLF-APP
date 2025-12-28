@@ -47,7 +47,16 @@ export default function ViewReportsClient({ initialReports, user }: ViewReportsC
   const [selectedReport, setSelectedReport] = useState<ReportWithDetails | null>(null);
   const [isRejectingReport, setIsRejectingReport] = useState<ReportWithDetails | null>(null);
   const [rejectionNotes, setRejectionNotes] = useState('');
+  const [sanitizedContent, setSanitizedContent] = useState('');
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (selectedReport?.content) {
+      setSanitizedContent(DOMPurify.sanitize(selectedReport.content));
+    } else {
+      setSanitizedContent("<p>No content provided.</p>");
+    }
+  }, [selectedReport]);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 640);
@@ -262,7 +271,7 @@ export default function ViewReportsClient({ initialReports, user }: ViewReportsC
 
                 <div>
                   <h4 className="font-semibold text-lg mb-2">Report Content</h4>
-                  <div className="prose prose-sm max-w-none p-3 border rounded-md bg-muted/50" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(selectedReport.content || "<p>No content provided.</p>") }} />
+                  <div className="prose prose-sm max-w-none p-3 border rounded-md bg-muted/50" dangerouslySetInnerHTML={{ __html: sanitizedContent }} />
                 </div>
 
                 {selectedReport.images && selectedReport.images.length > 0 && (

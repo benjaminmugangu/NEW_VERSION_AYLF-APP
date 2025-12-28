@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslations } from 'next-intl';
 
 export default function ProfileSettingsPage() {
+  const t = useTranslations('Profile');
   const { currentUser, isLoading } = useCurrentUser();
 
   if (isLoading) {
@@ -48,7 +49,7 @@ export default function ProfileSettingsPage() {
   // Site and SG leaders can edit their profiles here.
   const canEdit = currentUser.role === ROLES.SITE_COORDINATOR || currentUser.role === ROLES.SMALL_GROUP_LEADER || currentUser.role === ROLES.NATIONAL_COORDINATOR;
 
-  const t = useTranslations('Profile');
+
 
   return (
     <>
