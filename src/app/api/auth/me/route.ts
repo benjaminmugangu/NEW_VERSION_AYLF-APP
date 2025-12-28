@@ -8,28 +8,39 @@ import { MESSAGES } from "@/lib/messages";
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
+  console.log("[AUTH_ME] Request started");
   try {
-    const { getUser, isAuthenticated } = getKindeServerSession();
+    const { getUser, isAuthenticated, getRoles } = getKindeServerSession();
+    console.log("[AUTH_ME] Checking authentication...");
     const isAuth = await isAuthenticated();
+    console.log("[AUTH_ME] IsAuthenticated:", isAuth);
 
     if (!isAuth) {
+      console.log("[AUTH_ME] Not authenticated");
       return NextResponse.json({ user: null }, { status: 401 });
     }
 
     const kindeUser = await getUser();
+    console.log("[AUTH_ME] Kinde User ID:", kindeUser?.id);
+
     if (!kindeUser || !kindeUser.id || !kindeUser.email) {
+      console.log("[AUTH_ME] Invalid Kinde user data");
       return NextResponse.json({ error: MESSAGES.errors.validation }, { status: 400 });
     }
 
+    console.log("[AUTH_ME] Entering withRLS for user:", kindeUser.id);
     return await withRLS(kindeUser.id, async () => {
+      console.log("[AUTH_ME] Inside withRLS, searching for profile...");
       // 1. First, try to find user by Kinde ID
       let dbUser = await prisma.profile.findUnique({
         where: { id: kindeUser.id },
         include: { site: true, smallGroup: true }
       });
+      console.log("[AUTH_ME] Prisma lookup by ID complete. Found:", !!dbUser);
 
       // 2. Fallback: Search by email if not found by ID
       if (!dbUser && kindeUser.email) {
+        console.log("[AUTH_ME] Falling back to email lookup:", kindeUser.email);
         const normalizedEmail = kindeUser.email.toLowerCase();
         const userByEmail = await prisma.profile.findUnique({
           where: { email: normalizedEmail },
@@ -37,7 +48,6 @@ export async function GET() {
         });
 
         if (userByEmail) {
-          // SECURITY FIX: ID mismatch detected
           console.error(`[AUTH_SYNC] CRITICAL: ID Mismatch for ${normalizedEmail}. Kinde ID: ${kindeUser.id}, Profile ID: ${userByEmail.id}`);
 
           return NextResponse.json({
@@ -50,13 +60,13 @@ export async function GET() {
             }
           }, { status: 403 });
         } else {
-          console.log(`[AUTH_SYNC] User not found by ID (${kindeUser.id}) OR Email (${normalizedEmail}). Creating...`);
+          console.log(`[AUTH_SYNC] User not found by ID (${kindeUser.id}) OR Email (${normalizedEmail}).`);
         }
       }
 
       // 3. Create profile if it still doesn't exist
       if (!dbUser) {
-        console.log(`[AUTH_SYNC] No profile found for ${kindeUser.email}. Creating new...`);
+        console.log(`[AUTH_ME] Profile not found, attempting creation...`);
 
         const normalizedEmail = kindeUser.email!.toLowerCase();
         const invitation = await prisma.userInvitation.findFirst({
@@ -84,6 +94,7 @@ export async function GET() {
             },
             include: { site: true, smallGroup: true }
           });
+          console.log("[AUTH_ME] Profile created successfully");
 
           if (invitation) {
             await prisma.userInvitation.update({
@@ -92,16 +103,16 @@ export async function GET() {
             });
           }
         } catch (createError) {
-          console.error(`[AUTH_SYNC] Profile creation FAILED for ${normalizedEmail}:`, createError);
+          console.error(`[AUTH_SYNC] Profile creation FAILED:`, createError);
           throw createError;
         }
       }
 
-      // 4. Role & Name Refresh (Kinde as Source of Truth)
+      // 4. Role & Name Refresh 
       if (dbUser) {
-        const { getRoles } = getKindeServerSession();
+        console.log("[AUTH_ME] Profile exists, checking for refreshes...");
         const kindeRoles = (await getRoles()) || [];
-        const kindeRoleKey = kindeRoles[0]?.key; // Assume primary role is first
+        const kindeRoleKey = kindeRoles[0]?.key;
 
         const roleMap: Record<string, UserRole> = {
           'national_coordinator': 'NATIONAL_COORDINATOR',
@@ -114,7 +125,7 @@ export async function GET() {
         const targetName = `${kindeUser.given_name ?? ''} ${kindeUser.family_name ?? ''}`.trim() || kindeUser.email || dbUser.name;
 
         if (dbUser.role !== targetRole || dbUser.name !== targetName) {
-          console.log(`[AUTH_SYNC] Refreshing profile for ${dbUser.email}: Role(${dbUser.role}->${targetRole}), Name(${dbUser.name}->${targetName})`);
+          console.log(`[AUTH_SYNC] Updating profile metadata...`);
           dbUser = await prisma.profile.update({
             where: { id: dbUser.id },
             data: {
@@ -126,7 +137,7 @@ export async function GET() {
         }
       }
 
-      // 5. Final object for frontend
+      console.log("[AUTH_ME] Finalizing response");
       const frontendUser = {
         id: dbUser!.id,
         name: dbUser!.name,
@@ -143,9 +154,13 @@ export async function GET() {
       return NextResponse.json({ user: frontendUser });
     });
 
-  } catch (error) {
-    console.error("[AUTH_SYNC_ERROR]", error);
-    logError("[AUTH_SYNC_ERROR]", error);
-    return NextResponse.json({ error: MESSAGES.errors.serverError }, { status: 500 });
+  } catch (error: any) {
+    console.error("[AUTH_ME_ERROR] CRITICAL:", error);
+    return NextResponse.json({
+      error: "Internal Server Error",
+      message: error?.message || "Unknown error",
+      details: error?.toString(),
+      stack: error?.stack
+    }, { status: 500 });
   }
 }
