@@ -118,49 +118,34 @@ export const getEntityFinancials = async (
 
     // Let's implement a direct fetcher reusing what we can.
 
-    const [transactions, allocations] = await Promise.all([
+    const [transactions, allocations, reports] = await Promise.all([
       transactionService.getFilteredTransactions(transactionFilters),
       allocationService.getAllocations(allocationFilters),
+      reportService.getFilteredReports({ entity }),
     ]);
 
-    // For reports, we might be missing a direct "get reports by site ID" public method if it's all tied to 'user'.
-    // Let's try to mock the filter.
-    // If reportService doesn't export a direct filter method, we might miss report stats.
-    // BUT defined requirement is usually Transactions & Allocations for financial dashboard.
-    // Total Spent comes from reports.
-
-    // Let's instantiate a specific filter for reports if possible.
-    // Checking functionality... reportService.getFilteredReports uses `buildReportWhereClause`.
-    // We can't easily bypass it without a user.
-
-    // Workaround: We will use an empty list for reports for now to UNBLOCK the build/crash, 
-    // and marking "Report Fetching" as a known limitation for this specific view if needed.
-    // OR better: construct a fake "Site Coordinator" user object for that site to trick the service?
-    // That's risky.
-
-    // Let's stick to what we have:
     const income = transactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
     const expenses = transactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0);
     const netBalance = income - expenses;
 
-    // Filter allocations by date
+    // Filter allocations and reports by date locally
     const filteredAllocations = applyDateFilter(allocations || [], 'allocationDate', dateFilter);
-    const totalAllocated = filteredAllocations.reduce((acc, a) => acc + a.amount, 0);
+    const filteredReports = applyDateFilter(reports || [], 'submissionDate', dateFilter);
 
-    // NOTE: 'reports' / 'totalSpent' are omitted for this specific "Entity View" context
-    // because reportService requires a user context. This restores functionality for 
-    // Transactions and Allocations, which are critical for the dashboard.
+    const totalAllocated = filteredAllocations.reduce((acc, a) => acc + a.amount, 0);
+    const totalSpent = filteredReports.reduce((acc, r) => acc + (r.totalExpenses || 0), 0);
+    const allocationBalance = totalAllocated - totalSpent;
 
     return {
       income,
       expenses,
       netBalance,
       totalAllocated,
-      totalSpent: 0, // Placeholder
-      allocationBalance: totalAllocated,
+      totalSpent,
+      allocationBalance,
       transactions: transactions || [],
       allocations: filteredAllocations,
-      reports: [], // Placeholder
+      reports: filteredReports,
     };
   } catch (error) {
     console.error("Error fetching entity financials:", error);

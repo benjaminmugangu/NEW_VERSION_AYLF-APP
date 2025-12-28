@@ -140,34 +140,56 @@ export async function uploadFile(
 
 /**
  * Deletes a file from storage.
- * Only National Coordinators are authorized to delete files.
+ * Only National Coordinators are authorized to delete files manually.
+ * System rollbacks can bypass auth check (use with caution).
  * 
  * @param filePath - The path of the file to delete
+ * @param options - { isRollback: boolean }
  */
-export async function deleteFile(filePath: string): Promise<void> {
+export async function deleteFile(
+  filePath: string,
+  options: { isRollback?: boolean; bucketName?: string } = {}
+): Promise<void> {
   const { getUser } = getKindeServerSession();
   const user = await getUser();
 
-  if (!user?.id) {
-    throw new Error('Unauthorized: User must be authenticated');
+  // Strict Auth Check (skipped if rollback)
+  if (!options.isRollback) {
+    if (!user?.id) {
+      throw new Error('Unauthorized: User must be authenticated');
+    }
+
+    const profile = await prisma.profile.findUnique({
+      where: { id: user.id },
+      select: { role: true }
+    });
+
+    if (profile?.role !== 'NATIONAL_COORDINATOR') {
+      throw new Error('Unauthorized: Only National Coordinators can delete files');
+    }
   }
 
-  const profile = await prisma.profile.findUnique({
-    where: { id: user.id },
-    select: { role: true }
-  });
-
-  if (profile?.role !== 'NATIONAL_COORDINATOR') {
-    throw new Error('Unauthorized: Only National Coordinators can delete files');
-  }
+  const bucket = options.bucketName || 'report-images';
 
   const { error } = await getSupabaseAdmin().storage
-    .from('report-images')
+    .from(bucket)
     .remove([filePath]);
 
   if (error) {
-    console.error('[StorageService] Delete error:', error.message);
+    // CRITICAL: Log failure for visibility as per user request
+    console.error('[StorageService] Delete error:', {
+      message: error.message,
+      filePath,
+      isRollback: options.isRollback
+    });
+    // If rollback, we might want to suppress the throw to not mask the original DB error, 
+    // but the system must know. 
+    // Plan says: "Assurez-vous que deleteFile() les journaux consignent l'échec... visibilité."
     throw new Error(`Failed to delete file: ${error.message}`);
+  } else {
+    if (options.isRollback) {
+      console.log('[StorageService] Rollback successful:', filePath);
+    }
   }
 }
 

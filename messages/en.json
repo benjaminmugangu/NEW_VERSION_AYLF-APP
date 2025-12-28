@@ -1,4 +1,9 @@
 {
+    "Auth": {
+        "sync_required_title": "Identity Synchronization Required",
+        "sync_required_desc": "Your current ID does not match your database profile. Your statistics may show zero until this is fixed.",
+        "fix_now": "Fix My Account"
+    },
     "Navigation": {
         "dashboard": "Dashboard",
         "reports": "Reports",
@@ -15,7 +20,8 @@
         "notifications": "Notifications",
         "invitations": "Invitations",
         "certificates": "Certificates",
-        "my_certificates": "My Certificates",
+        "certificates": "Certificates",
+        "diagnostics": "Diagnostics",
         "my_profile": "My Profile",
         "ai_suggestions": "AI Suggestions",
         "logout": "Logout"
@@ -247,6 +253,10 @@
             "level_required": "Level is required.",
             "site_required": "Site is required for site-level members.",
             "group_required": "Small group is required for small group level members."
+        },
+        "auth_error": {
+            "title": "Authentication Error",
+            "description": "Unable to load user profile. Please try refreshing the page or logging in again."
         }
     },
     "SiteForm": {

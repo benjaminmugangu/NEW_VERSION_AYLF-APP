@@ -9,6 +9,12 @@
  * Gets a user-friendly error message from any error type
  * Prevents technical error exposure (TypeError, Prisma errors, etc.)
  */
+import { AppErrorCode } from './appErrorCodes';
+
+/**
+ * Gets a user-friendly error message from any error type
+ * Prevents technical error exposure (TypeError, Prisma errors, etc.)
+ */
 export function getClientErrorMessage(error: unknown): string {
     // Error is already a string (likely from sanitized API response)
     if (typeof error === 'string') {
@@ -21,6 +27,35 @@ export function getClientErrorMessage(error: unknown): string {
             return 'Problème de connexion. Vérifiez votre internet et réessayez.';
         }
         return 'Une erreur technique est survenue. Veuillez réessayer.';
+    }
+
+    // API Response errors (fetch response)
+    if (error && typeof error === 'object' && 'error' in error) {
+        const apiError = (error as any).error;
+
+        // Handle new structured error { message, code }
+        if (typeof apiError === 'object' && apiError !== null && 'code' in apiError) {
+            const code = apiError.code;
+            switch (code) {
+                case AppErrorCode.ALREADY_EXISTS:
+                    return 'Un enregistrement avec cette valeur existe déjà.';
+                case AppErrorCode.NOT_FOUND:
+                    return 'La ressource demandée est introuvable.';
+                case AppErrorCode.VALIDATION_FAILED:
+                    return 'Données invalides. Veuillez vérifier votre saisie.';
+                case AppErrorCode.UNAUTHORIZED:
+                    return 'Accès non autorisé. Veuillez vous connecter.';
+                case AppErrorCode.FORBIDDEN:
+                    return 'Vous n\'avez pas la permission d\'effectuer cette action.';
+                default:
+                    return apiError.message || 'Une erreur est survenue.';
+            }
+        }
+
+        // Handle legacy string error
+        if (typeof apiError === 'string') {
+            return apiError;
+        }
     }
 
     // Check if error has a message property that looks server-sanitized
@@ -38,14 +73,6 @@ export function getClientErrorMessage(error: unknown): string {
 
         // Any other Error.message should NOT be shown (technical errors)
         return 'Une erreur est survenue. Veuillez réessayer.';
-    }
-
-    // API Response errors (fetch response)
-    if (error && typeof error === 'object' && 'error' in error) {
-        const apiError = (error as any).error;
-        if (typeof apiError === 'string') {
-            return apiError; // Server already sanitized
-        }
     }
 
     // Unknown error type

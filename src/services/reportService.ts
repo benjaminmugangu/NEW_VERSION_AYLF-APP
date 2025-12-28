@@ -1,10 +1,11 @@
 'use server';
 
-import { prisma } from '@/lib/prisma';
+import { prisma, withRLS } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { Report, ReportWithDetails, ReportFormData, User } from '@/lib/types';
 import { logReportApproval, createAuditLog } from './auditLogService';
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
+import { deleteFile } from './storageService';
 
 // ... existing code ...
 
@@ -129,21 +130,27 @@ const mapPrismaReportToModel = (report: any): ReportWithDetails => {
 };
 
 export async function getReportById(id: string): Promise<Report> {
-  const report = await prisma.report.findUnique({
-    where: { id },
-    include: {
-      submittedBy: true,
-      site: true,
-      smallGroup: true,
-      activityType: true,
+  const { getUser } = getKindeServerSession();
+  const user = await getUser();
+  const userId = user?.id || 'anonymous';
+
+  return await withRLS(userId, async () => {
+    const report = await prisma.report.findUnique({
+      where: { id },
+      include: {
+        submittedBy: true,
+        site: true,
+        smallGroup: true,
+        activityType: true,
+      }
+    });
+
+    if (!report) {
+      throw new Error('Report not found.');
     }
+
+    return mapPrismaReportToModel(report);
   });
-
-  if (!report) {
-    throw new Error('Report not found.');
-  }
-
-  return mapPrismaReportToModel(report);
 }
 
 export async function createReport(reportData: ReportFormData, overrideUser?: any): Promise<Report> {
@@ -151,78 +158,135 @@ export async function createReport(reportData: ReportFormData, overrideUser?: an
   const user = overrideUser || await getUser();
 
   if (!user?.id) {
-    throw new Error('Unauthorized: User must be authenticated to submit a report.');
+    throw new Error('Unauthorized');
   }
 
-  // Mutual Exclusivity & Level Validation
-  if (reportData.level === 'national') {
-    reportData.siteId = undefined;
-    reportData.smallGroupId = undefined;
-  } else if (reportData.level === 'site') {
-    if (!reportData.siteId) throw new Error('Site ID is required for site-level reports.');
-    reportData.smallGroupId = undefined;
-  } else if (reportData.level === 'small_group' && !reportData.smallGroupId) {
-    throw new Error('Small Group ID is required for small-group-level reports.');
-  }
+  return await withRLS(user.id, async () => {
+    // Mutual Exclusivity & Level Validation
+    if (reportData.level === 'national') {
+      reportData.siteId = undefined;
+      reportData.smallGroupId = undefined;
+    } else if (reportData.level === 'site') {
+      if (!reportData.siteId) throw new Error('Site ID is required for site-level reports.');
+      reportData.smallGroupId = undefined;
+    } else if (reportData.level === 'small_group' && !reportData.smallGroupId) {
+      throw new Error('Small Group ID is required for small-group-level reports.');
+    }
 
-  const report = await prisma.report.create({
-    data: {
-      title: reportData.title,
-      activityDate: reportData.activityDate,
-      level: reportData.level,
-      status: reportData.status,
-      content: reportData.content,
-      thematic: reportData.thematic,
-      speaker: reportData.speaker,
-      moderator: reportData.moderator,
-      girlsCount: reportData.girlsCount,
-      boysCount: reportData.boysCount,
-      participantsCountReported: reportData.participantsCountReported,
-      totalExpenses: reportData.totalExpenses,
-      currency: reportData.currency,
-      financialSummary: reportData.financialSummary,
-      images: reportData.images as any,
-      attachments: reportData.attachments as any,
-      submittedById: user.id,
-      siteId: reportData.siteId,
-      smallGroupId: reportData.smallGroupId,
-      activityTypeId: reportData.activityTypeId,
-      activityId: reportData.activityId,
-    },
-    include: {
-      submittedBy: true,
-      site: true,
-      smallGroup: true,
-      activityType: true,
+    try {
+      const report = await prisma.report.create({
+        data: {
+          title: reportData.title,
+          activityDate: reportData.activityDate,
+          level: reportData.level,
+          status: reportData.status,
+          content: reportData.content,
+          thematic: reportData.thematic,
+          speaker: reportData.speaker,
+          moderator: reportData.moderator,
+          girlsCount: reportData.girlsCount,
+          boysCount: reportData.boysCount,
+          participantsCountReported: reportData.participantsCountReported,
+          totalExpenses: reportData.totalExpenses,
+          currency: reportData.currency,
+          financialSummary: reportData.financialSummary,
+          images: reportData.images as any,
+          attachments: reportData.attachments as any,
+          submittedById: user.id,
+          siteId: reportData.siteId,
+          smallGroupId: reportData.smallGroupId,
+          activityTypeId: reportData.activityTypeId,
+          activityId: reportData.activityId,
+        },
+        include: {
+          submittedBy: true,
+          site: true,
+          smallGroup: true,
+          activityType: true,
+        }
+      });
+
+      return mapPrismaReportToModel(report);
+
+    } catch (dbError) {
+      // ATOMIC ROLLBACK STRATEGY
+      console.error('[CreateReport] Database failure, initiating rollback for uploaded assets...', dbError);
+
+      const rollbackQueue = [];
+
+      // 1. Rollback Images
+      if (Array.isArray(reportData.images)) {
+        for (const img of reportData.images) {
+          if (img.url) rollbackQueue.push(img.url);
+        }
+      }
+
+      // 2. Rollback Attachments
+      if (Array.isArray(reportData.attachments)) {
+        for (const url of reportData.attachments) {
+          if (typeof url === 'string') rollbackQueue.push(url);
+        }
+      }
+
+      // Execute Rollbacks (Best Effort)
+      const results = await Promise.allSettled(
+        rollbackQueue.map(url => {
+          // Extract path from URL roughly or use specific logic? 
+          // deleteFile expects filePath (path in bucket), not full URL.
+          // Logic: URL usually contains bucket path. 
+          // Assuming standard Supabase storage URL format: .../report-images/PATH
+          let path = url;
+          if (url.includes('/report-images/')) {
+            path = url.split('/report-images/')[1];
+          }
+          if (path) {
+            return deleteFile(path, { isRollback: true });
+          }
+          return Promise.resolve();
+        })
+      );
+
+      const failedRollbacks = results.filter(r => r.status === 'rejected');
+      if (failedRollbacks.length > 0) {
+        console.error('[CreateReport] Some rollbacks failed!', failedRollbacks);
+      } else if (rollbackQueue.length > 0) {
+        console.log(`[CreateReport] Successfully rolled back ${rollbackQueue.length} assets.`);
+      }
+
+      throw dbError; // Re-throw to propagate error to client
     }
   });
-
-  return mapPrismaReportToModel(report);
 }
 
 export async function updateReport(reportId: string, updatedData: Partial<ReportFormData>): Promise<ReportWithDetails> {
-  // If level is changing, enforce exclusivity
-  if (updatedData.level === 'national') {
-    updatedData.siteId = undefined;
-    updatedData.smallGroupId = undefined;
-  } else if (updatedData.level === 'site') {
-    updatedData.smallGroupId = undefined;
-  }
+  const { getUser } = getKindeServerSession();
+  const user = await getUser();
+  if (!user?.id) throw new Error('Unauthorized');
 
-  const updateData = mapUpdateDataFields(updatedData);
-
-  const report = await prisma.report.update({
-    where: { id: reportId },
-    data: updateData,
-    include: {
-      submittedBy: true,
-      site: true,
-      smallGroup: true,
-      activityType: true,
+  return await withRLS(user.id, async () => {
+    // If level is changing, enforce exclusivity
+    if (updatedData.level === 'national') {
+      updatedData.siteId = undefined;
+      updatedData.smallGroupId = undefined;
+    } else if (updatedData.level === 'site') {
+      updatedData.smallGroupId = undefined;
     }
-  });
 
-  return mapPrismaReportToModel(report);
+    const updateData = mapUpdateDataFields(updatedData);
+
+    const report = await prisma.report.update({
+      where: { id: reportId },
+      data: updateData,
+      include: {
+        submittedBy: true,
+        site: true,
+        smallGroup: true,
+        activityType: true,
+      }
+    });
+
+    return mapPrismaReportToModel(report);
+  });
 }
 
 function mapUpdateDataFields(updatedData: Partial<ReportFormData>) {
@@ -244,31 +308,44 @@ function mapUpdateDataFields(updatedData: Partial<ReportFormData>) {
 }
 
 export async function deleteReport(id: string): Promise<void> {
-  await prisma.report.delete({
-    where: { id },
+  const { getUser } = getKindeServerSession();
+  const user = await getUser();
+  if (!user?.id) throw new Error('Unauthorized');
+
+  return await withRLS(user.id, async () => {
+    await prisma.report.delete({
+      where: { id },
+    });
   });
 }
 
 export async function getFilteredReports(filters: ReportFilters): Promise<ReportWithDetails[]> {
   const { user, entity } = filters;
-  if (!user && !entity) {
+  const { getUser } = getKindeServerSession();
+  const sessionUser = user || await getUser();
+
+  if (!sessionUser && !entity) {
     throw new Error('User or entity is required to fetch reports.');
   }
 
-  const where = buildReportWhereClause(filters);
+  const userId = sessionUser?.id || 'anonymous';
 
-  const reports = await prisma.report.findMany({
-    where,
-    include: {
-      submittedBy: true,
-      site: true,
-      smallGroup: true,
-      activityType: true,
-    },
-    orderBy: { submissionDate: 'desc' }
+  return await withRLS(userId, async () => {
+    const where = buildReportWhereClause(filters);
+
+    const reports = await prisma.report.findMany({
+      where,
+      include: {
+        submittedBy: true,
+        site: true,
+        smallGroup: true,
+        activityType: true,
+      },
+      orderBy: { submissionDate: 'desc' }
+    });
+
+    return reports.map(mapPrismaReportToModel);
   });
-
-  return reports.map(mapPrismaReportToModel);
 }
 
 function buildReportWhereClause(filters: ReportFilters) {
@@ -360,93 +437,96 @@ export async function approveReport(
   ipAddress?: string,
   userAgent?: string
 ): Promise<ReportWithDetails> {
-  // Get current report for audit
-  const before = await prisma.report.findUnique({
-    where: { id: reportId },
-    include: {
-      activity: true,
-      site: true,
-      smallGroup: true,
-    },
-  });
-
-  if (!before) {
-    throw new Error('Report not found');
-  }
-
-  if (before.status === 'approved') {
-    throw new Error('Report already approved');
-  }
-
-  const generatedTransactionIds: string[] = [];
-
-  // Update report and generate transactions in a transaction
-  const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-    // 1. Mark report as approved
-    const approvedReport = await tx.report.update({
+  return await withRLS(approvedById, async () => {
+    // Get current report for audit
+    const before = await prisma.report.findUnique({
       where: { id: reportId },
-      data: {
-        status: 'approved',
-        reviewedAt: new Date(),
-        reviewedById: approvedById,
-      },
       include: {
         activity: true,
-        smallGroup: true,
         site: true,
-        submittedBy: true,
-        reviewedBy: true,
-        activityType: true,
+        smallGroup: true,
       },
     });
 
-    // 2. Mark related activity as executed (if exists)
-    if (approvedReport.activityId) {
-      await tx.activity.update({
-        where: { id: approvedReport.activityId },
-        data: { status: 'executed' },
-      });
+    if (!before) {
+      throw new Error('Report not found');
     }
 
-    // 3. Generate FinancialTransaction if there are expenses
-    if (approvedReport.totalExpenses && approvedReport.totalExpenses > 0) {
-      const transaction = await tx.financialTransaction.create({
+    if (before.status === 'approved') {
+      throw new Error('Report already approved');
+    }
+
+    const generatedTransactionIds: string[] = [];
+
+    // Update report and generate transactions in a transaction
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      // ...
+      // 1. Mark report as approved
+      const approvedReport = await tx.report.update({
+        where: { id: reportId },
         data: {
-          type: 'expense',
-          category: 'Activity Expense', // Could be more specific based on activityType
-          amount: approvedReport.totalExpenses,
-          date: approvedReport.activityDate,
-          description: `Dépenses pour: ${approvedReport.title}`,
-          siteId: approvedReport.siteId,
-          smallGroupId: approvedReport.smallGroupId,
-          recordedById: approvedById,
           status: 'approved',
-          approvedById: approvedById,
-          approvedAt: new Date(),
-          relatedReportId: reportId,
-          relatedActivityId: approvedReport.activityId,
-          // proofUrl: Could link to report's attachments if needed
+          reviewedAt: new Date(),
+          reviewedById: approvedById,
+        },
+        include: {
+          activity: true,
+          smallGroup: true,
+          site: true,
+          submittedBy: true,
+          reviewedBy: true,
+          activityType: true,
         },
       });
 
-      generatedTransactionIds.push(transaction.id);
-    }
+      // 2. Mark related activity as executed (if exists)
+      if (approvedReport.activityId) {
+        await tx.activity.update({
+          where: { id: approvedReport.activityId },
+          data: { status: 'executed' },
+        });
+      }
 
-    return approvedReport;
+      // 3. Generate FinancialTransaction if there are expenses
+      if (approvedReport.totalExpenses && approvedReport.totalExpenses > 0) {
+        const transaction = await tx.financialTransaction.create({
+          data: {
+            type: 'expense',
+            category: 'Activity Expense', // Could be more specific based on activityType
+            amount: approvedReport.totalExpenses,
+            date: approvedReport.activityDate,
+            description: `Dépenses pour: ${approvedReport.title}`,
+            siteId: approvedReport.siteId,
+            smallGroupId: approvedReport.smallGroupId,
+            recordedById: approvedById,
+            status: 'approved',
+            approvedById: approvedById,
+            approvedAt: new Date(),
+            relatedReportId: reportId,
+            relatedActivityId: approvedReport.activityId,
+            // proofUrl: Could link to report's attachments if needed
+          },
+        });
+
+        generatedTransactionIds.push(transaction.id);
+      }
+
+      return approvedReport;
+    });
+
+    // Audit log
+    await logReportApproval(
+      approvedById,
+      reportId,
+      before,
+      result,
+      generatedTransactionIds,
+      ipAddress,
+      userAgent
+    ).catch(console.error);
+
+    return mapPrismaReportToModel(result);
   });
-
-  // Audit log
-  await logReportApproval(
-    approvedById,
-    reportId,
-    before,
-    result,
-    generatedTransactionIds,
-    ipAddress,
-    userAgent
-  ).catch(console.error);
-
-  return mapPrismaReportToModel(result);
 }
 
 /**
@@ -459,49 +539,50 @@ export async function rejectReport(
   ipAddress?: string,
   userAgent?: string
 ): Promise<ReportWithDetails> {
-  const before = await prisma.report.findUnique({
-    where: { id: reportId },
+  return await withRLS(rejectedById, async () => {
+    const before = await prisma.report.findUnique({
+      where: { id: reportId },
+    });
+
+    if (!before) {
+      throw new Error('Report not found');
+    }
+
+    const rejectedReport = await prisma.report.update({
+      where: { id: reportId },
+      data: {
+        status: 'rejected',
+        reviewedAt: new Date(),
+        reviewedById: rejectedById,
+        reviewNotes: reason,
+        rejectionReason: reason,
+      },
+      include: {
+        activity: true,
+        smallGroup: true,
+        site: true,
+        submittedBy: true,
+        reviewedBy: true,
+        activityType: true,
+      },
+    });
+
+    // Audit log
+    await createAuditLog({
+      actorId: rejectedById,
+      action: 'reject',
+      entityType: 'Report',
+      entityId: reportId,
+      metadata: {
+        before,
+        after: rejectedReport,
+        reason,
+        comment: 'Rapport rejeté',
+      },
+      ipAddress,
+      userAgent,
+    }).catch(console.error);
+
+    return mapPrismaReportToModel(rejectedReport);
   });
-
-  if (!before) {
-    throw new Error('Report not found');
-  }
-
-  const rejectedReport = await prisma.report.update({
-    where: { id: reportId },
-    data: {
-      status: 'rejected',
-      reviewedAt: new Date(),
-      reviewedById: rejectedById,
-      reviewNotes: reason,
-      rejectionReason: reason, // Store in dedicated rejection field
-    },
-    include: {
-      activity: true,
-      smallGroup: true,
-      site: true,
-      submittedBy: true,
-      reviewedBy: true,
-      activityType: true,
-    },
-  });
-
-  // Audit log
-  await createAuditLog({
-    actorId: rejectedById,
-    action: 'reject',
-    entityType: 'Report',
-    entityId: reportId,
-    metadata: {
-      before,
-      after: rejectedReport,
-      reason,
-      comment: 'Rapport rejeté',
-    },
-    ipAddress,
-    userAgent,
-  }).catch(console.error);
-
-  return mapPrismaReportToModel(rejectedReport);
 }
-

@@ -24,7 +24,19 @@ export default async function NewActivityPage() {
   ];
 
   if (!profile || !allowedRoles.includes(profile.role)) {
-    return redirect('/dashboard');
+    console.error('Profile not found or access denied for user:', user.id, user.email);
+    return (
+      <div className="p-4">
+        <div className="max-w-xl mx-auto space-y-4">
+          <h1 className="text-2xl font-bold text-destructive">Profile Sync Required</h1>
+          <p className="text-muted-foreground">
+            Your account identity needs to be synchronized. Please visit the
+            <a href="/dashboard/diagnostics" className="text-primary underline ml-1">Diagnostics Page</a>
+            to fix this issue and access this form.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return <NewActivityClient />;

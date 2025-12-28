@@ -229,7 +229,8 @@ export function ReportForm({ onSubmitSuccess, user }: ReportFormProps) {
 
     } catch (error) {
       console.error("Submission Error:", error);
-      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
+      const { getClientErrorMessage } = await import('@/lib/clientErrorHandler');
+      const errorMessage = getClientErrorMessage(error);
       toast({ title: t("error_title"), description: errorMessage, variant: "destructive" });
     } finally {
       setIsSubmitting(false);

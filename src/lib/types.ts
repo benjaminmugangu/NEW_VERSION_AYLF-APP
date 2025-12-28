@@ -253,8 +253,12 @@ export interface Financials {
   totalSpent: number;
   allocationBalance: number;
   transactions: FinancialTransaction[];
+
   allocations: FundAllocation[];
   reports: Report[];
+  // New metrics for Hybrid Allocation reporting
+  directAllocationsTotal?: number;
+  hierarchicalAllocationsTotal?: number;
 }
 
 // =============================================================================

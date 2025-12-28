@@ -1,9 +1,11 @@
 'use server';
 
-import { prisma } from '@/lib/prisma';
+import { prisma, withRLS } from '@/lib/prisma';
+import { deleteFile } from './storageService';
 import { FinancialTransaction, User, TransactionFormData } from '@/lib/types';
 import { getDateRangeFromFilterValue, type DateFilterValue } from '@/lib/dateUtils';
 import { logTransactionCreation, logTransactionApproval, createAuditLog } from './auditLogService';
+import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 
 // Helper to map Prisma result to FinancialTransaction type
 const mapPrismaTransactionToModel = (tx: any): FinancialTransaction => {
@@ -42,38 +44,49 @@ export interface TransactionFilters {
 
 
 export async function getTransactionById(id: string): Promise<FinancialTransaction> {
-  const tx = await prisma.financialTransaction.findUnique({
-    where: { id },
-    include: {
-      site: true,
-      smallGroup: true,
-      recordedBy: true,
-    }
-  });
+  const { getUser } = getKindeServerSession();
+  const user = await getUser();
+  if (!user) throw new Error('Unauthorized');
 
-  if (!tx) {
-    throw new Error('Transaction not found.');
-  }
-  return mapPrismaTransactionToModel(tx);
+  return await withRLS(user.id, async () => {
+    const tx = await prisma.financialTransaction.findUnique({
+      where: { id },
+      include: {
+        site: true,
+        smallGroup: true,
+        recordedBy: true,
+      }
+    });
+
+    if (!tx) {
+      throw new Error('Transaction not found.');
+    }
+    return mapPrismaTransactionToModel(tx);
+  });
 }
 
 export async function getFilteredTransactions(filters: TransactionFilters): Promise<FinancialTransaction[]> {
   const { user, entity } = filters;
-  if (!user && !entity) throw new Error('Authentication or entity required');
+  const { getUser } = getKindeServerSession();
+  const activeUser = user || await getUser();
 
-  const where = buildTransactionWhereClause(filters);
+  if (!activeUser && !entity) throw new Error('Authentication or entity required');
 
-  const transactions = await prisma.financialTransaction.findMany({
-    where,
-    include: {
-      site: true,
-      smallGroup: true,
-      recordedBy: true,
-    },
-    orderBy: { date: 'desc' }
+  return await withRLS(activeUser?.id || 'system', async () => {
+    const where = buildTransactionWhereClause(filters);
+
+    const transactions = await prisma.financialTransaction.findMany({
+      where,
+      include: {
+        site: true,
+        smallGroup: true,
+        recordedBy: true,
+      },
+      orderBy: { date: 'desc' }
+    });
+
+    return transactions.map(mapPrismaTransactionToModel);
   });
-
-  return transactions.map(mapPrismaTransactionToModel);
 }
 
 function buildTransactionWhereClause(filters: TransactionFilters) {
@@ -106,34 +119,89 @@ function buildTransactionWhereClause(filters: TransactionFilters) {
   return where;
 }
 
-export async function createTransaction(formData: TransactionFormData): Promise<FinancialTransaction> {
-  const { siteId, smallGroupId } = await resolveTransactionContext(formData);
+export async function createTransaction(formData: TransactionFormData, idempotencyKey?: string): Promise<FinancialTransaction> {
+  return await withRLS(formData.recordedById, async () => {
+    // 1. Idempotency Check (Lock-First)
+    if (idempotencyKey) {
+      try {
+        await prisma.idempotencyKey.create({
+          data: {
+            key: idempotencyKey,
+            response: { status: 'PENDING', timestamp: Date.now() }
+          }
+        });
+      } catch (err: any) {
+        if (err.code === 'P2002') {
+          const existing = await prisma.idempotencyKey.findUnique({ where: { key: idempotencyKey } });
+          if (existing) {
+            const stored = existing.response as any;
+            if (stored?.status === 'PENDING') {
+              throw new Error('Request is currently being processed (Idempotency Conflict)');
+            }
+            return stored as FinancialTransaction;
+          }
+        }
+        throw err;
+      }
+    }
 
-  const tx = await prisma.financialTransaction.create({
-    data: {
-      type: formData.type,
-      category: formData.category,
-      amount: formData.amount,
-      date: formData.date,
-      description: formData.description,
-      siteId,
-      smallGroupId,
-      recordedById: formData.recordedById,
-      status: formData.status || 'approved',
-      proofUrl: formData.proofUrl,
-      relatedActivityId: formData.relatedActivityId,
-      relatedReportId: formData.relatedReportId,
-    },
-    include: {
-      site: true,
-      smallGroup: true,
-      recordedBy: true,
-      approvedBy: true,
+    try {
+      const { siteId, smallGroupId } = await resolveTransactionContext(formData);
+
+      const tx = await prisma.financialTransaction.create({
+        data: {
+          type: formData.type,
+          category: formData.category,
+          amount: formData.amount,
+          date: formData.date,
+          description: formData.description,
+          siteId,
+          smallGroupId,
+          recordedById: formData.recordedById,
+          status: formData.status || 'approved',
+          approvedById: formData.status === 'approved' ? formData.recordedById : undefined,
+          approvedAt: formData.status === 'approved' ? new Date() : undefined,
+          proofUrl: formData.proofUrl,
+          relatedActivityId: formData.relatedActivityId,
+          relatedReportId: formData.relatedReportId,
+        },
+        include: {
+          site: true,
+          smallGroup: true,
+          recordedBy: true,
+          approvedBy: true,
+        }
+      });
+
+      await logTransactionCreation(formData.recordedById, tx.id, tx).catch(console.error);
+      const result = mapPrismaTransactionToModel(tx);
+
+      // 3. Update Idempotency Key with Result
+      if (idempotencyKey) {
+        await prisma.idempotencyKey.update({
+          where: { key: idempotencyKey },
+          data: { response: result as any }
+        });
+      }
+
+      return result;
+
+    } catch (error) {
+      console.error('[TransactionService] Create failed, rolling back assets...', error);
+
+      // Release Lock on Failure
+      if (idempotencyKey) {
+        await prisma.idempotencyKey.delete({ where: { key: idempotencyKey } }).catch(() => { });
+      }
+
+      if (formData.proofUrl) {
+        await deleteFile(formData.proofUrl, { isRollback: true }).catch(err =>
+          console.error('[TransactionService] Rollback failed:', err)
+        );
+      }
+      throw error;
     }
   });
-
-  await logTransactionCreation(formData.recordedById, tx.id, tx).catch(console.error);
-  return mapPrismaTransactionToModel(tx);
 }
 
 /** Helper to resolve site/group context from related activity if present */
@@ -157,44 +225,45 @@ async function resolveTransactionContext(formData: TransactionFormData) {
 }
 
 export async function updateTransaction(id: string, formData: Partial<TransactionFormData>): Promise<FinancialTransaction> {
-  const updateData: any = {};
-  if (formData.type) updateData.type = formData.type;
-  if (formData.category) updateData.category = formData.category;
-  if (formData.amount) updateData.amount = formData.amount;
-  if (formData.date) updateData.date = formData.date;
-  if (formData.description) updateData.description = formData.description;
+  const { getUser } = getKindeServerSession();
+  const user = await getUser();
+  if (!user) throw new Error('Unauthorized');
 
-  // ✅ Apply Exclusivity Guards for Updates
-  if (formData.siteId !== undefined) updateData.siteId = formData.siteId;
-  if (formData.smallGroupId !== undefined) updateData.smallGroupId = formData.smallGroupId;
+  return await withRLS(user.id, async () => {
+    const updateData: any = {};
+    if (formData.type) updateData.type = formData.type;
+    if (formData.category) updateData.category = formData.category;
+    if (formData.amount) updateData.amount = formData.amount;
+    if (formData.date) updateData.date = formData.date;
+    if (formData.description) updateData.description = formData.description;
 
-  // We should also handle exclusivity if relatedActivityId changes, but that's rare.
-  // For now, ensure consistency if smallGroupId is set
-  if (updateData.smallGroupId) {
-    // If setting a small group, we MUST ensure the siteId is also set (or already exists)
-    const current = await prisma.financialTransaction.findUnique({ where: { id }, select: { siteId: true } });
-    if (!updateData.siteId && !current?.siteId) {
-      // Logic error: cannot have small group without site
-      // In this app, we usually set siteId if we set smallGroupId
-    }
-  }
+    // ✅ Apply Exclusivity Guards for Updates
+    if (formData.siteId !== undefined) updateData.siteId = formData.siteId;
+    if (formData.smallGroupId !== undefined) updateData.smallGroupId = formData.smallGroupId;
 
-  const tx = await prisma.financialTransaction.update({
-    where: { id },
-    data: updateData,
-    include: {
-      site: true,
-      smallGroup: true,
-      recordedBy: true,
-    }
+    const tx = await prisma.financialTransaction.update({
+      where: { id },
+      data: updateData,
+      include: {
+        site: true,
+        smallGroup: true,
+        recordedBy: true,
+      }
+    });
+
+    return mapPrismaTransactionToModel(tx);
   });
-
-  return mapPrismaTransactionToModel(tx);
 }
 
 export async function deleteTransaction(id: string): Promise<void> {
-  await prisma.financialTransaction.delete({
-    where: { id },
+  const { getUser } = getKindeServerSession();
+  const user = await getUser();
+  if (!user) throw new Error('Unauthorized');
+
+  return await withRLS(user.id, async () => {
+    await prisma.financialTransaction.delete({
+      where: { id },
+    });
   });
 }
 
@@ -220,19 +289,21 @@ export async function approveTransaction(
     throw new Error('Transaction already approved');
   }
 
-  const tx = await prisma.financialTransaction.update({
-    where: { id: transactionId },
-    data: {
-      status: 'approved',
-      approvedById,
-      approvedAt: new Date(),
-    },
-    include: {
-      site: true,
-      smallGroup: true,
-      recordedBy: true,
-      approvedBy: true,
-    },
+  const tx = await withRLS(approvedById, async () => {
+    return await prisma.financialTransaction.update({
+      where: { id: transactionId },
+      data: {
+        status: 'approved',
+        approvedById,
+        approvedAt: new Date(),
+      },
+      include: {
+        site: true,
+        smallGroup: true,
+        recordedBy: true,
+        approvedBy: true,
+      },
+    });
   });
 
   // Audit log
@@ -259,17 +330,19 @@ export async function rejectTransaction(
     throw new Error('Transaction not found');
   }
 
-  const tx = await prisma.financialTransaction.update({
-    where: { id: transactionId },
-    data: {
-      status: 'rejected',
-    },
-    include: {
-      site: true,
-      smallGroup: true,
-      recordedBy: true,
-      approvedBy: true,
-    },
+  const tx = await withRLS(rejectedById, async () => {
+    return await prisma.financialTransaction.update({
+      where: { id: transactionId },
+      data: {
+        status: 'rejected',
+      },
+      include: {
+        site: true,
+        smallGroup: true,
+        recordedBy: true,
+        approvedBy: true,
+      },
+    });
   });
 
   // Audit log
@@ -309,28 +382,30 @@ export async function createReversalTransaction(
     throw new Error('Original transaction not found');
   }
 
-  const reversalTx = await prisma.financialTransaction.create({
-    data: {
-      type: original.type === 'income' ? 'expense' : 'income', // Inverse type
-      category: original.category,
-      amount: original.amount, // Same amount, opposite sign via type
-      date: new Date(),
-      description: `ANNULATION: ${original.description}`,
-      siteId: original.siteId,
-      smallGroupId: original.smallGroupId,
-      recordedById: createdById,
-      status: 'approved',
-      approvedById: createdById,
-      approvedAt: new Date(),
-      isReversalOfId: originalTransactionId,
-      proofUrl: original.proofUrl,
-    },
-    include: {
-      site: true,
-      smallGroup: true,
-      recordedBy: true,
-      approvedBy: true,
-    },
+  const reversalTx = await withRLS(createdById, async () => {
+    return await prisma.financialTransaction.create({
+      data: {
+        type: original.type === 'income' ? 'expense' : 'income', // Inverse type
+        category: original.category,
+        amount: original.amount, // Same amount, opposite sign via type
+        date: new Date(),
+        description: `ANNULATION: ${original.description}`,
+        siteId: original.siteId,
+        smallGroupId: original.smallGroupId,
+        recordedById: createdById,
+        status: 'approved',
+        approvedById: createdById,
+        approvedAt: new Date(),
+        isReversalOfId: originalTransactionId,
+        proofUrl: original.proofUrl,
+      },
+      include: {
+        site: true,
+        smallGroup: true,
+        recordedBy: true,
+        approvedBy: true,
+      },
+    });
   });
 
   // Audit log

@@ -88,10 +88,13 @@ export default function PendingReportsClient({ reports, userRole }: PendingRepor
             });
             router.refresh();
         } catch (error) {
+            console.error('Error approving report:', error);
+            const { getClientErrorMessage } = await import('@/lib/clientErrorHandler');
+            const errorMessage = getClientErrorMessage(error);
             toast({
-                variant: 'destructive',
-                title: 'Erreur',
-                description: error instanceof Error ? error.message : 'Une erreur est survenue',
+                title: 'Erreur lors de l\'approbation',
+                description: errorMessage,
+                variant: 'destructive'
             });
         } finally {
             setIsLoading(false);
@@ -135,10 +138,12 @@ export default function PendingReportsClient({ reports, userRole }: PendingRepor
             setSelectedReport(null);
             router.refresh();
         } catch (error) {
+            const { getClientErrorMessage } = await import('@/lib/clientErrorHandler');
+            const errorMessage = getClientErrorMessage(error);
             toast({
                 variant: 'destructive',
                 title: 'Erreur',
-                description: error instanceof Error ? error.message : 'Une erreur est survenue',
+                description: errorMessage,
             });
         } finally {
             setIsLoading(false);

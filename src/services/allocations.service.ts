@@ -140,31 +140,42 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
           throw new Error("Hierarchical NC allocation must target a Site ONLY (not a Small Group). Use direct allocation if you need to bypass the Site Coordinator.");
         }
 
-        const allocation = await prisma.fundAllocation.create({
-          data: {
-            amount: formData.amount,
-            allocationDate: new Date(formData.allocationDate),
-            goal: formData.goal,
-            source: formData.source,
-            status: formData.status,
-            siteId: formData.siteId,
-            smallGroupId: null, // Explicitly null for hierarchical
-            allocationType: 'hierarchical',
-            bypassReason: null,
-            allocatedById: kindeUser.id,
-            notes: formData.notes,
-            fromSiteId: formData.fromSiteId || null,
-            proofUrl: formData.proofUrl || null,
-          },
-          include: {
-            allocatedBy: true,
-            site: true,
-            smallGroup: true,
-            fromSite: true,
-          }
-        });
+        try {
+          const allocation = await prisma.fundAllocation.create({
+            data: {
+              amount: formData.amount,
+              allocationDate: new Date(formData.allocationDate),
+              goal: formData.goal,
+              source: formData.source,
+              status: formData.status,
+              siteId: formData.siteId,
+              smallGroupId: null, // Explicitly null for hierarchical
+              allocationType: 'hierarchical',
+              bypassReason: null,
+              allocatedById: kindeUser.id,
+              notes: formData.notes,
+              fromSiteId: formData.fromSiteId || null,
+              proofUrl: formData.proofUrl || null,
+            },
+            include: {
+              allocatedBy: true,
+              site: true,
+              smallGroup: true,
+              fromSite: true,
+            }
+          });
 
-        return getAllocationById(allocation.id);
+          return getAllocationById(allocation.id);
+        } catch (error) {
+          console.error('[AllocationService] Create failed, rolling back assets...', error);
+          if (formData.proofUrl) {
+            const { deleteFile } = await import('@/services/storageService');
+            await deleteFile(formData.proofUrl, { isRollback: true }).catch(err =>
+              console.error('[AllocationService] Rollback failed:', err)
+            );
+          }
+          throw error;
+        }
       }
 
       // Case 2: Direct Allocation (NC → Small Group) - EXCEPTIONAL
@@ -187,34 +198,89 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
           throw new Error("Small Group not found");
         }
 
-        const allocation = await prisma.fundAllocation.create({
-          data: {
-            amount: formData.amount,
-            allocationDate: new Date(formData.allocationDate),
-            goal: formData.goal,
-            source: formData.source,
-            status: formData.status,
-            siteId: smallGroup.siteId,  // Keep reference to parent site
-            smallGroupId: formData.smallGroupId,
-            allocationType: 'direct',   // Mark as direct bypass
-            bypassReason: formData.bypassReason,
-            allocatedById: kindeUser.id,
-            notes: formData.notes,
-            fromSiteId: formData.fromSiteId || null,
-            proofUrl: formData.proofUrl || null,
-          },
-          include: {
-            allocatedBy: true,
-            site: true,
-            smallGroup: true,
-            fromSite: true,
+        // Create allocation, audit log, and notification in a single transaction
+        try {
+          const result = await prisma.$transaction(async (tx: any) => {
+            // 1. Create Allocation
+            const allocation = await tx.fundAllocation.create({
+              data: {
+                amount: formData.amount,
+                allocationDate: new Date(formData.allocationDate),
+                goal: formData.goal,
+                source: formData.source,
+                status: formData.status,
+                siteId: smallGroup.siteId,
+                smallGroupId: formData.smallGroupId,
+                allocationType: 'direct',
+                bypassReason: formData.bypassReason, // Mandatory for direct
+                allocatedById: kindeUser.id,
+                notes: formData.notes,
+                fromSiteId: formData.fromSiteId || null,
+                proofUrl: formData.proofUrl || null,
+              },
+              include: {
+                allocatedBy: true,
+                site: true, // Need site to get SC for notification (via relationship or subsequent query)
+                smallGroup: true,
+                fromSite: true,
+              }
+            });
+
+            // 2. Create Audit Log (Resilience Traceability)
+            await tx.auditLog.create({
+              data: {
+                actorId: kindeUser.id,
+                action: 'create',
+                entityType: 'FundAllocation',
+                entityId: allocation.id,
+                metadata: {
+                  type: 'direct_allocation',
+                  bypassReason: formData.bypassReason,
+                  amount: formData.amount,
+                  targetGroup: smallGroup.name,
+                  bypassedSiteId: smallGroup.siteId
+                },
+                createdAt: new Date()
+              }
+            });
+
+            // 3. Notify Site Coordinator (Resilience Visibility)
+            const siteCoordinator = await tx.member.findFirst({
+              where: {
+                siteId: smallGroup.siteId,
+                type: 'SITE_COORDINATOR'
+              },
+              include: { user: true }
+            });
+
+            if (siteCoordinator && siteCoordinator.userId) {
+              await tx.notification.create({
+                data: {
+                  userId: siteCoordinator.userId,
+                  type: 'BUDGET_ALERT', // Using closest type, or add NEW_ALLOCATION_BYPASS
+                  title: '⚠️ Allocation Directe (Bypass)',
+                  message: `Le NC a alloué ${new Intl.NumberFormat('fr-FR').format(formData.amount)} FC directement au groupe "${smallGroup.name}". Raison: ${formData.bypassReason}`,
+                  link: `/dashboard/finances/allocations/${allocation.id}`,
+                  read: false,
+                  createdAt: new Date()
+                }
+              });
+            }
+
+            return allocation;
+          });
+
+          return getAllocationById(result.id);
+        } catch (error) {
+          console.error('[AllocationService] Direct Allocation failed, rolling back assets...', error);
+          if (formData.proofUrl) {
+            const { deleteFile } = await import('@/services/storageService');
+            await deleteFile(formData.proofUrl, { isRollback: true }).catch(err =>
+              console.error('[AllocationService] Rollback failed:', err)
+            );
           }
-        });
-
-        // TODO: Log audit trail for direct allocation
-        // TODO: Notify Site Coordinator of bypass
-
-        return getAllocationById(allocation.id);
+          throw error;
+        }
       }
     }
 
@@ -248,31 +314,42 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
         }
       }
 
-      const allocation = await prisma.fundAllocation.create({
-        data: {
-          amount: formData.amount,
-          allocationDate: new Date(formData.allocationDate),
-          goal: formData.goal,
-          source: formData.source,
-          status: formData.status,
-          siteId: profile.siteId,     // SC's site
-          smallGroupId: formData.smallGroupId,
-          allocationType: 'hierarchical', // SC is always hierarchical
-          bypassReason: null,
-          allocatedById: kindeUser.id,
-          notes: formData.notes,
-          fromSiteId: formData.fromSiteId || profile.siteId,
-          proofUrl: formData.proofUrl || null,
-        },
-        include: {
-          allocatedBy: true,
-          site: true,
-          smallGroup: true,
-          fromSite: true,
-        }
-      });
+      try {
+        const allocation = await prisma.fundAllocation.create({
+          data: {
+            amount: formData.amount,
+            allocationDate: new Date(formData.allocationDate),
+            goal: formData.goal,
+            source: formData.source,
+            status: formData.status,
+            siteId: profile.siteId,     // SC's site
+            smallGroupId: formData.smallGroupId,
+            allocationType: 'hierarchical', // SC is always hierarchical
+            bypassReason: null,
+            allocatedById: kindeUser.id,
+            notes: formData.notes,
+            fromSiteId: formData.fromSiteId || profile.siteId,
+            proofUrl: formData.proofUrl || null,
+          },
+          include: {
+            allocatedBy: true,
+            site: true,
+            smallGroup: true,
+            fromSite: true,
+          }
+        });
 
-      return getAllocationById(allocation.id);
+        return getAllocationById(allocation.id);
+      } catch (error) {
+        console.error('[AllocationService] SC Creation failed, rolling back assets...', error);
+        if (formData.proofUrl) {
+          const { deleteFile } = await import('@/services/storageService');
+          await deleteFile(formData.proofUrl, { isRollback: true }).catch(err =>
+            console.error('[AllocationService] Rollback failed:', err)
+          );
+        }
+        throw error;
+      }
     }
 
     // ═══════════════════════════════════════════════════════════

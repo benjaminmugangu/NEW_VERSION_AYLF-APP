@@ -121,18 +121,20 @@ export async function getFilteredMembers(filters: MemberFilters): Promise<Member
     throw new Error('Authentication required.');
   }
 
-  const where = buildMemberWhereClause(user, filters);
+  return await withRLS(user.id, async () => {
+    const where = buildMemberWhereClause(user, filters);
 
-  const members = await prisma.member.findMany({
-    where,
-    include: {
-      site: true,
-      smallGroup: true,
-    },
-    orderBy: { joinDate: 'desc' },
+    const members = await prisma.member.findMany({
+      where,
+      include: {
+        site: true,
+        smallGroup: true,
+      },
+      orderBy: { joinDate: 'desc' },
+    });
+
+    return (members as any[]).map(mapPrismaMemberToWithDetails);
   });
-
-  return (members as any[]).map(mapPrismaMemberToWithDetails);
 }
 
 function buildMemberWhereClause(user: User, filters: Omit<MemberFilters, 'user'>) {
@@ -181,47 +183,65 @@ function buildMemberWhereClause(user: User, filters: Omit<MemberFilters, 'user'>
 }
 
 export async function getMemberById(memberId: string): Promise<MemberWithDetails> {
-  const member = await prisma.member.findUnique({
-    where: { id: memberId },
-    include: {
-      site: true,
-      smallGroup: true,
-    },
+  const { getUser } = getKindeServerSession();
+  const user = await getUser();
+  if (!user) throw new Error('Unauthorized');
+
+  return await withRLS(user.id, async () => {
+    const member = await prisma.member.findUnique({
+      where: { id: memberId },
+      include: {
+        site: true,
+        smallGroup: true,
+      },
+    });
+
+    if (!member) {
+      throw new Error('Member not found.');
+    }
+
+    return mapPrismaMemberToWithDetails(member);
   });
-
-  if (!member) {
-    throw new Error('Member not found.');
-  }
-
-  return mapPrismaMemberToWithDetails(member);
 }
 
 export async function updateMember(memberId: string, formData: MemberFormData): Promise<Member> {
-  // Exclusivity Guard
-  if (formData.level === 'national') {
-    formData.siteId = undefined;
-    formData.smallGroupId = undefined;
-  } else if (formData.level === 'site') {
-    formData.smallGroupId = undefined;
-  }
+  const { getUser } = getKindeServerSession();
+  const user = await getUser();
+  if (!user) throw new Error('Unauthorized');
 
-  const updateData: any = {
-    ...formData,
-    joinDate: new Date(formData.joinDate),
-    type: formData.type === 'non-student' ? 'non_student' : 'student',
-  };
+  return await withRLS(user.id, async () => {
+    // Exclusivity Guard
+    if (formData.level === 'national') {
+      formData.siteId = undefined;
+      formData.smallGroupId = undefined;
+    } else if (formData.level === 'site') {
+      formData.smallGroupId = undefined;
+    }
 
-  const member = await prisma.member.update({
-    where: { id: memberId },
-    data: updateData,
+    const updateData: any = {
+      ...formData,
+      joinDate: new Date(formData.joinDate),
+      type: formData.type === 'non-student' ? 'non_student' : 'student',
+    };
+
+    const member = await prisma.member.update({
+      where: { id: memberId },
+      data: updateData,
+    });
+
+    return mapPrismaMemberToBase(member);
   });
-
-  return mapPrismaMemberToBase(member);
 }
 
 export async function deleteMember(memberId: string): Promise<void> {
-  await prisma.member.delete({
-    where: { id: memberId },
+  const { getUser } = getKindeServerSession();
+  const user = await getUser();
+  if (!user) throw new Error('Unauthorized');
+
+  return await withRLS(user.id, async () => {
+    await prisma.member.delete({
+      where: { id: memberId },
+    });
   });
 }
 

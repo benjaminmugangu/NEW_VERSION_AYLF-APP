@@ -103,18 +103,47 @@ export async function GET() {
         }
       }
 
-      // 4. Final object for frontend
+      // 4. Role & Name Refresh (Kinde as Source of Truth)
+      if (dbUser) {
+        const { getRoles } = getKindeServerSession();
+        const kindeRoles = (await getRoles()) || [];
+        const kindeRoleKey = kindeRoles[0]?.key; // Assume primary role is first
+
+        const roleMap: Record<string, UserRole> = {
+          'national_coordinator': 'NATIONAL_COORDINATOR',
+          'site_coordinator': 'SITE_COORDINATOR',
+          'small_group_leader': 'SMALL_GROUP_LEADER',
+          'member': 'MEMBER'
+        };
+
+        const targetRole = roleMap[kindeRoleKey || ''] || dbUser.role;
+        const targetName = `${kindeUser.given_name ?? ''} ${kindeUser.family_name ?? ''}`.trim() || kindeUser.email || dbUser.name;
+
+        if (dbUser.role !== targetRole || dbUser.name !== targetName) {
+          console.log(`[AUTH_SYNC] Refreshing profile for ${dbUser.email}: Role(${dbUser.role}->${targetRole}), Name(${dbUser.name}->${targetName})`);
+          dbUser = await prisma.profile.update({
+            where: { id: dbUser.id },
+            data: {
+              role: targetRole,
+              name: targetName
+            },
+            include: { site: true, smallGroup: true }
+          });
+        }
+      }
+
+      // 5. Final object for frontend
       const frontendUser = {
-        id: dbUser.id,
-        name: dbUser.name,
-        email: dbUser.email,
-        role: dbUser.role,
-        siteId: dbUser.siteId,
-        smallGroupId: dbUser.smallGroupId,
-        siteName: dbUser.site?.name,
-        smallGroupName: dbUser.smallGroup?.name,
-        createdAt: dbUser.createdAt.toISOString(),
-        status: dbUser.status,
+        id: dbUser!.id,
+        name: dbUser!.name,
+        email: dbUser!.email,
+        role: dbUser!.role,
+        siteId: dbUser!.siteId,
+        smallGroupId: dbUser!.smallGroupId,
+        siteName: dbUser!.site?.name,
+        smallGroupName: dbUser!.smallGroup?.name,
+        createdAt: dbUser!.createdAt.toISOString(),
+        status: dbUser!.status,
       };
 
       return NextResponse.json({ user: frontendUser });

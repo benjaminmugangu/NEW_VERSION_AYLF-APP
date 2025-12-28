@@ -124,6 +124,7 @@ model Profile {
   auditLogs            AuditLog[] // NEW
   closedPeriods        AccountingPeriod[] // NEW
   notifications        Notification[] // NEW
+  members              Member[]
 
   mandateStartDate DateTime? @map("mandate_start_date")
   mandateEndDate   DateTime? @map("mandate_end_date")
@@ -215,6 +216,9 @@ model Member {
 
   smallGroupId String?     @map("small_group_id")
   smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id], onDelete: Cascade)
+
+  userId String?  @map("user_id")
+  user   Profile? @relation(fields: [userId], references: [id])
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -574,4 +578,17 @@ model Notification {
 
   @@index([userId, read])
   @@map("notifications")
+}
+
+// ============================================
+// 7. IDEMPOTENCY KEYS (Offline Sync)
+// ============================================
+
+model IdempotencyKey {
+  key        String   @id
+  response   Json
+  createdAt  DateTime @default(now()) @map("created_at")
+  lockedAt   DateTime @default(now()) @map("locked_at") // For concurrent request locking
+
+  @@map("idempotency_keys")
 }

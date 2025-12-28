@@ -14,6 +14,7 @@ import { CustomOnboardingTour } from '@/components/shared/CustomOnboardingTour';
 import { NotificationBell } from '@/components/shared/NotificationBell';
 import { CommandPalette } from '@/components/shared/CommandPalette';
 import { OfflineIndicator } from '@/components/shared/OfflineIndicator';
+import { AuthSyncAlert } from '@/components/auth/AuthSyncAlert';
 
 export default async function DashboardLayout({
   children,
@@ -78,6 +79,7 @@ export default async function DashboardLayout({
           <DashboardSidebar user={userProfile} />
         </ClientOnly>
         <SidebarInset>
+          <AuthSyncAlert />
           <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-4 border-b bg-background px-4 md:px-6 backdrop-blur-sm bg-opacity-80">
             <div className="md:hidden">
               <ClientOnly>

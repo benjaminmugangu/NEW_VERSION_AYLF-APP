@@ -43,10 +43,8 @@ export const POST = withApiRLS(async (request: NextRequest) => {
         });
 
     } catch (error: any) {
-        console.error('[UPLOAD_ERROR]', error);
-        return NextResponse.json(
-            { error: error.message || 'Upload failed' },
-            { status: 500 }
-        );
+        const { sanitizeError, logError } = await import('@/lib/errorSanitizer');
+        logError('UPLOAD_ERROR', error);
+        return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
     }
 });

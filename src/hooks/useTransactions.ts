@@ -50,7 +50,10 @@ export const useTransactions = ({ user, initialData, initialFilters = {} }: UseT
 
   const { mutateAsync: createTransaction, isPending: isCreating } = useMutation({
     ...mutationOptions,
-    mutationFn: (formData: TransactionFormData) => transactionService.createTransaction(formData),
+    mutationFn: (formData: TransactionFormData) => {
+      const idempotencyKey = crypto.randomUUID();
+      return transactionService.createTransaction(formData, idempotencyKey);
+    },
   });
 
   const { mutateAsync: updateTransaction, isPending: isUpdating } = useMutation({

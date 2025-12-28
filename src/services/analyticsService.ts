@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma';
+import { prisma, withRLS } from '@/lib/prisma';
 import { User } from '@/lib/types';
 import { startOfMonth, endOfMonth, subMonths, format } from 'date-fns';
 
@@ -50,62 +50,64 @@ export async function getAdvancedDashboard(
     user: User,
     timeRange: 'month' | 'quarter' | 'year' = 'month'
 ): Promise<AdvancedDashboardData> {
-    const where = buildUserFilter(user);
-    const periodRange = getPeriodRange(timeRange);
+    return await withRLS(user.id, async () => {
+        const where = buildUserFilter(user);
+        const periodRange = getPeriodRange(timeRange);
 
-    // 1. Check if the requested period range contains closed periods
-    const closedPeriods = await prisma.accountingPeriod.findMany({
-        where: {
-            status: 'closed',
-            startDate: { lte: endOfMonth(new Date()) },
-            endDate: { gte: subMonths(new Date(), periodRange) },
-        },
-        orderBy: { endDate: 'desc' }
-    });
+        // 1. Check if the requested period range contains closed periods
+        const closedPeriods = await prisma.accountingPeriod.findMany({
+            where: {
+                status: 'closed',
+                startDate: { lte: endOfMonth(new Date()) },
+                endDate: { gte: subMonths(new Date(), periodRange) },
+            },
+            orderBy: { endDate: 'desc' }
+        });
 
-    // Calculate metrics
-    const [
-        activeMembers,
-        ongoingActivities,
-        pendingReports,
-        budgetData
-    ] = await Promise.all([
-        countActiveMembers(where),
-        countOngoingActivities(where),
-        countPendingReports(where),
-        getBudgetUtilization(user, closedPeriods),
-    ]);
-
-    // Calculate trends
-    const [memberGrowth, activityCompletion, budgetForecast] = await Promise.all([
-        getMemberGrowthTrend(where, periodRange),
-        getActivityCompletionTrend(where, periodRange),
-        getBudgetForecastTrend(user, periodRange),
-    ]);
-
-    // Get comparisons
-    const [sitePerformance, activityTypes] = await Promise.all([
-        getSitePerformanceComparison(user),
-        getActivityTypeDistribution(where),
-    ]);
-
-    return {
-        metrics: {
+        // Calculate metrics
+        const [
             activeMembers,
             ongoingActivities,
             pendingReports,
-            budgetUtilization: budgetData.utilization,
-        },
-        trends: {
-            memberGrowth,
-            activityCompletion,
-            budgetForecast,
-        },
-        comparisons: {
-            sitePerformance,
-            activityTypes,
-        },
-    };
+            budgetData
+        ] = await Promise.all([
+            countActiveMembers(where),
+            countOngoingActivities(where),
+            countPendingReports(where),
+            getBudgetUtilization(user, closedPeriods),
+        ]);
+
+        // Calculate trends
+        const [memberGrowth, activityCompletion, budgetForecast] = await Promise.all([
+            getMemberGrowthTrend(where, periodRange),
+            getActivityCompletionTrend(where, periodRange),
+            getBudgetForecastTrend(user, periodRange),
+        ]);
+
+        // Get comparisons
+        const [sitePerformance, activityTypes] = await Promise.all([
+            getSitePerformanceComparison(user),
+            getActivityTypeDistribution(where),
+        ]);
+
+        return {
+            metrics: {
+                activeMembers,
+                ongoingActivities,
+                pendingReports,
+                budgetUtilization: budgetData.utilization,
+            },
+            trends: {
+                memberGrowth,
+                activityCompletion,
+                budgetForecast,
+            },
+            comparisons: {
+                sitePerformance,
+                activityTypes,
+            },
+        };
+    });
 }
 
 // ------ Helper Functions ------

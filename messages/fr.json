@@ -1,4 +1,9 @@
 {
+    "Auth": {
+        "sync_required_title": "Synchronisation d'identité requise",
+        "sync_required_desc": "Votre identifiant actuel ne correspond pas à votre profil en base de données. Vos statistiques peuvent afficher zéro tant que ce n'est pas corrigé.",
+        "fix_now": "Réparer mon compte"
+    },
     "Navigation": {
         "dashboard": "Tableau de Bord",
         "reports": "Rapports",
@@ -16,6 +21,7 @@
         "invitations": "Invitations",
         "certificates": "Certificats",
         "my_certificates": "Mes Certificats",
+        "diagnostics": "Diagnostic",
         "my_profile": "Mon Profil",
         "ai_suggestions": "Suggestions IA",
         "logout": "Déconnexion"
@@ -242,6 +248,10 @@
             "level_required": "Le niveau est requis.",
             "site_required": "Le site est requis pour les membres de niveau site.",
             "group_required": "Le petit groupe est requis pour les membres de niveau groupe."
+        },
+        "auth_error": {
+            "title": "Erreur d'Authentification",
+            "description": "Impossible de charger le profil utilisateur. Veuillez rafraîchir la page ou vous reconnecter."
         }
     },
     "SiteForm": {

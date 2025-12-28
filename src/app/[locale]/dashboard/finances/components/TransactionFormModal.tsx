@@ -42,9 +42,11 @@ export function TransactionFormModal({ isOpen, onClose, transaction }: Transacti
         alert('Transaction created successfully!');
       }
       onClose(); // Close modal on success
-    } catch (e) {
-      const error = e as Error;
-      alert(`Operation failed: ${error.message}`);
+    } catch (error) {
+      console.error('Error saving transaction:', error);
+      const { getClientErrorMessage } = await import('@/lib/clientErrorHandler');
+      const errorMessage = getClientErrorMessage(error);
+      alert(`Operation failed: ${errorMessage}`);
     }
   };
 

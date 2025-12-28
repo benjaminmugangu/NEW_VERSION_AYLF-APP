@@ -168,10 +168,12 @@ export default function InviteUserForm({ sites, smallGroups }: InviteUserFormPro
             });
         } catch (error) {
             console.error('Invitation error:', error);
+            const { getClientErrorMessage } = await import('@/lib/clientErrorHandler');
+            const errorMessage = getClientErrorMessage(error);
             toast({
                 variant: 'destructive',
                 title: 'Erreur',
-                description: error instanceof Error ? error.message : 'Une erreur est survenue',
+                description: errorMessage,
             });
         } finally {
             setIsLoading(false);

@@ -1,6 +1,7 @@
 'use server';
 
-import { prisma } from '@/lib/prisma';
+import { prisma, withRLS } from '@/lib/prisma';
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { AccountingPeriod, Prisma } from '@prisma/client';
 
 export type CreateAccountingPeriodData = {
@@ -10,86 +11,109 @@ export type CreateAccountingPeriodData = {
 };
 
 export async function createAccountingPeriod(data: CreateAccountingPeriodData) {
-    // Check for overlap
-    const existing = await prisma.accountingPeriod.findFirst({
-        where: {
-            OR: [
-                {
-                    startDate: { lte: data.endDate },
-                    endDate: { gte: data.startDate },
-                },
-            ],
-        },
-    });
+    const { getUser } = getKindeServerSession();
+    const user = await getUser();
+    if (!user) throw new Error('Unauthorized');
 
-    if (existing) {
-        throw new Error(`Accounting period overlaps with existing period ${existing.id}`);
-    }
+    return await withRLS(user.id, async () => {
+        // Check for overlap
+        const existing = await prisma.accountingPeriod.findFirst({
+            where: {
+                OR: [
+                    {
+                        startDate: { lte: data.endDate },
+                        endDate: { gte: data.startDate },
+                    },
+                ],
+            },
+        });
 
-    return await prisma.accountingPeriod.create({
-        data: {
-            type: data.type,
-            startDate: data.startDate,
-            endDate: data.endDate,
-            status: 'open',
-        },
+        if (existing) {
+            throw new Error(`Accounting period overlaps with existing period ${existing.id}`);
+        }
+
+        return await prisma.accountingPeriod.create({
+            data: {
+                type: data.type,
+                startDate: data.startDate,
+                endDate: data.endDate,
+                status: 'open',
+            },
+        });
     });
 }
 
 export async function getAccountingPeriods() {
-    return await prisma.accountingPeriod.findMany({
-        orderBy: { startDate: 'desc' },
-        include: {
-            closedBy: {
-                select: { name: true, email: true },
+    const { getUser } = getKindeServerSession();
+    const user = await getUser();
+    const userId = user?.id || 'anonymous';
+
+    return await withRLS(userId, async () => {
+        return await prisma.accountingPeriod.findMany({
+            orderBy: { startDate: 'desc' },
+            include: {
+                closedBy: {
+                    select: { name: true, email: true },
+                },
             },
-        },
+        });
     });
 }
 
 export async function getOpenAccountingPeriod() {
-    return await prisma.accountingPeriod.findFirst({
-        where: { status: 'open' },
-        orderBy: { startDate: 'asc' },
+    const { getUser } = getKindeServerSession();
+    const user = await getUser();
+    const userId = user?.id || 'anonymous';
+
+    return await withRLS(userId, async () => {
+        return await prisma.accountingPeriod.findFirst({
+            where: { status: 'open' },
+            orderBy: { startDate: 'asc' },
+        });
     });
 }
 
 export async function closeAccountingPeriod(id: string, userId: string) {
-    return await prisma.$transaction(async (tx: any) => {
-        const period = await tx.accountingPeriod.findUnique({
-            where: { id },
-        });
+    return await withRLS(userId, async () => {
+        return await prisma.$transaction(async (tx: any) => {
+            // Re-anchoring RLS context inside the transaction just in case, though prisma client extension should handle it
+            await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${userId}'`);
 
-        if (!period) throw new Error('Accounting period not found');
-        if (period.status === 'closed') throw new Error('Accounting period already closed');
+            const period = await tx.accountingPeriod.findUnique({
+                where: { id },
+            });
 
-        const transactions = await fetchPeriodTransactions(tx, period);
-        const { totalIncome, totalExpenses, netBalance } = calculateFinancials(transactions);
+            if (!period) throw new Error('Accounting period not found');
+            if (period.status === 'closed') throw new Error('Accounting period already closed');
 
-        const activities = await fetchPeriodActivities(tx, period);
-        const stats = calculateActivityStats(activities);
+            const transactions = await fetchPeriodTransactions(tx, period);
+            const { totalIncome, totalExpenses, netBalance } = calculateFinancials(transactions);
 
-        const sites = await tx.site.findMany({ select: { id: true, name: true } });
-        const sitePerformance = calculateSitePerformance(sites, activities);
+            const activities = await fetchPeriodActivities(tx, period);
+            const stats = calculateActivityStats(activities);
 
-        const snapshotData = {
-            totalIncome,
-            totalExpenses,
-            netBalance,
-            transactionCount: transactions.length,
-            ...stats,
-            sitePerformance,
-            generatedAt: new Date().toISOString(),
-        };
+            const sites = await tx.site.findMany({ select: { id: true, name: true } });
+            const sitePerformance = calculateSitePerformance(sites, activities);
 
-        return await tx.accountingPeriod.update({
-            where: { id },
-            data: {
-                status: 'closed',
-                closedAt: new Date(),
-                closedById: userId,
-                snapshotData: snapshotData as Prisma.JsonObject,
-            },
+            const snapshotData = {
+                totalIncome,
+                totalExpenses,
+                netBalance,
+                transactionCount: transactions.length,
+                ...stats,
+                sitePerformance,
+                generatedAt: new Date().toISOString(),
+            };
+
+            return await tx.accountingPeriod.update({
+                where: { id },
+                data: {
+                    status: 'closed',
+                    closedAt: new Date(),
+                    closedById: userId,
+                    snapshotData: snapshotData as Prisma.JsonObject,
+                },
+            });
         });
     });
 }

@@ -91,16 +91,27 @@ export async function generateCoordinatorCertificate(profileId: string) {
         .getPublicUrl(filename);
 
     // Save certificate record in DB
-    const certificate = await prisma.certificate.create({
-        data: {
-            profileId,
-            role: profile.role,
-            mandateStartDate: profile.mandateStartDate,
-            mandateEndDate: profile.mandateEndDate,
-            pdfUrl: publicUrl,
-            generatedAt: new Date()
-        }
-    });
+    // Save certificate record in DB
+    try {
+        const certificate = await prisma.certificate.create({
+            data: {
+                profileId,
+                role: profile.role,
+                mandateStartDate: profile.mandateStartDate,
+                mandateEndDate: profile.mandateEndDate,
+                pdfUrl: publicUrl,
+                generatedAt: new Date()
+            }
+        });
 
-    return certificate;
+        return certificate;
+    } catch (dbError) {
+        console.error('[CertificateService] DB Error, rolling back PDF:', dbError);
+        // Clean up the uploaded PDF if DB write fails
+        const { deleteFile } = await import('@/services/storageService');
+        await deleteFile(filename, { isRollback: true, bucketName: 'certificates' }).catch(err =>
+            console.error('[CertificateService] Rollback failed:', err)
+        );
+        throw dbError;
+    }
 }

@@ -153,9 +153,15 @@ export function MemberForm({ member, onSubmitForm }: MemberFormProps) {
     return (
       <Card className="shadow-xl w-full max-w-xl mx-auto border-destructive/50">
         <CardHeader>
-          <CardTitle className="text-destructive">Authentication Error</CardTitle>
-          <CardDescription>
-            Unable to load user profile. Please try refreshing the page or logging in again.
+          <CardTitle className="text-destructive font-bold text-xl">{t('auth_error.title')}</CardTitle>
+          <CardDescription className="text-base">
+            {t('auth_error.description')}
+            <div className="mt-4 p-3 bg-destructive/10 rounded-md border border-destructive/20">
+              <p className="text-sm font-semibold mb-2">💡 Solution :</p>
+              <p className="text-sm">
+                Veuillez visiter la <a href="/dashboard/diagnostics" className="underline font-bold">Page de Diagnostic</a> pour synchroniser votre identité.
+              </p>
+            </div>
           </CardDescription>
         </CardHeader>
       </Card>

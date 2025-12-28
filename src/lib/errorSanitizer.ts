@@ -8,45 +8,60 @@ import { MESSAGES } from './messages';
  * 
  * @security Critical - Never expose error.message directly to clients
  */
-export function sanitizeError(error: unknown): string {
-    // Prisma errors - map to safe messages
+import { AppErrorCode } from './appErrorCodes';
+
+export interface AppError {
+    message: string;
+    code: AppErrorCode;
+}
+
+/**
+ * Sanitizes error objects to prevent information leakage to clients.
+ * Converts technical errors (Prisma, Zod, etc.) into safe, structured errors.
+ * 
+ * @security Critical - Never expose error.message directly to clients
+ */
+export function sanitizeError(error: unknown): AppError {
+    // Prisma errors - map to safe messages and codes
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
         switch (error.code) {
             case 'P2002':
-                return 'A record with this value already exists';
+                return { message: 'A record with this value already exists', code: AppErrorCode.ALREADY_EXISTS };
             case 'P2003':
-                return 'Referenced resource not found';
+                return { message: 'Referenced resource not found', code: AppErrorCode.NOT_FOUND };
             case 'P2025':
-                return 'Record not found';
+                return { message: 'Record not found', code: AppErrorCode.NOT_FOUND };
             case 'P2014':
-                return 'Invalid relationship';
+                return { message: 'Invalid relationship', code: AppErrorCode.INVALID_INPUT };
             default:
-                return MESSAGES.errors.generic || 'Database error occurred';
+                return { message: MESSAGES.errors.generic || 'Database error occurred', code: AppErrorCode.SERVER_ERROR };
         }
     }
 
     // Prisma validation errors
     if (error instanceof Prisma.PrismaClientValidationError) {
-        return MESSAGES.errors.validation || 'Invalid data provided';
+        return { message: MESSAGES.errors.validation || 'Invalid data provided', code: AppErrorCode.VALIDATION_FAILED };
     }
 
-    // Zod validation errors - don't expose field details
+    // Zod validation errors
     if (error instanceof ZodError) {
-        return MESSAGES.errors.validation || 'Validation failed';
+        return { message: MESSAGES.errors.validation || 'Validation failed', code: AppErrorCode.VALIDATION_FAILED };
     }
 
-    // Generic Error instances - NEVER return error.message
+    // Generic Error instances
     if (error instanceof Error) {
-        // Check for known safe error types
-        if (error.message.includes('Unauthorized') || error.message.includes('Forbidden')) {
-            return MESSAGES.errors.unauthorized || 'Access denied';
+        if (error.message.includes('Unauthorized')) {
+            return { message: MESSAGES.errors.unauthorized || 'Access denied', code: AppErrorCode.UNAUTHORIZED };
         }
-        // Default to generic message
-        return MESSAGES.errors.generic || 'An error occurred';
+        if (error.message.includes('Forbidden')) {
+            return { message: MESSAGES.errors.forbidden || 'Access denied', code: AppErrorCode.FORBIDDEN };
+        }
+        // Propagate known safe messages if logic allows, or default
+        return { message: MESSAGES.errors.generic || 'An error occurred', code: AppErrorCode.UNKNOWN_ERROR };
     }
 
     // Unknown error type
-    return MESSAGES.errors.generic || 'An error occurred';
+    return { message: MESSAGES.errors.generic || 'An error occurred', code: AppErrorCode.UNKNOWN_ERROR };
 }
 
 /**

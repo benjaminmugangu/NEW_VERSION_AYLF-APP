@@ -67,8 +67,11 @@ export function SitesClient({ initialSites, user, analytics }: SitesClientProps)
             await siteService.deleteSite(siteToDelete.id);
             setSites(prevSites => prevSites.filter(s => s.id !== siteToDelete.id));
             toast({ title: 'Success', description: 'Site deleted successfully.' });
-        } catch (error: any) {
-            toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        } catch (error) {
+            console.error('Failed to delete site:', error);
+            const { getClientErrorMessage } = await import('@/lib/clientErrorHandler');
+            const errorMessage = getClientErrorMessage(error);
+            toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
         } finally {
             setSiteToDelete(null);
             setIsDeleting(false);

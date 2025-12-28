@@ -27,7 +27,7 @@
 
 \title{\textbf{Guide Utilisateur Complet}\\AYLF Group Tracker}
 \author{Équipe Technique AYLF}
-\date{Décembre 2024 - Version 2.0}
+\date{Janvier 2025 - Version 3.1}
 
 \begin{document}
 
@@ -35,7 +35,7 @@
 \thispagestyle{empty}
 
 \begin{abstract}
-Ce document est le guide de référence pour l'utilisation de l'application AYLF Group Tracker. Il couvre l'ensemble des fonctionnalités, y compris les dernières mises à jour concernant la gestion financière, les rapports, la sécurité et l'installation mobile (PWA).
+Ce document est le guide de référence pour l'utilisation de l'application AYLF Group Tracker. Il couvre l'ensemble des fonctionnalités, y compris les dernières mises à jour concernant la gestion financière, les rapports, la sécurité, l'installation mobile (PWA) et les outils de diagnostic d'identité.
 \end{abstract}
 
 \tableofcontents
@@ -43,17 +43,38 @@ Ce document est le guide de référence pour l'utilisation de l'application AYLF
 
 \section{Introduction et Nouveautés}
 
-Bienvenue dans la nouvelle version de l'application **AYLF Group Tracker**. Cette plateforme centralise la gestion des sites, groupes, activités et membres de l'AYLF.
+Bienvenue dans la version **3.1** de l'application **AYLF Group Tracker**. Cette plateforme centralise la gestion des sites, groupes, activités et membres de l'AYLF.
 
-\subsection{Dernières Améliorations (v2.0)}
-Cette version intègre des fonctionnalités majeures suite à l'audit de décembre 2024 :
+\subsection{Dernières Améliorations (v3.1)}
+Cette version intègre des fonctionnalités majeures pour garantir un état "Zero Gap" et une robustesse totale :
 \begin{itemize}
-    \item \textbf{Application Mobile (PWA)} : Installation directe sur smartphone pour un accès hors ligne.
-    \item \textbf{Gestion Financière Automatisée} : Génération automatique des transactions lors de l'approbation des rapports.
-    \item \textbf{Feedback de Rejet} : Visualisation claire des motifs de rejet des rapports.
-    \item \textbf{Sécurité Renforcée} : Protection des données et traçabilité accrue.
-    \item \textbf{Interface Améliorée} : Mode sombre, chargement rapide et navigation fluide.
+    \item \textbf{Diagnostic d'Identité} : Outil d'auto-réparation pour synchroniser les comptes Kinde et les profils locaux.
+    \item \textbf{Sécurité Hiérarchique (RLS)} : Protection 100\% granulaire des données (NC $\rightarrow$ Sites $\rightarrow$ Groupes).
+    \item \textbf{Visibilité Financière Totale} : Accès aux indicateurs de performance (KPI) pour tous les niveaux administratifs.
+    \item \textbf{Cascade d'Intégrité} : Mise à jour automatique des relations de données lors des synchronisations de profil.
+    \item \textbf{Application Mobile (PWA)} : Installation directe sur smartphone pour un accès rapide.
 \end{itemize}
+
+\section{Diagnostic et Synchronisation d'Identité}
+\label{sec:identity}
+
+Pour garantir la sécurité, l'application vérifie que votre identifiant d'authentification (Kinde) correspond parfaitement à votre profil dans la base de données.
+
+\subsection{Signes d'un Problème d'Identité}
+Si vous voyez une bannière d'alerte rouge \textbf{"Identité non synchronisée"} ou si vous recevez une erreur \texttt{ID\_MISMATCH} lors de la création d'un membre ou d'une activité :
+\begin{enumerate}
+    \item Cliquez sur le lien \textbf{"Diagnostiquer le problème"} dans l'alerte.
+    \item Ou naviguez vers \textbf{Paramètres > Diagnostics} dans le menu latéral.
+\end{enumerate}
+
+\subsection{Procédure de Synchronisation}
+L'outil de diagnostic affiche l'état de votre session. Si un bouton \textbf{"Synchroniser mon identité"} apparaît :
+\begin{enumerate}
+    \item Cliquez sur le bouton.
+    \item Le système mettra à jour votre profil local pour correspondre à votre compte Kinde.
+    \item Grâce à la \textit{Cascade de Mise à jour}, toutes vos données liées (rapports, activités) resteront intactes.
+    \item Une fois terminé, l'accès total sera rétabli.
+\end{enumerate}
 
 \section{Installation Mobile (PWA)}
 \label{sec:pwa}
@@ -103,30 +124,23 @@ Les finances sont désormais étroitement liées aux activités :
     \item \textbf{Transparence} : Les coordinateurs peuvent voir le solde en temps réel de leur entité.
 \end{itemize}
 
-\section{Rôles et Permissions (Rappel)}
+\section{Rôles et Permissions}
 
-L'application gère strictement les accès via 4 rôles :
+L'application gère strictement les accès via 4 rôles, respectant la hiérarchie AYLF :
 
 \begin{description}
-    \item[Coordinateur National] Accès total. Gestion des sites, utilisateurs, validation des rapports et supervision financière globale.
-    \item[Coordinateur de Site] Gestion de son site uniquement. Création de groupes, supervision des leaders, rapports de site.
-    \item[Leader de Small Group] Gestion de son groupe. Ajout de membres, rapports d'activités de groupe.
-    \item[Membre] Consultation uniquement (profil, activités à venir).
+    \item[Coordinateur National] Accès total à tous les sites et groupes du pays. Supervision financière et approbation des rapports.
+    \item[Coordinateur de Site] Gestion de son site spécifique et de tous les "Small Groups" rattachés. Accès aux statistiques du site.
+    \item[Leader de Small Group] Gestion exclusive de son propre groupe et de ses membres.
+    \item[Membre] Consultation de son propre profil et des activités de son groupe.
 \end{description}
 
-\section{Sécurité et Performance}
+\section{Sécurité et Intégrité}
 
-\subsection{Sécurité des Données}
-\begin{itemize}
-    \item \textbf{Rate Limiting} : Protection contre les tentatives de connexion abusives.
-    \item \textbf{Audit Logs} : Toutes les actions sensibles (approbation, suppression) sont tracées.
-    \item \textbf{Headers de Sécurité} : Protection renforcée contre les attaques XSS et autres vulnérabilités web.
-\end{itemize}
+\subsection{Protection des Données (RLS)}
+Chaque opération de lecture ou d'écriture est vérifiée au niveau de la base de données (Row-Level Security). Un Leader ne peut jamais modifier les données d'un autre groupe, garantissant la confidentialité et l'intégrité de la hiérarchie.
 
-\subsection{Performance}
-\begin{itemize}
-    \item \textbf{Pagination} : Les listes chargent les données page par page pour plus de rapidité.
-    \item \textbf{Mode Hors Ligne} : Grâce à la PWA, certaines pages restent accessibles sans connexion (cache).
-\end{itemize}
+\subsection{Traçabilité (Audit Logs)}
+Toutes les actions sensibles (approbation de dépenses, suppression de membres) sont enregistrées avec l'identité de l'auteur, la date et l'adresse IP pour une transparence totale.
 
 \end{document}

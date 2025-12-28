@@ -7,8 +7,9 @@ import type { User } from "@/lib/types";
 
 interface AuthContextType {
   currentUser: User | null;
-  session: any | null; // Gardé pour compatibilité temporaire, mais sera null
+  session: any | null;
   isLoading: boolean;
+  authError: { code: string; message: string; details?: any } | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -16,6 +17,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { user: kindeUser, isLoading: isKindeLoading } = useKindeBrowserClient();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [authError, setAuthError] = useState<{ code: string; message: string; details?: any } | null>(null);
   const [isAppLoading, setIsAppLoading] = useState(true);
 
   useEffect(() => {
@@ -24,37 +26,52 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const fetchUserProfile = async () => {
       if (!kindeUser) {
         setCurrentUser(null);
+        setAuthError(null);
         setIsAppLoading(false);
         return;
       }
 
       try {
-        // On appelle notre API interne qui fait le pont Kinde -> DB Prisma
         const res = await fetch('/api/auth/me');
-        if (!res.ok) throw new Error('Failed to fetch user profile');
-        
         const data = await res.json();
-        
+
+        if (!res.ok) {
+          if (isMounted) {
+            setAuthError({
+              code: data.code || 'UNKNOWN_ERROR',
+              message: data.error || 'Failed to fetch profile',
+              details: data.details
+            });
+            setCurrentUser(null);
+          }
+          return;
+        }
+
         if (isMounted) {
           setCurrentUser(data.user);
+          setAuthError(null);
         }
       } catch (error) {
         console.error("Error syncing user profile:", error);
-        if (isMounted) setCurrentUser(null);
+        if (isMounted) {
+          setAuthError({ code: 'FETCH_FAILED', message: 'Network error fetching profile' });
+          setCurrentUser(null);
+        }
       } finally {
         if (isMounted) setIsAppLoading(false);
       }
     };
 
     if (!isKindeLoading) {
-        fetchUserProfile();
+      fetchUserProfile();
     }
   }, [kindeUser, isKindeLoading]);
 
   const value = {
     currentUser,
-    session: null, // Plus de session Supabase
+    session: null,
     isLoading: isKindeLoading || isAppLoading,
+    authError
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
