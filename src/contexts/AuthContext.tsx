@@ -51,10 +51,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setCurrentUser(data.user);
           setAuthError(null);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error syncing user profile:", error);
         if (isMounted) {
-          setAuthError({ code: 'FETCH_FAILED', message: 'Network error fetching profile' });
+          setAuthError({
+            code: 'FETCH_FAILED',
+            message: error.message || 'Network error fetching profile',
+            details: {
+              raw: error.toString(),
+              stack: error.stack
+            }
+          });
           setCurrentUser(null);
         }
       } finally {
