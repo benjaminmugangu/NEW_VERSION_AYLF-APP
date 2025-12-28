@@ -32,15 +32,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       try {
-        const res = await fetch('/api/auth/me', { cache: 'no-store' }); // Disable cache to prevent stale auth data
-        const data = await res.json();
+        const res = await fetch('/api/auth/me', { cache: 'no-store' });
 
         if (!res.ok) {
+          const text = await res.text();
           if (isMounted) {
             setAuthError({
-              code: data.code || 'UNKNOWN_ERROR',
-              message: data.error || 'Failed to fetch profile',
-              details: { ...data.details, status: res.status }
+              code: `HTTP_${res.status}`,
+              message: `Server returned ${res.status}: ${res.statusText}`,
+              details: {
+                status: res.status,
+                snippet: text.substring(0, 200)
+              }
+            });
+            setCurrentUser(null);
+          }
+          return;
+        }
+
+        let data;
+        try {
+          data = await res.json();
+        } catch (e: any) {
+          const text = await res.text().catch(() => 'Unavailable');
+          if (isMounted) {
+            setAuthError({
+              code: 'INVALID_JSON',
+              message: 'Failed to parse user profile',
+              details: { error: e.message, snippet: text.substring(0, 200) }
             });
             setCurrentUser(null);
           }
