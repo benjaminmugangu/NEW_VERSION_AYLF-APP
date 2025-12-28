@@ -38,7 +38,11 @@ export default function ProfileSettingsPage() {
         <PageHeader title="Profile Error" icon={UserCircle} />
         <Card>
           <CardContent>
-            <p className="text-destructive">User not found. Please log in again.</p>
+            <p className="text-destructive font-semibold">User not found. Please log in again.</p>
+            <div className="mt-4 p-2 bg-muted rounded text-xs overflow-auto">
+              <p>Debug Info:</p>
+              <pre>{JSON.stringify({ isLoading, hasUser: !!currentUser }, null, 2)}</pre>
+            </div>
           </CardContent>
         </Card>
       </div>

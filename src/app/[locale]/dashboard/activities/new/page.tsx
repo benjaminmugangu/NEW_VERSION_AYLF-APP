@@ -14,30 +14,35 @@ export default async function NewActivityPage() {
     return redirect('/api/auth/login');
   }
 
-  const profileService = await import('@/services/profileService');
-  const profile = await profileService.getProfile(user.id);
+  // Import withRLS
+  const { withRLS } = await import('@/lib/prisma');
 
-  const allowedRoles = [
-    ROLES.NATIONAL_COORDINATOR,
-    ROLES.SITE_COORDINATOR,
-    ROLES.SMALL_GROUP_LEADER,
-  ];
+  return await withRLS(user.id, async () => {
+    const profileService = await import('@/services/profileService');
+    const profile = await profileService.getProfile(user.id);
 
-  if (!profile || !allowedRoles.includes(profile.role)) {
-    console.error('Profile not found or access denied for user:', user.id, user.email);
-    return (
-      <div className="p-4">
-        <div className="max-w-xl mx-auto space-y-4">
-          <h1 className="text-2xl font-bold text-destructive">Profile Sync Required</h1>
-          <p className="text-muted-foreground">
-            Your account identity needs to be synchronized. Please visit the
-            <a href="/dashboard/diagnostics" className="text-primary underline ml-1">Diagnostics Page</a>
-            to fix this issue and access this form.
-          </p>
+    const allowedRoles = [
+      ROLES.NATIONAL_COORDINATOR,
+      ROLES.SITE_COORDINATOR,
+      ROLES.SMALL_GROUP_LEADER,
+    ];
+
+    if (!profile || !allowedRoles.includes(profile.role)) {
+      console.error('Profile not found or access denied for user:', user.id, user.email);
+      return (
+        <div className="p-4">
+          <div className="max-w-xl mx-auto space-y-4">
+            <h1 className="text-2xl font-bold text-destructive">Profile Sync Required</h1>
+            <p className="text-muted-foreground">
+              Your account identity needs to be synchronized. Please visit the
+              <a href="/dashboard/diagnostics" className="text-primary underline ml-1">Diagnostics Page</a>
+              to fix this issue and access this form.
+            </p>
+          </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  return <NewActivityClient />;
+    return <NewActivityClient />;
+  });
 }

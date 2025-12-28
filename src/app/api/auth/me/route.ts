@@ -37,26 +37,20 @@ export async function GET() {
         });
 
         if (userByEmail) {
-          // SECURITY FIX: ID mismatch detected - this is a critical security issue
-          // The user authenticated with Kinde ID X, but a profile exists with ID Y
-          // This can happen if:
-          // 1. User was created before Kinde integration
-          // 2. Manual database manipulation
-          // 3. Identity provider migration
-
+          // SECURITY FIX: ID mismatch detected
           console.error(`[AUTH_SYNC] CRITICAL: ID Mismatch for ${normalizedEmail}. Kinde ID: ${kindeUser.id}, Profile ID: ${userByEmail.id}`);
-          logError(`[AUTH_SYNC] ID Mismatch Detected`, new Error(`User ${normalizedEmail} has mismatched IDs`));
 
-          // SECURITY: DO NOT allow login with mismatched IDs
-          // This prevents user A from accessing user B's data
           return NextResponse.json({
-            error: "Identity synchronization error. Please contact administrator.",
+            error: "Identity synchronization error",
             code: "ID_MISMATCH",
             details: {
               email: normalizedEmail,
-              hint: "Your account needs to be re-synchronized by an administrator"
+              kindeId: kindeUser.id,
+              dbId: userByEmail.id
             }
           }, { status: 403 });
+        } else {
+          console.log(`[AUTH_SYNC] User not found by ID (${kindeUser.id}) OR Email (${normalizedEmail}). Creating...`);
         }
       }
 
