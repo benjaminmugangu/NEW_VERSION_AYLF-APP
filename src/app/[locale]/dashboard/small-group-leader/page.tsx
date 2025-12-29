@@ -84,6 +84,8 @@ const getDateFilterFromParams = (searchParams: { [key: string]: string | string[
     };
 };
 
+import { cookies } from 'next/headers';
+
 export default async function SmallGroupLeaderDashboard(props: any) {
     const searchParams = await props.searchParams;
     const { getUser, isAuthenticated } = getKindeServerSession();

@@ -6,7 +6,7 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { StatCard } from '@/components/shared/StatCard';
 import { ROLES } from '@/lib/constants';
 import { type DashboardStats } from '@/services/dashboardService';
-import { Activity, BarChart3, Building, FileText, Users, DollarSign, UsersRound, Lightbulb, Zap, Printer } from 'lucide-react';
+import { Activity, BarChart3, Building, FileText, Users, DollarSign, UsersRound, Lightbulb, Zap, Printer, Briefcase } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -116,50 +116,49 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
           </div>
         }
       />
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
         <StatCard
           title={t('stats.total_activities')}
           value={initialStats.totalActivities}
           icon={Activity}
-          description={t('stats.activities_desc', { executed: initialStats.executedActivities, planned: initialStats.plannedActivities })}
+          description={t('stats.activities_desc')}
           href="/dashboard/activities"
         />
         <StatCard
           title={t('stats.total_members')}
           value={initialStats.totalMembers}
           icon={Users}
-          description={t('stats.members_desc', { student: initialStats.studentMembers, nonStudent: initialStats.nonStudentMembers })}
+          description={t('stats.members_desc')}
           href="/dashboard/members"
         />
         <StatCard
-          title={t('stats.reports_submitted')}
+          title={t('stats.total_reports')}
           value={initialStats.totalReports}
           icon={FileText}
           description={t('stats.reports_desc')}
-          href="/dashboard/reports"
+          href="/dashboard/reports/view"
         />
+        {userRole !== ROLES.SMALL_GROUP_LEADER && (
+          <StatCard
+            title={t('stats.total_sites')}
+            value={initialStats.totalSites}
+            icon={Building}
+            description={t('stats.sites_desc')}
+            href="/dashboard/sites"
+          />
+        )}
         <StatCard
-          title={t('stats.total_sites')}
-          value={initialStats.totalSites}
-          icon={Building}
-          description={t('stats.sites_desc')}
-          href="/dashboard/sites"
-        />
-        <StatCard
-          title={t('stats.total_groups')}
+          title={t('stats.total_small_groups')}
           value={initialStats.totalSmallGroups}
           icon={UsersRound}
           description={t('stats.groups_desc')}
-          href="/dashboard/small-groups"
+          href="/dashboard/reports/view" // Simplified or link to groups if exists
         />
         <StatCard
           title={t('stats.net_balance')}
-          value={new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(initialStats.netBalance)}
-          icon={DollarSign}
-          description={t('stats.finance_desc', {
-            income: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(initialStats.totalIncome),
-            expenses: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(initialStats.totalExpenses)
-          })}
+          value={initialStats.netBalance} // value should already be currency formatted or raw number handled by StatCard
+          icon={Briefcase}
+          description={t('stats.finance_desc')}
           href="/dashboard/finances"
         />
       </div>

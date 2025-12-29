@@ -7,9 +7,8 @@ import dashboardService from '@/services/dashboardService';
 import { Card, CardContent } from '@/components/ui/card';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
-import { prisma, withRLS } from "@/lib/prisma";
-import { User } from "@/lib/types";
-// Note: updateActivityStatuses removed - runs via CRON /api/cron/update-statuses
+import { withRLS } from "@/lib/prisma";
+import { getSyncProfile } from '@/services/authService';
 
 const isPredefinedRange = (key: any): key is PredefinedRange => {
   const ranges: PredefinedRange[] = [
@@ -28,9 +27,7 @@ const getServerDateRange = (rangeKey: PredefinedRange): { from?: Date; to?: Date
   let display = '';
 
   switch (rangeKey) {
-    case 'all_time':
-      display = 'All Time';
-      break;
+    case 'all_time': display = 'All Time'; break;
     case 'today':
       from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       to = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
@@ -43,8 +40,7 @@ const getServerDateRange = (rangeKey: PredefinedRange): { from?: Date; to?: Date
       const endOfWeek = new Date(startOfWeek);
       endOfWeek.setDate(startOfWeek.getDate() + 6);
       endOfWeek.setHours(23, 59, 59, 999);
-      from = startOfWeek;
-      to = endOfWeek;
+      from = startOfWeek; to = endOfWeek;
       display = 'This Week';
       break;
     case 'this_month':
@@ -52,50 +48,14 @@ const getServerDateRange = (rangeKey: PredefinedRange): { from?: Date; to?: Date
       to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
       display = 'This Month';
       break;
-    case 'last_month':
-      from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      to = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
-      display = 'Last Month';
-      break;
     case 'this_year':
       from = new Date(now.getFullYear(), 0, 1);
       to = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
       display = 'This Year';
       break;
-    case 'last_7_days':
-      from = new Date(now);
-      from.setDate(now.getDate() - 6);
-      from.setHours(0, 0, 0, 0);
-      to = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-      display = 'Last 7 Days';
-      break;
-    case 'last_30_days':
-      from = new Date(now);
-      from.setDate(now.getDate() - 29);
-      from.setHours(0, 0, 0, 0);
-      to = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-      display = 'Last 30 Days';
-      break;
-    case 'last_90_days':
-      from = new Date(now);
-      from.setDate(now.getDate() - 90);
-      to = now;
-      display = 'Last 90 Days';
-      break;
-    case 'last_12_months':
-      from = new Date(now);
-      from.setFullYear(now.getFullYear() - 1);
-      to = now;
-      display = 'Last 12 Months';
-      break;
-    case 'specific_period':
-      display = 'Specific Period';
-      break;
-    case 'custom':
-      display = 'Custom Range';
-      break;
     default:
-      display = 'All Time';
+      const predefined = getServerDateRange('all_time');
+      return predefined;
   }
   return { from, to, display };
 };
@@ -110,8 +70,7 @@ const getDateFilterFromParams = (searchParams: { [key: string]: string | string[
   if (rangeKey === 'custom' && from && to) {
     return {
       rangeKey: 'custom',
-      from: from,
-      to: to,
+      from: from, to: to,
       display: `From ${new Date(from).toLocaleDateString()} to ${new Date(to).toLocaleDateString()}`,
     };
   }
@@ -127,112 +86,43 @@ const getDateFilterFromParams = (searchParams: { [key: string]: string | string[
 
 export default async function DashboardPage(props: any) {
   const searchParams = await props.searchParams;
-
-  // Note: Activity status updates now handled by CRON at /api/cron/update-statuses
+  const params = await props.params;
 
   const { getUser, isAuthenticated } = getKindeServerSession();
   const isAuth = await isAuthenticated();
+  const kindeUserOrig = await getUser();
 
-  if (!isAuth) {
+  if (!isAuth || !kindeUserOrig) {
     redirect('/api/auth/login');
   }
 
-  const kindeUser = await getUser();
-  if (!kindeUser) {
-    redirect('/api/auth/login');
-  }
+  // Robustly fetch and sync profile
+  const userProfile = await getSyncProfile(kindeUserOrig);
+  const effectiveUserId = userProfile.id;
 
-  return await withRLS(kindeUser.id, async () => {
-    // Récupérer le profil Prisma
-    let profile = await prisma.profile.findUnique({
-      where: { id: kindeUser.id },
-      select: {
-        id: true,
-        role: true,
-        name: true,
-        email: true,
-        siteId: true,
-        smallGroupId: true,
-        status: true
-      }
-    });
-
-    // Fallback lookup by email (same as Layout for consistency)
-    if (!profile && kindeUser.email) {
-      profile = await prisma.profile.findUnique({
-        where: { email: kindeUser.email.toLowerCase() },
-        select: {
-          id: true,
-          role: true,
-          name: true,
-          email: true,
-          siteId: true,
-          smallGroupId: true,
-          status: true
-        }
-      });
-    }
-
-    if (!profile) {
-      console.error('Profile not found for user:', kindeUser.id, kindeUser.email);
-      // Instead of immediate redirect loop, let's try to handle the sync
-      // This could also be a newly authenticated user without a profile yet.
-      // The Layout handles the fallback role, but the Page needs it too.
-      return (
-        <div className="p-4">
-          <PageHeader title="Profile Sync Required" description="Your account is being synchronized. Please refresh the page in a few seconds." />
-          <Card className="mt-4">
-            <CardContent className="pt-6">
-              <p>If the problem persists, please contact an administrator.</p>
-            </CardContent>
-          </Card>
-        </div>
-      );
-    }
-
-    const userRole = profile.role;
-    const userName = profile.name || profile.email || 'Unknown User';
+  return await withRLS(effectiveUserId, async () => {
+    const userRole = userProfile.role;
+    const userName = userProfile.name || userProfile.email || 'User';
 
     // Role-based redirection
-    if (userRole === ROLES.SITE_COORDINATOR) {
-      redirect('/dashboard/site-coordinator');
-    }
-    if (userRole === ROLES.SMALL_GROUP_LEADER) {
-      redirect('/dashboard/small-group-leader');
-    }
-    if (userRole === ROLES.MEMBER) {
-      redirect('/dashboard/member');
-    }
+    if (userRole === ROLES.SITE_COORDINATOR) redirect('/dashboard/site-coordinator');
+    if (userRole === ROLES.SMALL_GROUP_LEADER) redirect('/dashboard/small-group-leader');
+    if (userRole === ROLES.MEMBER) redirect('/dashboard/member');
 
-    // Allow access for National Coordinator (or fallback)
+    // NC View Check
     if (userRole !== ROLES.NATIONAL_COORDINATOR) {
       return (
         <div className="p-4">
-          <PageHeader title="Access Denied" description="You do not have permission to view this page." />
-          <Card className="mt-4">
-            <CardContent className="pt-6">
-              <p>Please contact an administrator if you believe this is an error.</p>
-            </CardContent>
-          </Card>
+          <PageHeader title="Access Denied" description="You do not have permission to view the national dashboard." />
         </div>
       );
     }
 
     const dateFilter = getDateFilterFromParams(searchParams);
 
-    // Construct User object for service
-    const user: User = {
-      id: profile.id,
-      name: profile.name,
-      email: profile.email,
-      role: profile.role as any,
-      siteId: profile.siteId,
-      smallGroupId: profile.smallGroupId,
-      status: profile.status as any
-    };
-
     try {
-      const stats = await dashboardService.getDashboardStats(user, dateFilter);
+      console.log("[DASHBOARD_PAGE] Fetching dashboard stats for NC...");
+      const stats = await dashboardService.getDashboardStats(userProfile, dateFilter);
 
       return (
         <DashboardClient
@@ -244,12 +134,13 @@ export default async function DashboardPage(props: any) {
       );
     } catch (error) {
       const err = error instanceof Error ? error : new Error('An unknown error occurred');
+      console.error("[DASHBOARD_PAGE] Error fetching stats:", err);
       return (
         <div className="p-4">
-          <PageHeader title="Error" description="Failed to load dashboard data." />
+          <PageHeader title="Error" description="Unable to load dashboard statistics." />
           <Card className="mt-4">
             <CardContent className="pt-6">
-              <p className="text-red-500">{err.message}</p>
+              <p className="text-destructive font-semibold">{err.message}</p>
             </CardContent>
           </Card>
         </div>
@@ -257,4 +148,3 @@ export default async function DashboardPage(props: any) {
     }
   });
 }
-

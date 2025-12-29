@@ -26,7 +26,6 @@ export default function middleware(req: NextRequest) {
   // 2. Run next-intl middleware first to handle redirects and locale detection
   const res = intlMiddleware(req);
 
-  // 3. If it's a public path, return the intl response immediately
   if (isPublic) {
     return res;
   }

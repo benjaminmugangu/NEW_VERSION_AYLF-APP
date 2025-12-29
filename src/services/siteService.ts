@@ -40,6 +40,13 @@ export async function getSitesWithDetails(user: User | null): Promise<SiteWithDe
     const whereClause: any = {};
     if (user.role === 'SITE_COORDINATOR' && user.siteId) {
       whereClause.id = user.siteId;
+    } else if (user.role === 'SMALL_GROUP_LEADER') {
+      if (user.siteId) {
+        whereClause.id = user.siteId;
+      } else {
+        // SGL without a site should see nothing
+        return [];
+      }
     }
 
     const sites = await prisma.site.findMany({
