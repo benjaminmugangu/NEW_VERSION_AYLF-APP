@@ -103,9 +103,19 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
           <div className="flex flex-col gap-1">
             <span>{t('overview', { period: periodLabel })}</span>
             <div className="flex flex-wrap gap-2 mt-1">
-              {userRole === ROLES.NATIONAL_COORDINATOR && <Badge variant="secondary">National Level</Badge>}
-              {siteName && <Badge variant="outline" className="bg-background"><Building className="w-3 h-3 mr-1" /> {siteName}</Badge>}
-              {smallGroupName && <Badge variant="outline" className="bg-background"><UsersRound className="w-3 h-3 mr-1" /> {smallGroupName}</Badge>}
+              {userRole === ROLES.NATIONAL_COORDINATOR && <Badge variant="secondary">Niveau National</Badge>}
+              {(userRole !== ROLES.NATIONAL_COORDINATOR || siteName) && (
+                <Badge variant="outline" className="bg-background">
+                  <Building className="w-3 h-3 mr-1" />
+                  {siteName || 'Site non assigné'}
+                </Badge>
+              )}
+              {(userRole === ROLES.SMALL_GROUP_LEADER || smallGroupName) && (
+                <Badge variant="outline" className="bg-background">
+                  <UsersRound className="w-3 h-3 mr-1" />
+                  {smallGroupName || 'Groupe non assigné'}
+                </Badge>
+              )}
             </div>
           </div>
         }
@@ -121,14 +131,20 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
           title={t('stats.total_activities')}
           value={initialStats.totalActivities}
           icon={Activity}
-          description={t('stats.activities_desc')}
+          description={t('stats.activities_desc', {
+            executed: initialStats.executedActivities || 0,
+            planned: initialStats.plannedActivities || 0
+          })}
           href="/dashboard/activities"
         />
         <StatCard
           title={t('stats.total_members')}
           value={initialStats.totalMembers}
           icon={Users}
-          description={t('stats.members_desc')}
+          description={t('stats.members_desc', {
+            student: initialStats.studentMembers || 0,
+            nonStudent: (initialStats.totalMembers || 0) - (initialStats.studentMembers || 0)
+          })}
           href="/dashboard/members"
         />
         <StatCard
@@ -152,13 +168,16 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
           value={initialStats.totalSmallGroups}
           icon={UsersRound}
           description={t('stats.groups_desc')}
-          href="/dashboard/reports/view" // Simplified or link to groups if exists
+          href="/dashboard/small-groups"
         />
         <StatCard
           title={t('stats.net_balance')}
-          value={initialStats.netBalance} // value should already be currency formatted or raw number handled by StatCard
+          value={initialStats.netBalance}
           icon={Briefcase}
-          description={t('stats.finance_desc')}
+          description={t('stats.finance_desc', {
+            income: initialStats.totalIncome || 0,
+            expenses: initialStats.totalExpenses || 0
+          })}
           href="/dashboard/finances"
         />
       </div>

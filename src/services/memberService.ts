@@ -109,8 +109,8 @@ const mapPrismaMemberToWithDetails = (m: any): MemberWithDetails => {
   const base = mapPrismaMemberToBase(m);
   return {
     ...base,
-    siteName: m.site?.name || 'N/A',
-    smallGroupName: m.smallGroup?.name || 'N/A',
+    siteName: m.site?.name || 'Non assigné',
+    smallGroupName: m.smallGroup?.name || 'Hors groupe',
   };
 };
 

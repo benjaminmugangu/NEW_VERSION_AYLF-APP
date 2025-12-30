@@ -149,18 +149,22 @@ export default function SmallGroupsPage() {
                   />
                 ) : smallGroups.length > 0 ? (
                   smallGroups.map((sg) => {
-                    const leaderName = sg.leader?.name || 'N/A';
+                    const hasLeader = !!sg.leaderName;
+                    const displayLeaderName = sg.leaderName || 'Aucun leader assigné';
+
                     return (
                       <TableRow key={sg.id}>
                         <TableCell className="font-medium">{sg.name}</TableCell>
                         <TableCell>{sg.siteName}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <Avatar>
-                              <AvatarImage src={(sg.leader?.user_metadata as any)?.avatar_url as string | undefined} />
-                              <AvatarFallback>{getInitials(leaderName)}</AvatarFallback>
+                            <Avatar className={!hasLeader ? "opacity-40" : ""}>
+                              {/* Assuming avatar_url might be in user_metadata or similar, but simplified for now */}
+                              <AvatarFallback>{hasLeader ? getInitials(displayLeaderName) : '?'}</AvatarFallback>
                             </Avatar>
-                            <span>{leaderName}</span>
+                            <span className={!hasLeader ? "text-muted-foreground italic text-sm" : ""}>
+                              {displayLeaderName}
+                            </span>
                           </div>
                         </TableCell>
                         <TableCell>{sg.memberCount}</TableCell>

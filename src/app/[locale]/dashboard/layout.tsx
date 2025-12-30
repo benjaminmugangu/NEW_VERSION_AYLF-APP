@@ -42,9 +42,10 @@ export default async function DashboardLayout({
 
   const effectiveUserId = kindeUser.id;
 
+  // Robustly fetch and sync profile (bypass RLS during auth sync)
+  const userProfile = await getSyncProfile(kindeUser);
+
   return await withRLS(effectiveUserId, async () => {
-    // Robustly fetch and sync profile
-    const userProfile = await getSyncProfile(kindeUser);
 
     return (
       <SidebarProvider defaultOpen>

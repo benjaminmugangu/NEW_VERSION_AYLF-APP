@@ -72,7 +72,7 @@ export async function getSitesWithDetails(user: User | null): Promise<SiteWithDe
       country: site.country,
       creationDate: site.createdAt.toISOString(),
       coordinatorId: site.coordinatorId || undefined,
-      coordinatorName: site.coordinator?.name || null,
+      coordinatorName: site.coordinator?.name || null, // ✨ Ensure null for consistent FE fallback
       coordinatorProfilePicture: undefined,
       smallGroupsCount: site._count.smallGroups,
       membersCount: site._count.registeredMembers,

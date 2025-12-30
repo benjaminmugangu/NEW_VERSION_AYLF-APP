@@ -72,8 +72,9 @@ export default function SiteDetailClient({ site, initialSmallGroups, totalMember
     }
   };
 
-  const coordinatorName = site.coordinator?.name || 'Not Assigned';
-  const coordinatorInitials = getInitials(coordinatorName);
+  const hasCoordinator = !!site.coordinator?.name;
+  const coordinatorName = site.coordinator?.name || 'Aucun coordinateur assigné';
+  const coordinatorInitials = hasCoordinator ? getInitials(coordinatorName) : '?';
 
   return (
     <>
@@ -120,12 +121,14 @@ export default function SiteDetailClient({ site, initialSmallGroups, totalMember
             <CardTitle>Site Coordinator</CardTitle>
           </CardHeader>
           <CardContent className="flex items-center gap-4">
-            <Avatar className="h-16 w-16">
+            <Avatar className={`h-16 w-16 ${!hasCoordinator ? "opacity-40" : ""}`}>
               <AvatarImage src={`https://avatar.vercel.sh/${coordinatorName}.png`} alt={coordinatorName} />
               <AvatarFallback>{coordinatorInitials}</AvatarFallback>
             </Avatar>
             <div>
-              <p className="font-semibold text-lg">{coordinatorName}</p>
+              <p className={`font-semibold text-lg ${!hasCoordinator ? "text-muted-foreground italic" : ""}`}>
+                {coordinatorName}
+              </p>
               <p className="text-sm text-muted-foreground">{site.coordinator?.email || 'No email'}</p>
             </div>
           </CardContent>
@@ -161,7 +164,13 @@ export default function SiteDetailClient({ site, initialSmallGroups, totalMember
                 {smallGroups.map((sg) => (
                   <TableRow key={sg.id}>
                     <TableCell className="font-medium">{sg.name}</TableCell>
-                    <TableCell>{sg.leaderName || 'N/A'}</TableCell>
+                    <TableCell>
+                      {sg.leaderName ? (
+                        sg.leaderName
+                      ) : (
+                        <span className="text-muted-foreground italic text-sm">Aucun leader assigné</span>
+                      )}
+                    </TableCell>
                     <TableCell>{sg.memberCount}</TableCell>
                     <TableCell className="text-right space-x-1">
                       <Button variant="ghost" size="icon" title="View Small Group Details (Future)" disabled><Eye className="h-4 w-4" /></Button>

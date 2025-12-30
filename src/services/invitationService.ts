@@ -28,6 +28,13 @@ export async function createInvitation(data: CreateInvitationData) {
         smallGroupId = undefined;
     } else if (data.role === 'SITE_COORDINATOR') {
         smallGroupId = undefined;
+    } else if ((data.role === 'SMALL_GROUP_LEADER' || data.role === 'MEMBER') && smallGroupId && !siteId) {
+        // ✨ Auto-linking: If group is selected but site isn't, use the group's site
+        const group = await prisma.smallGroup.findUnique({
+            where: { id: smallGroupId },
+            select: { siteId: true }
+        });
+        if (group) siteId = group.siteId;
     }
 
     if (existingInvitation) {

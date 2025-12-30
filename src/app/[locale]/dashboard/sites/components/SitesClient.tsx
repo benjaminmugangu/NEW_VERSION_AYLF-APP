@@ -112,17 +112,21 @@ export function SitesClient({ initialSites, user, analytics }: SitesClientProps)
                             <TableBody>
                                 {filteredSites.length > 0 ? (
                                     filteredSites.map(site => {
-                                        const coordinatorName = site.coordinatorName || "N/A";
+                                        const hasCoordinator = !!site.coordinatorName;
+                                        const displayCoordinatorName = site.coordinatorName || "Aucun coordinateur assigné";
+
                                         return (
                                             <TableRow key={site.id}>
                                                 <TableCell className="font-medium">{site.name}</TableCell>
                                                 <TableCell>
                                                     <div className="flex items-center gap-2">
-                                                        <Avatar>
+                                                        <Avatar className={!hasCoordinator ? "opacity-40" : ""}>
                                                             <AvatarImage src={site.coordinatorProfilePicture || undefined} />
-                                                            <AvatarFallback>{getInitials(coordinatorName)}</AvatarFallback>
+                                                            <AvatarFallback>{hasCoordinator ? getInitials(displayCoordinatorName) : '?'}</AvatarFallback>
                                                         </Avatar>
-                                                        <span>{coordinatorName}</span>
+                                                        <span className={!hasCoordinator ? "text-muted-foreground italic text-sm" : ""}>
+                                                            {displayCoordinatorName}
+                                                        </span>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>{site.membersCount}</TableCell>

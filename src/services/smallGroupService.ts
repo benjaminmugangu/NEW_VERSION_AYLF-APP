@@ -17,7 +17,7 @@ const mapPrismaGroupToSmallGroup = (group: any): SmallGroup => ({
   meetingTime: group.meetingTime || undefined,
   meetingLocation: group.meetingLocation || undefined,
   siteName: group.site?.name,
-  leaderName: group.leader?.name,
+  leaderName: group.leader?.name || null, // ✨ Return null if no leader found
   memberCount: group._count?.registeredMembers || 0,
 });
 
@@ -30,6 +30,7 @@ export async function getSmallGroupsBySite(siteId: string): Promise<SmallGroup[]
     const groups = await prisma.smallGroup.findMany({
       where: { siteId },
       include: {
+        site: true,
         leader: true,
         _count: {
           select: { registeredMembers: true }
@@ -92,6 +93,7 @@ export async function getSmallGroupById(groupId: string): Promise<SmallGroup> {
     const group = await prisma.smallGroup.findUnique({
       where: { id: groupId },
       include: {
+        site: true,
         leader: true,
         _count: {
           select: { registeredMembers: true }
