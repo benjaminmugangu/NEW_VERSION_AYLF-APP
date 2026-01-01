@@ -48,15 +48,23 @@ export default async function InvitationsPage() {
                 where: { email: inv.email },
                 include: {
                     site: { select: { id: true, name: true } },
-                    smallGroup: { select: { id: true, name: true } }
+                    smallGroup: {
+                        include: {
+                            site: { select: { id: true, name: true } } // Fetch site via group as fallback
+                        }
+                    }
                 }
             });
 
             if (profile) {
+                // If user has no direct siteId (common for SGLs joined via group link only),
+                // fallback to the site of their assigned Small Group.
+                const effectiveSite = profile.site || profile.smallGroup?.site;
+
                 return {
                     ...inv,
                     role: profile.role, // Live Role
-                    site: profile.site, // Live Site
+                    site: effectiveSite, // Live Site (Direct or Inherited)
                     smallGroup: profile.smallGroup // Live Group
                 };
             }
