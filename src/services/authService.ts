@@ -125,6 +125,24 @@ export async function getSyncProfile(
                     }
                 }
 
+                // ✨ BIDIRECTIONAL LINKING (SC):
+                // If the user joined as a Site Coordinator and a site was specified,
+                // make sure that site actually lists this user as its coordinator.
+                if (role === 'SITE_COORDINATOR' && siteId) {
+                    const site = await basePrisma.site.findUnique({
+                        where: { id: siteId },
+                        select: { coordinatorId: true }
+                    });
+
+                    if (site && !site.coordinatorId) {
+                        console.log(`[AUTH_SERVICE] Auto-assigning coordinator ${profile.id} to site ${siteId}`);
+                        await basePrisma.site.update({
+                            where: { id: siteId },
+                            data: { coordinatorId: profile.id }
+                        });
+                    }
+                }
+
                 await basePrisma.userInvitation.update({
                     where: { id: invitation.id },
                     data: { status: "accepted" }
@@ -180,6 +198,23 @@ export async function getSyncProfile(
                 await basePrisma.smallGroup.update({
                     where: { id: profile.smallGroupId },
                     data: { leaderId: profile.id }
+                });
+            }
+        }
+
+        // ✨ CATCH-ALL BIDIRECTIONAL LINKING (SC):
+        // Ensure that if this user is a Site Coordinator and has a site, that site points back to them.
+        if (profile.role === 'SITE_COORDINATOR' && profile.siteId) {
+            const site = await basePrisma.site.findUnique({
+                where: { id: profile.siteId },
+                select: { coordinatorId: true }
+            });
+
+            if (site && !site.coordinatorId) {
+                console.log(`[AUTH_SERVICE] Retroactively assigning coordinator ${profile.id} to site ${profile.siteId}`);
+                await basePrisma.site.update({
+                    where: { id: profile.siteId },
+                    data: { coordinatorId: profile.id }
                 });
             }
         }
