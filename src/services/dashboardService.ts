@@ -48,7 +48,16 @@ const dashboardService = {
       };
 
       console.log("[DASHBOARD_SERVICE] Initiating parallel data fetching...");
-      const results = await Promise.allSettled([
+      console.log("[DASHBOARD_SERVICE] Initiating batched data fetching...");
+
+      // Batch 1: Structural Data (Sites, Groups) - Critical for context
+      const [sitesResult, smallGroupsResult] = await Promise.allSettled([
+        siteService.getSitesWithDetails(user),
+        smallGroupService.getFilteredSmallGroups({ user }),
+      ]);
+
+      // Batch 2: Activity & Member Data (High Volume)
+      const [activitiesResult, membersResult] = await Promise.allSettled([
         activityService.getFilteredActivities({
           user,
           dateFilter: undefined,
@@ -57,11 +66,22 @@ const dashboardService = {
           levelFilter: { national: true, site: true, small_group: true },
         }),
         memberService.getFilteredMembers({ user, dateFilter: undefined, searchTerm: '' }),
+      ]);
+
+      // Batch 3: Financials & Reports (Complex Aggregations)
+      const [reportsResult, financialsResult] = await Promise.allSettled([
         reportService.getFilteredReports({ user, dateFilter: undefined, statusFilter: { approved: true, pending: true, rejected: true, submitted: true } }),
-        siteService.getSitesWithDetails(user),
-        smallGroupService.getFilteredSmallGroups({ user }),
         financialsService.getFinancials(user, dateFilter),
       ]);
+
+      const results = [
+        activitiesResult,
+        membersResult,
+        reportsResult,
+        sitesResult,
+        smallGroupsResult,
+        financialsResult
+      ];
       console.log("[DASHBOARD_SERVICE] All data fetch settled.");
 
       const activities = getResultData<Activity[]>(results[0] as PromiseSettledResult<Activity[]>, "Activities") || [];
