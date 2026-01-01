@@ -33,23 +33,36 @@ export default async function InvitationsPage() {
     // Fetch all pending invitations
     const invitations = await prisma.userInvitation.findMany({
         include: {
-            site: {
-                select: {
-                    id: true,
-                    name: true
-                }
-            },
-            smallGroup: {
-                select: {
-                    id: true,
-                    name: true
-                }
-            }
+            site: { select: { id: true, name: true } },
+            smallGroup: { select: { id: true, name: true } }
         },
-        orderBy: {
-            createdAt: 'desc'
-        }
+        orderBy: { createdAt: 'desc' }
     });
+
+    // ✨ ENRICH ACCEPTED INVITATIONS WITH LIVE PROFILE DATA
+    // The invitation record is a snapshot at creation time. 
+    // If the user's role or assignment changed after acceptance, we must show the LIVE profile data.
+    const enrichedInvitations = await Promise.all(invitations.map(async (inv: any) => {
+        if (inv.status === 'accepted') {
+            const profile = await prisma.profile.findUnique({
+                where: { email: inv.email },
+                include: {
+                    site: { select: { id: true, name: true } },
+                    smallGroup: { select: { id: true, name: true } }
+                }
+            });
+
+            if (profile) {
+                return {
+                    ...inv,
+                    role: profile.role, // Live Role
+                    site: profile.site, // Live Site
+                    smallGroup: profile.smallGroup // Live Group
+                };
+            }
+        }
+        return inv;
+    }));
 
     return (
         <div className="space-y-6">
@@ -58,7 +71,7 @@ export default async function InvitationsPage() {
                 description={t('description')}
                 icon={UserPlus}
             />
-            <InvitationsList invitations={invitations} />
+            <InvitationsList invitations={enrichedInvitations} />
         </div>
     );
 }
