@@ -25,13 +25,23 @@ export default async function UsersPage() {
     redirect("/dashboard");
   }
 
-  const users = await prisma.profile.findMany({
+  const rawUsers = await prisma.profile.findMany({
     include: {
       site: { select: { name: true } },
-      smallGroup: { select: { name: true } },
+      smallGroup: {
+        include: {
+          site: { select: { name: true } }
+        }
+      },
     },
     orderBy: { createdAt: 'desc' },
   });
+
+  // Normalize users with site fallback
+  const users = rawUsers.map((user: any) => ({
+    ...user,
+    site: user.site || user.smallGroup?.site || null
+  }));
 
   return <UsersClient initialUsers={users} />;
 }
