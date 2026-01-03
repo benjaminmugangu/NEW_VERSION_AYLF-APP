@@ -383,7 +383,7 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
     }
   }, { timeout: 20000 });
 }
-}
+
 
 export async function updateAllocation(id: string, formData: Partial<FundAllocationFormData>): Promise<FundAllocation> {
   const { getUser } = getKindeServerSession();
