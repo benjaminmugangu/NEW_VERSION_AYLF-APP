@@ -5,6 +5,7 @@ import { prisma, withRLS } from '@/lib/prisma';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import type { FundAllocation, FundAllocationFormData } from '@/lib/types';
 import { calculateAvailableBudget } from './budgetService';
+import { revalidatePath } from 'next/cache';
 
 export async function getAllocations(filters?: { siteId?: string; smallGroupId?: string }): Promise<FundAllocation[]> {
   const { getUser } = getKindeServerSession();
@@ -114,16 +115,20 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
     throw new Error("Unauthorized: User not authenticated");
   }
 
-  // CRITICAL: Wrap all database operations with RLS context
-  return await withRLS(kindeUser.id, async () => {
-    const profile = await prisma.profile.findUnique({
-      where: { id: kindeUser.id },
-      select: { role: true, siteId: true, name: true }
-    });
+  // Fetch profile (Bypassing RLS enforcement to ensure we can read own metadata)
+  const profile = await prisma.profile.findUnique({
+    where: { id: kindeUser.id },
+    select: { role: true, siteId: true, name: true }
+  });
 
-    if (!profile) {
-      throw new Error(`User profile not found for user ${kindeUser.id}. Please ensure your account is fully set up or contact support.`);
-    }
+  if (!profile) {
+    throw new Error(`User profile not found for user ${kindeUser.id}. Please ensure your account is fully set up or contact support.`);
+  }
+
+  console.log(`[AllocationService] Creating allocation for user ${kindeUser.id}, role: ${profile.role}`);
+
+  // CRITICAL: Wrap write operations with RLS context
+  return await withRLS(kindeUser.id, async () => {
 
     // ═══════════════════════════════════════════════════════════
     // NATIONAL COORDINATOR LOGIC
@@ -165,6 +170,7 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
             }
           });
 
+          revalidatePath('/dashboard/finances');
           return getAllocationById(allocation.id);
         } catch (error) {
           console.error('[AllocationService] Create failed, rolling back assets...', error);
@@ -270,6 +276,7 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
             return allocation;
           });
 
+          revalidatePath('/dashboard/finances');
           return getAllocationById(result.id);
         } catch (error) {
           console.error('[AllocationService] Direct Allocation failed, rolling back assets...', error);
@@ -339,6 +346,7 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
           }
         });
 
+        revalidatePath('/dashboard/finances');
         return getAllocationById(allocation.id);
       } catch (error) {
         console.error('[AllocationService] SC Creation failed, rolling back assets...', error);
@@ -371,17 +379,17 @@ export async function updateAllocation(id: string, formData: Partial<FundAllocat
     throw new Error("Unauthorized: User not authenticated");
   }
 
+  // Fetch profile outside RLS
+  const profile = await prisma.profile.findUnique({
+    where: { id: kindeUser.id },
+    select: { role: true }
+  });
+
+  if (!profile || profile.role !== 'NATIONAL_COORDINATOR') {
+    throw new Error("Forbidden: Only National Coordinators can update allocations.");
+  }
+
   return await withRLS(kindeUser.id, async () => {
-    // Check if user is National Coordinator (per RLS policy)
-    const profile = await prisma.profile.findUnique({
-      where: { id: kindeUser.id },
-      select: { role: true }
-    });
-
-    if (!profile || profile.role !== 'NATIONAL_COORDINATOR') {
-      throw new Error("Forbidden: Only National Coordinators can update allocations.");
-    }
-
     const updateData: any = {};
     if (formData.amount !== undefined) updateData.amount = formData.amount;
     if (formData.allocationDate) updateData.allocationDate = new Date(formData.allocationDate);
@@ -414,6 +422,7 @@ export async function updateAllocation(id: string, formData: Partial<FundAllocat
       data: updateData,
     });
 
+    revalidatePath('/dashboard/finances');
     return getAllocationById(id);
   });
 }
@@ -426,19 +435,20 @@ export async function deleteAllocation(id: string): Promise<void> {
     throw new Error("Unauthorized: User not authenticated");
   }
 
+  // Fetch profile outside RLS
+  const profile = await prisma.profile.findUnique({
+    where: { id: kindeUser.id },
+    select: { role: true }
+  });
+
+  if (!profile || profile.role !== 'NATIONAL_COORDINATOR') {
+    throw new Error("Forbidden: Only National Coordinators can delete allocations.");
+  }
+
   return await withRLS(kindeUser.id, async () => {
-    // Check if user is National Coordinator (per RLS policy)
-    const profile = await prisma.profile.findUnique({
-      where: { id: kindeUser.id },
-      select: { role: true }
-    });
-
-    if (!profile || profile.role !== 'NATIONAL_COORDINATOR') {
-      throw new Error("Forbidden: Only National Coordinators can delete allocations.");
-    }
-
     await prisma.fundAllocation.delete({
       where: { id }
     });
+    revalidatePath('/dashboard/finances');
   });
 }

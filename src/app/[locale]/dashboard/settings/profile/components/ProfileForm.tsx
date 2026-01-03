@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,7 @@ interface ProfileFormProps {
 }
 
 export function ProfileForm({ currentUser, onUpdateProfile, canEdit }: ProfileFormProps) {
+  const router = useRouter();
   const [sites, setSites] = useState<Site[]>([]);
   const [smallGroups, setSmallGroups] = useState<SmallGroup[]>([]);
   const [isLoadingAssignment, setIsLoadingAssignment] = useState(true);
@@ -109,7 +111,13 @@ export function ProfileForm({ currentUser, onUpdateProfile, canEdit }: ProfileFo
 
     try {
       const newUrl = await uploadAvatar(formData);
-      setAvatarUrl(newUrl);
+      // Cache bust the URL to ensure the browser fetches the new image immediately
+      const cacheBustUrl = `${newUrl}${newUrl.includes('?') ? '&' : '?'}v=${Date.now()}`;
+      setAvatarUrl(cacheBustUrl);
+
+      // Force Next.js server component refresh (for sidebar avatars etc.)
+      router.refresh();
+
       toast({ title: "Success", description: "Profile photo updated successfully." });
     } catch (error) {
       console.error(error);
@@ -130,6 +138,9 @@ export function ProfileForm({ currentUser, onUpdateProfile, canEdit }: ProfileFo
 
       // Call Server Action
       await updateProfile(currentUser.id, profileUpdateData);
+
+      // Force refresh for any server-side rendered profile data
+      router.refresh();
 
       if (onUpdateProfile) onUpdateProfile(profileUpdateData); // Keep legacy just in case
 

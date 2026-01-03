@@ -58,6 +58,7 @@ export async function updateProfile(userId: string, updates: Partial<User>): Pro
   if (updates.smallGroupId !== undefined) dbUpdates.smallGroupId = updates.smallGroupId;
   if (updates.mandateStartDate !== undefined) dbUpdates.mandateStartDate = updates.mandateStartDate;
   if (updates.mandateEndDate !== undefined) dbUpdates.mandateEndDate = updates.mandateEndDate;
+  if (updates.avatarUrl !== undefined) dbUpdates.avatarUrl = updates.avatarUrl;
 
   // ✅ Apply Exclusivity Guards if role, siteId, or smallGroupId are updated
   // We need the current role to apply logic properly if it's not being updated
@@ -93,6 +94,7 @@ export async function updateProfile(userId: string, updates: Partial<User>): Pro
     createdAt: data.createdAt ? new Date(data.createdAt).toISOString() : undefined,
     siteName: data.site?.name || undefined,
     smallGroupName: data.smallGroup?.name || undefined,
+    avatarUrl: (data as any).avatarUrl || undefined,
   };
 }
 

@@ -107,6 +107,7 @@ export default function NewAllocationPage() {
           ? "Direct allocation to Small Group created successfully."
           : "Hierarchical allocation created successfully.",
       });
+      router.refresh();
       router.push('/dashboard/finances');
     } catch (error) {
       toast({ title: "Error", description: (error as Error).message || "Could not save the allocation.", variant: 'destructive' });

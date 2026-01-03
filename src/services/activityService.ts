@@ -5,6 +5,7 @@ import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { Activity, ActivityStatus, ActivityType } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
 import { type ActivityFormData } from '@/schemas/activity';
+import { revalidatePath } from 'next/cache';
 
 
 const mapPrismaActivityToActivity = (item: any): Activity => {
@@ -156,6 +157,7 @@ export const createActivity = async (activityData: ActivityFormData, overrideUse
       }
     });
 
+    revalidatePath('/dashboard/activities');
     return mapPrismaActivityToActivity(activity);
   });
 };
@@ -203,6 +205,7 @@ export const updateActivity = async (id: string, updatedData: Partial<ActivityFo
       }
     });
 
+    revalidatePath('/dashboard/activities');
     return mapPrismaActivityToActivity(activity);
   });
 };
@@ -245,6 +248,8 @@ export const deleteActivity = async (id: string): Promise<void> => {
     await prisma.activity.delete({
       where: { id },
     });
+    revalidatePath('/dashboard/activities');
+    revalidatePath('/dashboard'); // Update metrics
   });
 };
 

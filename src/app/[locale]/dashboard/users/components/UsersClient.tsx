@@ -112,7 +112,11 @@ export default function UsersClient({ initialUsers }: UsersClientProps) {
                                 <TableRow key={user.id} className="hover:bg-muted/30 transition-colors">
                                     <TableCell>
                                         <div className="flex items-center gap-3">
-                                            <Avatar className="h-9 w-9">
+                                            <Avatar className="h-9 w-9 border border-primary/10">
+                                                <AvatarImage
+                                                    src={user.avatarUrl ? `${user.avatarUrl}${user.avatarUrl.includes('?') ? '&' : '?'}v=${Date.now()}` : undefined}
+                                                    alt={user.name || ''}
+                                                />
                                                 <AvatarFallback className="bg-primary/10 text-primary font-medium text-xs">
                                                     {getInitials(user.name)}
                                                 </AvatarFallback>

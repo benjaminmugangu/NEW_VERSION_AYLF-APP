@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { activityFormSchema, type ActivityFormData } from '@/schemas/activity';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
@@ -35,6 +36,7 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
   // ALL HOOKS MUST BE CALLED FIRST - BEFORE ANY CONDITIONAL RETURNS
   const { currentUser, isLoading: isAuthLoading } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
   const isEditMode = !!initialActivity;
   const t = useTranslations('ActivityForm');
   const tStatus = useTranslations('ActivityStatus');
@@ -145,6 +147,10 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
         savedActivity = await activityService.createActivity(payload);
       }
       toast({ title: 'Success', description: isEditMode ? t('success_updated') : t('success_created') });
+
+      // Force cache invalidation to ensure new activity appears immediately
+      router.refresh();
+
       if (savedActivity) onSave(savedActivity);
     } catch (error) {
       console.error('Error saving activity:', error);
