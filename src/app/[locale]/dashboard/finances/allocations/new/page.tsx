@@ -100,7 +100,17 @@ export default function NewAllocationPage() {
     };
 
     try {
-      const newAllocation = await allocationService.createAllocation(allocationData);
+      const response = await allocationService.createAllocation(allocationData);
+
+      if (!response.success) {
+        toast({
+          title: "Error",
+          description: response.error?.message || "Could not save the allocation.",
+          variant: 'destructive'
+        });
+        return;
+      }
+
       toast({
         title: "Allocation Saved",
         description: isDirect
@@ -110,7 +120,7 @@ export default function NewAllocationPage() {
       router.refresh();
       router.push('/dashboard/finances');
     } catch (error) {
-      toast({ title: "Error", description: (error as Error).message || "Could not save the allocation.", variant: 'destructive' });
+      toast({ title: "Error", description: "A communication error occurred.", variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }

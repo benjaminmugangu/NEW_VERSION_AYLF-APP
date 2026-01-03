@@ -110,7 +110,14 @@ export function ProfileForm({ currentUser, onUpdateProfile, canEdit }: ProfileFo
     formData.append('file', file);
 
     try {
-      const newUrl = await uploadAvatar(formData);
+      const response = await uploadAvatar(formData);
+
+      if (!response.success) {
+        toast({ title: "Error", description: response.error?.message || "Failed to upload photo.", variant: "destructive" });
+        return;
+      }
+
+      const newUrl = response.data!;
       // Cache bust the URL to ensure the browser fetches the new image immediately
       const cacheBustUrl = `${newUrl}${newUrl.includes('?') ? '&' : '?'}v=${Date.now()}`;
       setAvatarUrl(cacheBustUrl);
@@ -120,8 +127,7 @@ export function ProfileForm({ currentUser, onUpdateProfile, canEdit }: ProfileFo
 
       toast({ title: "Success", description: "Profile photo updated successfully." });
     } catch (error) {
-      console.error(error);
-      toast({ title: "Error", description: "Failed to upload photo.", variant: "destructive" });
+      toast({ title: "Error", description: "A communication error occurred.", variant: "destructive" });
     } finally {
       setIsUploading(false);
     }

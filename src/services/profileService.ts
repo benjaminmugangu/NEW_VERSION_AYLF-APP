@@ -1,7 +1,7 @@
 'use server';
 
 import { prisma, basePrisma, withRLS } from '@/lib/prisma';
-import { User, UserRole } from '@/lib/types';
+import { User, UserRole, ServiceResponse } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 import { uploadFile } from './storageService';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
@@ -227,42 +227,52 @@ export async function getUsersByIds(userIds: string[]): Promise<User[]> {
 
 
 
-export async function uploadAvatar(formData: FormData) {
-  const { getUser } = getKindeServerSession();
-  const currentUser = await getUser();
+// ... (other exports)
 
-  if (!currentUser) throw new Error('Unauthorized');
-
-  const file = formData.get('file') as File;
-  if (!file) throw new Error('No file provided');
-
-  // Verify file type and size
-  if (!file.type.startsWith('image/')) {
-    throw new Error('File must be an image');
-  }
-  if (file.size > 5 * 1024 * 1024) { // 5MB
-    throw new Error('File size must be less than 5MB');
-  }
-
+export async function uploadAvatar(formData: FormData): Promise<ServiceResponse<string>> {
   try {
-    // 1. Upload to Storage (Service Role - Bypasses RLS)
-    const result = await uploadFile(file, { bucket: 'avatars' });
+    const { getUser } = getKindeServerSession();
+    const currentUser = await getUser();
 
-    // 2. Update Profile with explicit RLS context on basePrisma to avoid extension issues
-    await basePrisma.$transaction(async (tx: any) => {
-      // Set RLS variable
-      await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${currentUser.id}'`);
+    if (!currentUser) {
+      return { success: false, error: { message: "Unauthorized: User not authenticated" } };
+    }
 
-      await tx.profile.update({
-        where: { id: currentUser.id },
-        data: { avatarUrl: result.publicUrl }
-      });
+    const file = formData.get('file') as File;
+    if (!file) {
+      return { success: false, error: { message: "No file provided" } };
+    }
+
+    // Verify file type and size
+    if (!file.type.startsWith('image/')) {
+      return { success: false, error: { message: "File must be an image" } };
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      return { success: false, error: { message: "File size must be less than 5MB" } };
+    }
+
+    // Wrap the core logic in withRLS for consistent context propagation
+    return await withRLS(currentUser.id, async () => {
+      // 1. Upload to Storage (Service Role - Bypasses RLS)
+      const result = await uploadFile(file, { bucket: 'avatars' });
+
+      // 2. Update Profile with explicit RLS context on basePrisma transaction
+      await basePrisma.$transaction(async (tx: any) => {
+        // Set RLS variable explicitly for this session
+        await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${currentUser.id}'`);
+
+        await tx.profile.update({
+          where: { id: currentUser.id },
+          data: { avatarUrl: result.publicUrl }
+        });
+      }, { timeout: 15000 });
+
+      revalidatePath('/dashboard/settings/profile');
+      return { success: true, data: result.publicUrl };
     });
-
-    revalidatePath('/dashboard/settings/profile');
-    return result.publicUrl;
   } catch (error: any) {
-    console.error('[ProfileService] uploadAvatar failed:', error.message);
-    throw new Error(`Upload failed: ${error.message}`);
+    console.error('[ProfileService] uploadAvatar FATAL:', error.message);
+    return { success: false, error: { message: `Upload failed: ${error.message}` } };
   }
 }
+

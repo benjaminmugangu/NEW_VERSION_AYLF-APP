@@ -3,7 +3,7 @@
 
 import { prisma, basePrisma, withRLS } from '@/lib/prisma';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
-import type { FundAllocation, FundAllocationFormData } from '@/lib/types';
+import type { FundAllocation, FundAllocationFormData, ServiceResponse } from '@/lib/types';
 import { calculateAvailableBudget } from './budgetService';
 import { revalidatePath } from 'next/cache';
 
@@ -106,296 +106,191 @@ export async function getAllocationById(id: string): Promise<FundAllocation> {
   });
 }
 
-export async function createAllocation(formData: FundAllocationFormData): Promise<FundAllocation> {
-  // Get authenticated user (using static import from line 6)
-  const { getUser } = getKindeServerSession();
-  const kindeUser = await getUser();
+// ... (other exports)
 
-  if (!kindeUser) {
-    throw new Error("Unauthorized: User not authenticated");
-  }
-
-  // Fetch profile (Bypassing RLS enforcement to ensure we can read own metadata)
-  const profile = await prisma.profile.findUnique({
-    where: { id: kindeUser.id },
-    select: { role: true, siteId: true, name: true }
-  });
-
-  if (!profile) {
-    throw new Error(`User profile not found for user ${kindeUser.id}. Please ensure your account is fully set up or contact support.`);
-  }
-
-  console.log(`[AllocationService] Creating allocation for user ${kindeUser.id}, role: ${profile.role}`);
-
-  console.log(`[AllocationService] Starting transaction for ${profile.role}`);
-
-  let result: FundAllocation;
-
+export async function createAllocation(formData: FundAllocationFormData): Promise<ServiceResponse<FundAllocation>> {
   try {
-    result = await basePrisma.$transaction(async (tx: any) => {
-      // 1. Manually set RLS context at the start of the transaction
-      await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${kindeUser.id}'`);
+    const { getUser } = getKindeServerSession();
+    const kindeUser = await getUser();
 
-      // ═══════════════════════════════════════════════════════════
-      // NATIONAL COORDINATOR LOGIC
-      // ═══════════════════════════════════════════════════════════
-      if (profile.role === 'NATIONAL_COORDINATOR') {
+    if (!kindeUser) {
+      return { success: false, error: { message: "Unauthorized: User not authenticated" } };
+    }
 
-        // Case 1: Hierarchical Allocation (NC → Site) - DEFAULT
-        if (!formData.isDirect) {
-          if (!formData.siteId) {
-            throw new Error("Hierarchical allocation requires a target Site");
-          }
+    // 1. Fetch profile using basePrisma to bypass RLS for role check
+    const profile = await basePrisma.profile.findUnique({
+      where: { id: kindeUser.id },
+      select: { role: true, siteId: true, name: true }
+    });
 
-          if (formData.smallGroupId) {
-            throw new Error("Hierarchical NC allocation must target a Site ONLY (not a Small Group). Use direct allocation if you need to bypass the Site Coordinator.");
-          }
+    if (!profile) {
+      return { success: false, error: { message: `User profile not found for user ${kindeUser.id}` } };
+    }
 
-          const allocation = await tx.fundAllocation.create({
-            data: {
-              amount: formData.amount,
-              allocationDate: new Date(formData.allocationDate),
-              goal: formData.goal,
-              source: formData.source,
-              status: formData.status,
-              siteId: formData.siteId,
-              smallGroupId: null,
-              allocationType: 'hierarchical',
-              bypassReason: null,
-              allocatedById: kindeUser.id,
-              notes: formData.notes,
-              fromSiteId: formData.fromSiteId || null,
-              proofUrl: formData.proofUrl || null,
-            },
-            include: {
-              allocatedBy: true,
-              site: true,
-              smallGroup: true,
-              fromSite: true,
-            }
-          });
+    // 2. Wrap entire logic in withRLS to ensure store is set for secondary calls
+    return await withRLS(kindeUser.id, async () => {
+      console.log(`[AllocationService] Starting transaction for ${profile.role}`);
 
-          return {
-            id: allocation.id,
-            amount: allocation.amount,
-            allocationDate: allocation.allocationDate.toISOString(),
-            goal: allocation.goal,
-            source: allocation.source,
-            status: allocation.status as any,
-            allocatedById: allocation.allocatedById,
-            siteId: allocation.siteId || undefined,
-            smallGroupId: allocation.smallGroupId || undefined,
-            notes: allocation.notes || undefined,
-            allocationType: allocation.allocationType as 'hierarchical' | 'direct',
-            bypassReason: allocation.bypassReason || undefined,
-            allocatedByName: (allocation as any).allocatedBy.name,
-            siteName: (allocation as any).site?.name,
-            smallGroupName: (allocation as any).smallGroup?.name,
-            fromSiteName: (allocation as any).fromSite?.name || 'National',
-            fromSiteId: (allocation as any).fromSiteId || undefined,
-            proofUrl: (allocation as any).proofUrl || undefined,
-          };
-        }
+      const result = await basePrisma.$transaction(async (tx: any) => {
+        // Manually set RLS context at the start of the transaction session
+        await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${kindeUser.id}'`);
 
-        // Case 2: Direct Allocation (NC → Small Group) - EXCEPTIONAL
-        else {
-          if (!formData.smallGroupId) {
-            throw new Error("Direct allocation requires a target Small Group");
-          }
+        // NC Logic
+        if (profile.role === 'NATIONAL_COORDINATOR') {
+          if (!formData.isDirect) {
+            // Hierarchical
+            if (!formData.siteId) throw new Error("Hierarchical allocation requires a target Site");
 
-          if (!formData.bypassReason || formData.bypassReason.trim().length < 20) {
-            throw new Error("Direct allocations require a detailed justification (minimum 20 characters).");
-          }
-
-          // Fetch Small Group within the SAME transaction using tx
-          const smallGroup = await tx.smallGroup.findUnique({
-            where: { id: formData.smallGroupId },
-            include: { site: true }
-          });
-
-          if (!smallGroup) {
-            throw new Error("Small Group not found");
-          }
-
-          console.log(`[AllocationService] Creating direct allocation record in DB...`);
-          // 1. Create Allocation
-          const allocation = await tx.fundAllocation.create({
-            data: {
-              amount: formData.amount,
-              allocationDate: new Date(formData.allocationDate),
-              goal: formData.goal,
-              source: formData.source,
-              status: formData.status,
-              siteId: smallGroup.siteId,
-              smallGroupId: formData.smallGroupId,
-              allocationType: 'direct',
-              bypassReason: formData.bypassReason,
-              allocatedById: kindeUser.id,
-              notes: formData.notes,
-              fromSiteId: formData.fromSiteId || null,
-              proofUrl: formData.proofUrl || null,
-            },
-            include: {
-              allocatedBy: true,
-              site: true,
-              smallGroup: true,
-              fromSite: true,
-            }
-          });
-          console.log(`[AllocationService] Record created: ${allocation.id}`);
-
-          // 2. Create Audit Log
-          await tx.auditLog.create({
-            data: {
-              actorId: kindeUser.id,
-              action: 'create',
-              entityType: 'FundAllocation',
-              entityId: allocation.id,
-              metadata: {
-                type: 'direct_allocation',
-                bypassReason: formData.bypassReason,
-                targetGroup: smallGroup.name
-              },
-              createdAt: new Date()
-            }
-          });
-
-          // 3. Notify Site Coordinator
-          const siteCoordinator = await tx.member.findFirst({
-            where: {
-              siteId: smallGroup.siteId,
-              type: 'SITE_COORDINATOR'
-            }
-          });
-
-          if (siteCoordinator && siteCoordinator.userId) {
-            await tx.notification.create({
+            const allocation = await tx.fundAllocation.create({
               data: {
-                userId: siteCoordinator.userId,
-                type: 'BUDGET_ALERT',
-                title: '⚠️ Allocation Directe (Bypass)',
-                message: `Le NC a alloué ${formData.amount} FC directement au groupe "${smallGroup.name}".`,
-                link: `/dashboard/finances/allocations/${allocation.id}`,
-                read: false,
+                amount: Number(formData.amount),
+                allocationDate: new Date(formData.allocationDate),
+                goal: formData.goal,
+                source: formData.source,
+                status: formData.status,
+                siteId: formData.siteId,
+                smallGroupId: null,
+                allocationType: 'hierarchical',
+                bypassReason: null,
+                allocatedById: kindeUser.id,
+                notes: formData.notes,
+                fromSiteId: formData.fromSiteId || null,
+                proofUrl: formData.proofUrl || null,
+              },
+              include: { allocatedBy: true, site: true, smallGroup: true, fromSite: true }
+            });
+
+            return mapDBAllocationToModel(allocation);
+          } else {
+            // Direct
+            if (!formData.smallGroupId) throw new Error("Direct allocation requires a target Small Group");
+            if (!formData.bypassReason || formData.bypassReason.trim().length < 20) {
+              throw new Error("Direct allocations require a detailed justification (min 20 chars).");
+            }
+
+            const smallGroup = await tx.smallGroup.findUnique({
+              where: { id: formData.smallGroupId },
+              include: { site: true }
+            });
+
+            if (!smallGroup) throw new Error("Small Group not found");
+
+            const allocation = await tx.fundAllocation.create({
+              data: {
+                amount: Number(formData.amount),
+                allocationDate: new Date(formData.allocationDate),
+                goal: formData.goal,
+                source: formData.source,
+                status: formData.status,
+                siteId: smallGroup.siteId,
+                smallGroupId: formData.smallGroupId,
+                allocationType: 'direct',
+                bypassReason: formData.bypassReason,
+                allocatedById: kindeUser.id,
+                notes: formData.notes,
+                fromSiteId: formData.fromSiteId || null,
+                proofUrl: formData.proofUrl || null,
+              },
+              include: { allocatedBy: true, site: true, smallGroup: true, fromSite: true }
+            });
+
+            // Audit & Notification
+            await tx.auditLog.create({
+              data: {
+                actorId: kindeUser.id,
+                action: 'create',
+                entityType: 'FundAllocation',
+                entityId: allocation.id,
+                metadata: { type: 'direct_allocation', targetGroup: smallGroup.name },
                 createdAt: new Date()
               }
             });
+
+            const sc = await tx.member.findFirst({ where: { siteId: smallGroup.siteId, type: 'SITE_COORDINATOR' } });
+            if (sc?.userId) {
+              await tx.notification.create({
+                data: {
+                  userId: sc.userId,
+                  type: 'BUDGET_ALERT',
+                  title: '⚠️ Allocation Directe',
+                  message: `Allocation de ${formData.amount} FC au groupe "${smallGroup.name}".`,
+                  link: `/dashboard/finances/allocations/${allocation.id}`,
+                  read: false,
+                  createdAt: new Date()
+                }
+              });
+            }
+
+            return mapDBAllocationToModel(allocation);
           }
-
-          return {
-            id: allocation.id,
-            amount: allocation.amount,
-            allocationDate: allocation.allocationDate.toISOString(),
-            goal: allocation.goal,
-            source: allocation.source,
-            status: allocation.status as any,
-            allocatedById: allocation.allocatedById,
-            siteId: allocation.siteId || undefined,
-            smallGroupId: allocation.smallGroupId || undefined,
-            notes: allocation.notes || undefined,
-            allocationType: allocation.allocationType as 'hierarchical' | 'direct',
-            bypassReason: allocation.bypassReason || undefined,
-            allocatedByName: (allocation as any).allocatedBy.name,
-            siteName: (allocation as any).site?.name,
-            smallGroupName: (allocation as any).smallGroup?.name,
-            fromSiteName: (allocation as any).fromSite?.name || 'National',
-            fromSiteId: (allocation as any).fromSiteId || undefined,
-            proofUrl: (allocation as any).proofUrl || undefined,
-          };
         }
-      }
+        // SC Logic
+        else if (profile.role === 'SITE_COORDINATOR') {
+          if (!profile.siteId || !formData.smallGroupId) throw new Error("Invalid SC allocation parameters");
 
-      // ═══════════════════════════════════════════════════════════
-      // SITE COORDINATOR LOGIC
-      // ═══════════════════════════════════════════════════════════
-      else if (profile.role === 'SITE_COORDINATOR') {
-        if (!profile.siteId) {
-          throw new Error("Site Coordinator has no assigned site");
+          const smallGroup = await tx.smallGroup.findUnique({ where: { id: formData.smallGroupId } });
+          if (!smallGroup || smallGroup.siteId !== profile.siteId) throw new Error("Invalid target Small Group");
+
+          const budget = await calculateAvailableBudget({ siteId: profile.siteId }, tx);
+          if (budget.available < Number(formData.amount)) throw new Error("Insufficient budget");
+
+          const allocation = await tx.fundAllocation.create({
+            data: {
+              amount: Number(formData.amount),
+              allocationDate: new Date(formData.allocationDate),
+              goal: formData.goal,
+              source: formData.source,
+              status: formData.status,
+              siteId: profile.siteId,
+              smallGroupId: formData.smallGroupId,
+              allocationType: 'hierarchical',
+              allocatedById: kindeUser.id,
+              notes: formData.notes,
+              fromSiteId: profile.siteId,
+              proofUrl: formData.proofUrl || null,
+            },
+            include: { allocatedBy: true, site: true, smallGroup: true, fromSite: true }
+          });
+
+          return mapDBAllocationToModel(allocation);
+        } else {
+          throw new Error("Forbidden: Role not authorized for allocations");
         }
+      }, { timeout: 30000 });
 
-        if (!formData.smallGroupId) {
-          throw new Error("Site Coordinator must allocate to a Small Group within their site");
-        }
-
-        const smallGroup = await tx.smallGroup.findUnique({
-          where: { id: formData.smallGroupId },
-          select: { siteId: true, name: true }
-        });
-
-        if (!smallGroup || smallGroup.siteId !== profile.siteId) {
-          throw new Error("Cannot allocate to Small Group from another site");
-        }
-
-        // Budget validation: Check if site has sufficient funds
-        const budget = await calculateAvailableBudget({ siteId: formData.fromSiteId || profile.siteId }, tx);
-        if (budget.available < formData.amount) {
-          throw new Error(`Insufficient budget. Available: ${budget.available.toFixed(2)} FCFA`);
-        }
-
-        const allocation = await tx.fundAllocation.create({
-          data: {
-            amount: formData.amount,
-            allocationDate: new Date(formData.allocationDate),
-            goal: formData.goal,
-            source: formData.source,
-            status: formData.status,
-            siteId: profile.siteId,
-            smallGroupId: formData.smallGroupId,
-            allocationType: 'hierarchical',
-            bypassReason: null,
-            allocatedById: kindeUser.id,
-            notes: formData.notes,
-            fromSiteId: formData.fromSiteId || profile.siteId,
-            proofUrl: formData.proofUrl || null,
-          },
-          include: {
-            allocatedBy: true,
-            site: true,
-            smallGroup: true,
-            fromSite: true,
-          }
-        });
-
-        return {
-          id: allocation.id,
-          amount: allocation.amount,
-          allocationDate: allocation.allocationDate.toISOString(),
-          goal: allocation.goal,
-          source: allocation.source,
-          status: allocation.status as any,
-          allocatedById: allocation.allocatedById,
-          siteId: allocation.siteId || undefined,
-          smallGroupId: allocation.smallGroupId || undefined,
-          notes: allocation.notes || undefined,
-          allocationType: allocation.allocationType as 'hierarchical' | 'direct',
-          bypassReason: allocation.bypassReason || undefined,
-          allocatedByName: (allocation as any).allocatedBy.name,
-          siteName: (allocation as any).site?.name,
-          smallGroupName: (allocation as any).smallGroup?.name,
-          fromSiteName: (allocation as any).fromSite?.name || 'National',
-          fromSiteId: (allocation as any).fromSiteId || undefined,
-          proofUrl: (allocation as any).proofUrl || undefined,
-        };
-      }
-      else {
-        throw new Error(`Forbidden: Role ${profile.role} cannot create allocations.`);
-      }
-    }, { timeout: 30000 });
-
-    // SUCCESS: Revalidate OUTSIDE transaction
-    revalidatePath('/dashboard/finances');
-    return result;
-
+      revalidatePath('/dashboard/finances');
+      return { success: true, data: result };
+    });
   } catch (error: any) {
-    console.error(`[AllocationService] createAllocation FATAL ERROR: ${error.message}`);
-    // Cleanup if necessary
-    if (formData.proofUrl) {
-      const { deleteFile } = await import('@/services/storageService');
-      await deleteFile(formData.proofUrl, { isRollback: true }).catch(() => { });
-    }
-    throw error;
+    console.error(`[AllocationService] FATAL: ${error.message}`);
+    return { success: false, error: { message: error.message } };
   }
 }
+
+// Helper for deep serialization
+function mapDBAllocationToModel(a: any): FundAllocation {
+  return {
+    id: a.id,
+    amount: Number(a.amount),
+    allocationDate: a.allocationDate.toISOString(),
+    goal: a.goal,
+    source: a.source,
+    status: a.status as any,
+    allocatedById: a.allocatedById,
+    siteId: a.siteId || undefined,
+    smallGroupId: a.smallGroupId || undefined,
+    notes: a.notes || undefined,
+    allocationType: a.allocationType as any,
+    bypassReason: a.bypassReason || undefined,
+    allocatedByName: a.allocatedBy?.name || 'Unknown',
+    siteName: a.site?.name,
+    smallGroupName: a.smallGroup?.name,
+    fromSiteName: a.fromSite?.name || 'National',
+    fromSiteId: a.fromSiteId || undefined,
+    proofUrl: a.proofUrl || undefined,
+  };
+}
+
 
 
 export async function updateAllocation(id: string, formData: Partial<FundAllocationFormData>): Promise<FundAllocation> {
