@@ -17,7 +17,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, Save, UserPlus } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/contexts/AuthContext";
+import { useCurrentUser } from "@/contexts/AuthContext";
 import { ROLES } from "@/lib/constants";
 import { useTranslations } from "next-intl";
 
@@ -27,7 +27,7 @@ interface MemberFormProps {
 }
 
 export function MemberForm({ member, onSubmitForm }: MemberFormProps) {
-  const { currentUser, isLoading: isAuthLoading } = useAuth();
+  const { currentUser, isLoading: isAuthLoading } = useCurrentUser();
   const t = useTranslations('MemberForm');
   const tLevel = useTranslations('ActivityLevel');
 

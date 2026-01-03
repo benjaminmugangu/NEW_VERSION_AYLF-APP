@@ -279,7 +279,7 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
               </Link>
             </Button>
             <Button asChild variant="outline" className="w-full flex items-start justify-start p-3 h-auto text-left">
-              <Link href="/dashboard/financials/allocations/new">
+              <Link href="/dashboard/finances/allocations/new">
                 <>
                   <DollarSign className="h-5 w-5 text-primary shrink-0" />
                   <div className="whitespace-normal ml-2">

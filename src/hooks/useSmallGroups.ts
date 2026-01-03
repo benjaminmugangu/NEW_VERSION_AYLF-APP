@@ -5,13 +5,13 @@ import { useState, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as smallGroupService from '@/services/smallGroupService';
 import type { SmallGroup, SmallGroupFormData, User } from '@/lib/types';
-import { useAuth } from '@/contexts/AuthContext';
+import { useCurrentUser } from '@/contexts/AuthContext';
 import { ROLES } from '@/lib/constants';
 
 export type SmallGroupWithDetails = SmallGroup;
 
 export const useSmallGroups = () => {
-  const { currentUser } = useAuth();
+  const { currentUser } = useCurrentUser();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
 

@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import React, { useState, useMemo } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useCurrentUser } from '@/contexts/AuthContext';
 import { useTransactions } from '@/hooks/useTransactions';
 import { TransactionTable } from './components/TransactionTable';
 import { columns } from './components/columns';
@@ -19,7 +19,7 @@ import { useTranslations } from 'next-intl';
 
 export default function TransactionsPage() {
   const t = useTranslations('Finances');
-  const { currentUser } = useAuth();
+  const { currentUser } = useCurrentUser();
   const {
     transactions,
     isLoading,

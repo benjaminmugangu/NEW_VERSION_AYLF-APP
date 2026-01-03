@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { PageHeader } from "@/components/shared/PageHeader";
 import { AllocationForm } from '@/app/[locale]/dashboard/finances/components/AllocationForm';
 import { DirectAllocationCheckbox } from '@/components/DirectAllocationCheckbox';
-import { useAuth } from '@/contexts/AuthContext';
+import { useCurrentUser } from '@/contexts/AuthContext';
 import { ROLES } from '@/lib/constants';
 import type { FundAllocationFormData, Site, SmallGroup } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast";
@@ -18,7 +18,7 @@ import * as siteService from '@/services/siteService';
 import * as smallGroupService from '@/services/smallGroupService';
 
 export default function NewAllocationPage() {
-  const { currentUser: user } = useAuth();
+  const { currentUser: user } = useCurrentUser();
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);

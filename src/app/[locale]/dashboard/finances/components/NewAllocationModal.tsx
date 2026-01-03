@@ -3,11 +3,11 @@
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
-import { useAuth } from '@/contexts/AuthContext';
+import { useCurrentUser } from '@/contexts/AuthContext';
 import { ROLES } from '@/lib/constants';
 
 export const NewAllocationModal = () => {
-  const { currentUser } = useAuth();
+  const { currentUser } = useCurrentUser();
 
   if (!currentUser) return null;
 

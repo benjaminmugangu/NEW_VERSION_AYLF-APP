@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { CheckCircle2, Circle, ArrowRight, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
-import { useAuth } from '@/hooks/useAuth'
+import { useCurrentUser } from '@/contexts/AuthContext'
 
 interface OnboardingTask {
     id: string
@@ -20,7 +20,7 @@ interface OnboardingTask {
 }
 
 export function OnboardingChecklist() {
-    const { currentUser } = useAuth()
+    const { currentUser } = useCurrentUser()
     const t = useTranslations('Onboarding')
     const locale = useLocale();
 

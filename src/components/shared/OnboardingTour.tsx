@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Joyride, { Step, CallBackProps, STATUS, EVENTS } from 'react-joyride'
-import { useAuth } from '@/hooks/useAuth'
+import { useCurrentUser } from '@/contexts/AuthContext'
 
 // Steps pour National Coordinator
 const NATIONAL_COORDINATOR_STEPS: Step[] = [
@@ -117,7 +117,7 @@ const STEPS_BY_ROLE: Record<string, Step[]> = {
 }
 
 export function OnboardingTour() {
-    const { currentUser } = useAuth()
+    const { currentUser } = useCurrentUser()
     const [run, setRun] = useState(false)
     const [stepIndex, setStepIndex] = useState(0)
 

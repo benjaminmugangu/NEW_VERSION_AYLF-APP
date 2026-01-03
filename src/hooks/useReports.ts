@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAuth } from '@/contexts/AuthContext';
+import { useCurrentUser } from '@/contexts/AuthContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useToast } from '@/hooks/use-toast';
 import * as reportService from '@/services/reportService';
@@ -15,7 +15,7 @@ import { getClientErrorMessage } from '@/lib/clientErrorHandler';
 
 export const useReports = () => {
   const queryClient = useQueryClient();
-  const { currentUser } = useAuth();
+  const { currentUser } = useCurrentUser();
   const { toast } = useToast();
   const isMobile = useIsMobile();
 

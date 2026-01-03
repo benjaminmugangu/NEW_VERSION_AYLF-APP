@@ -4,12 +4,12 @@ import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import { CommandDialog, CommandGroup, CommandInput, CommandItem, CommandList, CommandEmpty, CommandSeparator } from '@/components/ui/command'
 import { Home, Calendar, Users, FileText, Building, DollarSign, Settings, Plus, Search } from 'lucide-react'
-import { useAuth } from '@/hooks/useAuth'
+import { useCurrentUser } from '@/contexts/AuthContext'
 
 export function CommandPalette() {
     const [open, setOpen] = React.useState(false)
     const router = useRouter()
-    const { currentUser } = useAuth()
+    const { currentUser } = useCurrentUser()
 
     React.useEffect(() => {
         const down = (e: KeyboardEvent) => {
@@ -127,7 +127,7 @@ export function CommandPalette() {
 
                 <CommandGroup heading="Configuration">
                     <CommandItem
-                        onSelect={() => runCommand(() => router.push('/dashboard/profile'))}
+                        onSelect={() => runCommand(() => router.push('/dashboard/settings/profile'))}
                     >
                         <Settings className="mr-2 h-4 w-4" />
                         <span>Mon Profil</span>

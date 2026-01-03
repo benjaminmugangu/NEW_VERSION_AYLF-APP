@@ -4,7 +4,7 @@
 export const dynamic = 'force-dynamic';
 
 import React from 'react';
-import { useCurrentUser } from '@/hooks/use-current-user';
+import { useCurrentUser } from '@/contexts/AuthContext';
 import { useFinancials } from '@/hooks/useFinancials';
 import { useTransactions } from '@/hooks/useTransactions';
 import FinancialDashboard from "./components/FinancialDashboard";

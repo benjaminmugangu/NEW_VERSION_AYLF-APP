@@ -2,10 +2,10 @@
 
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { TransactionForm } from '@/components/financials/TransactionForm';
+import { TransactionForm } from './TransactionForm';
 import type { FinancialTransaction, TransactionFormData } from '@/lib/types';
 import { useTransactions } from '@/hooks/useTransactions';
-import { useAuth } from '@/contexts/AuthContext';
+import { useCurrentUser } from '@/contexts/AuthContext';
 
 interface TransactionFormModalProps {
   readonly isOpen: boolean;
@@ -14,7 +14,7 @@ interface TransactionFormModalProps {
 }
 
 export function TransactionFormModal({ isOpen, onClose, transaction }: TransactionFormModalProps) {
-  const { currentUser } = useAuth();
+  const { currentUser } = useCurrentUser();
   const { createTransaction, updateTransaction, isCreating, isUpdating } = useTransactions({ user: currentUser });
 
   const handleSubmit = async (formData: TransactionFormData) => {

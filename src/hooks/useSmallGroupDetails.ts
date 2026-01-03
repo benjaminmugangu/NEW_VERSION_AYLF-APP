@@ -8,7 +8,7 @@ import * as siteService from '@/services/siteService';
 import * as profileService from '@/services/profileService';
 import * as memberService from '@/services/memberService';
 import { SmallGroup, Site, User, MemberWithDetails, SmallGroupFormData } from '@/lib/types';
-import { useAuth } from '@/contexts/AuthContext';
+import { useCurrentUser } from '@/contexts/AuthContext';
 import { getClientErrorMessage } from '@/lib/clientErrorHandler';
 
 export interface SmallGroupDetails extends SmallGroup {
@@ -20,7 +20,7 @@ export interface SmallGroupDetails extends SmallGroup {
 }
 
 export const useSmallGroupDetails = (groupId: string | null) => {
-  const { currentUser } = useAuth();
+  const { currentUser } = useCurrentUser();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 

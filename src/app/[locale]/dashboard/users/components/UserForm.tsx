@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
+import { useCurrentUser } from "@/contexts/AuthContext";
 import type { User, Site, SmallGroup } from "@/lib/types";
 import { ROLES } from "@/lib/constants";
 import * as siteService from '@/services/siteService';
@@ -30,7 +30,7 @@ interface UserFormProps {
 
 export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }: UserFormProps) {
   const { toast } = useToast();
-  const { currentUser, isLoading: isAuthLoading } = useAuth();
+  const { currentUser, isLoading: isAuthLoading } = useCurrentUser();
   const t = useTranslations('Users.forms');
   const tCommon = useTranslations('Common');
   const tRole = useTranslations('Roles');

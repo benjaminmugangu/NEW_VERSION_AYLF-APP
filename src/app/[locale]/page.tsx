@@ -3,11 +3,11 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/contexts/AuthContext";
+import { useCurrentUser } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton"; // Or a more sophisticated loader
 
 export default function HomePage() {
-  const { currentUser, isLoading } = useAuth();
+  const { currentUser, isLoading } = useCurrentUser();
   const router = useRouter();
 
   useEffect(() => {

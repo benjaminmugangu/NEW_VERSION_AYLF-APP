@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import * as siteService from '@/services/siteService';
-import { useAuth } from '@/contexts/AuthContext';
+import { useCurrentUser } from '@/contexts/AuthContext';
 
 export const useSites = () => {
-  const { currentUser } = useAuth();
+  const { currentUser } = useCurrentUser();
 
   const { data: allSites = [], isLoading, isError, error } = useQuery({
     queryKey: ['sites', currentUser?.id],

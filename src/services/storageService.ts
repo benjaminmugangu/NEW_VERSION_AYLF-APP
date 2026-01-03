@@ -72,10 +72,9 @@ export async function uploadFile(
   const fileExt = file.name.split('.').pop();
   const fileName = `${Math.random()}-${Date.now()}.${fileExt}`;
 
-  // LOGIC: Use 'report-images' as primary bucket for now to ensure stability
-  // even if 'avatars' bucket is missing. We segregate by folders.
-  const targetBucket = 'report-images';
-  const bucketName = options.bucket || 'report-images';
+  // LOGIC: Use the requested bucket or default to 'report-images'
+  const targetBucket = options.bucket || 'report-images';
+  const bucketName = targetBucket;
   let filePath: string;
 
   if (bucketName === 'avatars') {

@@ -5,7 +5,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { activityFormSchema, type ActivityFormData } from '@/schemas/activity';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
+import { useCurrentUser } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
 import * as activityService from '@/services/activityService';
@@ -34,7 +34,7 @@ interface ActivityFormProps {
 
 export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onSave, onCancel }) => {
   // ALL HOOKS MUST BE CALLED FIRST - BEFORE ANY CONDITIONAL RETURNS
-  const { currentUser, isLoading: isAuthLoading } = useAuth();
+  const { currentUser, isLoading: isAuthLoading } = useCurrentUser();
   const { toast } = useToast();
   const router = useRouter();
   const isEditMode = !!initialActivity;

@@ -44,7 +44,7 @@ import {
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { useTranslations } from 'next-intl';
-import { useAuth } from '@/contexts/AuthContext';
+import { useCurrentUser } from '@/contexts/AuthContext';
 import { ROLES } from '@/lib/constants';
 
 interface InviteUserFormProps {
@@ -73,7 +73,7 @@ export default function InviteUserForm({ sites, smallGroups }: InviteUserFormPro
     const router = useRouter();
     const { toast } = useToast();
     const queryClient = useQueryClient();
-    const { currentUser } = useAuth();
+    const { currentUser } = useCurrentUser();
 
     const [isLoading, setIsLoading] = useState(false);
     const [invitationLink, setInvitationLink] = useState<string | null>(null);

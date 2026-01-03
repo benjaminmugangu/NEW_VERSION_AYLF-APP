@@ -1,7 +1,7 @@
 // src/components/shared/RoleBasedGuard.tsx
 "use client";
 
-import { useAuth } from "@/contexts/AuthContext";
+import { useCurrentUser } from "@/contexts/AuthContext";
 import type { UserRole } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import React, { useEffect } from "react";
@@ -21,7 +21,7 @@ export function RoleBasedGuard({
   fallbackPath = "/dashboard",
   showForbiddenMessage = true,
 }: RoleBasedGuardProps) {
-  const { currentUser, isLoading } = useAuth();
+  const { currentUser, isLoading } = useCurrentUser();
   const router = useRouter();
 
   useEffect(() => {

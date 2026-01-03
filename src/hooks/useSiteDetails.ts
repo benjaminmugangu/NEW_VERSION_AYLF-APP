@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/components/ui/use-toast';
 import * as siteService from '@/services/siteService';
 import * as smallGroupService from '@/services/smallGroupService';
-import { useAuth } from '@/contexts/AuthContext';
+import { useCurrentUser } from '@/contexts/AuthContext';
 import { ROLES } from '@/lib/constants';
 import { useMemo } from 'react';
 import { SiteFormData } from '@/lib/types';
@@ -12,7 +12,7 @@ const SITE_DETAILS_QUERY_KEY = 'siteDetails';
 
 export const useSiteDetails = (siteId: string) => {
   const queryClient = useQueryClient();
-  const { currentUser } = useAuth();
+  const { currentUser } = useCurrentUser();
   const { toast } = useToast();
 
   const { data, isLoading, isError, error } = useQuery({

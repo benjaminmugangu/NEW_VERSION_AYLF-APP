@@ -3,14 +3,14 @@
 
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAuth } from '@/contexts/AuthContext';
+import { useCurrentUser } from '@/contexts/AuthContext';
 import * as memberService from '@/services/memberService';
 import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
 import { ROLES } from '@/lib/constants';
 import type { Member, MemberWithDetails } from '@/lib/types';
 
 export const useMembers = () => {
-  const { currentUser } = useAuth();
+  const { currentUser } = useCurrentUser();
   const queryClient = useQueryClient();
 
   const isNationalCoordinator = currentUser?.role === ROLES.NATIONAL_COORDINATOR;

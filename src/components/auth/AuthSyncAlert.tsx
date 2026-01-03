@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useCurrentUser } from "@/contexts/AuthContext";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 export function AuthSyncAlert() {
-    const { authError } = useAuth();
+    const { authError } = useCurrentUser();
     const router = useRouter();
     const t = useTranslations("Auth");
 

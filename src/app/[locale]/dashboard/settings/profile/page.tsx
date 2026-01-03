@@ -4,7 +4,7 @@
 import React from "react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ROLES } from "@/lib/constants";
-import { useCurrentUser } from "@/hooks/use-current-user";
+import { useCurrentUser } from "@/contexts/AuthContext";
 import { ProfileForm } from "./components/ProfileForm";
 import { Card, CardContent } from "@/components/ui/card";
 import { UserCircle } from "lucide-react";

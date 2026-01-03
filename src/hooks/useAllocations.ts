@@ -2,10 +2,10 @@
 
 import { useQuery } from '@tanstack/react-query';
 import * as allocationService from '@/services/allocations.service';
-import { useAuth } from '@/contexts/AuthContext';
+import { useCurrentUser } from '@/contexts/AuthContext';
 
 export const useAllocations = () => {
-  const { currentUser: user } = useAuth();
+  const { currentUser: user } = useCurrentUser();
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['allocations', user?.id],

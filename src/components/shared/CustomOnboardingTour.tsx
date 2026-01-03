@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useAuth } from '@/hooks/useAuth'
+import { useCurrentUser } from '@/contexts/AuthContext'
 
 interface TourStep {
     target: string
@@ -126,7 +126,7 @@ const TOURS_BY_ROLE: Record<string, TourStep[]> = {
 }
 
 export function CustomOnboardingTour() {
-    const { currentUser } = useAuth()
+    const { currentUser } = useCurrentUser()
     const [currentStep, setCurrentStep] = useState(0)
     const [isActive, setIsActive] = useState(false)
     const [tourSteps, setTourSteps] = useState<TourStep[]>([])
