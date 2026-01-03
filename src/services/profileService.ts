@@ -1,6 +1,6 @@
 'use server';
 
-import { prisma } from '@/lib/prisma';
+import { prisma, withRLS } from '@/lib/prisma';
 import { User, UserRole } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 import { uploadFile } from './storageService';
@@ -247,10 +247,12 @@ export async function uploadAvatar(formData: FormData) {
   // Upload
   const result = await uploadFile(file, { bucket: 'avatars' });
 
-  // Update Profile
-  await prisma.profile.update({
-    where: { id: currentUser.id },
-    data: { avatarUrl: result.publicUrl }
+  // Update Profile with RLS context to ensure persistence permission
+  await withRLS(currentUser.id, async () => {
+    await prisma.profile.update({
+      where: { id: currentUser.id },
+      data: { avatarUrl: result.publicUrl }
+    });
   });
 
   revalidatePath('/dashboard/settings/profile');

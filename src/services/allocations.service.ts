@@ -1,7 +1,7 @@
 // src/services/allocations.service.ts
 'use server';
 
-import { prisma, withRLS } from '@/lib/prisma';
+import { prisma, basePrisma, withRLS } from '@/lib/prisma';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import type { FundAllocation, FundAllocationFormData } from '@/lib/types';
 import { calculateAvailableBudget } from './budgetService';
@@ -127,8 +127,11 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
 
   console.log(`[AllocationService] Creating allocation for user ${kindeUser.id}, role: ${profile.role}`);
 
-  // CRITICAL: Wrap write operations with RLS context
-  return await withRLS(kindeUser.id, async () => {
+  // CRITICAL: We bypass the extended prisma client here to avoid nested transaction recursion
+  // if a transaction is needed later. We manually set the RLS session variable.
+  const result = await basePrisma.$transaction(async (tx: any) => {
+    // Restore RLS context in this raw transaction session
+    await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${kindeUser.id}'`);
 
     // ═══════════════════════════════════════════════════════════
     // NATIONAL COORDINATOR LOGIC
@@ -171,7 +174,27 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
           });
 
           revalidatePath('/dashboard/finances');
-          return getAllocationById(allocation.id);
+
+          return {
+            id: allocation.id,
+            amount: allocation.amount,
+            allocationDate: allocation.allocationDate.toISOString(),
+            goal: allocation.goal,
+            source: allocation.source,
+            status: allocation.status as any,
+            allocatedById: allocation.allocatedById,
+            siteId: allocation.siteId || undefined,
+            smallGroupId: allocation.smallGroupId || undefined,
+            notes: allocation.notes || undefined,
+            allocationType: allocation.allocationType as 'hierarchical' | 'direct',
+            bypassReason: allocation.bypassReason || undefined,
+            allocatedByName: (allocation as any).allocatedBy.name,
+            siteName: (allocation as any).site?.name,
+            smallGroupName: (allocation as any).smallGroup?.name,
+            fromSiteName: (allocation as any).fromSite?.name || 'National',
+            fromSiteId: (allocation as any).fromSiteId || undefined,
+            proofUrl: (allocation as any).proofUrl || undefined,
+          };
         } catch (error) {
           console.error('[AllocationService] Create failed, rolling back assets...', error);
           if (formData.proofUrl) {
@@ -206,7 +229,12 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
 
         // Create allocation, audit log, and notification in a single transaction
         try {
-          const result = await prisma.$transaction(async (tx: any) => {
+          // Note: Already inside a basePrisma.$transaction from line 131,
+          // but Case 2 re-uses the logic. To avoid depth issues, we use the existing tx if we could,
+          // but here we are redefining the block for safety.
+          const finalAllocation = await basePrisma.$transaction(async (tx: any) => {
+            // Restore RLS context in this transaction session
+            await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${kindeUser.id}'`);
             // 1. Create Allocation
             const allocation = await tx.fundAllocation.create({
               data: {
@@ -277,7 +305,27 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
           });
 
           revalidatePath('/dashboard/finances');
-          return getAllocationById(result.id);
+
+          return {
+            id: finalAllocation.id,
+            amount: finalAllocation.amount,
+            allocationDate: finalAllocation.allocationDate.toISOString(),
+            goal: finalAllocation.goal,
+            source: finalAllocation.source,
+            status: finalAllocation.status as any,
+            allocatedById: finalAllocation.allocatedById,
+            siteId: finalAllocation.siteId || undefined,
+            smallGroupId: finalAllocation.smallGroupId || undefined,
+            notes: finalAllocation.notes || undefined,
+            allocationType: finalAllocation.allocationType as 'hierarchical' | 'direct',
+            bypassReason: finalAllocation.bypassReason || undefined,
+            allocatedByName: (finalAllocation as any).allocatedBy.name,
+            siteName: (finalAllocation as any).site?.name,
+            smallGroupName: (finalAllocation as any).smallGroup?.name,
+            fromSiteName: (finalAllocation as any).fromSite?.name || 'National',
+            fromSiteId: (finalAllocation as any).fromSiteId || undefined,
+            proofUrl: (finalAllocation as any).proofUrl || undefined,
+          };
         } catch (error) {
           console.error('[AllocationService] Direct Allocation failed, rolling back assets...', error);
           if (formData.proofUrl) {
@@ -347,7 +395,27 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
         });
 
         revalidatePath('/dashboard/finances');
-        return getAllocationById(allocation.id);
+
+        return {
+          id: allocation.id,
+          amount: allocation.amount,
+          allocationDate: allocation.allocationDate.toISOString(),
+          goal: allocation.goal,
+          source: allocation.source,
+          status: allocation.status as any,
+          allocatedById: allocation.allocatedById,
+          siteId: allocation.siteId || undefined,
+          smallGroupId: allocation.smallGroupId || undefined,
+          notes: allocation.notes || undefined,
+          allocationType: allocation.allocationType as 'hierarchical' | 'direct',
+          bypassReason: allocation.bypassReason || undefined,
+          allocatedByName: (allocation as any).allocatedBy.name,
+          siteName: (allocation as any).site?.name,
+          smallGroupName: (allocation as any).smallGroup?.name,
+          fromSiteName: (allocation as any).fromSite?.name || 'National',
+          fromSiteId: (allocation as any).fromSiteId || undefined,
+          proofUrl: (allocation as any).proofUrl || undefined,
+        };
       } catch (error) {
         console.error('[AllocationService] SC Creation failed, rolling back assets...', error);
         if (formData.proofUrl) {
@@ -368,7 +436,8 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
     else {
       throw new Error(`Forbidden: Only National Coordinators and Site Coordinators can create fund allocations. Your role: ${profile.role}`);
     }
-  }); // End withRLS wrapper
+  }); // End basePrisma transaction
+  return result;
 }
 
 export async function updateAllocation(id: string, formData: Partial<FundAllocationFormData>): Promise<FundAllocation> {

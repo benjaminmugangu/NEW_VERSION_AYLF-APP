@@ -80,7 +80,7 @@ export async function uploadFile(
   if (bucketName === 'avatars') {
     // Path: avatars/{userId}/{filename}
     // Note: We prepend 'avatars/' to keep it clean within the shared bucket
-    filePath = `avatars/${user.id}/${fileName}`;
+    filePath = `${user.id}/${fileName}`;
   } else {
     // DEFAULT: Hierarchical 'report-images' Logic (Activity Reports)
     const reportId = options.reportId || 'temp';
