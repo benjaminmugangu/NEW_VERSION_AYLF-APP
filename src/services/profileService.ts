@@ -1,6 +1,6 @@
 'use server';
 
-import { prisma, withRLS } from '@/lib/prisma';
+import { prisma, basePrisma, withRLS } from '@/lib/prisma';
 import { User, UserRole } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 import { uploadFile } from './storageService';
@@ -244,17 +244,25 @@ export async function uploadAvatar(formData: FormData) {
     throw new Error('File size must be less than 5MB');
   }
 
-  // Upload
-  const result = await uploadFile(file, { bucket: 'avatars' });
+  try {
+    // 1. Upload to Storage (Service Role - Bypasses RLS)
+    const result = await uploadFile(file, { bucket: 'avatars' });
 
-  // Update Profile with RLS context to ensure persistence permission
-  await withRLS(currentUser.id, async () => {
-    await prisma.profile.update({
-      where: { id: currentUser.id },
-      data: { avatarUrl: result.publicUrl }
+    // 2. Update Profile with explicit RLS context on basePrisma to avoid extension issues
+    await basePrisma.$transaction(async (tx: any) => {
+      // Set RLS variable
+      await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${currentUser.id}'`);
+
+      await tx.profile.update({
+        where: { id: currentUser.id },
+        data: { avatarUrl: result.publicUrl }
+      });
     });
-  });
 
-  revalidatePath('/dashboard/settings/profile');
-  return result.publicUrl;
+    revalidatePath('/dashboard/settings/profile');
+    return result.publicUrl;
+  } catch (error: any) {
+    console.error('[ProfileService] uploadAvatar failed:', error.message);
+    throw new Error(`Upload failed: ${error.message}`);
+  }
 }
