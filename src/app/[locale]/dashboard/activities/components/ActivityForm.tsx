@@ -182,8 +182,18 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
     btnLabel = t('save_changes');
   }
 
+  // Debug form errors
+  const onError = (errors: any) => {
+    console.error("Form Validation Errors:", errors);
+    toast({
+      title: "Validation Error",
+      description: "Please check the form for missing or invalid fields.",
+      variant: "destructive"
+    });
+  };
+
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={form.handleSubmit(onSubmit, onError)} className="space-y-6">
 
       {/* Header / Actions - Mobile Friendly */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -202,6 +212,13 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
           </Button>
         </div>
       </div>
+
+      {/* Global Form Error (e.g. Level Validation) */}
+      {form.formState.errors.level && (
+        <div className="bg-destructive/15 text-destructive p-3 rounded-md text-sm font-medium">
+          {form.formState.errors.level.message}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 

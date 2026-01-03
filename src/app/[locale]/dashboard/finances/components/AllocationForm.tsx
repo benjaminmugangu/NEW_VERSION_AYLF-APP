@@ -44,6 +44,12 @@ export function AllocationForm({ recipients, recipientType, recipientLabel, onSu
     },
   });
 
+  // Sync form state when recipientType prop changes (e.g. NC toggling Direct mode)
+  React.useEffect(() => {
+    form.setValue('recipientType', recipientType);
+    form.setValue('recipientId', ''); // Reset selection to avoid incompatible IDs
+  }, [recipientType, form]);
+
   const handleFormSubmit = (values: z.infer<typeof allocationFormSchema>) => {
     onSubmit(values);
   };

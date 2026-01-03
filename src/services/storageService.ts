@@ -37,19 +37,12 @@ interface UploadOptions {
   reportId?: string;
   siteId?: string;
   smallGroupId?: string;
+  bucket?: string; // DEFAULT: 'report-images'
 }
 
 /**
- * Uploads a file to the report-images bucket with proper RLS-compatible path structure.
- * 
- * Path structure based on user scope:
- * - National: {reportId}/{filename}
- * - Site: {siteId}/{reportId}/{filename}
- * - Small Group: {siteId}/{groupId}/{reportId}/{filename}
- * 
- * @param file - The file to upload
- * @param options - Upload options (reportId, siteId, smallGroupId)
- * @returns Upload result with file path and public URL
+ * Uploads a file to Supabase Storage.
+ * Supports 'report-images' (strict hierarchy) and 'avatars' (user-centric).
  */
 export async function uploadFile(
   file: File,
@@ -62,7 +55,7 @@ export async function uploadFile(
     throw new Error('Unauthorized: User must be authenticated to upload files');
   }
 
-  // Get user profile for role and scope
+  // Get user profile for role and scope (needed for report-images hierarchy)
   const profile = await prisma.profile.findUnique({
     where: { id: user.id },
     select: {
@@ -76,33 +69,35 @@ export async function uploadFile(
     throw new Error('User profile not found');
   }
 
-  // Generate file path based on user role and scope
   const fileExt = file.name.split('.').pop();
   const fileName = `${Math.random()}-${Date.now()}.${fileExt}`;
 
+  const bucketName = options.bucket || 'report-images';
   let filePath: string;
-  const reportId = options.reportId || 'temp';
 
-  if (profile.role === 'NATIONAL_COORDINATOR') {
-    // National level: {reportId}/{filename}
-    filePath = `${reportId}/${fileName}`;
-  } else if (profile.role === 'SITE_COORDINATOR') {
-    // Site level: {siteId}/{reportId}/{filename}
-    const siteId = options.siteId || profile.siteId;
-    if (!siteId) {
-      throw new Error('Site ID required for site coordinator uploads');
-    }
-    filePath = `${siteId}/${reportId}/${fileName}`;
-  } else if (profile.role === 'SMALL_GROUP_LEADER') {
-    // Small group level: {siteId}/{groupId}/{reportId}/{filename}
-    const siteId = options.siteId || profile.siteId;
-    const groupId = options.smallGroupId || profile.smallGroupId;
-    if (!siteId || !groupId) {
-      throw new Error('Site ID and Small Group ID required for small group leader uploads');
-    }
-    filePath = `${siteId}/${groupId}/${reportId}/${fileName}`;
+  // LOGIC: Bucket-Specific Paths
+  if (bucketName === 'avatars') {
+    // Path: {userId}/{filename}
+    filePath = `${user.id}/${fileName}`;
+
   } else {
-    throw new Error('Unauthorized: Insufficient permissions to upload files');
+    // DEFAULT: 'report-images' Hierarchical Logic
+    const reportId = options.reportId || 'temp';
+
+    if (profile.role === 'NATIONAL_COORDINATOR') {
+      filePath = `${reportId}/${fileName}`;
+    } else if (profile.role === 'SITE_COORDINATOR') {
+      const siteId = options.siteId || profile.siteId;
+      if (!siteId) throw new Error('Site ID required for site coordinator uploads');
+      filePath = `${siteId}/${reportId}/${fileName}`;
+    } else if (profile.role === 'SMALL_GROUP_LEADER') {
+      const siteId = options.siteId || profile.siteId;
+      const groupId = options.smallGroupId || profile.smallGroupId;
+      if (!siteId || !groupId) throw new Error('Site/Group ID required for SGL uploads');
+      filePath = `${siteId}/${groupId}/${reportId}/${fileName}`;
+    } else {
+      throw new Error('Unauthorized: Insufficient permissions to upload files');
+    }
   }
 
   // Convert File to Buffer for server-side upload
@@ -111,10 +106,10 @@ export async function uploadFile(
 
   // Upload using service role key (bypasses RLS)
   const { error: uploadError } = await getSupabaseAdmin().storage
-    .from('report-images')
+    .from(bucketName)
     .upload(filePath, buffer, {
       contentType: file.type,
-      upsert: false, // Don't overwrite existing files
+      upsert: false,
     });
 
   if (uploadError) {
@@ -124,7 +119,7 @@ export async function uploadFile(
 
   // Get public URL
   const { data: urlData } = getSupabaseAdmin().storage
-    .from('report-images')
+    .from(bucketName)
     .getPublicUrl(filePath);
 
   if (!urlData?.publicUrl) {

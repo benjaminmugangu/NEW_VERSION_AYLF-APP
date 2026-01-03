@@ -2,6 +2,9 @@
 
 import { prisma } from '@/lib/prisma';
 import { User, UserRole } from '@/lib/types';
+import { revalidatePath } from 'next/cache';
+import { uploadFile } from './storageService';
+import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 
 
 
@@ -32,6 +35,7 @@ export async function getProfile(userId: string): Promise<User> {
     createdAt: data.createdAt ? new Date(data.createdAt).toISOString() : undefined,
     siteName: data.site?.name || undefined,
     smallGroupName: data.smallGroup?.name || undefined,
+    avatarUrl: (data as any).avatarUrl || undefined,
   };
 }
 
@@ -119,6 +123,7 @@ export async function getUsers(): Promise<User[]> {
     createdAt: u.createdAt ? new Date(u.createdAt).toISOString() : undefined,
     siteName: u.site?.name || undefined,
     smallGroupName: u.smallGroup?.name || undefined,
+    avatarUrl: (u as any).avatarUrl || undefined,
   }));
 }
 
@@ -170,6 +175,7 @@ export async function getEligiblePersonnel(siteId: string, smallGroupId?: string
     createdAt: u.createdAt ? new Date(u.createdAt).toISOString() : undefined,
     siteName: u.site?.name || undefined,
     smallGroupName: u.smallGroup?.name || undefined,
+    avatarUrl: (u as any).avatarUrl || undefined,
   }));
 }
 
@@ -213,7 +219,38 @@ export async function getUsersByIds(userIds: string[]): Promise<User[]> {
     createdAt: u.createdAt ? new Date(u.createdAt).toISOString() : undefined,
     siteName: u.site?.name || undefined,
     smallGroupName: u.smallGroup?.name || undefined,
+    avatarUrl: (u as any).avatarUrl || undefined,
   }));
 }
 
 
+
+export async function uploadAvatar(formData: FormData) {
+  const { getUser } = getKindeServerSession();
+  const currentUser = await getUser();
+
+  if (!currentUser) throw new Error('Unauthorized');
+
+  const file = formData.get('file') as File;
+  if (!file) throw new Error('No file provided');
+
+  // Verify file type and size
+  if (!file.type.startsWith('image/')) {
+    throw new Error('File must be an image');
+  }
+  if (file.size > 5 * 1024 * 1024) { // 5MB
+    throw new Error('File size must be less than 5MB');
+  }
+
+  // Upload
+  const result = await uploadFile(file, { bucket: 'avatars' });
+
+  // Update Profile
+  await prisma.profile.update({
+    where: { id: currentUser.id },
+    data: { avatarUrl: result.publicUrl }
+  });
+
+  revalidatePath('/dashboard/settings/profile');
+  return result.publicUrl;
+}

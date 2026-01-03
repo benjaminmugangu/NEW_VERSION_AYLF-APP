@@ -30,6 +30,7 @@ export interface User {
   // Enriched data for UI
   siteName?: string;
   smallGroupName?: string;
+  avatarUrl?: string;
 
   // Supabase specific fields (kept for compatibility if needed, but likely unused)
   app_metadata?: Record<string, any>;

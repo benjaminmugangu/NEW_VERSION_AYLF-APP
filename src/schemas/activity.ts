@@ -16,10 +16,10 @@ export const activityFormSchema = z.object({
 }).refine(data => {
     if (data.level === 'national') return !data.siteId && !data.smallGroupId;
     if (data.level === 'site') return !!data.siteId && !data.smallGroupId;
-    if (data.level === 'small_group') return !!data.smallGroupId && !data.siteId;
+    if (data.level === 'small_group') return !!data.smallGroupId; // Removed !data.siteId strict check to allow UI filtering
     return true;
 }, {
-    message: 'Invalid level-entity mapping: Site and SmallGroup dependencies must match the selected level.',
+    message: 'Invalid level-entity mapping: Selected level requires specific context (Site or Group).',
     path: ['level'],
 });
 

@@ -267,6 +267,17 @@ export async function createMember(formData: MemberFormData): Promise<Member> {
       formData.smallGroupId = undefined;
     }
 
+    // Uniqueness Check & Normalization
+    if (formData.email) {
+      formData.email = formData.email.trim(); // Normalize
+      const existingMember = await prisma.member.findFirst({
+        where: { email: { equals: formData.email, mode: 'insensitive' } }
+      });
+      if (existingMember) {
+        throw new Error(`A member with email ${formData.email} already exists.`);
+      }
+    }
+
     const member = await prisma.member.create({
       data: {
         ...formData,
