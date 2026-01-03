@@ -16,8 +16,9 @@ import type { } from '@/lib/types'; // If all removed, I should check if I can r
 export async function calculateAvailableBudget(params: {
     siteId?: string;
     smallGroupId?: string;
-}): Promise<{ available: number; received: number; sent: number; expenses: number }> {
+}, tx?: any): Promise<{ available: number; received: number; sent: number; expenses: number }> {
     const { siteId, smallGroupId } = params;
+    const client = tx || prisma;
 
     // For National level (no siteId/smallGroupId), assume unlimited budget
     if (!siteId && !smallGroupId) {
@@ -25,7 +26,7 @@ export async function calculateAvailableBudget(params: {
     }
 
     // 1. Calculate allocations RECEIVED
-    const allocationsReceived = await prisma.fundAllocation.aggregate({
+    const allocationsReceived = await client.fundAllocation.aggregate({
         where: {
             siteId,
             smallGroupId,
@@ -35,10 +36,10 @@ export async function calculateAvailableBudget(params: {
             amount: true,
         },
     });
-    const received = allocationsReceived._sum.amount || 0;
+    const received = (allocationsReceived._sum.amount as any) || 0;
 
     // 2. Calculate allocations SENT (for Sites sending to Small Groups)
-    const allocationsSent = await prisma.fundAllocation.aggregate({
+    const allocationsSent = await client.fundAllocation.aggregate({
         where: {
             fromSiteId: siteId, // Allocations sent FROM this site
             status: 'completed',
@@ -47,10 +48,10 @@ export async function calculateAvailableBudget(params: {
             amount: true,
         },
     });
-    const sent = allocationsSent._sum.amount || 0;
+    const sent = (allocationsSent._sum.amount as any) || 0;
 
     // 3. Calculate EXPENSES (transactions of type 'expense')
-    const expenses = await prisma.financialTransaction.aggregate({
+    const expenses = await client.financialTransaction.aggregate({
         where: {
             siteId,
             smallGroupId,
@@ -61,15 +62,15 @@ export async function calculateAvailableBudget(params: {
             amount: true,
         },
     });
-    const totalExpenses = expenses._sum.amount || 0;
+    const totalExpenses = (expenses._sum.amount as any) || 0;
 
     // Calculate available budget
-    const available = received - sent - totalExpenses;
+    const available = Number(received) - Number(sent) - Number(totalExpenses);
 
     return {
         available,
-        received,
-        sent,
-        expenses: totalExpenses,
+        received: Number(received),
+        sent: Number(sent),
+        expenses: Number(totalExpenses),
     };
 }

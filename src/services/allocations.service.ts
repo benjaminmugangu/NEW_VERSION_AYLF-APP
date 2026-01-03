@@ -127,10 +127,12 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
 
   console.log(`[AllocationService] Creating allocation for user ${kindeUser.id}, role: ${profile.role}`);
 
-  // CRITICAL: We use a single, unified transaction on basePrisma to avoid extension recursion
-  // and ensure all operations (Allocation, Audit, Notification) share the same RLS context.
-  return await basePrisma.$transaction(async (tx: any) => {
-    try {
+  console.log(`[AllocationService] Starting transaction for ${profile.role}`);
+
+  let result: FundAllocation;
+
+  try {
+    result = await basePrisma.$transaction(async (tx: any) => {
       // 1. Manually set RLS context at the start of the transaction
       await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${kindeUser.id}'`);
 
@@ -215,6 +217,7 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
             throw new Error("Small Group not found");
           }
 
+          console.log(`[AllocationService] Creating direct allocation record in DB...`);
           // 1. Create Allocation
           const allocation = await tx.fundAllocation.create({
             data: {
@@ -239,6 +242,7 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
               fromSite: true,
             }
           });
+          console.log(`[AllocationService] Record created: ${allocation.id}`);
 
           // 2. Create Audit Log
           await tx.auditLog.create({
@@ -322,6 +326,12 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
           throw new Error("Cannot allocate to Small Group from another site");
         }
 
+        // Budget validation: Check if site has sufficient funds
+        const budget = await calculateAvailableBudget({ siteId: formData.fromSiteId || profile.siteId }, tx);
+        if (budget.available < formData.amount) {
+          throw new Error(`Insufficient budget. Available: ${budget.available.toFixed(2)} FCFA`);
+        }
+
         const allocation = await tx.fundAllocation.create({
           data: {
             amount: formData.amount,
@@ -370,18 +380,21 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
       else {
         throw new Error(`Forbidden: Role ${profile.role} cannot create allocations.`);
       }
-    } catch (error: any) {
-      console.error('[AllocationService] Create failed:', error.message);
-      // Clean up storage if necessary
-      if (formData.proofUrl) {
-        const { deleteFile } = await import('@/services/storageService');
-        await deleteFile(formData.proofUrl, { isRollback: true }).catch(() => { });
-      }
-      throw error;
-    } finally {
-      revalidatePath('/dashboard/finances');
+    }, { timeout: 30000 });
+
+    // SUCCESS: Revalidate OUTSIDE transaction
+    revalidatePath('/dashboard/finances');
+    return result;
+
+  } catch (error: any) {
+    console.error(`[AllocationService] createAllocation FATAL ERROR: ${error.message}`);
+    // Cleanup if necessary
+    if (formData.proofUrl) {
+      const { deleteFile } = await import('@/services/storageService');
+      await deleteFile(formData.proofUrl, { isRollback: true }).catch(() => { });
     }
-  }, { timeout: 20000 });
+    throw error;
+  }
 }
 
 
