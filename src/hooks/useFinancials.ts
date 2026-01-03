@@ -42,7 +42,7 @@ export const useFinancials = (user: User | null, initialDateFilter?: DateFilterV
     },
     enabled: !!user, // Only run the query if the user is logged in
     placeholderData: defaultFinancials, // Provide default data while loading
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 0, // Ensure dashboard always reflects recent changes
   });
 
   return {

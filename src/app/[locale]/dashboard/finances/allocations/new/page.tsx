@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { AllocationForm } from '@/app/[locale]/dashboard/finances/components/AllocationForm';
 import { DirectAllocationCheckbox } from '@/components/DirectAllocationCheckbox';
 import { useCurrentUser } from '@/contexts/AuthContext';
+import { useQueryClient } from '@tanstack/react-query';
 import { ROLES } from '@/lib/constants';
 import type { FundAllocationFormData, Site, SmallGroup } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast";
@@ -19,6 +20,7 @@ import * as smallGroupService from '@/services/smallGroupService';
 
 export default function NewAllocationPage() {
   const { currentUser: user } = useCurrentUser();
+  const queryClient = useQueryClient();
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -110,6 +112,11 @@ export default function NewAllocationPage() {
         });
         return;
       }
+
+      // Invalidate queries to ensure dashboard shows the new allocation
+      queryClient.invalidateQueries({ queryKey: ['financials'] });
+      queryClient.invalidateQueries({ queryKey: ['allocations'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
 
       toast({
         title: "Allocation Saved",
