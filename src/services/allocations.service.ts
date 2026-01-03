@@ -206,11 +206,11 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
               }
             });
 
-            const sc = await tx.member.findFirst({ where: { siteId: smallGroup.siteId, type: 'SITE_COORDINATOR' } });
-            if (sc?.userId) {
+            const sc = await tx.profile.findFirst({ where: { siteId: smallGroup.siteId, role: 'SITE_COORDINATOR' } });
+            if (sc?.id) {
               await tx.notification.create({
                 data: {
-                  userId: sc.userId,
+                  userId: sc.id,
                   type: 'BUDGET_ALERT',
                   title: '⚠️ Allocation Directe',
                   message: `Allocation de ${formData.amount} FC au groupe "${smallGroup.name}".`,
