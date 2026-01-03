@@ -22,8 +22,10 @@ const transactionSchema = z.object({
     smallGroupId: z.string().optional(),
 });
 
+type TransactionFormValues = z.infer<typeof transactionSchema>;
+
 interface TransactionFormProps {
-    onSave: (data: TransactionFormData) => Promise<void>;
+    onSave: (data: TransactionFormValues) => Promise<void>;
     initialData?: FinancialTransaction;
     isSaving: boolean;
 }
@@ -31,7 +33,7 @@ interface TransactionFormProps {
 export function TransactionForm({ onSave, initialData, isSaving }: TransactionFormProps) {
     const t = useTranslations('Finances');
 
-    const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm<TransactionFormData>({
+    const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm<TransactionFormValues>({
         resolver: zodResolver(transactionSchema),
         defaultValues: initialData ? {
             amount: initialData.amount,

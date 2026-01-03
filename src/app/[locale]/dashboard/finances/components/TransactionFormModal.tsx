@@ -17,7 +17,7 @@ export function TransactionFormModal({ isOpen, onClose, transaction }: Transacti
   const { currentUser } = useCurrentUser();
   const { createTransaction, updateTransaction, isCreating, isUpdating } = useTransactions({ user: currentUser });
 
-  const handleSubmit = async (formData: TransactionFormData) => {
+  const handleSubmit = async (formData: any) => {
     if (!currentUser) {
       alert('You must be logged in to perform this action.');
       return;
