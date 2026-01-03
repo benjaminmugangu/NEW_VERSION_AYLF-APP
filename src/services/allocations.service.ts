@@ -122,7 +122,7 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
     });
 
     if (!profile) {
-      throw new Error("Profile not found");
+      throw new Error(`User profile not found for user ${kindeUser.id}. Please ensure your account is fully set up or contact support.`);
     }
 
     // ═══════════════════════════════════════════════════════════

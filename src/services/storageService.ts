@@ -72,16 +72,18 @@ export async function uploadFile(
   const fileExt = file.name.split('.').pop();
   const fileName = `${Math.random()}-${Date.now()}.${fileExt}`;
 
+  // LOGIC: Use 'report-images' as primary bucket for now to ensure stability
+  // even if 'avatars' bucket is missing. We segregate by folders.
+  const targetBucket = 'report-images';
   const bucketName = options.bucket || 'report-images';
   let filePath: string;
 
-  // LOGIC: Bucket-Specific Paths
   if (bucketName === 'avatars') {
-    // Path: {userId}/{filename}
-    filePath = `${user.id}/${fileName}`;
-
+    // Path: avatars/{userId}/{filename}
+    // Note: We prepend 'avatars/' to keep it clean within the shared bucket
+    filePath = `avatars/${user.id}/${fileName}`;
   } else {
-    // DEFAULT: 'report-images' Hierarchical Logic
+    // DEFAULT: Hierarchical 'report-images' Logic (Activity Reports)
     const reportId = options.reportId || 'temp';
 
     if (profile.role === 'NATIONAL_COORDINATOR') {
@@ -106,7 +108,7 @@ export async function uploadFile(
 
   // Upload using service role key (bypasses RLS)
   const { error: uploadError } = await getSupabaseAdmin().storage
-    .from(bucketName)
+    .from(targetBucket)
     .upload(filePath, buffer, {
       contentType: file.type,
       upsert: false,
@@ -119,7 +121,7 @@ export async function uploadFile(
 
   // Get public URL
   const { data: urlData } = getSupabaseAdmin().storage
-    .from(bucketName)
+    .from(targetBucket)
     .getPublicUrl(filePath);
 
   if (!urlData?.publicUrl) {

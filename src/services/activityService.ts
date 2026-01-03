@@ -142,7 +142,9 @@ export const createActivity = async (activityData: ActivityFormData, overrideUse
         status: safeData.status,
         siteId: safeData.siteId,
         smallGroupId: safeData.smallGroupId,
-        activityTypeId: safeData.activityTypeId || '00000000-0000-0000-0000-000000000000',
+        activityTypeId: safeData.activityTypeId && safeData.activityTypeId !== '00000000-0000-0000-0000-000000000000'
+          ? safeData.activityTypeId
+          : (await prisma.activityType.findFirst({ select: { id: true } }))?.id || '00000000-0000-0000-0000-000000000000', // Fallback to DB fetch
         activityTypeEnum: safeData.activityTypeEnum,
         participantsCountPlanned: safeData.participantsCountPlanned,
         createdById: safeData.createdBy,
