@@ -344,6 +344,17 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
                 </>
               </Link>
             </Button>
+            <Button asChild variant="outline" className="w-full flex items-start justify-start p-3 h-auto text-left">
+              <Link href="/dashboard/finances/allocations/new">
+                <>
+                  <DollarSign className="h-5 w-5 text-primary shrink-0" />
+                  <div className="whitespace-normal ml-2">
+                    <p className="font-semibold">{t('quick_actions.send_funds')}</p>
+                    <p className="text-xs text-muted-foreground break-words">{t('quick_actions.send_funds_desc')}</p>
+                  </div>
+                </>
+              </Link>
+            </Button>
           </CardContent>
         </Card>
       )}
