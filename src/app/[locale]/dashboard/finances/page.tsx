@@ -11,6 +11,8 @@ import FinancialDashboard from "./components/FinancialDashboard";
 import { RecentTransactions } from './components/RecentTransactions';
 import { DateRangeFilter, type DateFilterValue } from "@/components/shared/DateRangeFilter";
 import { PageSkeleton } from "@/components/ui-custom/PageSkeleton";
+import { StatCard } from "@/components/shared/StatCard";
+import { Banknote, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from 'next-intl';
 
@@ -48,9 +50,12 @@ export default function FinancesPage() {
   }
 
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <div className="flex items-center justify-between space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight">{t('dashboard_title')}</h2>
+    <div className="flex-1 space-y-6 p-4 md:p-8 pt-6">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">{t('dashboard_title')}</h2>
+          <p className="text-muted-foreground">{t('dashboard_desc') ?? 'Manage and track your financial activities.'}</p>
+        </div>
         <div className="flex items-center space-x-2">
           <DateRangeFilter
             onFilterChange={setDateFilter}
@@ -58,12 +63,44 @@ export default function FinancesPage() {
           />
         </div>
       </div>
-      <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+
+      {/* Full Width Stats Grid */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title={t('current_balance')}
+          value={new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats.netBalance)}
+          icon={Banknote}
+          description={t('desc_balance')}
+        />
+        <StatCard
+          title={t('funds_received')}
+          value={new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats.income)}
+          icon={TrendingUp}
+          description={t('desc_received')}
+          trend="up"
+        />
+        <StatCard
+          title={t('reported_expenses')}
+          value={new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats.totalSpent)}
+          icon={TrendingDown}
+          description={t('desc_expenses')}
+          trend="down"
+        />
+        <StatCard
+          title={t('reallocated_funds')}
+          value={new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats.totalAllocated)}
+          icon={DollarSign}
+          description={t('desc_reallocated')}
+        />
+      </div>
+
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-6">
           <FinancialDashboard
             stats={stats}
             currentUser={currentUser}
             linkGenerator={(type, id) => `/dashboard/finances/${type}/${id}`}
+            hideStats={true} // New prop to hide internal stats
           />
         </div>
         <div>
