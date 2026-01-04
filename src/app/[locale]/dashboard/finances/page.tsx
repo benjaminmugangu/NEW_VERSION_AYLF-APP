@@ -12,12 +12,15 @@ import { RecentTransactions } from './components/RecentTransactions';
 import { DateRangeFilter, type DateFilterValue } from "@/components/shared/DateRangeFilter";
 import { PageSkeleton } from "@/components/ui-custom/PageSkeleton";
 import { StatCard } from "@/components/shared/StatCard";
-import { Banknote, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
+import { Banknote, TrendingUp, TrendingDown, DollarSign, Plus, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from 'next-intl';
+import { ROLES } from '@/lib/constants';
+import Link from 'next/link';
 
 export default function FinancesPage() {
   const t = useTranslations('Finances');
+  const tCommon = useTranslations('Common');
   const [dateFilter, setDateFilter] = React.useState<DateFilterValue>({ rangeKey: 'this_year', display: 'This Year' });
   const { currentUser, isLoading: isLoadingUser } = useCurrentUser();
 
@@ -36,6 +39,8 @@ export default function FinancesPage() {
   if (isLoadingUser || isLoadingFinancials || isLoadingTransactions) {
     return <PageSkeleton type="card" />;
   }
+
+  const canSendFunds = currentUser?.role === ROLES.NATIONAL_COORDINATOR || currentUser?.role === ROLES.SITE_COORDINATOR;
 
   if (error || !stats) {
     return (
@@ -56,7 +61,21 @@ export default function FinancesPage() {
           <h2 className="text-3xl font-bold tracking-tight">{t('dashboard_title')}</h2>
           <p className="text-muted-foreground">{t('dashboard_desc') ?? 'Manage and track your financial activities.'}</p>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {canSendFunds && (
+            <Button asChild variant="default" size="sm" className="bg-primary hover:bg-primary/90">
+              <Link href="/dashboard/finances/allocations/new" className="flex items-center gap-2">
+                <Send className="h-4 w-4" />
+                {t('send_funds_btn') ?? 'Envoyer Fonds'}
+              </Link>
+            </Button>
+          )}
+          <Button asChild variant="outline" size="sm">
+            <Link href="/dashboard/finances/transactions/new" className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              {t('new_transaction_btn') ?? 'Nouvelle Transaction'}
+            </Link>
+          </Button>
           <DateRangeFilter
             onFilterChange={setDateFilter}
             initialRangeKey={dateFilter.rangeKey}

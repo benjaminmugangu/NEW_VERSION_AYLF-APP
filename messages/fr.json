@@ -368,6 +368,7 @@
     },
     "Finances": {
         "dashboard_title": "Tableau de bord financier",
+        "dashboard_desc": "Gérez et suivez vos activités financières.",
         "current_balance": "Solde Actuel",
         "funds_received": "Fonds Reçus",
         "reported_expenses": "Dépenses Déclarées",
@@ -387,7 +388,9 @@
         "no_transactions": "Aucune transaction récente trouvée.",
         "error_load": "Erreur de chargement des données",
         "error_desc": "Nous n'avons pas pu récupérer les statistiques financières.",
-        "retry": "Réessayer"
+        "retry": "Réessayer",
+        "send_funds_btn": "Envoyer Fonds",
+        "new_transaction_btn": "Nouvelle Transaction"
     },
     "Onboarding": {
         "title": "Premiers Pas",

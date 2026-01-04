@@ -20,7 +20,6 @@
         "notifications": "Notifications",
         "invitations": "Invitations",
         "certificates": "Certificates",
-        "certificates": "Certificates",
         "diagnostics": "Diagnostics",
         "my_profile": "My Profile",
         "ai_suggestions": "AI Suggestions",
@@ -373,6 +372,7 @@
     },
     "Finances": {
         "dashboard_title": "Finances Dashboard",
+        "dashboard_desc": "Manage and track your financial activities.",
         "current_balance": "Current Balance",
         "funds_received": "Funds Received",
         "reported_expenses": "Reported Expenses",
@@ -392,7 +392,9 @@
         "no_transactions": "No recent transactions found.",
         "error_load": "Error loading data",
         "error_desc": "We could not retrieve financial statistics.",
-        "retry": "Retry"
+        "retry": "Retry",
+        "send_funds_btn": "Send Funds",
+        "new_transaction_btn": "New Transaction"
     },
     "Onboarding": {
         "title": "Getting Started",
