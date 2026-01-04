@@ -70,12 +70,14 @@ export default function FinancesPage() {
               </Link>
             </Button>
           )}
-          <Button asChild variant="outline" size="sm">
-            <Link href="/dashboard/finances/transactions/new" className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              {t('new_transaction_btn') ?? 'Nouvelle Transaction'}
-            </Link>
-          </Button>
+          {currentUser?.role !== ROLES.SITE_COORDINATOR && (
+            <Button asChild variant="outline" size="sm">
+              <Link href="/dashboard/finances/transactions/new" className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                {t('new_transaction_btn') ?? 'Nouvelle Transaction'}
+              </Link>
+            </Button>
+          )}
           <DateRangeFilter
             onFilterChange={setDateFilter}
             initialRangeKey={dateFilter.rangeKey}
