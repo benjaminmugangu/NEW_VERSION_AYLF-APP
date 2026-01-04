@@ -50,7 +50,21 @@ export async function calculateAvailableBudget(params: {
     });
     const sent = (allocationsSent._sum.amount as any) || 0;
 
-    // 3. Calculate EXPENSES (transactions of type 'expense')
+    // 3. Calculate DIRECT INCOME (transactions of type 'income')
+    const incomeTransactions = await client.financialTransaction.aggregate({
+        where: {
+            siteId,
+            smallGroupId,
+            type: 'income',
+            status: 'approved',
+        },
+        _sum: {
+            amount: true,
+        },
+    });
+    const directIncome = (incomeTransactions._sum.amount as any) || 0;
+
+    // 4. Calculate EXPENSES (transactions of type 'expense')
     const expenses = await client.financialTransaction.aggregate({
         where: {
             siteId,
@@ -65,7 +79,8 @@ export async function calculateAvailableBudget(params: {
     const totalExpenses = (expenses._sum.amount as any) || 0;
 
     // Calculate available budget
-    const available = Number(received) - Number(sent) - Number(totalExpenses);
+    // Budget = (Allocations Received + Direct Income) - (Allocations Sent + Expenses)
+    const available = (Number(received) + Number(directIncome)) - Number(sent) - Number(totalExpenses);
 
     return {
         available,

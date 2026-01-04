@@ -42,83 +42,105 @@ export const getFinancials = async (user: User, dateFilter: DateFilterValue): Pr
       reportService.getFilteredReports(reportFilters),
     ]);
 
-    // For recipients, we also need to see RECEIVED allocations that might not be in the default filter
-    // (e.g., a SGL's allocationFilters only shows what they RECEIVED, 
-    // but a SC's allocationFilters shows what they SENT. They need BOTH).
-    let receivedAllocations: FundAllocation[] = [];
-    if (user.role === ROLES.SITE_COORDINATOR) {
-      // Fetch allocations where siteId matches and NOT fromSiteId (incoming)
-      receivedAllocations = await allocationService.getAllocations({ siteId: user.siteId ?? undefined });
-      // NOTE: getAllocations uses RLS, so it should naturally return relevant ones.
-      // But we want to distinguish Income (Incoming) vs Reallocated (Outgoing)
-    }
 
     // Filter allocations and reports by date locally using client-side applyDateFilter
     const filteredAllocations = applyDateFilter(allocations || [], 'allocationDate', dateFilter);
     const filteredReports = applyDateFilter(reports || [], 'submissionDate', dateFilter);
 
-    // Calculate INCOME
-    // 1. Transactions (Direct Income)
-    const directIncome = transactions
-      .filter(t => t.type === 'income')
-      .reduce((acc, t) => acc + t.amount, 0);
+    const stats = calculateFinancialStats({
+      role: user.role,
+      siteId: user.siteId || undefined,
+      smallGroupId: user.smallGroupId || undefined,
+      transactions,
+      allocations: filteredAllocations,
+      reports: filteredReports
+    });
 
-    // 2. Received Allocations (Funds moved from higher levels)
-    const receivedAllocationsTotal = filteredAllocations
-      .filter(a => {
-        if (user.role === ROLES.SITE_COORDINATOR) {
-          // Site Coordinator: Income is what comes from National (fromSiteId is null or different)
-          return a.siteId === user.siteId && a.fromSiteId !== user.siteId;
-        }
-        if (user.role === ROLES.SMALL_GROUP_LEADER) {
-          // SGL: Income is what's allocated to their group
-          return a.smallGroupId === user.smallGroupId;
-        }
-        return false;
-      })
-      .reduce((acc, a) => acc + a.amount, 0);
-
-    const income = directIncome + receivedAllocationsTotal;
-
-    const expenses = transactions
-      .filter(t => t.type === 'expense')
-      .reduce((acc, t) => acc + t.amount, 0);
-
-    // Calculate OUTGOING Allocations (Reallocated)
-    const outgoingAllocations = filteredAllocations
-      .filter(a => {
-        if (user.role === ROLES.SITE_COORDINATOR) {
-          // For SC, reallocated funds are those they sent to small groups
-          return a.fromSiteId === user.siteId;
-        }
-        return false; // NC sees all, SGL doesn't typically reallocate
-      })
-      .reduce((acc, a) => acc + a.amount, 0);
-
-    const totalAllocated = outgoingAllocations;
-    const totalSpent = filteredReports.reduce((acc, r) => acc + (r.totalExpenses || 0), 0);
-    const netBalance = income - (expenses + totalAllocated);
-    const allocationBalance = totalAllocated - totalSpent;
-
-    const data: Financials = {
-      income,
-      expenses,
-      netBalance,
-      totalAllocated,
-      totalSpent,
-      allocationBalance,
+    return {
+      ...stats,
       transactions: transactions || [],
       allocations: filteredAllocations,
       reports: filteredReports,
     };
-
-    return data;
 
   } catch (error) {
     console.error('Error fetching financials:', error);
     throw new Error('Failed to load financial data. Please try again.');
   }
 };
+
+/**
+ * Helper to calculate statistics consistently across all financial services
+ */
+function calculateFinancialStats(params: {
+  role: string;
+  siteId?: string;
+  smallGroupId?: string;
+  transactions: any[];
+  allocations: any[];
+  reports: any[];
+}) {
+  const { role, siteId, smallGroupId, transactions, allocations, reports } = params;
+
+  // 1. Calculate DIRECT INCOME & EXPENSES
+  const directIncome = transactions
+    .filter(t => t.type === 'income' && t.status === 'approved')
+    .reduce((acc, t) => acc + t.amount, 0);
+
+  const expenses = transactions
+    .filter(t => t.type === 'expense' && t.status === 'approved')
+    .reduce((acc, t) => acc + t.amount, 0);
+
+  // 2. Calculate RECEIVED Allocations (Income for Sites/Groups)
+  const receivedAllocationsTotal = allocations
+    .filter(a => {
+      if (role === ROLES.SITE_COORDINATOR || (siteId && !smallGroupId)) {
+        // Target is Site: Income is what comes from higher levels
+        return a.siteId === siteId && a.fromSiteId !== siteId;
+      }
+      if (role === ROLES.SMALL_GROUP_LEADER || smallGroupId) {
+        // Target is SGL: Income is what's allocated specifically to their group
+        return a.smallGroupId === smallGroupId;
+      }
+      return false; // National creates income, doesn't receive it from levels
+    })
+    .reduce((acc, a) => acc + a.amount, 0);
+
+  const income = directIncome + receivedAllocationsTotal;
+
+  // 3. Calculate OUTGOING Allocations (Reallocated)
+  const outgoingAllocations = allocations
+    .filter(a => {
+      if (role === ROLES.NATIONAL_COORDINATOR && !siteId && !smallGroupId) {
+        // National context: Funds sent from National (fromSiteId is null)
+        return a.fromSiteId === null || a.fromSiteId === undefined;
+      }
+      if (siteId && !smallGroupId) {
+        // Site context: Funds sent from this Site to Groups
+        return a.fromSiteId === siteId;
+      }
+      return false; // Small groups don't reallocate
+    })
+    .reduce((acc, a) => acc + a.amount, 0);
+
+  const totalAllocated = outgoingAllocations;
+  const totalSpentInReports = reports.reduce((acc, r) => acc + (r.totalExpenses || 0), 0);
+
+  // Balance Logic: What is left to spend
+  const netBalance = income - (expenses + totalAllocated);
+
+  // Allocation Reconciliation (For internal tracking)
+  const allocationBalance = totalAllocated - totalSpentInReports;
+
+  return {
+    income,
+    expenses,
+    netBalance,
+    totalAllocated,
+    totalSpent: totalSpentInReports,
+    allocationBalance,
+  };
+}
 
 /**
  * Fetches financial statistics for a specific entity (Site or Small Group) directly.
@@ -165,25 +187,21 @@ export const getEntityFinancials = async (
       reportService.getFilteredReports({ entity }),
     ]);
 
-    const income = transactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
-    const expenses = transactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0);
-    const netBalance = income - expenses;
-
     // Filter allocations and reports by date locally
     const filteredAllocations = applyDateFilter(allocations || [], 'allocationDate', dateFilter);
     const filteredReports = applyDateFilter(reports || [], 'submissionDate', dateFilter);
 
-    const totalAllocated = filteredAllocations.reduce((acc, a) => acc + a.amount, 0);
-    const totalSpent = filteredReports.reduce((acc, r) => acc + (r.totalExpenses || 0), 0);
-    const allocationBalance = totalAllocated - totalSpent;
+    const stats = calculateFinancialStats({
+      role: 'VIEWER', // Role doesn't matter much here since we have explicit IDs
+      siteId: entity.type === 'site' ? entity.id : undefined,
+      smallGroupId: entity.type === 'smallGroup' ? entity.id : undefined,
+      transactions,
+      allocations: filteredAllocations,
+      reports: filteredReports
+    });
 
     return {
-      income,
-      expenses,
-      netBalance,
-      totalAllocated,
-      totalSpent,
-      allocationBalance,
+      ...stats,
       transactions: transactions || [],
       allocations: filteredAllocations,
       reports: filteredReports,
