@@ -3,6 +3,8 @@
 
 import { prisma } from '@/lib/prisma';
 import type { User, Member, MemberWithDetails, MemberFormData } from '@/lib/types';
+import notificationService from './notificationService';
+import { ROLES } from '@/lib/constants';
 
 // Server-safe date filter definition (avoid importing client component module)
 type ServerDateFilter = {
@@ -278,14 +280,42 @@ export async function createMember(formData: MemberFormData): Promise<Member> {
       }
     }
 
-    const member = await prisma.member.create({
-      data: {
-        ...formData,
-        joinDate: new Date(formData.joinDate),
-        type: formData.type === 'non-student' ? 'non_student' : 'student', // Keeps DB enum sync
-      },
-    });
+    return await prisma.$transaction(async (tx: any) => {
+      const member = await tx.member.create({
+        data: {
+          ...formData,
+          joinDate: new Date(formData.joinDate),
+          type: formData.type === 'non-student' ? 'non_student' : 'student', // Keeps DB enum sync
+        },
+        include: {
+          site: true,
+          smallGroup: true,
+        }
+      });
 
-    return mapPrismaMemberToBase(member);
+      // --- Notifications ---
+      // 1. Notify Site Coordinator
+      if (member.siteId) {
+        const sc = await tx.profile.findFirst({
+          where: { siteId: member.siteId, role: ROLES.SITE_COORDINATOR }
+        });
+        if (sc && sc.id !== user.id) {
+          await notificationService.notifyMemberAdded(sc.id, member.name, member.site?.name || 'votre site', tx);
+        }
+      }
+
+      // 2. Notify Small Group Leader
+      if (member.smallGroupId) {
+        const group = await tx.smallGroup.findUnique({
+          where: { id: member.smallGroupId },
+          select: { leaderId: true, name: true }
+        });
+        if (group?.leaderId && group.leaderId !== user.id) {
+          await notificationService.notifyMemberAdded(group.leaderId, member.name, `le groupe ${group.name}`, tx);
+        }
+      }
+
+      return mapPrismaMemberToBase(member);
+    });
   });
 }

@@ -31,8 +31,9 @@ export interface Notification {
 /**
  * Create a new notification for a user
  */
-export async function createNotification(data: CreateNotificationData): Promise<Notification> {
-    return await (prisma as any).notification.create({
+export async function createNotification(data: CreateNotificationData, tx?: any): Promise<Notification> {
+    const client = tx || prisma;
+    return await (client as any).notification.create({
         data: {
             userId: data.userId,
             type: data.type,
@@ -139,7 +140,8 @@ export async function deleteOldNotifications(daysOld: number = 30): Promise<numb
 export async function notifyReportApproved(
     submitterId: string,
     reportTitle: string,
-    reportId: string
+    reportId: string,
+    tx?: any
 ): Promise<Notification> {
     return createNotification({
         userId: submitterId,
@@ -147,7 +149,7 @@ export async function notifyReportApproved(
         title: '✅ Rapport Approuvé!',
         message: `Votre rapport "${reportTitle}" a été approuvé.`,
         link: `/dashboard/reports/${reportId}`,
-    });
+    }, tx);
 }
 
 /**
@@ -157,7 +159,8 @@ export async function notifyReportRejected(
     submitterId: string,
     reportTitle: string,
     reportId: string,
-    reason?: string
+    reason?: string,
+    tx?: any
 ): Promise<Notification> {
     return createNotification({
         userId: submitterId,
@@ -165,7 +168,7 @@ export async function notifyReportRejected(
         title: '❌ Rapport Rejeté',
         message: `Votre rapport "${reportTitle}" a été rejeté.${reason ? ` Raison: ${reason}` : ''}`,
         link: `/dashboard/reports/${reportId}`,
-    });
+    }, tx);
 }
 
 /**
@@ -174,7 +177,8 @@ export async function notifyReportRejected(
 export async function notifyAllocationReceived(
     recipientId: string,
     amount: number,
-    fromEntity: string
+    fromEntity: string,
+    tx?: any
 ): Promise<Notification> {
     return createNotification({
         userId: recipientId,
@@ -182,7 +186,7 @@ export async function notifyAllocationReceived(
         title: '💰 Nouvelle Allocation Budgétaire',
         message: `Vous avez reçu ${new Intl.NumberFormat('fr-FR').format(amount)} FC de ${fromEntity}.`,
         link: '/dashboard/finances',
-    });
+    }, tx);
 }
 
 /**
@@ -204,13 +208,32 @@ export async function notifyActivityReminder(
 }
 
 /**
+ * Notify about a new activity created/assigned
+ */
+export async function notifyActivityCreated(
+    userId: string,
+    activityTitle: string,
+    activityId: string,
+    tx?: any
+): Promise<Notification> {
+    return createNotification({
+        userId: userId,
+        type: 'ACTIVITY_REMINDER',
+        title: '🆕 Nouvelle Activité',
+        message: `L'activité "${activityTitle}" a été créée et vous est assignée ou concerne votre périmètre.`,
+        link: `/dashboard/activities/${activityId}`,
+    }, tx);
+}
+
+/**
  * Notify when a new report is submitted (for reviewers)
  */
 export async function notifyNewReport(
     reviewerId: string,
     reportTitle: string,
     reportId: string,
-    submitterName: string
+    submitterName: string,
+    tx?: any
 ): Promise<Notification> {
     return createNotification({
         userId: reviewerId,
@@ -218,7 +241,25 @@ export async function notifyNewReport(
         title: '📝 Nouveau Rapport à Valider',
         message: `${submitterName} a soumis le rapport "${reportTitle}".`,
         link: `/dashboard/reports/${reportId}`,
-    });
+    }, tx);
+}
+
+/**
+ * Notify when a new member is added to a site or group
+ */
+export async function notifyMemberAdded(
+    leaderId: string,
+    memberName: string,
+    entityName: string, // Site or Group name
+    tx?: any
+): Promise<Notification> {
+    return createNotification({
+        userId: leaderId,
+        type: 'USER_INVITED',
+        title: '👥 Nouveau Membre',
+        message: `${memberName} a rejoint ${entityName}.`,
+        link: '/dashboard/members',
+    }, tx);
 }
 
 /**
@@ -251,6 +292,8 @@ const notificationService = {
     notifyReportRejected,
     notifyAllocationReceived,
     notifyActivityReminder,
+    notifyActivityCreated,
+    notifyMemberAdded,
     notifyNewReport,
     notifyBudgetAlert,
 };

@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/prisma';
 import { UserRole } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
+import notificationService from './notificationService';
+import { ROLES } from '@/lib/constants';
 
 export interface CreateInvitationData {
     email: string;
@@ -37,35 +39,55 @@ export async function createInvitation(data: CreateInvitationData) {
         if (group) siteId = group.siteId;
     }
 
-    if (existingInvitation) {
-        // ✅ FIX INV-004: Regenerate token on update (security)
-        return await prisma.userInvitation.update({
-            where: { email: data.email },
-            data: {
-                token: randomUUID(), // ✅ New token (prevents old token reuse)
-                role: data.role,
-                siteId: siteId,
-                smallGroupId: smallGroupId,
-                mandateStartDate: data.mandateStartDate, // ✅ Save mandate dates
-                mandateEndDate: data.mandateEndDate,
-                status: 'pending',
-                expiresAt, // ✅ Reset expiration
-            },
-        });
-    }
+    return await prisma.$transaction(async (tx: any) => {
+        let invitation;
+        if (existingInvitation) {
+            // ✅ FIX INV-004: Regenerate token on update (security)
+            invitation = await tx.userInvitation.update({
+                where: { email: data.email },
+                data: {
+                    token: randomUUID(), // ✅ New token (prevents old token reuse)
+                    role: data.role,
+                    siteId: siteId,
+                    smallGroupId: smallGroupId,
+                    mandateStartDate: data.mandateStartDate, // ✅ Save mandate dates
+                    mandateEndDate: data.mandateEndDate,
+                    status: 'pending',
+                    expiresAt, // ✅ Reset expiration
+                },
+            });
+        } else {
+            // ✅ FIX INV-002: Explicit token generation with crypto.randomUUID()
+            invitation = await tx.userInvitation.create({
+                data: {
+                    email: data.email,
+                    token: randomUUID(), // ✅ Cryptographically secure UUIDv4
+                    role: data.role,
+                    siteId: siteId,
+                    smallGroupId: smallGroupId,
+                    mandateStartDate: data.mandateStartDate, // ✅ Save mandate dates
+                    mandateEndDate: data.mandateEndDate,
+                    expiresAt, // ✅ FIX INV-003: 7-day expiration
+                },
+            });
+        }
 
-    // ✅ FIX INV-002: Explicit token generation with crypto.randomUUID()
-    return await prisma.userInvitation.create({
-        data: {
-            email: data.email,
-            token: randomUUID(), // ✅ Cryptographically secure UUIDv4
-            role: data.role,
-            siteId: siteId,
-            smallGroupId: smallGroupId,
-            mandateStartDate: data.mandateStartDate, // ✅ Save mandate dates
-            mandateEndDate: data.mandateEndDate,
-            expiresAt, // ✅ FIX INV-003: 7-day expiration
-        },
+        // Notify National Coordinators (Reviewers)
+        const nationalCoordinators = await tx.profile.findMany({
+            where: { role: ROLES.NATIONAL_COORDINATOR }
+        });
+
+        for (const nc of nationalCoordinators) {
+            await notificationService.createNotification({
+                userId: nc.id,
+                type: 'USER_INVITED',
+                title: '👤 Nouvelle Invitation Envoyée',
+                message: `Une invitation pour le rôle ${data.role} a été envoyée à ${data.email}.`,
+                link: '/dashboard/admin/invitations', // Assuming this path exists for managing invitations
+            }, tx).catch(err => console.error(`Failed to notify NC ${nc.id}:`, err));
+        }
+
+        return invitation;
     });
 }
 

@@ -6,6 +6,7 @@ import { Activity, ActivityStatus, ActivityType } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
 import { type ActivityFormData } from '@/schemas/activity';
 import { revalidatePath } from 'next/cache';
+import notificationService from './notificationService';
 
 
 const mapPrismaActivityToActivity = (item: any): Activity => {
@@ -134,33 +135,68 @@ export const createActivity = async (activityData: ActivityFormData, overrideUse
     // Enforce RBAC Overrides and Validations
     const safeData = await validateAndPrepareCreateData(activityData, currentUser);
 
-    const activity = await prisma.activity.create({
-      data: {
-        title: safeData.title,
-        thematic: safeData.thematic,
-        date: safeData.date,
-        level: safeData.level,
-        status: safeData.status,
-        siteId: safeData.siteId,
-        smallGroupId: safeData.smallGroupId,
-        activityTypeId: safeData.activityTypeId && safeData.activityTypeId !== '00000000-0000-0000-0000-000000000000'
-          ? safeData.activityTypeId
-          : (await prisma.activityType.findFirst({ select: { id: true } }))?.id || '00000000-0000-0000-0000-000000000000', // Fallback to DB fetch
-        activityTypeEnum: safeData.activityTypeEnum,
-        participantsCountPlanned: safeData.participantsCountPlanned,
-        createdById: safeData.createdBy,
-      },
-      include: {
-        site: true,
-        smallGroup: true,
-        activityType: true,
-      }
-    });
+    return await prisma.$transaction(async (tx: any) => {
+      const activity = await tx.activity.create({
+        data: {
+          title: safeData.title,
+          thematic: safeData.thematic,
+          date: safeData.date,
+          level: safeData.level,
+          status: safeData.status,
+          siteId: safeData.siteId,
+          smallGroupId: safeData.smallGroupId,
+          activityTypeId: safeData.activityTypeId && safeData.activityTypeId !== '00000000-0000-0000-0000-000000000000'
+            ? safeData.activityTypeId
+            : (await tx.activityType.findFirst({ select: { id: true } }))?.id || '00000000-0000-0000-0000-000000000000',
+          activityTypeEnum: safeData.activityTypeEnum,
+          participantsCountPlanned: safeData.participantsCountPlanned,
+          createdById: safeData.createdBy,
+        },
+        include: {
+          site: true,
+          smallGroup: true,
+          activityType: true,
+        }
+      });
 
-    revalidatePath('/dashboard/activities');
-    return mapPrismaActivityToActivity(activity);
+      // --- Notifications ---
+      // 1. Notify Site Coordinator if activity created by NC or Site Staff for a site
+      if (activity.siteId && activity.level === 'site') {
+        const sc = await tx.profile.findFirst({
+          where: { siteId: activity.siteId, role: ROLES.SITE_COORDINATOR }
+        });
+        if (sc && sc.id !== currentUser.id) {
+          await notificationService.notifyActivityCreated(sc.id, activity.title, activity.id, tx);
+        }
+      }
+
+      // 2. Notify Small Group Leader if activity created for a group
+      if (activity.smallGroupId && activity.level === 'small_group') {
+        const group = await tx.smallGroup.findUnique({
+          where: { id: activity.smallGroupId },
+          select: { leaderId: true, siteId: true }
+        });
+
+        if (group?.leaderId && group.leaderId !== currentUser.id) {
+          await notificationService.notifyActivityCreated(group.leaderId, activity.title, activity.id, tx);
+        }
+
+        // Also notify SC of the site if not the creator
+        if (group?.siteId) {
+          const sc = await tx.profile.findFirst({
+            where: { siteId: group.siteId, role: ROLES.SITE_COORDINATOR }
+          });
+          if (sc && sc.id !== currentUser.id) {
+            await notificationService.notifyActivityCreated(sc.id, activity.title, activity.id, tx);
+          }
+        }
+      }
+
+      revalidatePath('/dashboard/activities');
+      return mapPrismaActivityToActivity(activity);
+    });
   });
-};
+}
 
 export const updateActivity = async (id: string, updatedData: Partial<ActivityFormData | { status: ActivityStatus }>): Promise<Activity> => {
   const { getUser } = getKindeServerSession();

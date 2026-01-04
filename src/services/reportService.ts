@@ -6,6 +6,8 @@ import { Report, ReportWithDetails, ReportFormData, User } from '@/lib/types';
 import { logReportApproval, createAuditLog } from './auditLogService';
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { deleteFile } from './storageService';
+import notificationService from './notificationService';
+import { ROLES } from '@/lib/constants';
 
 // ... existing code ...
 
@@ -205,6 +207,20 @@ export async function createReport(reportData: ReportFormData, overrideUser?: an
           activityType: true,
         }
       });
+
+      // Notify Reviewers (National Coordinators)
+      const nationalCoordinators = await prisma.profile.findMany({
+        where: { role: ROLES.NATIONAL_COORDINATOR }
+      });
+
+      for (const nc of nationalCoordinators) {
+        await notificationService.notifyNewReport(
+          nc.id,
+          report.title,
+          report.id,
+          report.submittedBy.name
+        ).catch(err => console.error(`Failed to notify NC ${nc.id}:`, err));
+      }
 
       return mapPrismaReportToModel(report);
 
@@ -511,6 +527,14 @@ export async function approveReport(
         generatedTransactionIds.push(transaction.id);
       }
 
+      // 4. Send notification inside transaction
+      await notificationService.notifyReportApproved(
+        approvedReport.submittedById,
+        approvedReport.title,
+        approvedReport.id,
+        tx
+      );
+
       return approvedReport;
     });
 
@@ -548,23 +572,36 @@ export async function rejectReport(
       throw new Error('Report not found');
     }
 
-    const rejectedReport = await prisma.report.update({
-      where: { id: reportId },
-      data: {
-        status: 'rejected',
-        reviewedAt: new Date(),
-        reviewedById: rejectedById,
-        reviewNotes: reason,
-        rejectionReason: reason,
-      },
-      include: {
-        activity: true,
-        smallGroup: true,
-        site: true,
-        submittedBy: true,
-        reviewedBy: true,
-        activityType: true,
-      },
+    const rejectedReport = await prisma.$transaction(async (tx: any) => {
+      const updated = await tx.report.update({
+        where: { id: reportId },
+        data: {
+          status: 'rejected',
+          reviewedAt: new Date(),
+          reviewedById: rejectedById,
+          reviewNotes: reason,
+          rejectionReason: reason,
+        },
+        include: {
+          activity: true,
+          smallGroup: true,
+          site: true,
+          submittedBy: true,
+          reviewedBy: true,
+          activityType: true,
+        },
+      });
+
+      // Send notification inside transaction
+      await notificationService.notifyReportRejected(
+        updated.submittedById,
+        updated.title,
+        updated.id,
+        reason,
+        tx
+      );
+
+      return updated;
     });
 
     // Audit log

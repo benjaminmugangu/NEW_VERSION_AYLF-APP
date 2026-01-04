@@ -6,6 +6,9 @@ import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import type { FundAllocation, FundAllocationFormData, ServiceResponse } from '@/lib/types';
 import { calculateAvailableBudget } from './budgetService';
 import { revalidatePath } from 'next/cache';
+import notificationService from './notificationService';
+import { ROLES } from '@/lib/constants';
+import { UserRole } from '@prisma/client';
 
 export async function getAllocations(filters?: { siteId?: string; smallGroupId?: string }): Promise<FundAllocation[]> {
   const { getUser } = getKindeServerSession();
@@ -160,6 +163,21 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
               include: { allocatedBy: true, site: true, smallGroup: true, fromSite: true }
             });
 
+            // Notify Site Coordinator
+            if (formData.siteId) {
+              const sc = await tx.profile.findFirst({
+                where: { siteId: formData.siteId, role: ROLES.SITE_COORDINATOR }
+              });
+              if (sc) {
+                await notificationService.notifyAllocationReceived(
+                  sc.id,
+                  Number(formData.amount),
+                  'Coordination Nationale',
+                  tx
+                );
+              }
+            }
+
             return mapDBAllocationToModel(allocation);
           } else {
             // Direct
@@ -206,19 +224,26 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
               }
             });
 
-            const sc = await tx.profile.findFirst({ where: { siteId: smallGroup.siteId, role: 'SITE_COORDINATOR' } });
+            // Notify Group Leader
+            if (smallGroup.leaderId) {
+              await notificationService.notifyAllocationReceived(
+                smallGroup.leaderId,
+                Number(formData.amount),
+                'Coordination Nationale (Direct)',
+                tx
+              );
+            }
+
+            // Notify Site Coordinator about the bypass
+            const sc = await tx.profile.findFirst({ where: { siteId: smallGroup.siteId, role: ROLES.SITE_COORDINATOR } });
             if (sc?.id) {
-              await tx.notification.create({
-                data: {
-                  userId: sc.id,
-                  type: 'BUDGET_ALERT',
-                  title: '⚠️ Allocation Directe',
-                  message: `Allocation de ${formData.amount} FC au groupe "${smallGroup.name}".`,
-                  link: `/dashboard/finances/allocations/${allocation.id}`,
-                  read: false,
-                  createdAt: new Date()
-                }
-              });
+              await notificationService.createNotification({
+                userId: sc.id,
+                type: 'BUDGET_ALERT',
+                title: '⚠️ Allocation Directe au Groupe',
+                message: `La Coordination Nationale a alloué ${Number(formData.amount)} FC directement au groupe "${smallGroup.name}".`,
+                link: `/dashboard/finances/allocations/${allocation.id}`,
+              }, tx);
             }
 
             return mapDBAllocationToModel(allocation);
@@ -251,6 +276,16 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
             },
             include: { allocatedBy: true, site: true, smallGroup: true, fromSite: true }
           });
+
+          // Notify Small Group Leader
+          if (smallGroup.leaderId) {
+            await notificationService.notifyAllocationReceived(
+              smallGroup.leaderId,
+              Number(formData.amount),
+              `Site: ${profile.name || 'Votre Site'}`,
+              tx
+            );
+          }
 
           return mapDBAllocationToModel(allocation);
         } else {

@@ -129,18 +129,12 @@ export const DELETE = withApiRLS(async (request: NextRequest) => {
             return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
         }
 
-        const body = await request.json();
+        const { searchParams } = new URL(request.url);
+        const notificationId = searchParams.get('id');
 
-        // ✅ Zod validation (ADDED - FIX FOR ITERATION 4)
-        const validation = notificationDeleteSchema.safeParse(body);
-        if (!validation.success) {
-            return NextResponse.json(
-                { error: MESSAGES.errors.validation, details: validation.error.format() },
-                { status: 400 }
-            );
+        if (!notificationId) {
+            return NextResponse.json({ error: 'ID requis' }, { status: 400 });
         }
-
-        const { notificationId } = validation.data;
 
         await notificationService.deleteNotification(notificationId);
 
