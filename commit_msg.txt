@@ -1,29 +1,16 @@
-feat(finance): implement multi-layered financial integrity and budget alerts
+feat(finance): implement SC wallet isolation and territory activity metrics
 
-This commit finalizes the core financial hardening project across 4 critical phases:
+Resolves friction in the Site Coordinator dashboard by decoupling manageable 
+liquidity from direct territory funding injections.
 
-1. Financial Integrity & Uniqueness (Phase 1 & 2):
-   - Enforced 1:1 relationship between Activities and Reports via Prisma unique constraints.
-   - Implemented isSystemGenerated flag for automated transactions to ensure immutability.
-   - Added service-level guards to prevent manual deletion or mutation of system-generated data.
-
-2. Accounting Periods & Locking (Phase 3):
-   - Introduced AccountingPeriod management (Opening/Closing cycles).
-   - Integrated checkPeriod guards across all mutation points (Transactions, Reports, Allocations).
-   - Restricted period management to National Coordinators (NC) with read-only access for Site Coordinators (SC).
-
-3. Budget Overrun Sentinel (Phase 4):
-   - Created deterministic checkBudgetIntegrity helper for real-time balance validation.
-   - Integrated overrun triggers in:
-     - Report Approval (expenses)
-     - Fund Allocations (creation, update, deletion)
-     - Manual Transactions (creation, update, deletion, approval, reversal)
-   - Implemented targeted notification matrix:
-     - Site Overrun -> Notify NC + SC.
-     - Small Group Overrun -> Notify SC only.
-
-4. UI/UX Enhancements:
-   - Updated Financial Dashboards with 'Danger' (red) variants for negative balances.
-   - Added real-time visual cues for budget health across all entity detail pages.
-
-Validated during a "Senior Technical Audit" for 100% coverage and architectural consistency.
+- Logic: Updated budgetService and financialsService to isolate site-level 
+wallet funds. Direct allocations to groups no longer inflate the SC's net balance.
+- Metrics: Introduced directGroupInjections to provide visibility over funds 
+circulating in the territory without impacting the site manager's spending power.
+- UI/UX: Enhanced Finance Dashboards with localized StatCards and a 5-column 
+grid for sites. Standardized labels (e.g. "Solde Disponible") using i18n keys.
+- i18n: Synchronized en.json and fr.json with new keys for financial metrics.
+- Docs: Updated User Guide (LaTeX) with a new "Dualité des Flux" section.
+- Fixes: Resolved Vercel build errors by fixing missing Wallet icon imports 
+and missing useTranslations hook initialization in site finance pages.
+- Maintenance: Updated TypeScript interfaces and cleaned up unused imports.

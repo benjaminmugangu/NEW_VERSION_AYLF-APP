@@ -12,6 +12,7 @@ import { ROLES } from '@/lib/constants';
 import * as siteService from '@/services/siteService';
 import type { Site } from '@/lib/types';
 import { StatCard } from "@/components/shared/StatCard";
+import { useTranslations } from 'next-intl';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DateRangeFilter, type DateFilterValue } from "@/components/shared/DateRangeFilter";
 import { useEntityFinancials } from "@/hooks/useEntityFinancials";
@@ -21,6 +22,7 @@ import { ReportList } from '@/app/[locale]/dashboard/finances/components/ReportL
 
 export default function SiteFinancialDashboardPage() {
   const params = useParams();
+  const t = useTranslations('Finances');
   const siteId = params.siteId as string;
   const [dateFilter, setDateFilter] = useState<DateFilterValue>({ rangeKey: 'all_time', display: "All Time" });
   const [site, setSite] = useState<Site | null>(null);
