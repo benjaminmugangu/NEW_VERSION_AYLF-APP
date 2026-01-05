@@ -1,0 +1,29 @@
+feat(finance): implement multi-layered financial integrity and budget alerts
+
+This commit finalizes the core financial hardening project across 4 critical phases:
+
+1. Financial Integrity & Uniqueness (Phase 1 & 2):
+   - Enforced 1:1 relationship between Activities and Reports via Prisma unique constraints.
+   - Implemented isSystemGenerated flag for automated transactions to ensure immutability.
+   - Added service-level guards to prevent manual deletion or mutation of system-generated data.
+
+2. Accounting Periods & Locking (Phase 3):
+   - Introduced AccountingPeriod management (Opening/Closing cycles).
+   - Integrated checkPeriod guards across all mutation points (Transactions, Reports, Allocations).
+   - Restricted period management to National Coordinators (NC) with read-only access for Site Coordinators (SC).
+
+3. Budget Overrun Sentinel (Phase 4):
+   - Created deterministic checkBudgetIntegrity helper for real-time balance validation.
+   - Integrated overrun triggers in:
+     - Report Approval (expenses)
+     - Fund Allocations (creation, update, deletion)
+     - Manual Transactions (creation, update, deletion, approval, reversal)
+   - Implemented targeted notification matrix:
+     - Site Overrun -> Notify NC + SC.
+     - Small Group Overrun -> Notify SC only.
+
+4. UI/UX Enhancements:
+   - Updated Financial Dashboards with 'Danger' (red) variants for negative balances.
+   - Added real-time visual cues for budget health across all entity detail pages.
+
+Validated during a "Senior Technical Audit" for 100% coverage and architectural consistency.

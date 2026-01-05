@@ -95,8 +95,8 @@ function calculateFinancialStats(params: {
   const receivedAllocationsTotal = allocations
     .filter(a => {
       if (role === ROLES.SITE_COORDINATOR || (siteId && !smallGroupId)) {
-        // Target is Site: Income is what comes from higher levels
-        return a.siteId === siteId && a.fromSiteId !== siteId;
+        // Target is Site: Income for the SC WALLET is only what comes to the site WITHOUT a smallGroupId
+        return a.siteId === siteId && a.fromSiteId !== siteId && !a.smallGroupId;
       }
       if (role === ROLES.SMALL_GROUP_LEADER || smallGroupId) {
         // Target is SGL: Income is what's allocated specifically to their group
@@ -105,6 +105,14 @@ function calculateFinancialStats(params: {
       return false; // National creates income, doesn't receive it from levels
     })
     .reduce((acc, a) => acc + a.amount, 0);
+
+  // 2b. Calculate DIRECT GROUP INJECTIONS (For Site Territory visibility)
+  // These are funds sent by NC directly to a group in this site, bypassing SC wallet
+  const directGroupInjections = (siteId && !smallGroupId)
+    ? allocations
+      .filter(a => a.siteId === siteId && a.smallGroupId && (a.fromSiteId === null || a.fromSiteId === undefined))
+      .reduce((acc, a) => acc + a.amount, 0)
+    : 0;
 
   const income = directIncome + receivedAllocationsTotal;
 
@@ -139,6 +147,7 @@ function calculateFinancialStats(params: {
     totalAllocated,
     totalSpent: totalSpentInReports,
     allocationBalance,
+    directGroupInjections, // New field for site territory visibility
   };
 }
 

@@ -254,6 +254,7 @@ export interface Financials {
   totalAllocated: number;
   totalSpent: number;
   allocationBalance: number;
+  directGroupInjections?: number;
   transactions: FinancialTransaction[];
 
   allocations: FundAllocation[];

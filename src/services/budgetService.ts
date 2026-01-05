@@ -2,12 +2,6 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import type { } from '@/lib/types'; // If all removed, I should check if I can remove the line.
-// Wait, if I remove both FundAllocation and FundAllocationFormData (as per user request), the import might be empty.
-// Let's check the file content again. It ends with:
-// }): Promise<{ available: number; received: number; sent: number; expenses: number }> {
-// It doesn't seem to return FundAllocation.
-// So I will remove the import line if both are unused.
 
 /**
  * Calculate available budget for a Site or Small Group
@@ -26,11 +20,14 @@ export async function calculateAvailableBudget(params: {
     }
 
     // 1. Calculate allocations RECEIVED
+    // Logic: 
+    // - For a Site: only count allocations where smallGroupId is NULL (funds for SC management)
+    // - For a Small Group: count allocations specifically for that group
     const allocationsReceived = await client.fundAllocation.aggregate({
         where: {
             siteId,
-            smallGroupId,
-            status: 'completed', // Only count completed allocations
+            smallGroupId: smallGroupId ? smallGroupId : null, // EXCLUSIVE: if siteId is given but no smallGroupId, we only want the site-level funds
+            status: 'completed',
         },
         _sum: {
             amount: true,

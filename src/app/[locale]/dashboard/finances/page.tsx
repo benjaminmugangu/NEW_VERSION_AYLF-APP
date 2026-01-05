@@ -12,7 +12,7 @@ import { RecentTransactions } from './components/RecentTransactions';
 import { DateRangeFilter, type DateFilterValue } from "@/components/shared/DateRangeFilter";
 import { PageSkeleton } from "@/components/ui-custom/PageSkeleton";
 import { StatCard } from "@/components/shared/StatCard";
-import { Banknote, TrendingUp, TrendingDown, DollarSign, Plus, Send } from "lucide-react";
+import { Banknote, TrendingUp, TrendingDown, DollarSign, Plus, Send, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from 'next-intl';
 import { ROLES } from '@/lib/constants';
@@ -96,17 +96,17 @@ export default function FinancesPage() {
       {/* Full Width Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title={t('current_balance')}
+          title={currentUser?.role === ROLES.SITE_COORDINATOR ? t('available_balance_site') : t('current_balance')}
           value={new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats.netBalance)}
           icon={Banknote}
-          description={t('desc_balance')}
+          description={currentUser?.role === ROLES.SITE_COORDINATOR ? t('desc_available_site') : t('desc_balance')}
           variant={stats.netBalance < 0 ? 'danger' : 'default'}
         />
         <StatCard
-          title={t('funds_received')}
+          title={currentUser?.role === ROLES.SITE_COORDINATOR ? t('site_liquidity') : t('funds_received')}
           value={new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats.income)}
           icon={TrendingUp}
-          description={t('desc_received')}
+          description={currentUser?.role === ROLES.SITE_COORDINATOR ? t('desc_liquidity') : t('desc_received')}
           trend="up"
         />
         <StatCard
@@ -122,6 +122,15 @@ export default function FinancesPage() {
           icon={DollarSign}
           description={t('desc_reallocated')}
         />
+        {currentUser?.role === ROLES.SITE_COORDINATOR && (
+          <StatCard
+            title={t('direct_injections')}
+            value={new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats.directGroupInjections || 0)}
+            icon={Wallet}
+            description={t('desc_direct_injections')}
+            variant="warning"
+          />
+        )}
       </div>
 
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">

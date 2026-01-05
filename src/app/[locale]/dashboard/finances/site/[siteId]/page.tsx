@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Banknote, Building, Receipt, TrendingDown, ArrowLeft } from 'lucide-react';
+import { Banknote, Building, Receipt, TrendingDown, ArrowLeft, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -83,15 +83,38 @@ export default function SiteFinancialDashboardPage() {
         <div className="mb-4">
           <DateRangeFilter onFilterChange={setDateFilter} initialRangeKey={dateFilter.rangeKey} />
         </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard icon={Banknote} title="Income" value={formatCurrency(stats?.income || 0)} />
-          <StatCard icon={TrendingDown} title="Total Allocated" value={formatCurrency(stats?.totalAllocated || 0)} />
-          <StatCard icon={Receipt} title="Expenses" value={formatCurrency(stats?.expenses || 0)} />
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          <StatCard
+            icon={Banknote}
+            title={t('site_liquidity')}
+            value={formatCurrency(stats?.income || 0)}
+            description={t('desc_liquidity')}
+          />
+          <StatCard
+            icon={TrendingDown}
+            title={t('reallocated_funds')}
+            value={formatCurrency(stats?.totalAllocated || 0)}
+            description={t('desc_reallocated')}
+          />
+          <StatCard
+            icon={Receipt}
+            title={t('reported_expenses')}
+            value={formatCurrency(stats?.expenses || 0)}
+            description={t('desc_expenses')}
+          />
           <StatCard
             icon={Building}
-            title="Net Balance"
+            title={t('available_balance_site')}
             value={formatCurrency(stats?.netBalance || 0)}
+            description={t('desc_available_site')}
             variant={(stats?.netBalance || 0) < 0 ? 'danger' : 'default'}
+          />
+          <StatCard
+            icon={Wallet}
+            title={t('direct_injections')}
+            value={formatCurrency(stats?.directGroupInjections || 0)}
+            description={t('desc_direct_injections')}
+            variant="warning"
           />
         </div>
         <div className="mt-8">
