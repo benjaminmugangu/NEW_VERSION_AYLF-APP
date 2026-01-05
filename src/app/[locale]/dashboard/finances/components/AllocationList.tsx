@@ -86,7 +86,9 @@ export const AllocationList: React.FC<AllocationListProps> = ({ allocations, tit
                   <TableCell>{isClient ? new Date(allocation.allocationDate).toLocaleDateString() : allocation.allocationDate}</TableCell>
                   <TableCell>
                     <div className="flex flex-col">
-                      <span className="font-medium text-sm">{sourceName}</span>
+                      <span className="font-medium text-sm">
+                        {allocation.fromSiteId ? renderEntity('site', allocation.fromSiteId, sourceName) : sourceName}
+                      </span>
                       <span className="text-xs text-muted-foreground">{senderName}</span>
                     </div>
                   </TableCell>

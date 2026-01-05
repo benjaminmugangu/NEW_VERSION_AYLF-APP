@@ -12,6 +12,7 @@ import { fr } from 'date-fns/locale';
 import Link from 'next/link';
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
+import { NotificationDetailsModal } from './NotificationDetailsModal';
 
 interface Notification {
     id: string;
@@ -19,6 +20,7 @@ interface Notification {
     title: string;
     message: string;
     link: string | null;
+    metadata: any | null;
     read: boolean;
     createdAt: string;
 }
@@ -27,6 +29,8 @@ export function NotificationCenter() {
     const { toast } = useToast();
     const queryClient = useQueryClient();
     const [filter, setFilter] = useState<'all' | 'unread'>('all');
+    const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
+    const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
     // Fetch notifications
     const { data, isLoading } = useQuery<{ notifications: Notification[] }>({
@@ -37,6 +41,14 @@ export function NotificationCenter() {
             return res.json();
         },
     });
+
+    const handleViewDetails = (notif: Notification) => {
+        setSelectedNotification(notif);
+        setIsDetailsOpen(true);
+        if (!notif.read) {
+            markReadMutation.mutate(notif.id);
+        }
+    };
 
     // Mark as read
     const markReadMutation = useMutation({
@@ -138,43 +150,35 @@ export function NotificationCenter() {
                                 <div
                                     key={notif.id}
                                     className={cn(
-                                        "flex gap-4 p-4 rounded-lg border transition-all hover:bg-slate-50",
-                                        notif.read ? "bg-white" : "bg-blue-50/50 border-blue-100"
+                                        "flex gap-4 p-4 rounded-lg border transition-all cursor-pointer group",
+                                        notif.read ? "bg-white hover:bg-slate-50" : "bg-blue-50/50 border-blue-100 hover:bg-blue-50"
                                     )}
+                                    onClick={() => handleViewDetails(notif)}
                                 >
                                     <div className="mt-1 flex-shrink-0">
                                         {getIcon(notif.type)}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex justify-between items-start mb-1">
-                                            <h4 className={cn("text-sm font-semibold", !notif.read && "text-blue-700")}>
+                                            <h4 className={cn("text-base font-semibold", !notif.read && "text-blue-700")}>
                                                 {notif.title}
                                             </h4>
                                             <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">
                                                 {format(new Date(notif.createdAt), "d MMM yyyy 'at' HH:mm", { locale: getDateLocale(locale) })}
                                             </span>
                                         </div>
-                                        <p className="text-sm text-slate-600 mb-3">{notif.message}</p>
+                                        <p className="text-sm text-slate-600 mb-2 line-clamp-2">{notif.message}</p>
 
                                         <div className="flex gap-2">
-                                            {notif.link && (
-                                                <Button variant="link" size="sm" className="h-auto p-0 text-blue-600" asChild>
-                                                    <Link href={notif.link}>Voir détails</Link>
-                                                </Button>
-                                            )}
+                                            <Button variant="link" size="sm" className="h-auto p-0 text-blue-600 font-medium group-hover:underline">
+                                                Voir détails et actions
+                                            </Button>
                                             {!notif.read && (
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-auto p-0 text-slate-500 hover:text-blue-600"
-                                                    onClick={() => markReadMutation.mutate(notif.id)}
-                                                >
-                                                    Marquer comme lu
-                                                </Button>
+                                                <span className="text-xs text-blue-500 font-medium self-center">• Nouveau</span>
                                             )}
                                         </div>
                                     </div>
-                                    <div className="flex-shrink-0">
+                                    <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                                         <Button
                                             variant="ghost"
                                             size="icon"
@@ -190,6 +194,12 @@ export function NotificationCenter() {
                     )}
                 </CardContent>
             </Card>
+
+            <NotificationDetailsModal
+                notification={selectedNotification}
+                isOpen={isDetailsOpen}
+                onClose={() => setIsDetailsOpen(false)}
+            />
         </div>
     );
 }

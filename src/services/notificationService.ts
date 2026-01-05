@@ -15,6 +15,7 @@ export interface CreateNotificationData {
     title: string;
     message: string;
     link?: string;
+    metadata?: any;
 }
 
 export interface Notification {
@@ -24,6 +25,7 @@ export interface Notification {
     title: string;
     message: string;
     link: string | null;
+    metadata: any | null;
     read: boolean;
     createdAt: Date;
 }
@@ -40,6 +42,7 @@ export async function createNotification(data: CreateNotificationData, tx?: any)
             title: data.title,
             message: data.message,
             link: data.link || null,
+            metadata: data.metadata || null,
         },
     });
 }
@@ -149,6 +152,7 @@ export async function notifyReportApproved(
         title: '✅ Rapport Approuvé!',
         message: `Votre rapport "${reportTitle}" a été approuvé.`,
         link: `/dashboard/reports/${reportId}`,
+        metadata: { reportId, reportTitle }
     }, tx);
 }
 
@@ -168,6 +172,7 @@ export async function notifyReportRejected(
         title: '❌ Rapport Rejeté',
         message: `Votre rapport "${reportTitle}" a été rejeté.${reason ? ` Raison: ${reason}` : ''}`,
         link: `/dashboard/reports/${reportId}`,
+        metadata: { reportId, reportTitle, reason }
     }, tx);
 }
 
@@ -186,6 +191,7 @@ export async function notifyAllocationReceived(
         title: '💰 Nouvelle Allocation Budgétaire',
         message: `Vous avez reçu ${new Intl.NumberFormat('fr-FR').format(amount)} FC de ${fromEntity}.`,
         link: '/dashboard/finances',
+        metadata: { amount, fromEntity }
     }, tx);
 }
 
@@ -204,6 +210,7 @@ export async function notifyActivityReminder(
         title: '📅 Rappel d\'Activité',
         message: `L'activité "${activityTitle}" aura lieu dans ${daysUntil} jour(s).`,
         link: `/dashboard/activities/${activityId}`,
+        metadata: { activityId, activityTitle, daysUntil }
     });
 }
 
@@ -222,6 +229,7 @@ export async function notifyActivityCreated(
         title: '🆕 Nouvelle Activité',
         message: `L'activité "${activityTitle}" a été créée et vous est assignée ou concerne votre périmètre.`,
         link: `/dashboard/activities/${activityId}`,
+        metadata: { activityId, activityTitle }
     }, tx);
 }
 
@@ -241,6 +249,7 @@ export async function notifyNewReport(
         title: '📝 Nouveau Rapport à Valider',
         message: `${submitterName} a soumis le rapport "${reportTitle}".`,
         link: `/dashboard/reports/${reportId}`,
+        metadata: { reportId, reportTitle, submitterName }
     }, tx);
 }
 
@@ -259,6 +268,7 @@ export async function notifyMemberAdded(
         title: '👥 Nouveau Membre',
         message: `${memberName} a rejoint ${entityName}.`,
         link: '/dashboard/members',
+        metadata: { memberName, entityName }
     }, tx);
 }
 
@@ -276,6 +286,7 @@ export async function notifyBudgetAlert(
         title: '⚠️ Alerte Budget Faible',
         message: `Le budget de ${entityName} est faible: ${new Intl.NumberFormat('fr-FR').format(remainingAmount)} FC restants.`,
         link: '/dashboard/finances',
+        metadata: { entityName, remainingAmount }
     });
 }
 

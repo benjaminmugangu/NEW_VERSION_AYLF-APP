@@ -3,10 +3,11 @@
 'use client';
 
 import { ColumnDef, Table, Row, Column } from '@tanstack/react-table';
-import { ArrowUpDown, MoreHorizontal } from 'lucide-react';
+import { ArrowUpDown, MoreHorizontal, FileAxis3d } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 import { Checkbox } from '@/components/ui/checkbox';
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -24,7 +25,7 @@ import { format } from 'date-fns';
 export const columns: ColumnDef<FinancialTransaction>[] = [
   {
     id: 'select',
-    header: ({ table }: { table: Table<FinancialTransaction>}) => (
+    header: ({ table }: { table: Table<FinancialTransaction> }) => (
       <Checkbox
         checked={table.getIsAllPageRowsSelected()}
         onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
@@ -43,7 +44,7 @@ export const columns: ColumnDef<FinancialTransaction>[] = [
   },
   {
     accessorKey: 'date',
-    header: ({ column }: { column: Column<FinancialTransaction, unknown>}) => (
+    header: ({ column }: { column: Column<FinancialTransaction, unknown> }) => (
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
@@ -57,6 +58,23 @@ export const columns: ColumnDef<FinancialTransaction>[] = [
   {
     accessorKey: 'description',
     header: 'Description',
+    cell: ({ row }: { row: Row<FinancialTransaction> }) => {
+      const transaction = row.original;
+      return (
+        <div className="flex flex-col">
+          <span className="font-medium">{transaction.description}</span>
+          {transaction.relatedReportId && (
+            <Link
+              href={`/dashboard/reports/${transaction.relatedReportId}`}
+              className="text-xs text-primary hover:underline mt-1 flex items-center gap-1"
+            >
+              <FileAxis3d className="h-3 w-3" />
+              {transaction.relatedReportTitle || 'Voir rapport'}
+            </Link>
+          )}
+        </div>
+      );
+    }
   },
   {
     accessorKey: 'category',

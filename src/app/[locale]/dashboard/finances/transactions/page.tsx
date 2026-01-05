@@ -12,7 +12,8 @@ import { DateRangeFilter, DateFilterValue } from '@/components/shared/DateRangeF
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 import { TransactionFormModal } from '../components/TransactionFormModal';
 import { FinancialTransaction, TransactionFormData } from '@/lib/types';
 import { useTranslations } from 'next-intl';
@@ -74,23 +75,28 @@ export default function TransactionsPage() {
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <div className="flex items-center justify-between space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight">{t('recent_transactions')}</h2>
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <Button asChild variant="ghost" size="sm" className="mb-2 -ml-2 p-0 h-auto hover:bg-transparent">
+            <Link href="/dashboard/finances" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
+              <ArrowLeft className="h-4 w-4" />
+              Retour aux finances
+            </Link>
+          </Button>
+          <h2 className="text-3xl font-bold tracking-tight">{t('recent_transactions')}</h2>
+        </div>
         <div className="flex items-center space-x-2">
           <Button onClick={() => {
             setSelectedTransaction(null);
             setIsModalOpen(true);
           }}>
-            <PlusCircle className="mr-2 h-4 w-4" /> {t('view_all_transactions')}
+            <PlusCircle className="mr-2 h-4 w-4" /> {t('new_transaction_btn') ?? 'Nouvelle Transaction'}
           </Button>
         </div>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>{t('recent_transactions')}</CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <div className="flex items-center space-x-2 mb-4">
             <DateRangeFilter onFilterChange={setDateFilter} initialRangeKey={filters.dateFilter.rangeKey} />
             <Select onValueChange={(value) => setTypeFilter(value as 'income' | 'expense' | 'all')} defaultValue={filters.typeFilter}>

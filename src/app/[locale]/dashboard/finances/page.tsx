@@ -17,12 +17,14 @@ import { Button } from "@/components/ui/button";
 import { useTranslations } from 'next-intl';
 import { ROLES } from '@/lib/constants';
 import Link from 'next/link';
+import { TransactionFormModal } from './components/TransactionFormModal';
 
 export default function FinancesPage() {
   const t = useTranslations('Finances');
   const tCommon = useTranslations('Common');
   const [dateFilter, setDateFilter] = React.useState<DateFilterValue>({ rangeKey: 'this_year', display: 'This Year' });
   const { currentUser, isLoading: isLoadingUser } = useCurrentUser();
+  const [isTransactionModalOpen, setIsTransactionModalOpen] = React.useState(false);
 
   const {
     stats,
@@ -71,11 +73,9 @@ export default function FinancesPage() {
             </Button>
           )}
           {currentUser?.role !== ROLES.SITE_COORDINATOR && (
-            <Button asChild variant="outline" size="sm">
-              <Link href="/dashboard/finances/transactions/new" className="flex items-center gap-2">
-                <Plus className="h-4 w-4" />
-                {t('new_transaction_btn') ?? 'Nouvelle Transaction'}
-              </Link>
+            <Button variant="outline" size="sm" onClick={() => setIsTransactionModalOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              {t('new_transaction_btn') ?? 'Nouvelle Transaction'}
             </Button>
           )}
           <DateRangeFilter
@@ -120,7 +120,7 @@ export default function FinancesPage() {
           <FinancialDashboard
             stats={stats}
             currentUser={currentUser}
-            linkGenerator={(type, id) => `/dashboard/finances/${type}/${id}`}
+            linkGenerator={(type, id) => `/dashboard/finances/${type === 'smallGroup' ? 'small-group' : type}/${id}`}
             hideStats={true} // New prop to hide internal stats
           />
         </div>
@@ -128,6 +128,15 @@ export default function FinancesPage() {
           <RecentTransactions transactions={transactions} />
         </div>
       </div>
+
+      <TransactionFormModal
+        isOpen={isTransactionModalOpen}
+        onClose={() => {
+          setIsTransactionModalOpen(false);
+          refetch(); // Refresh stats after new transaction
+        }}
+        transaction={null}
+      />
     </div>
   );
 }

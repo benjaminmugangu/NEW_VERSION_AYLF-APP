@@ -5,7 +5,9 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Users, Receipt, Wallet, TrendingDown } from 'lucide-react';
+import { Users, Receipt, Wallet, TrendingDown, ArrowLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { ROLES } from '@/lib/constants';
 import * as smallGroupService from '@/services/smallGroupService';
@@ -65,6 +67,14 @@ export default function SmallGroupFinancialDashboardPage() {
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+      <div className="flex items-center gap-4 mb-2">
+        <Button asChild variant="ghost" size="sm">
+          <Link href="/dashboard/finances" className="flex items-center gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            Retour aux finances
+          </Link>
+        </Button>
+      </div>
       <PageHeader
         title={`Financial Overview for ${smallGroup.name}`}
         description={`An overview of the finances for ${smallGroup.name}.`}
