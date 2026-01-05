@@ -380,6 +380,4 @@ export interface ServiceResponse<T> {
   success: boolean;
   data?: T;
   error?: { message: string };
-  reports: any[];
-  recentActivity?: any[]; // Unified activity stream
 }
