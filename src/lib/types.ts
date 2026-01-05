@@ -262,6 +262,7 @@ export interface Financials {
   // New metrics for Hybrid Allocation reporting
   directAllocationsTotal?: number;
   hierarchicalAllocationsTotal?: number;
+  recentActivity?: any[]; // Unified activity stream
 }
 
 // =============================================================================
@@ -379,5 +380,6 @@ export interface ServiceResponse<T> {
   success: boolean;
   data?: T;
   error?: { message: string };
-  details?: any;
+  reports: any[];
+  recentActivity?: any[]; // Unified activity stream
 }

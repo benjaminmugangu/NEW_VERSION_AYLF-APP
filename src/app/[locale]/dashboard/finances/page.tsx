@@ -143,7 +143,7 @@ export default function FinancesPage() {
           />
         </div>
         <div>
-          <RecentTransactions transactions={transactions} />
+          <RecentTransactions transactions={stats.recentActivity || []} />
         </div>
       </div>
 
