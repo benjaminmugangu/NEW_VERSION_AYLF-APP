@@ -324,6 +324,9 @@ model Report {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  // CRITICAL: Enforce one report per activity to prevent double financial transactions
+  // NULL values are allowed (for reports not linked to activities)
+  @@unique([activityId])
   @@map("reports")
 }
 
@@ -367,6 +370,9 @@ model FinancialTransaction {
 
   // Proof (NEW)
   proofUrl String? @map("proof_url")
+
+  // NEW: Tracks system-generated transactions for immutability enforcement
+  isSystemGenerated Boolean @default(false) @map("is_system_generated")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

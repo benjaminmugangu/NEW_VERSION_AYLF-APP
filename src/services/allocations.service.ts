@@ -9,6 +9,9 @@ import { revalidatePath } from 'next/cache';
 import notificationService from './notificationService';
 import { ROLES } from '@/lib/constants';
 import { UserRole } from '@prisma/client';
+import { checkPeriod } from './accountingService';
+import { checkBudgetIntegrity } from './budgetService';
+import { notifyBudgetOverrun } from './notificationService';
 
 export async function getAllocations(filters?: { siteId?: string; smallGroupId?: string }): Promise<FundAllocation[]> {
   const { getUser } = getKindeServerSession();
@@ -137,6 +140,9 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
       const result = await basePrisma.$transaction(async (tx: any) => {
         // Manually set RLS context at the start of the transaction session
         await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${kindeUser.id}'`);
+
+        // ✅ Accounting Period Guard: Prevent creation in closed periods
+        await checkPeriod(new Date(formData.allocationDate), 'Création d\'allocation');
 
         // NC Logic
         if (profile.role === 'NATIONAL_COORDINATOR') {
@@ -294,6 +300,26 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
       }, { timeout: 30000 });
 
       revalidatePath('/dashboard/finances');
+
+      // ✅ Real-time Budget Overrun Detection (Point 4)
+      // If funds were sent FROM a site, check if that site is now in overrun
+      if (profile.role === 'SITE_COORDINATOR' && profile.siteId) {
+        try {
+          // Pass the transaction client to checkBudgetIntegrity
+          const integrity = await checkBudgetIntegrity({ siteId: profile.siteId }, basePrisma); // Use basePrisma for checkBudgetIntegrity outside the transaction
+          if (integrity.isOverrun) {
+            await notifyBudgetOverrun({
+              siteId: profile.siteId,
+              entityName: profile.site?.name || 'Site',
+              balance: integrity.balance,
+              tx: basePrisma
+            });
+          }
+        } catch (e) {
+          console.error('[BudgetAlert] Failed to check site budget integrity:', e);
+        }
+      }
+
       return { success: true, data: result };
     });
   } catch (error: any) {
@@ -347,6 +373,20 @@ export async function updateAllocation(id: string, formData: Partial<FundAllocat
   }
 
   return await withRLS(kindeUser.id, async () => {
+    // Fetch existing allocation to check date
+    const existing = await prisma.fundAllocation.findUnique({
+      where: { id },
+      select: { allocationDate: true, allocationType: true }
+    });
+
+    if (!existing) throw new Error('Allocation not found');
+
+    // ✅ Accounting Period Guard: Check existing and new dates
+    await checkPeriod(existing.allocationDate, 'Modification d\'allocation (existant)');
+    if (formData.allocationDate) {
+      await checkPeriod(new Date(formData.allocationDate), 'Modification d\'allocation (nouvelle date)');
+    }
+
     const updateData: any = {};
     if (formData.amount !== undefined) updateData.amount = formData.amount;
     if (formData.allocationDate) updateData.allocationDate = new Date(formData.allocationDate);
@@ -374,12 +414,44 @@ export async function updateAllocation(id: string, formData: Partial<FundAllocat
       }
     }
 
-    await prisma.fundAllocation.update({
+    const updated = await prisma.fundAllocation.update({
       where: { id },
       data: updateData,
     });
 
     revalidatePath('/dashboard/finances');
+
+    // ✅ Real-time Budget Overrun Detection (Point 4)
+    // If the amount was reduced or recipient changed, check the affected entities
+    try {
+      if (updated.siteId) {
+        const siteIntegrity = await checkBudgetIntegrity({ siteId: updated.siteId }, basePrisma);
+        if (siteIntegrity.isOverrun) {
+          const site = await basePrisma.site.findUnique({ where: { id: updated.siteId }, select: { name: true } });
+          await notifyBudgetOverrun({
+            siteId: updated.siteId,
+            entityName: site?.name || 'Site',
+            balance: siteIntegrity.balance,
+            tx: basePrisma
+          });
+        }
+      }
+      if (updated.smallGroupId) {
+        const groupIntegrity = await checkBudgetIntegrity({ smallGroupId: updated.smallGroupId }, basePrisma);
+        if (groupIntegrity.isOverrun) {
+          const group = await basePrisma.smallGroup.findUnique({ where: { id: updated.smallGroupId }, select: { name: true } });
+          await notifyBudgetOverrun({
+            smallGroupId: updated.smallGroupId,
+            entityName: group?.name || 'Petit Groupe',
+            balance: groupIntegrity.balance,
+            tx: basePrisma
+          });
+        }
+      }
+    } catch (e) {
+      console.error('[BudgetAlert] Failed to check budget integrity after update:', e);
+    }
+
     return getAllocationById(id);
   });
 }
@@ -403,9 +475,48 @@ export async function deleteAllocation(id: string): Promise<void> {
   }
 
   return await withRLS(kindeUser.id, async () => {
-    await prisma.fundAllocation.delete({
-      where: { id }
+    // Fetch deletion targets for budget alerts
+    const target = await prisma.fundAllocation.findUnique({
+      where: { id },
+      select: { siteId: true, smallGroupId: true, allocationDate: true }
     });
+
+    if (!target) throw new Error('Allocation not found');
+
+    // ✅ Accounting Period Guard: Check date
+    await checkPeriod(target.allocationDate, 'Suppression d\'allocation');
+
+    await prisma.fundAllocation.delete({ where: { id } });
+
     revalidatePath('/dashboard/finances');
+
+    // ✅ Real-time Budget Overrun Detection (Point 4)
+    try {
+      if (target.siteId && !target.smallGroupId) {
+        const siteIntegrity = await checkBudgetIntegrity({ siteId: target.siteId }, basePrisma);
+        if (siteIntegrity.isOverrun) {
+          const site = await basePrisma.site.findUnique({ where: { id: target.siteId }, select: { name: true } });
+          await notifyBudgetOverrun({
+            siteId: target.siteId,
+            entityName: site?.name || 'Site',
+            balance: siteIntegrity.balance,
+            tx: basePrisma
+          });
+        }
+      } else if (target.smallGroupId) {
+        const groupIntegrity = await checkBudgetIntegrity({ smallGroupId: target.smallGroupId }, basePrisma);
+        if (groupIntegrity.isOverrun) {
+          const group = await basePrisma.smallGroup.findUnique({ where: { id: target.smallGroupId }, select: { name: true } });
+          await notifyBudgetOverrun({
+            smallGroupId: target.smallGroupId,
+            entityName: group?.name || 'Petit Groupe',
+            balance: groupIntegrity.balance,
+            tx: basePrisma
+          });
+        }
+      }
+    } catch (e) {
+      console.error('[BudgetAlert] Failed to check budget integrity after deletion:', e);
+    }
   });
 }

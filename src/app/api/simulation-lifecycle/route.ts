@@ -4,6 +4,7 @@ import { prisma, withRLS } from "@/lib/prisma";
 import * as activityService from '@/services/activityService';
 import * as reportService from '@/services/reportService';
 import dashboardService from '@/services/dashboardService';
+import { checkPeriod } from '@/services/accountingService';
 
 // This API simulates the "Life Cycle" of data as described in the User Guide
 // It leverages the actual Service layer, ensuring that business logic and RLS are tested.
@@ -140,6 +141,10 @@ export async function GET(request: Request) {
             case 'nc_record_transaction':
                 result = await executeInContext(async () => {
                     if (user.role !== 'NATIONAL_COORDINATOR') throw new Error("Role must be NC");
+
+                    // ✅ Accounting Period Guard: Even simulation must respect the cycle
+                    const now = new Date();
+                    await checkPeriod(now, 'Simulation: Transaction NC');
 
                     // Create Income
                     const income = await prisma.financialTransaction.create({

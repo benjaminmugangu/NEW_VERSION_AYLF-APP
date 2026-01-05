@@ -203,6 +203,7 @@ export interface FinancialTransaction extends BaseEntity {
   relatedReportTitle?: string;
   relatedActivityId?: string;
   proofUrl?: string;
+  isSystemGenerated?: boolean;
 }
 
 export interface FundAllocation extends BaseEntity {

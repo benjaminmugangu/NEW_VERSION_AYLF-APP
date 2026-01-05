@@ -64,14 +64,20 @@ export const columns: ColumnDef<FinancialTransaction>[] = [
         <div className="flex flex-col">
           <span className="font-medium">{transaction.description}</span>
           {transaction.relatedReportId && (
-            <Link
-              href="/dashboard/reports/view"
-              className="text-xs text-primary hover:underline mt-1 flex items-center gap-1"
-            >
-              <FileAxis3d className="h-3 w-3" />
-              {transaction.relatedReportTitle || 'Voir rapport'}
-            </Link>
-
+            <div className="flex items-center gap-2 mt-1">
+              <Link
+                href="/dashboard/reports/view"
+                className="text-xs text-primary hover:underline flex items-center gap-1"
+              >
+                <FileAxis3d className="h-3 w-3" />
+                {transaction.relatedReportTitle || 'Voir rapport'}
+              </Link>
+              {transaction.isSystemGenerated && (
+                <Badge variant="outline" className="text-[10px] h-4 px-1 bg-blue-50 text-blue-700 border-blue-200">
+                  🔒 Auto-généré
+                </Badge>
+              )}
+            </div>
           )}
         </div>
       );
@@ -125,8 +131,18 @@ export const columns: ColumnDef<FinancialTransaction>[] = [
               Copy Transaction ID
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Edit Transaction</DropdownMenuItem>
-            <DropdownMenuItem className="text-destructive">Delete Transaction</DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={transaction.isSystemGenerated}
+              className={transaction.isSystemGenerated ? 'opacity-50 cursor-not-allowed' : ''}
+            >
+              {transaction.isSystemGenerated ? '🔒 Lecture seule' : 'Edit Transaction'}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={transaction.isSystemGenerated}
+              className={transaction.isSystemGenerated ? 'opacity-50 cursor-not-allowed' : 'text-destructive'}
+            >
+              {transaction.isSystemGenerated ? '🔒 Non supprimable' : 'Delete Transaction'}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       );

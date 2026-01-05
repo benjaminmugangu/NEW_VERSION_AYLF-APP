@@ -8,6 +8,9 @@ import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { deleteFile } from './storageService';
 import notificationService from './notificationService';
 import { ROLES } from '@/lib/constants';
+import { checkPeriod } from './accountingService';
+import { checkBudgetIntegrity } from './budgetService';
+import { notifyBudgetOverrun } from './notificationService';
 
 // ... existing code ...
 
@@ -173,6 +176,22 @@ export async function createReport(reportData: ReportFormData, overrideUser?: an
       reportData.smallGroupId = undefined;
     } else if (reportData.level === 'small_group' && !reportData.smallGroupId) {
       throw new Error('Small Group ID is required for small-group-level reports.');
+    }
+
+    // CRITICAL: Prevent multiple reports per activity (double financial transactions)
+    if (reportData.activityId) {
+      const existingReport = await prisma.report.findFirst({
+        where: { activityId: reportData.activityId },
+        select: { id: true, title: true, status: true }
+      });
+
+      if (existingReport) {
+        throw new Error(
+          `ACTIVITY_ALREADY_REPORTED: Un rapport existe déjà pour cette activité. ` +
+          `Rapport existant: "${existingReport.title}" (statut: ${existingReport.status}). ` +
+          `Une activité ne peut avoir qu'un seul rapport pour éviter la double comptabilisation.`
+        );
+      }
     }
 
     try {
@@ -472,6 +491,9 @@ export async function approveReport(
       throw new Error('Report already approved');
     }
 
+    // ✅ Accounting Period Guard: Prevent approval if activity date is in a closed period
+    await checkPeriod(before.activityDate, 'Approbation de rapport');
+
     const generatedTransactionIds: string[] = [];
 
     // Update report and generate transactions in a transaction
@@ -520,6 +542,7 @@ export async function approveReport(
             approvedAt: new Date(),
             relatedReportId: reportId,
             relatedActivityId: approvedReport.activityId,
+            isSystemGenerated: true, // NEW - Mark as immutable
             // proofUrl: Could link to report's attachments if needed
           },
         });
@@ -534,6 +557,29 @@ export async function approveReport(
         approvedReport.id,
         tx
       );
+
+      // ✅ Real-time Budget Overrun Detection (Point 4)
+      // We check the integrity for the site/group after the new expense is recorded
+      try {
+        const integrity = await checkBudgetIntegrity({
+          siteId: approvedReport.siteId || undefined,
+          smallGroupId: approvedReport.smallGroupId || undefined
+        }, tx);
+
+        if (integrity.isOverrun) {
+          const entityName = approvedReport.smallGroup?.name || approvedReport.site?.name || 'Inconnu';
+          await notifyBudgetOverrun({
+            siteId: approvedReport.siteId || undefined,
+            smallGroupId: approvedReport.smallGroupId || undefined,
+            entityName,
+            balance: integrity.balance,
+            tx
+          });
+        }
+      } catch (e) {
+        console.error('[BudgetAlert] Failed to check budget integrity:', e);
+        // We don't fail the transaction if notification fails
+      }
 
       return approvedReport;
     });

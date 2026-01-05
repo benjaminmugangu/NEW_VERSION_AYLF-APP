@@ -89,3 +89,16 @@ export async function calculateAvailableBudget(params: {
         expenses: Number(totalExpenses),
     };
 }
+
+/**
+ * Deterministic helper to check for budget overruns.
+ * Pure function (calculations only, no mutations).
+ */
+export async function checkBudgetIntegrity(params: { siteId?: string; smallGroupId?: string }, tx?: any) {
+    const budget = await calculateAvailableBudget(params, tx);
+    return {
+        isOverrun: budget.available < 0,
+        balance: budget.available,
+        details: budget
+    };
+}

@@ -103,6 +103,7 @@ export default function SmallGroupFinancialDashboardPage() {
           value={formatCurrency(stats?.netBalance || 0)}
           icon={Wallet}
           description="Remaining funds for this group"
+          variant={(stats?.netBalance || 0) < 0 ? 'danger' : 'default'}
         />
       </div>
 

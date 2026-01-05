@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { MESSAGES } from '@/lib/messages';
 import { withApiRLS } from '@/lib/apiWrapper';
+import { checkPeriod } from '@/services/accountingService';
 
 const createTransactionSchema = z.object({
     description: z.string().min(1),
@@ -43,6 +44,9 @@ export const POST = withApiRLS(async (
 
         const { description, amount, date, category, type } = result.data;
 
+        // ✅ Accounting Period Guard: Prevent creation in closed periods
+        await checkPeriod(date, 'Création de transaction (API Report)');
+
         // Get the report
         const report = await prisma.report.findUnique({
             where: { id },
@@ -68,6 +72,7 @@ export const POST = withApiRLS(async (
                 smallGroupId: report.smallGroupId,
                 recordedById: user.id,
                 relatedReportId: report.id,
+                isSystemGenerated: true, // ✅ Mark as system-generated since it's linked to a report
             },
         });
 

@@ -6,6 +6,9 @@ import { FinancialTransaction, User, TransactionFormData } from '@/lib/types';
 import { getDateRangeFromFilterValue, type DateFilterValue } from '@/lib/dateUtils';
 import { logTransactionCreation, logTransactionApproval, createAuditLog } from './auditLogService';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
+import { checkPeriod } from './accountingService';
+import { checkBudgetIntegrity } from './budgetService';
+import { notifyBudgetOverrun } from './notificationService';
 
 // Helper to map Prisma result to FinancialTransaction type
 const mapPrismaTransactionToModel = (tx: any): FinancialTransaction => {
@@ -146,6 +149,9 @@ export async function createTransaction(formData: TransactionFormData, idempoten
     }
 
     try {
+      // ✅ Accounting Period Guard: Prevent creation in closed periods
+      await checkPeriod(new Date(formData.date), 'Création de transaction');
+
       const { siteId, smallGroupId } = await resolveTransactionContext(formData);
 
       const tx = await prisma.financialTransaction.create({
@@ -182,6 +188,27 @@ export async function createTransaction(formData: TransactionFormData, idempoten
           where: { key: idempotencyKey },
           data: { response: result as any }
         });
+      }
+
+      // ✅ Real-time Budget Overrun Detection (Point 4)
+      if (tx.status === 'approved' && (tx.siteId || tx.smallGroupId)) {
+        try {
+          const integrity = await checkBudgetIntegrity({
+            siteId: tx.siteId || undefined,
+            smallGroupId: tx.smallGroupId || undefined
+          }, prisma); // Use base prisma outside of withRLS if needed, or just prisma
+          if (integrity.isOverrun) {
+            const entityName = tx.smallGroup?.name || tx.site?.name || 'Inconnu';
+            await notifyBudgetOverrun({
+              siteId: tx.siteId || undefined,
+              smallGroupId: tx.smallGroupId || undefined,
+              entityName,
+              balance: integrity.balance
+            });
+          }
+        } catch (e) {
+          console.error('[BudgetAlert] Failed to check budget integrity after creation:', e);
+        }
       }
 
       return result;
@@ -241,6 +268,29 @@ export async function updateTransaction(id: string, formData: Partial<Transactio
     if (formData.siteId !== undefined) updateData.siteId = formData.siteId;
     if (formData.smallGroupId !== undefined) updateData.smallGroupId = formData.smallGroupId;
 
+    // CRITICAL: Prevent updates to system-generated transactions
+    const existing = await prisma.financialTransaction.findUnique({
+      where: { id },
+      select: { isSystemGenerated: true, date: true }
+    });
+
+    if (!existing) throw new Error('Transaction not found');
+
+    // ✅ Accounting Period Guard: Prevent updates in closed periods
+    // Check both existing date and new date if changed
+    await checkPeriod(existing.date, 'Modification de transaction (existant)');
+    if (formData.date) {
+      await checkPeriod(new Date(formData.date), 'Modification de transaction (nouvelle date)');
+    }
+
+    if (existing?.isSystemGenerated) {
+      throw new Error(
+        'TRANSACTION_IMMUTABLE: Cette transaction a été générée automatiquement ' +
+        'lors de l\'approbation d\'un rapport et ne peut pas être modifiée. ' +
+        'Utilisez une transaction d\'annulation (reversal) si nécessaire.'
+      );
+    }
+
     const tx = await prisma.financialTransaction.update({
       where: { id },
       data: updateData,
@@ -250,6 +300,27 @@ export async function updateTransaction(id: string, formData: Partial<Transactio
         recordedBy: true,
       }
     });
+
+    // ✅ Real-time Budget Overrun Detection (Point 4)
+    if (tx.status === 'approved' && (tx.siteId || tx.smallGroupId)) {
+      try {
+        const integrity = await checkBudgetIntegrity({
+          siteId: tx.siteId || undefined,
+          smallGroupId: tx.smallGroupId || undefined
+        }, prisma);
+        if (integrity.isOverrun) {
+          const entityName = tx.smallGroup?.name || tx.site?.name || 'Inconnu';
+          await notifyBudgetOverrun({
+            siteId: tx.siteId || undefined,
+            smallGroupId: tx.smallGroupId || undefined,
+            entityName,
+            balance: integrity.balance
+          });
+        }
+      } catch (e) {
+        console.error('[BudgetAlert] Failed to check budget integrity after update:', e);
+      }
+    }
 
     return mapPrismaTransactionToModel(tx);
   });
@@ -261,9 +332,49 @@ export async function deleteTransaction(id: string): Promise<void> {
   if (!user) throw new Error('Unauthorized');
 
   return await withRLS(user.id, async () => {
-    await prisma.financialTransaction.delete({
+    // CRITICAL: Prevent deletion of system-generated transactions
+    const existing = await prisma.financialTransaction.findUnique({
       where: { id },
+      select: { isSystemGenerated: true, date: true }
     });
+
+    if (!existing) throw new Error('Transaction not found');
+
+    // ✅ Accounting Period Guard: Prevent deletion in closed periods
+    await checkPeriod(existing.date, 'Suppression de transaction');
+
+    if (existing?.isSystemGenerated) {
+      throw new Error(
+        'TRANSACTION_IMMUTABLE: Cette transaction a été générée automatiquement ' +
+        'et ne peut pas être supprimée. Elle est liée à un rapport approuvé.'
+      );
+    }
+
+    const deleted = await prisma.financialTransaction.delete({
+      where: { id },
+      include: { site: true, smallGroup: true }
+    });
+
+    // ✅ Real-time Budget Overrun Detection (Point 4)
+    if (deleted.status === 'approved' && (deleted.siteId || deleted.smallGroupId)) {
+      try {
+        const integrity = await checkBudgetIntegrity({
+          siteId: deleted.siteId || undefined,
+          smallGroupId: deleted.smallGroupId || undefined
+        }, prisma);
+        if (integrity.isOverrun) {
+          const entityName = deleted.smallGroup?.name || deleted.site?.name || 'Inconnu';
+          await notifyBudgetOverrun({
+            siteId: deleted.siteId || undefined,
+            smallGroupId: deleted.smallGroupId || undefined,
+            entityName,
+            balance: integrity.balance
+          });
+        }
+      } catch (e) {
+        console.error('[BudgetAlert] Failed to check budget integrity after deletion:', e);
+      }
+    }
   });
 }
 
@@ -383,7 +494,10 @@ export async function createReversalTransaction(
   }
 
   const reversalTx = await withRLS(createdById, async () => {
-    return await prisma.financialTransaction.create({
+    // ✅ Accounting Period Guard: Even reversals must respect the cycle
+    await checkPeriod(new Date(), 'Contre-passation (reversal)');
+
+    const tx = await prisma.financialTransaction.create({
       data: {
         type: original.type === 'income' ? 'expense' : 'income', // Inverse type
         category: original.category,
@@ -406,6 +520,29 @@ export async function createReversalTransaction(
         approvedBy: true,
       },
     });
+
+    // ✅ Real-time Budget Overrun Detection (Point 4)
+    if (tx.siteId || tx.smallGroupId) {
+      try {
+        const integrity = await checkBudgetIntegrity({
+          siteId: tx.siteId || undefined,
+          smallGroupId: tx.smallGroupId || undefined
+        }, prisma);
+        if (integrity.isOverrun) {
+          const entityName = tx.smallGroup?.name || tx.site?.name || 'Inconnu';
+          await notifyBudgetOverrun({
+            siteId: tx.siteId || undefined,
+            smallGroupId: tx.smallGroupId || undefined,
+            entityName,
+            balance: integrity.balance
+          });
+        }
+      } catch (e) {
+        console.error('[BudgetAlert] Failed to check budget integrity after reversal:', e);
+      }
+    }
+
+    return tx;
   });
 
   // Audit log

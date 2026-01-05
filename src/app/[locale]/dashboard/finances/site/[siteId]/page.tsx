@@ -87,7 +87,12 @@ export default function SiteFinancialDashboardPage() {
           <StatCard icon={Banknote} title="Income" value={formatCurrency(stats?.income || 0)} />
           <StatCard icon={TrendingDown} title="Total Allocated" value={formatCurrency(stats?.totalAllocated || 0)} />
           <StatCard icon={Receipt} title="Expenses" value={formatCurrency(stats?.expenses || 0)} />
-          <StatCard icon={Building} title="Net Balance" value={formatCurrency(stats?.netBalance || 0)} />
+          <StatCard
+            icon={Building}
+            title="Net Balance"
+            value={formatCurrency(stats?.netBalance || 0)}
+            variant={(stats?.netBalance || 0) < 0 ? 'danger' : 'default'}
+          />
         </div>
         <div className="mt-8">
           <Tabs defaultValue="allocations">

@@ -37,11 +37,19 @@ export default function TransactionsPage() {
   const [selectedTransaction, setSelectedTransaction] = useState<FinancialTransaction | null>(null);
 
   const handleEdit = (transaction: FinancialTransaction) => {
+    if (transaction.isSystemGenerated) return;
     setSelectedTransaction(transaction);
     setIsModalOpen(true);
   };
 
   const handleDelete = async (id: string) => {
+    // Extra safety check
+    const transaction = transactions.find(t => t.id === id);
+    if (transaction?.isSystemGenerated) {
+      alert("Cette transaction est générée par le système et ne peut pas être supprimée.");
+      return;
+    }
+
     if (window.confirm('Are you sure you want to delete this transaction?')) {
       try {
         await deleteTransaction(id);
@@ -57,9 +65,22 @@ export default function TransactionsPage() {
     if (col.id === 'actions') {
       return {
         ...col,
-        cell: ({ row }: { row: { original: FinancialTransaction } }) => (
-          <Button variant="ghost" size="sm" onClick={() => handleEdit(row.original)}>Edit</Button>
-        )
+        cell: ({ row }: { row: { original: FinancialTransaction } }) => {
+          const isSystem = row.original.isSystemGenerated;
+          return (
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleEdit(row.original)}
+                disabled={isSystem}
+                className={isSystem ? 'opacity-50' : ''}
+              >
+                {isSystem ? '🔒' : 'Edit'}
+              </Button>
+            </div>
+          );
+        }
       };
     }
     return col;

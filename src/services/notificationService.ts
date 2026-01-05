@@ -273,9 +273,9 @@ export async function notifyMemberAdded(
 }
 
 /**
- * Notify when budget is low
+ * Notify when budget is low (preventive)
  */
-export async function notifyBudgetAlert(
+export async function notifyBudgetLow(
     userId: string,
     entityName: string,
     remainingAmount: number
@@ -286,8 +286,75 @@ export async function notifyBudgetAlert(
         title: '⚠️ Alerte Budget Faible',
         message: `Le budget de ${entityName} est faible: ${new Intl.NumberFormat('fr-FR').format(remainingAmount)} FC restants.`,
         link: '/dashboard/finances',
-        metadata: { entityName, remainingAmount }
+        metadata: { entityName, remainingAmount, severity: 'warning' }
     });
+}
+
+/**
+ * Notify about a budget overrun (available < 0)
+ */
+export async function notifyBudgetOverrun(params: {
+    siteId?: string;
+    smallGroupId?: string;
+    entityName: string;
+    balance: number;
+    tx?: any;
+}): Promise<void> {
+    const { siteId, smallGroupId, entityName, balance, tx } = params;
+    const client = tx || prisma;
+
+    const formattedBalance = new Intl.NumberFormat('fr-FR').format(Math.abs(balance));
+    const title = '🚨 Dépassement Budgétaire';
+    const message = `Alerte : ${entityName} présente un solde négatif de -${formattedBalance} FC.`;
+    const link = '/dashboard/finances';
+
+    if (siteId && !smallGroupId) {
+        const ncs = await client.profile.findMany({
+            where: { role: 'NATIONAL_COORDINATOR' },
+            select: { id: true }
+        });
+
+        const scs = await client.profile.findMany({
+            where: { role: 'SITE_COORDINATOR', siteId },
+            select: { id: true }
+        });
+
+        const targets = [...new Set([...ncs.map((n: { id: string }) => n.id), ...scs.map((s: { id: string }) => s.id)])];
+
+        await Promise.all(targets.map((userId: string) =>
+            createNotification({
+                userId,
+                type: 'BUDGET_ALERT',
+                title,
+                message,
+                link,
+                metadata: { siteId, balance, severity: 'critical' }
+            }, client)
+        ));
+    } else if (smallGroupId) {
+        const group = await client.smallGroup.findUnique({
+            where: { id: smallGroupId },
+            select: { siteId: true }
+        });
+
+        if (group?.siteId) {
+            const scs = await client.profile.findMany({
+                where: { role: 'SITE_COORDINATOR', siteId: group.siteId },
+                select: { id: true }
+            });
+
+            await Promise.all(scs.map((sc: { id: string }) =>
+                createNotification({
+                    userId: sc.id,
+                    type: 'BUDGET_ALERT',
+                    title,
+                    message,
+                    link,
+                    metadata: { smallGroupId, balance, severity: 'critical' }
+                }, client)
+            ));
+        }
+    }
 }
 
 const notificationService = {
@@ -306,7 +373,8 @@ const notificationService = {
     notifyActivityCreated,
     notifyMemberAdded,
     notifyNewReport,
-    notifyBudgetAlert,
+    notifyBudgetLow,
+    notifyBudgetOverrun,
 };
 
 export default notificationService;

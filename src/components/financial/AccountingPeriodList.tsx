@@ -27,9 +27,10 @@ import type { AccountingPeriod } from '@prisma/client';
 interface AccountingPeriodListProps {
     periods: (AccountingPeriod & { closedBy?: { name: string; email: string } | null })[];
     currentUserId: string;
+    userRole?: string;
 }
 
-export function AccountingPeriodList({ periods, currentUserId }: AccountingPeriodListProps) {
+export function AccountingPeriodList({ periods, currentUserId, userRole }: AccountingPeriodListProps) {
     const { toast } = useToast();
     const router = useRouter();
     const [loading, setLoading] = useState<string | null>(null);
@@ -148,28 +149,30 @@ export function AccountingPeriodList({ periods, currentUserId }: AccountingPerio
                                         <span className="text-muted-foreground">—</span>
                                     )}
                                 </TableCell>
-                                <TableCell className="text-right">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="sm" disabled={loading === period.id}>
-                                                <MoreVertical className="h-4 w-4" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            {period.status === 'open' ? (
-                                                <DropdownMenuItem onClick={() => handleClose(period.id)}>
-                                                    <Lock className="mr-2 h-4 w-4" />
-                                                    Close Period
-                                                </DropdownMenuItem>
-                                            ) : (
-                                                <DropdownMenuItem onClick={() => handleReopen(period.id)}>
-                                                    <LockOpen className="mr-2 h-4 w-4" />
-                                                    Reopen Period
-                                                </DropdownMenuItem>
-                                            )}
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </TableCell>
+                                {userRole === 'NATIONAL_COORDINATOR' && (
+                                    <TableCell className="text-right">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="sm" disabled={loading === period.id}>
+                                                    <MoreVertical className="h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                {period.status === 'open' ? (
+                                                    <DropdownMenuItem onClick={() => handleClose(period.id)}>
+                                                        <Lock className="mr-2 h-4 w-4" />
+                                                        Close Period
+                                                    </DropdownMenuItem>
+                                                ) : (
+                                                    <DropdownMenuItem onClick={() => handleReopen(period.id)}>
+                                                        <LockOpen className="mr-2 h-4 w-4" />
+                                                        Reopen Period
+                                                    </DropdownMenuItem>
+                                                )}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
+                                )}
                             </TableRow>
                         ))
                     )}

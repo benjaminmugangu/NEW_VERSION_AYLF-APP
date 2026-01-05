@@ -64,6 +64,14 @@ export default function FinancesPage() {
           <p className="text-muted-foreground">{t('dashboard_desc') ?? 'Manage and track your financial activities.'}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {(currentUser?.role === ROLES.NATIONAL_COORDINATOR || currentUser?.role === ROLES.SITE_COORDINATOR) && (
+            <Button asChild variant="outline" size="sm">
+              <Link href="/dashboard/finances/periods" className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                {currentUser?.role === ROLES.NATIONAL_COORDINATOR ? 'Gérer les Périodes' : 'Cycles Financiers'}
+              </Link>
+            </Button>
+          )}
           {canSendFunds && (
             <Button asChild variant="default" size="sm" className="bg-primary hover:bg-primary/90">
               <Link href="/dashboard/finances/allocations/new" className="flex items-center gap-2">
@@ -92,6 +100,7 @@ export default function FinancesPage() {
           value={new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats.netBalance)}
           icon={Banknote}
           description={t('desc_balance')}
+          variant={stats.netBalance < 0 ? 'danger' : 'default'}
         />
         <StatCard
           title={t('funds_received')}

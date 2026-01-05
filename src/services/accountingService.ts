@@ -205,3 +205,31 @@ export async function reopenAccountingPeriod(id: string) {
         }
     })
 }
+
+/**
+ * Checks if a given date falls within a closed accounting period.
+ */
+export async function isPeriodClosed(date: Date): Promise<{ closed: boolean; period?: AccountingPeriod }> {
+    const period = await prisma.accountingPeriod.findFirst({
+        where: {
+            startDate: { lte: date },
+            endDate: { gte: date },
+            status: 'closed'
+        }
+    });
+    return { closed: !!period, period: period || undefined };
+}
+
+/**
+ * Safety guard: throws an error if the date is within a closed period.
+ */
+export async function checkPeriod(date: Date, actionName: string): Promise<void> {
+    const { closed, period } = await isPeriodClosed(date);
+    if (closed && period) {
+        throw new Error(
+            `PERIOD_CLOSED: L'action "${actionName}" est impossible car la date (${date.toLocaleDateString()}) ` +
+            `appartient à une période comptable clôturée (ID: ${period.id}). ` +
+            `Veuillez réouvrir la période ou changer la date.`
+        );
+    }
+}

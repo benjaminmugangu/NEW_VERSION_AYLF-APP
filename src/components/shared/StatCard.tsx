@@ -12,22 +12,39 @@ export interface StatCardProps {
   href?: string;
   trendData?: number[]; // Array of numbers for sparkline
   trend?: "up" | "down" | "neutral"; // Trend direction color
+  variant?: "default" | "danger" | "warning" | "success";
 }
 
-export function StatCard({ title, value, icon: Icon, description, href, trendData, trend }: StatCardProps) {
+export function StatCard({ title, value, icon: Icon, description, href, trendData, trend, variant = "default" }: StatCardProps) {
   // Glassmorphism classes for dark mode
   const glassClasses = "dark:bg-white/5 dark:backdrop-blur-md dark:border-white/10";
 
+  const variantClasses = {
+    default: "border-border/50 hover:border-primary/20 hover:bg-accent/5",
+    danger: "border-red-500/50 bg-red-50/50 dark:bg-red-950/20 hover:border-red-500 hover:bg-red-100/50 dark:hover:bg-red-900/30",
+    warning: "border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20 hover:border-amber-500 hover:bg-amber-100/50 dark:hover:bg-amber-900/30",
+    success: "border-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-950/20 hover:border-emerald-500 hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30"
+  };
+
   const cardContent = (
     <Card className={cn(
-      "shadow-md hover:shadow-lg transition-all duration-300 ease-in-out hover:scale-[1.02] h-full border-2 border-border/50 hover:border-primary/20 hover:bg-accent/5",
+      "shadow-md hover:shadow-lg transition-all duration-300 ease-in-out hover:scale-[1.02] h-full border-2",
+      variantClasses[variant],
       glassClasses
     )}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
+        <CardTitle className={cn(
+          "text-sm font-medium text-muted-foreground",
+          variant === 'danger' && "text-red-600 dark:text-red-400"
+        )}>
           {title}
         </CardTitle>
-        <Icon className="h-5 w-5 text-muted-foreground" />
+        <Icon className={cn(
+          "h-5 w-5 text-muted-foreground",
+          variant === 'danger' && "text-red-500",
+          variant === 'warning' && "text-amber-500",
+          variant === 'success' && "text-emerald-500"
+        )} />
       </CardHeader>
       <CardContent>
         <div className="flex justify-between items-end">
