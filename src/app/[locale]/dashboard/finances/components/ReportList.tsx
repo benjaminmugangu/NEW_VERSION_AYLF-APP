@@ -31,7 +31,7 @@ export const ReportList: React.FC<ReportListProps> = ({
               {reports.map((report) => (
                 <Link
                   key={report.id}
-                  href={`/dashboard/reports/${report.id}`}
+                  href="/dashboard/reports/view"
                   className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50 transition-colors group"
                 >
                   <div>
@@ -46,6 +46,7 @@ export const ReportList: React.FC<ReportListProps> = ({
                   </div>
                 </Link>
               ))}
+
             </div>
           ) : (
             <div className="flex items-center justify-center h-full">

@@ -65,12 +65,13 @@ export const columns: ColumnDef<FinancialTransaction>[] = [
           <span className="font-medium">{transaction.description}</span>
           {transaction.relatedReportId && (
             <Link
-              href={`/dashboard/reports/${transaction.relatedReportId}`}
+              href="/dashboard/reports/view"
               className="text-xs text-primary hover:underline mt-1 flex items-center gap-1"
             >
               <FileAxis3d className="h-3 w-3" />
               {transaction.relatedReportTitle || 'Voir rapport'}
             </Link>
+
           )}
         </div>
       );
