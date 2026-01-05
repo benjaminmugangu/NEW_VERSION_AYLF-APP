@@ -56,11 +56,30 @@ export const getFinancials = async (user: User, dateFilter: DateFilterValue): Pr
       reports: filteredReports
     });
 
+    // 3. Create unified activity feed
+    const unifiedActivity = [
+      ...(transactions || []).map(t => ({ ...t, activityType: 'transaction' })),
+      ...(filteredAllocations || []).map(a => ({
+        id: a.id,
+        date: a.allocationDate,
+        description: a.goal,
+        amount: a.amount,
+        type: 'income',
+        category: 'Allocation',
+        status: a.status === 'completed' ? 'approved' : 'pending',
+        activityType: 'allocation',
+        siteName: a.siteName,
+        smallGroupName: a.smallGroupName,
+        fromSiteName: a.fromSiteName
+      }))
+    ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
     return {
       ...stats,
       transactions: transactions || [],
       allocations: filteredAllocations,
       reports: filteredReports,
+      recentActivity: unifiedActivity,
     };
 
   } catch (error) {
@@ -209,11 +228,30 @@ export const getEntityFinancials = async (
       reports: filteredReports
     });
 
+    // 3. Create unified activity feed
+    const unifiedActivity = [
+      ...(transactions || []).map(t => ({ ...t, activityType: 'transaction' })),
+      ...(filteredAllocations || []).map(a => ({
+        id: a.id,
+        date: a.allocationDate,
+        description: a.goal,
+        amount: a.amount,
+        type: 'income',
+        category: 'Allocation',
+        status: a.status === 'completed' ? 'approved' : 'pending',
+        activityType: 'allocation',
+        siteName: a.siteName,
+        smallGroupName: a.smallGroupName,
+        fromSiteName: a.fromSiteName
+      }))
+    ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
     return {
       ...stats,
       transactions: transactions || [],
       allocations: filteredAllocations,
       reports: filteredReports,
+      recentActivity: unifiedActivity,
     };
   } catch (error) {
     console.error("Error fetching entity financials:", error);
