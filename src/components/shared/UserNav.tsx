@@ -18,11 +18,15 @@ import {
 import Link from "next/link";
 import type { User } from '@/lib/types';
 
+import { useCurrentUser } from "@/contexts/AuthContext";
+
 interface UserNavProps {
-  user: User | null;
+  user: User | null; // Initial user from server
 }
 
-export function UserNav({ user }: UserNavProps) {
+export function UserNav({ user: initialUser }: UserNavProps) {
+  const { currentUser } = useCurrentUser();
+  const user = currentUser || initialUser;
   // const router = useRouter();
 
   const handleLogout = async () => {

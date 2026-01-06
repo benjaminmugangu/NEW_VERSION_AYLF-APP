@@ -19,11 +19,15 @@ import { NAVIGATION_LINKS } from '@/lib/constants';
 import type { NavItem } from '@/lib/types';
 import LanguageSwitcher from '@/components/shared/LanguageSwitcher';
 
+import { useCurrentUser } from '@/contexts/AuthContext';
+
 interface DashboardSidebarProps {
-  user: User | null;
+  user: User | null; // Initial user from server
 }
 
-export function DashboardSidebar({ user }: DashboardSidebarProps) {
+export function DashboardSidebar({ user: initialUser }: DashboardSidebarProps) {
+  const { currentUser } = useCurrentUser();
+  const user = currentUser || initialUser;
   const router = useRouter();
   const pathname = usePathname();
   const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>({});

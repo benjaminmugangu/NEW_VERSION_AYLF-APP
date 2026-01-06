@@ -43,6 +43,16 @@ export async function getSyncProfile(
                     mandateEndDate: mockProfile.mandateEndDate?.toISOString(),
                     avatarUrl: mockProfile.avatarUrl || undefined,
                 };
+
+                if (mockUser.avatarUrl && !mockUser.avatarUrl.startsWith('http')) {
+                    try {
+                        const { getSignedUrl } = await import('./storageService');
+                        mockUser.avatarUrl = await getSignedUrl(mockUser.avatarUrl, 'avatars');
+                    } catch (e) {
+                        console.warn(`[AUTH_SERVICE] Mock avatar signing failed:`, e);
+                    }
+                }
+
                 return ensurePOJO(mockUser);
             }
         }
@@ -237,6 +247,16 @@ export async function getSyncProfile(
             mandateEndDate: profile.mandateEndDate?.toISOString(),
             avatarUrl: profile.avatarUrl || undefined,
         };
+
+        if (user.avatarUrl && !user.avatarUrl.startsWith('http')) {
+            try {
+                const { getSignedUrl } = await import('./storageService');
+                user.avatarUrl = await getSignedUrl(user.avatarUrl, 'avatars');
+            } catch (e) {
+                console.warn(`[AUTH_SERVICE] Avatar signing failed for ${user.id}:`, e);
+            }
+        }
+
         return ensurePOJO(user);
     }
 

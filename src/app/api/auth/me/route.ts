@@ -38,16 +38,6 @@ export async function GET(request: NextRequest) {
     return await withRLS(kindeUser.id, async () => {
       const user = await getSyncProfile(kindeUser, kindeRoleKey);
 
-      // Sign avatar URL if it's a relative path
-      if (user.avatarUrl && !user.avatarUrl.startsWith('http')) {
-        try {
-          const { getSignedUrl } = await import('@/services/storageService');
-          user.avatarUrl = await getSignedUrl(user.avatarUrl, 'avatars');
-        } catch (e) {
-          console.warn('[AUTH_ME] Failed to sign avatar:', e);
-        }
-      }
-
       console.log("[AUTH_ME] Sync complete for:", user.email);
       return NextResponse.json({ user });
     });
