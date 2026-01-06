@@ -121,7 +121,11 @@ export function SitesClient({ initialSites, user, analytics }: SitesClientProps)
                                                 <TableCell>
                                                     <div className="flex items-center gap-2">
                                                         <UserAvatar
-                                                            user={{ name: site.coordinatorName, avatarUrl: site.coordinatorProfilePicture, role: 'SITE_COORDINATOR' }}
+                                                            user={{
+                                                                name: site.coordinatorName || undefined,
+                                                                avatarUrl: site.coordinatorProfilePicture || undefined,
+                                                                role: 'SITE_COORDINATOR'
+                                                            }}
                                                             size="md"
                                                             className={!hasCoordinator ? "opacity-40" : ""}
                                                         />

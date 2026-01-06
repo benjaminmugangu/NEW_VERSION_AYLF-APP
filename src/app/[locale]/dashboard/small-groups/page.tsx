@@ -159,7 +159,7 @@ export default function SmallGroupsPage() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <UserAvatar
-                              user={sg.leader || { name: sg.leaderName, role: 'SMALL_GROUP_LEADER' }}
+                              user={sg.leader || { name: sg.leaderName || undefined, role: 'SMALL_GROUP_LEADER' }}
                               size="md"
                               className={!hasLeader ? "opacity-40" : ""}
                             />
