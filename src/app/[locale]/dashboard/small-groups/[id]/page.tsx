@@ -8,7 +8,6 @@ import { useSmallGroupDetails } from '@/hooks/useSmallGroupDetails';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { UserAvatar } from '@/components/shared/UserAvatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ArrowLeft, Edit, UsersRound, MapPin, Clock, User, Building, Shield } from 'lucide-react';
