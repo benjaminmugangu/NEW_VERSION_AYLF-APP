@@ -41,6 +41,7 @@ export async function getSyncProfile(
                     smallGroupName: mockProfile.smallGroup?.name,
                     mandateStartDate: mockProfile.mandateStartDate?.toISOString(),
                     mandateEndDate: mockProfile.mandateEndDate?.toISOString(),
+                    avatarUrl: mockProfile.avatarUrl || undefined,
                 };
                 return ensurePOJO(mockUser);
             }
@@ -234,6 +235,7 @@ export async function getSyncProfile(
             smallGroupName: profile.smallGroup?.name,
             mandateStartDate: profile.mandateStartDate?.toISOString(),
             mandateEndDate: profile.mandateEndDate?.toISOString(),
+            avatarUrl: profile.avatarUrl || undefined,
         };
         return ensurePOJO(user);
     }

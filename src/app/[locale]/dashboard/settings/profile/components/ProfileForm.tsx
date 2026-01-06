@@ -26,15 +26,20 @@ import { useTranslations, useFormatter } from 'next-intl';
 import { updateProfile, uploadAvatar } from '@/services/profileService';
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { Camera } from "lucide-react";
+import { useCurrentUser } from "@/contexts/AuthContext";
 
 interface ProfileFormProps {
-  currentUser: User;
+  currentUser?: User;
   onUpdateProfile?: (updatedData: Partial<User>) => void; // Legacy, optional
   canEdit: boolean;
 }
 
-export function ProfileForm({ currentUser, onUpdateProfile, canEdit }: ProfileFormProps) {
+export function ProfileForm({ onUpdateProfile, canEdit }: ProfileFormProps) {
+  const { currentUser, refreshUser } = useCurrentUser();
   const router = useRouter();
+
+  if (!currentUser) return null;
+
   const [sites, setSites] = useState<Site[]>([]);
   const [smallGroups, setSmallGroups] = useState<SmallGroup[]>([]);
   const [isLoadingAssignment, setIsLoadingAssignment] = useState(true);
@@ -121,6 +126,9 @@ export function ProfileForm({ currentUser, onUpdateProfile, canEdit }: ProfileFo
       // Cache bust the URL to ensure the browser fetches the new image immediately
       const cacheBustUrl = `${newUrl}${newUrl.includes('?') ? '&' : '?'}v=${Date.now()}`;
       setAvatarUrl(cacheBustUrl);
+
+      // Refresh the context to update sidebar and other consumers
+      await refreshUser();
 
       // Force Next.js server component refresh (for sidebar avatars etc.)
       router.refresh();

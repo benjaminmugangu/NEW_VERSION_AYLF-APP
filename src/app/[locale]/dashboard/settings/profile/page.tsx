@@ -70,7 +70,6 @@ export default function ProfileSettingsPage() {
         icon={UserCircle}
       />
       <ProfileForm
-        currentUser={currentUser}
         canEdit={canEdit}
       />
     </>
