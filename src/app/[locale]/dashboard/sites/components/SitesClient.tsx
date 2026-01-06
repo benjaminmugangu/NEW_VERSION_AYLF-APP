@@ -7,7 +7,7 @@ import { Edit, Trash2, Eye, Search, Building, UsersRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { UserAvatar } from '@/components/shared/UserAvatar';
 import type { SiteWithDetails, User } from '@/lib/types';
 import {
     AlertDialog,
@@ -120,10 +120,11 @@ export function SitesClient({ initialSites, user, analytics }: SitesClientProps)
                                                 <TableCell className="font-medium">{site.name}</TableCell>
                                                 <TableCell>
                                                     <div className="flex items-center gap-2">
-                                                        <Avatar className={!hasCoordinator ? "opacity-40" : ""}>
-                                                            <AvatarImage src={site.coordinatorProfilePicture || undefined} />
-                                                            <AvatarFallback>{hasCoordinator ? getInitials(displayCoordinatorName) : '?'}</AvatarFallback>
-                                                        </Avatar>
+                                                        <UserAvatar
+                                                            user={{ name: site.coordinatorName, avatarUrl: site.coordinatorProfilePicture, role: 'SITE_COORDINATOR' }}
+                                                            size="md"
+                                                            className={!hasCoordinator ? "opacity-40" : ""}
+                                                        />
                                                         <span className={!hasCoordinator ? "text-muted-foreground italic text-sm" : ""}>
                                                             {displayCoordinatorName}
                                                         </span>

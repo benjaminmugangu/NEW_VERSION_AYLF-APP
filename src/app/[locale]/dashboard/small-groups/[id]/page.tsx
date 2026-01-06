@@ -8,7 +8,8 @@ import { useSmallGroupDetails } from '@/hooks/useSmallGroupDetails';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { UserAvatar } from '@/components/shared/UserAvatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ArrowLeft, Edit, UsersRound, MapPin, Clock, User, Building, Shield } from 'lucide-react';
 import { ROLES } from '@/lib/constants';
@@ -32,10 +33,7 @@ const DetailItem = ({ icon, label, value }: { icon: React.ElementType; label: st
 
 const UserCard = ({ user, role }: { user?: UserType; role: string }) => (
   <div className="flex items-center space-x-4 p-4 border rounded-lg">
-    <Avatar className="h-12 w-12">
-      <AvatarImage src={(user?.user_metadata as any)?.avatar_url as string | undefined} />
-      <AvatarFallback>{getInitials(user?.name || 'N/A')}</AvatarFallback>
-    </Avatar>
+    <UserAvatar user={user} size="lg" showBadge />
     <div>
       <p className="font-bold text-lg">{user?.name || 'Not Assigned'}</p>
       <p className="text-sm text-muted-foreground">{role}</p>

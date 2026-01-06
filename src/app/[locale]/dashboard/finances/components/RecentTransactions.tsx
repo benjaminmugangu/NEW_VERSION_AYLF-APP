@@ -5,7 +5,7 @@ import { useTranslations, useFormatter } from 'next-intl';
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { UserAvatar } from '@/components/shared/UserAvatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowDownLeft, ArrowUpRight, History, Send } from "lucide-react";
@@ -40,11 +40,11 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
           return (
             <div key={item.id} className="flex items-center justify-between group">
               <div className="flex items-center space-x-3">
-                <Avatar className="h-9 w-9 border-2 border-border/20 transition-colors group-hover:border-primary/20">
-                  <AvatarFallback className={isIncome ? 'bg-green-100/10 text-green-600' : 'bg-red-100/10 text-red-600'}>
-                    {isAllocation ? <Send className="h-4 w-4" /> : (isIncome ? <ArrowDownLeft className="h-5 w-5" /> : <ArrowUpRight className="h-5 w-5" />)}
-                  </AvatarFallback>
-                </Avatar>
+                <UserAvatar
+                  user={{ name: item.userName || item.description, avatarUrl: item.userAvatarUrl }}
+                  size="md"
+                  className="border-2 border-border/20 transition-colors group-hover:border-primary/20"
+                />
                 <div className="space-y-1">
                   <p className="text-sm font-semibold leading-none truncate max-w-[150px]">{item.description}</p>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">

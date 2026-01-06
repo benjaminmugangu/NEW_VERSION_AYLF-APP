@@ -8,7 +8,7 @@ import { getInitials } from '@/lib/utils';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { UserAvatar } from '@/components/shared/UserAvatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   AlertDialog,
@@ -121,10 +121,12 @@ export default function SiteDetailClient({ site, initialSmallGroups, totalMember
             <CardTitle>Site Coordinator</CardTitle>
           </CardHeader>
           <CardContent className="flex items-center gap-4">
-            <Avatar className={`h-16 w-16 ${!hasCoordinator ? "opacity-40" : ""}`}>
-              <AvatarImage src={`https://avatar.vercel.sh/${coordinatorName}.png`} alt={coordinatorName} />
-              <AvatarFallback>{coordinatorInitials}</AvatarFallback>
-            </Avatar>
+            <UserAvatar
+              user={site.coordinator}
+              size="xl"
+              className={!hasCoordinator ? "opacity-40" : ""}
+              showBadge
+            />
             <div>
               <p className={`font-semibold text-lg ${!hasCoordinator ? "text-muted-foreground italic" : ""}`}>
                 {coordinatorName}

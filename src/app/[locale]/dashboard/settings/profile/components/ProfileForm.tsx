@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 import { useTranslations, useFormatter } from 'next-intl';
 
 import { updateProfile, uploadAvatar } from '@/services/profileService';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/shared/UserAvatar";
 import { Camera } from "lucide-react";
 
 interface ProfileFormProps {
@@ -194,12 +194,12 @@ export function ProfileForm({ currentUser, onUpdateProfile, canEdit }: ProfileFo
         {/* Avatar Section */}
         <div className="flex flex-col items-center mb-8 space-y-4">
           <div className="relative group">
-            <Avatar className="h-24 w-24 cursor-pointer border-2 border-primary/10">
-              <AvatarImage src={avatarUrl} alt={currentUser.name} />
-              <AvatarFallback className="text-xl bg-primary/5 text-primary">
-                {currentUser.name?.substring(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
+            <UserAvatar
+              user={{ ...currentUser, avatarUrl }}
+              size="xl"
+              className="cursor-pointer border-2 border-primary/20"
+              showBadge
+            />
 
             {canEdit && (
               <label

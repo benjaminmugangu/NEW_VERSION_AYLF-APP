@@ -43,7 +43,7 @@ export async function getAllocations(filters?: { siteId?: string; smallGroupId?:
       }
     });
 
-    return allocations.map((allocation: any) => ({
+    const models = allocations.map((allocation: any) => ({
       id: allocation.id,
       amount: allocation.amount,
       allocationDate: allocation.allocationDate.toISOString(),
@@ -56,14 +56,41 @@ export async function getAllocations(filters?: { siteId?: string; smallGroupId?:
       notes: allocation.notes || undefined,
       allocationType: allocation.allocationType as 'hierarchical' | 'direct',
       bypassReason: allocation.bypassReason || undefined,
-      allocatedByName: allocation.allocatedBy.name,
+      allocatedByName: allocation.allocatedBy?.name,
+      allocatedByAvatarUrl: allocation.allocatedBy?.avatarUrl,
       siteName: allocation.site?.name,
       smallGroupName: allocation.smallGroup?.name,
       fromSiteName: allocation.fromSite?.name || 'National',
       fromSiteId: allocation.fromSiteId || undefined,
       proofUrl: allocation.proofUrl || undefined,
     }));
+
+    return signAllocationAvatars(models);
   });
+}
+
+/**
+ * Batch sign avatars for a list of allocations
+ */
+async function signAllocationAvatars(allocations: FundAllocation[]): Promise<FundAllocation[]> {
+  const filePaths = allocations
+    .map(a => a.allocatedByAvatarUrl)
+    .filter(url => url && !url.startsWith('http')) as string[];
+
+  if (filePaths.length === 0) return allocations;
+
+  try {
+    const { getSignedUrls } = await import('./storageService');
+    const signedUrls = await getSignedUrls(filePaths, 'avatars');
+    allocations.forEach(a => {
+      if (a.allocatedByAvatarUrl && signedUrls[a.allocatedByAvatarUrl]) {
+        a.allocatedByAvatarUrl = signedUrls[a.allocatedByAvatarUrl];
+      }
+    });
+  } catch (e) {
+    console.warn('[AllocationService] Batch signing failed:', e);
+  }
+  return allocations;
 }
 
 export async function getAllocationById(id: string): Promise<FundAllocation> {
@@ -89,7 +116,7 @@ export async function getAllocationById(id: string): Promise<FundAllocation> {
       throw new Error('Allocation not found.');
     }
 
-    return {
+    const model = {
       id: allocation.id,
       amount: allocation.amount,
       allocationDate: allocation.allocationDate.toISOString(),
@@ -102,13 +129,17 @@ export async function getAllocationById(id: string): Promise<FundAllocation> {
       notes: allocation.notes || undefined,
       allocationType: allocation.allocationType as 'hierarchical' | 'direct',
       bypassReason: allocation.bypassReason || undefined,
-      allocatedByName: allocation.allocatedBy.name,
+      allocatedByName: allocation.allocatedBy?.name,
+      allocatedByAvatarUrl: allocation.allocatedBy?.avatarUrl,
       siteName: allocation.site?.name,
       smallGroupName: allocation.smallGroup?.name,
       fromSiteName: allocation.fromSite?.name || 'National',
       fromSiteId: allocation.fromSiteId || undefined,
       proofUrl: allocation.proofUrl || undefined,
     };
+
+    const signed = await signAllocationAvatars([model]);
+    return signed[0];
   });
 }
 
@@ -263,7 +294,11 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
           if (!smallGroup || smallGroup.siteId !== profile.siteId) throw new Error("Invalid target Small Group");
 
           const budget = await calculateAvailableBudget({ siteId: profile.siteId }, tx);
-          if (budget.available < Number(formData.amount)) throw new Error("Insufficient budget");
+          // ✅ Informative Phase: We no longer block allocations even if budget is insufficient.
+          // The budget integrity check at the end of the service will trigger the necessary alerts.
+          if (budget.available < Number(formData.amount)) {
+            console.warn(`[AllocationService] SC ${profile.name} is initiating an allocation that exceeds site budget (${budget.available} < ${formData.amount}). Proceeding in informative mode.`);
+          }
 
           const allocation = await tx.fundAllocation.create({
             data: {

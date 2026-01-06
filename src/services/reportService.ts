@@ -129,10 +129,35 @@ const mapPrismaReportToModel = (report: any): ReportWithDetails => {
 
     // Enriched fields
     submittedByName: report.submittedBy?.name,
+    submittedByAvatarUrl: report.submittedBy?.avatarUrl,
     siteName: report.site?.name,
     smallGroupName: report.smallGroup?.name,
   };
 };
+
+/**
+ * Batch sign avatars for a list of reports
+ */
+async function signReportAvatars(reports: ReportWithDetails[]): Promise<ReportWithDetails[]> {
+  const filePaths = reports
+    .map(r => (r as any).submittedByAvatarUrl)
+    .filter(url => url && !url.startsWith('http')) as string[];
+
+  if (filePaths.length === 0) return reports;
+
+  try {
+    const { getSignedUrls } = await import('./storageService');
+    const signedUrls = await getSignedUrls(filePaths, 'avatars');
+    reports.forEach(r => {
+      if ((r as any).submittedByAvatarUrl && signedUrls[(r as any).submittedByAvatarUrl]) {
+        (r as any).submittedByAvatarUrl = signedUrls[(r as any).submittedByAvatarUrl];
+      }
+    });
+  } catch (e) {
+    console.warn('[ReportService] Batch signing failed:', e);
+  }
+  return reports;
+}
 
 export async function getReportById(id: string): Promise<Report> {
   const { getUser } = getKindeServerSession();
@@ -154,7 +179,9 @@ export async function getReportById(id: string): Promise<Report> {
       throw new Error('Report not found.');
     }
 
-    return mapPrismaReportToModel(report);
+    const model = mapPrismaReportToModel(report);
+    const signed = await signReportAvatars([model]);
+    return signed[0];
   });
 }
 
@@ -379,7 +406,8 @@ export async function getFilteredReports(filters: ReportFilters): Promise<Report
       orderBy: { submissionDate: 'desc' }
     });
 
-    return reports.map(mapPrismaReportToModel);
+    const models = reports.map(mapPrismaReportToModel);
+    return signReportAvatars(models);
   });
 }
 

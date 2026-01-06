@@ -11,9 +11,9 @@ import {
   SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
   SidebarMenuBadge // Import Badge
 } from '@/components/ui/sidebar';
-import { LogOut, ChevronDown, ChevronUp, Building, UsersRound, UserCircle } from 'lucide-react';
+import { LogOut, ChevronDown, ChevronUp, Building, UsersRound } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/shared/UserAvatar";
 import Image from 'next/image';
 import { NAVIGATION_LINKS } from '@/lib/constants';
 import type { NavItem } from '@/lib/types';
@@ -135,15 +135,7 @@ export function DashboardSidebar({ user }: DashboardSidebarProps) {
         {user && (
           <div className="mb-4 px-4 py-3 bg-muted/30 rounded-lg mx-2 border border-border/50">
             <div className="flex items-center gap-3 mb-2">
-              <Avatar className="h-8 w-8 border border-primary/20">
-                <AvatarImage
-                  src={user.avatarUrl ? `${user.avatarUrl}${user.avatarUrl.includes('?') ? '&' : '?'}v=${Date.now()}` : undefined}
-                  alt={user.name}
-                />
-                <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
-                  {user.name?.substring(0, 2).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
+              <UserAvatar user={user} size="md" showBadge />
               <span className="font-semibold text-sm truncate">{user.name}</span>
             </div>
             <div className="flex flex-col gap-1.5">

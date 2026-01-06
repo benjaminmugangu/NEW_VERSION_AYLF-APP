@@ -58,7 +58,12 @@ export const getFinancials = async (user: User, dateFilter: DateFilterValue): Pr
 
     // 3. Create unified activity feed
     const unifiedActivity = [
-      ...(transactions || []).map(t => ({ ...t, activityType: 'transaction' })),
+      ...(transactions || []).map(t => ({
+        ...t,
+        activityType: 'transaction',
+        userName: t.recordedByName,
+        userAvatarUrl: t.recordedByAvatarUrl
+      })),
       ...(filteredAllocations || []).map(a => ({
         id: a.id,
         date: a.allocationDate,
@@ -70,7 +75,9 @@ export const getFinancials = async (user: User, dateFilter: DateFilterValue): Pr
         activityType: 'allocation',
         siteName: a.siteName,
         smallGroupName: a.smallGroupName,
-        fromSiteName: a.fromSiteName
+        fromSiteName: a.fromSiteName,
+        userName: a.allocatedByName,
+        userAvatarUrl: a.allocatedByAvatarUrl
       }))
     ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -230,7 +237,12 @@ export const getEntityFinancials = async (
 
     // 3. Create unified activity feed
     const unifiedActivity = [
-      ...(transactions || []).map(t => ({ ...t, activityType: 'transaction' })),
+      ...(transactions || []).map(t => ({
+        ...t,
+        activityType: 'transaction',
+        userName: t.recordedByName,
+        userAvatarUrl: t.recordedByAvatarUrl
+      })),
       ...(filteredAllocations || []).map(a => ({
         id: a.id,
         date: a.allocationDate,
@@ -242,7 +254,9 @@ export const getEntityFinancials = async (
         activityType: 'allocation',
         siteName: a.siteName,
         smallGroupName: a.smallGroupName,
-        fromSiteName: a.fromSiteName
+        fromSiteName: a.fromSiteName,
+        userName: a.allocatedByName,
+        userAvatarUrl: a.allocatedByAvatarUrl
       }))
     ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 

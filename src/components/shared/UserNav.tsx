@@ -2,7 +2,7 @@
 "use client";
 
 import { LogOut, UserCircle, ShieldCheck } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/shared/UserAvatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -51,13 +51,7 @@ export function UserNav({ user }: UserNavProps) {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0">
-          <Avatar className="h-10 w-10 border-2 border-primary">
-            <AvatarImage
-              src={user.avatarUrl ? `${user.avatarUrl}${user.avatarUrl.includes('?') ? '&' : '?'}v=${Date.now()}` : `https://avatar.vercel.sh/${displayEmail}.png`}
-              alt={displayName}
-            />
-            <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
-          </Avatar>
+          <UserAvatar user={user} size="md" className="h-10 w-10 border-2 border-primary" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-64" align="end" forceMount>

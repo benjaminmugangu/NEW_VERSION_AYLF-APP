@@ -171,6 +171,7 @@ export interface Report extends BaseEntity {
   siteName?: string;
   smallGroupName?: string;
   activityTypeName?: string;
+  submittedByAvatarUrl?: string;
 }
 
 export type ReportWithDetails = Report & {
@@ -193,6 +194,7 @@ export interface FinancialTransaction extends BaseEntity {
   recordedById: string;
   recordedByName?: string;
   recordedByRole?: UserRole;
+  recordedByAvatarUrl?: string;
   // Workflow fields (NEW)
   status?: string;
   approvedById?: string;
@@ -221,6 +223,7 @@ export interface FundAllocation extends BaseEntity {
   bypassReason?: string; // Required when allocationType = 'direct'
   // Enriched data for UI
   allocatedByName?: string;
+  allocatedByAvatarUrl?: string;
   siteName?: string;
   smallGroupName?: string;
   fromSiteId?: string;

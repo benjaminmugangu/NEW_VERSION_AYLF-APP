@@ -26,6 +26,8 @@ const mapPrismaTransactionToModel = (tx: any): FinancialTransaction => {
     recordedById: tx.recordedById,
     recordedByName: tx.recordedBy?.name,
     recordedByRole: tx.recordedBy?.role,
+    // Note: avatarUrl will be signed by the caller/fetcher
+    recordedByAvatarUrl: tx.recordedBy?.avatarUrl,
     // NEW fields
     status: (tx.status ?? 'approved') as string,
     approvedById: tx.approvedById || undefined,
@@ -36,6 +38,30 @@ const mapPrismaTransactionToModel = (tx: any): FinancialTransaction => {
     proofUrl: tx.proofUrl || undefined,
   };
 };
+
+/**
+ * Batch sign avatars for a list of transactions
+ */
+async function signTransactionAvatars(transactions: FinancialTransaction[]): Promise<FinancialTransaction[]> {
+  const filePaths = transactions
+    .map(tx => tx.recordedByAvatarUrl)
+    .filter(url => url && !url.startsWith('http')) as string[];
+
+  if (filePaths.length === 0) return transactions;
+
+  try {
+    const { getSignedUrls } = await import('./storageService');
+    const signedUrls = await getSignedUrls(filePaths, 'avatars');
+    transactions.forEach(tx => {
+      if (tx.recordedByAvatarUrl && signedUrls[tx.recordedByAvatarUrl]) {
+        tx.recordedByAvatarUrl = signedUrls[tx.recordedByAvatarUrl];
+      }
+    });
+  } catch (e) {
+    console.warn('[TransactionService] Batch signing failed:', e);
+  }
+  return transactions;
+}
 
 export interface TransactionFilters {
   user?: User | null;
@@ -64,7 +90,9 @@ export async function getTransactionById(id: string): Promise<FinancialTransacti
     if (!tx) {
       throw new Error('Transaction not found.');
     }
-    return mapPrismaTransactionToModel(tx);
+    const model = mapPrismaTransactionToModel(tx);
+    const signed = await signTransactionAvatars([model]);
+    return signed[0];
   });
 }
 
@@ -88,7 +116,8 @@ export async function getFilteredTransactions(filters: TransactionFilters): Prom
       orderBy: { date: 'desc' }
     });
 
-    return transactions.map(mapPrismaTransactionToModel);
+    const models = transactions.map(mapPrismaTransactionToModel);
+    return signTransactionAvatars(models);
   });
 }
 

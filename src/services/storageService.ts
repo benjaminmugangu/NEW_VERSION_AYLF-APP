@@ -118,20 +118,62 @@ export async function uploadFile(
     throw new Error(`Storage upload error: ${uploadError.message}`);
   }
 
-  // Get public URL
+  // Get public URL or placeholder for private bucket logic
   const { data: urlData } = getSupabaseAdmin().storage
     .from(targetBucket)
     .getPublicUrl(filePath);
 
-  if (!urlData?.publicUrl) {
-    console.error('[StorageService] Could not retrieve public URL.');
-    throw new Error('Could not retrieve public URL for the uploaded file.');
-  }
-
   return {
     filePath,
-    publicUrl: urlData.publicUrl,
+    publicUrl: urlData?.publicUrl || '',
   };
+}
+
+/**
+ * Generates a signed URL for a file in a private bucket.
+ */
+export async function getSignedUrl(
+  filePath: string,
+  bucketName: string = 'avatars',
+  expiresIn: number = 3600 // 1 hour
+): Promise<string> {
+  const { data, error } = await getSupabaseAdmin().storage
+    .from(bucketName)
+    .createSignedUrl(filePath, expiresIn);
+
+  if (error) {
+    console.error('[StorageService] Error generating signed URL:', error.message);
+    throw new Error(`Could not generate signed URL: ${error.message}`);
+  }
+
+  return data.signedUrl;
+}
+
+/**
+ * Generates multiple signed URLs for files in a private bucket.
+ */
+export async function getSignedUrls(
+  filePaths: string[],
+  bucketName: string = 'avatars',
+  expiresIn: number = 3600
+): Promise<Record<string, string>> {
+  if (!filePaths.length) return {};
+
+  const { data, error } = await getSupabaseAdmin().storage
+    .from(bucketName)
+    .createSignedUrls(filePaths, expiresIn);
+
+  if (error) {
+    console.error('[StorageService] Error generating signed URLs:', error.message);
+    throw new Error(`Could not generate signed URLs: ${error.message}`);
+  }
+
+  const urlMap: Record<string, string> = {};
+  data.forEach((item: { path: string; signedUrl: string }) => {
+    urlMap[item.path] = item.signedUrl;
+  });
+
+  return urlMap;
 }
 
 /**

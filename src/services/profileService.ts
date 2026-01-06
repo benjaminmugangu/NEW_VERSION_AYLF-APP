@@ -3,24 +3,21 @@
 import { prisma, basePrisma, withRLS } from '@/lib/prisma';
 import { User, UserRole, ServiceResponse } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
-import { uploadFile } from './storageService';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 
-
-
 /**
- * Retrieves a user's profile by their ID, including enriched data.
+ * Helper to map Prisma Profile to User model and sign avatar URLs
  */
-export async function getProfile(userId: string): Promise<User> {
-  const data = await prisma.profile.findUnique({
-    where: { id: userId },
-    include: {
-      site: true,
-      smallGroup: true,
-    },
-  });
-
-  if (!data) throw new Error('Profile not found.');
+async function mapProfileToUser(data: any): Promise<User> {
+  let avatarUrl = data.avatarUrl || undefined;
+  if (avatarUrl && !avatarUrl.startsWith('http')) {
+    try {
+      const { getSignedUrl } = await import('./storageService');
+      avatarUrl = await getSignedUrl(avatarUrl, 'avatars');
+    } catch (e) {
+      console.warn('[ProfileService] Failed to sign avatar URL:', e);
+    }
+  }
 
   return {
     id: data.id,
@@ -35,8 +32,61 @@ export async function getProfile(userId: string): Promise<User> {
     createdAt: data.createdAt ? new Date(data.createdAt).toISOString() : undefined,
     siteName: data.site?.name || undefined,
     smallGroupName: data.smallGroup?.name || undefined,
-    avatarUrl: (data as any).avatarUrl || undefined,
+    avatarUrl,
   };
+}
+
+/**
+ * Helper to map multiple Prisma Profiles to User models and batch sign avatar URLs
+ */
+async function mapProfilesToUsers(profiles: any[]): Promise<User[]> {
+  const filePaths = profiles
+    .map(u => u.avatarUrl)
+    .filter(url => url && !url.startsWith('http')) as string[];
+
+  let signedUrls: Record<string, string> = {};
+  if (filePaths.length > 0) {
+    try {
+      const { getSignedUrls } = await import('./storageService');
+      signedUrls = await getSignedUrls(filePaths, 'avatars');
+    } catch (e) {
+      console.warn('[ProfileService] Batch signing failed:', e);
+    }
+  }
+
+  return profiles.map((p) => ({
+    id: p.id,
+    name: p.name || '',
+    email: p.email || '',
+    role: p.role as UserRole,
+    status: p.status as any,
+    siteId: p.siteId || undefined,
+    smallGroupId: p.smallGroupId || undefined,
+    mandateStartDate: p.mandateStartDate ? p.mandateStartDate.toISOString() : undefined,
+    mandateEndDate: p.mandateEndDate ? p.mandateEndDate.toISOString() : undefined,
+    createdAt: p.createdAt ? new Date(p.createdAt).toISOString() : undefined,
+    siteName: p.site?.name || undefined,
+    smallGroupName: p.smallGroup?.name || undefined,
+    avatarUrl: (p.avatarUrl && !p.avatarUrl.startsWith('http'))
+      ? signedUrls[p.avatarUrl] || p.avatarUrl
+      : p.avatarUrl || undefined,
+  }));
+}
+
+/**
+ * Retrieves a user's profile by their ID, including enriched data.
+ */
+export async function getProfile(userId: string): Promise<User> {
+  const data = await prisma.profile.findUnique({
+    where: { id: userId },
+    include: {
+      site: true,
+      smallGroup: true,
+    },
+  });
+
+  if (!data) throw new Error('Profile not found.');
+  return mapProfileToUser(data);
 }
 
 /**
@@ -52,7 +102,6 @@ export async function updateProfile(userId: string, updates: Partial<User>): Pro
   const dbUpdates: any = {};
   if (updates.name !== undefined) dbUpdates.name = updates.name;
   if (updates.email !== undefined) dbUpdates.email = updates.email;
-  if (updates.role !== undefined) dbUpdates.role = updates.role;
   if (updates.status !== undefined) dbUpdates.status = updates.status;
   if (updates.siteId !== undefined) dbUpdates.siteId = updates.siteId;
   if (updates.smallGroupId !== undefined) dbUpdates.smallGroupId = updates.smallGroupId;
@@ -60,8 +109,6 @@ export async function updateProfile(userId: string, updates: Partial<User>): Pro
   if (updates.mandateEndDate !== undefined) dbUpdates.mandateEndDate = updates.mandateEndDate;
   if (updates.avatarUrl !== undefined) dbUpdates.avatarUrl = updates.avatarUrl;
 
-  // ✅ Apply Exclusivity Guards if role, siteId, or smallGroupId are updated
-  // We need the current role to apply logic properly if it's not being updated
   const currentProfile = await prisma.profile.findUnique({ where: { id: userId }, select: { role: true } });
   const finalRole = updates.role || currentProfile?.role;
 
@@ -81,21 +128,8 @@ export async function updateProfile(userId: string, updates: Partial<User>): Pro
     },
   });
 
-  return {
-    id: data.id,
-    name: data.name || '',
-    email: data.email || '',
-    role: data.role as UserRole,
-    status: data.status as any,
-    siteId: data.siteId || undefined,
-    smallGroupId: data.smallGroupId || undefined,
-    mandateStartDate: data.mandateStartDate ? data.mandateStartDate.toISOString() : undefined,
-    mandateEndDate: data.mandateEndDate ? data.mandateEndDate.toISOString() : undefined,
-    createdAt: data.createdAt ? new Date(data.createdAt).toISOString() : undefined,
-    siteName: data.site?.name || undefined,
-    smallGroupName: data.smallGroup?.name || undefined,
-    avatarUrl: (data as any).avatarUrl || undefined,
-  };
+  revalidatePath('/dashboard/settings/profile');
+  return mapProfileToUser(data);
 }
 
 /**
@@ -112,21 +146,7 @@ export async function getUsers(): Promise<User[]> {
     },
   });
 
-  return (users as any[]).map((u: any) => ({
-    id: u.id,
-    name: u.name || '',
-    email: u.email || '',
-    role: u.role as UserRole,
-    status: u.status as any,
-    siteId: u.siteId || undefined,
-    smallGroupId: u.smallGroupId || undefined,
-    mandateStartDate: u.mandateStartDate ? u.mandateStartDate.toISOString() : undefined,
-    mandateEndDate: u.mandateEndDate ? u.mandateEndDate.toISOString() : undefined,
-    createdAt: u.createdAt ? new Date(u.createdAt).toISOString() : undefined,
-    siteName: u.site?.name || undefined,
-    smallGroupName: u.smallGroup?.name || undefined,
-    avatarUrl: (u as any).avatarUrl || undefined,
-  }));
+  return mapProfilesToUsers(users);
 }
 
 /**
@@ -164,29 +184,13 @@ export async function getEligiblePersonnel(siteId: string, smallGroupId?: string
     }
   });
 
-  return (users as any[]).map((u: any) => ({
-    id: u.id,
-    name: u.name || '',
-    email: u.email || '',
-    role: u.role as UserRole,
-    status: u.status as any,
-    siteId: u.siteId || undefined,
-    smallGroupId: u.smallGroupId || undefined,
-    mandateStartDate: u.mandateStartDate ? u.mandateStartDate.toISOString() : undefined,
-    mandateEndDate: u.mandateEndDate ? u.mandateEndDate.toISOString() : undefined,
-    createdAt: u.createdAt ? new Date(u.createdAt).toISOString() : undefined,
-    siteName: u.site?.name || undefined,
-    smallGroupName: u.smallGroup?.name || undefined,
-    avatarUrl: (u as any).avatarUrl || undefined,
-  }));
+  return mapProfilesToUsers(users);
 }
 
 /**
  * Permanently deletes a user.
  */
 export async function deleteUser(userId: string): Promise<void> {
-  // Note: This only deletes the Prisma profile. 
-  // Kinde user deletion requires Kinde Management API.
   await prisma.profile.delete({
     where: { id: userId },
   });
@@ -208,27 +212,12 @@ export async function getUsersByIds(userIds: string[]): Promise<User[]> {
     }
   });
 
-  return (users as any[]).map((u: any) => ({
-    id: u.id,
-    name: u.name || '',
-    email: u.email || '',
-    role: u.role as UserRole,
-    status: u.status as any,
-    siteId: u.siteId || undefined,
-    smallGroupId: u.smallGroupId || undefined,
-    mandateStartDate: u.mandateStartDate ? u.mandateStartDate.toISOString() : undefined,
-    mandateEndDate: u.mandateEndDate ? u.mandateEndDate.toISOString() : undefined,
-    createdAt: u.createdAt ? new Date(u.createdAt).toISOString() : undefined,
-    siteName: u.site?.name || undefined,
-    smallGroupName: u.smallGroup?.name || undefined,
-    avatarUrl: (u as any).avatarUrl || undefined,
-  }));
+  return mapProfilesToUsers(users);
 }
 
-
-
-// ... (other exports)
-
+/**
+ * Uploads a user's avatar to storage and updates their profile.
+ */
 export async function uploadAvatar(formData: FormData): Promise<ServiceResponse<string>> {
   try {
     const { getUser } = getKindeServerSession();
@@ -243,7 +232,6 @@ export async function uploadAvatar(formData: FormData): Promise<ServiceResponse<
       return { success: false, error: { message: "No file provided" } };
     }
 
-    // Verify file type and size
     if (!file.type.startsWith('image/')) {
       return { success: false, error: { message: "File must be an image" } };
     }
@@ -251,28 +239,53 @@ export async function uploadAvatar(formData: FormData): Promise<ServiceResponse<
       return { success: false, error: { message: "File size must be less than 5MB" } };
     }
 
-    // Wrap the core logic in withRLS for consistent context propagation
     return await withRLS(currentUser.id, async () => {
-      // 1. Upload to Storage (Service Role - Bypasses RLS)
+      const currentProfile = await prisma.profile.findUnique({
+        where: { id: currentUser.id },
+        select: { avatarUrl: true }
+      });
+
+      const { uploadFile } = await import('./storageService');
       const result = await uploadFile(file, { bucket: 'avatars' });
 
-      // 2. Update Profile with explicit RLS context on basePrisma transaction
       await basePrisma.$transaction(async (tx: any) => {
-        // Set RLS variable explicitly for this session
         await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${currentUser.id}'`);
-
         await tx.profile.update({
           where: { id: currentUser.id },
-          data: { avatarUrl: result.publicUrl }
+          data: { avatarUrl: result.filePath }
         });
       }, { timeout: 15000 });
 
+      // Cleanup old file
+      if (currentProfile?.avatarUrl && currentProfile.avatarUrl !== result.filePath) {
+        try {
+          let oldPath = currentProfile.avatarUrl;
+          if (oldPath.startsWith('http')) {
+            const urlParts = oldPath.split('/avatars/');
+            if (urlParts.length > 1) {
+              oldPath = urlParts[1].split('?')[0];
+            } else {
+              oldPath = '';
+            }
+          }
+
+          if (oldPath) {
+            const { deleteFile } = await import('./storageService');
+            await deleteFile(oldPath, { isRollback: true, bucketName: 'avatars' });
+          }
+        } catch (cleanupError) {
+          console.warn('[ProfileService] Non-critical cleanup error:', cleanupError);
+        }
+      }
+
+      const { getSignedUrl } = await import('./storageService');
+      const signedUrl = await getSignedUrl(result.filePath, 'avatars');
+
       revalidatePath('/dashboard/settings/profile');
-      return { success: true, data: result.publicUrl };
+      return { success: true, data: signedUrl };
     });
   } catch (error: any) {
     console.error('[ProfileService] uploadAvatar FATAL:', error.message);
     return { success: false, error: { message: `Upload failed: ${error.message}` } };
   }
 }
-

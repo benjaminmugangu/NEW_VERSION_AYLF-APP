@@ -17,9 +17,58 @@ const mapPrismaGroupToSmallGroup = (group: any): SmallGroup => ({
   meetingTime: group.meetingTime || undefined,
   meetingLocation: group.meetingLocation || undefined,
   siteName: group.site?.name,
-  leaderName: group.leader?.name || null, // ✨ Return null if no leader found
+  leaderName: group.leader?.name || null,
   memberCount: group._count?.registeredMembers || 0,
+  // Note: Nested user objects (leader, assistants) should be mapped/signed in individual fetchers
+  leader: group.leader ? {
+    id: group.leader.id,
+    name: group.leader.name,
+    email: group.leader.email,
+    role: group.leader.role,
+    avatarUrl: group.leader.avatarUrl || undefined,
+  } : undefined,
+  logisticsAssistant: group.logisticsAssistant ? {
+    id: group.logisticsAssistant.id,
+    name: group.logisticsAssistant.name,
+    email: group.logisticsAssistant.email,
+    role: group.logisticsAssistant.role,
+    avatarUrl: group.logisticsAssistant.avatarUrl || undefined,
+  } : undefined,
+  financeAssistant: group.financeAssistant ? {
+    id: group.financeAssistant.id,
+    name: group.financeAssistant.name,
+    email: group.financeAssistant.email,
+    role: group.financeAssistant.role,
+    avatarUrl: group.financeAssistant.avatarUrl || undefined,
+  } : undefined,
 });
+
+/**
+ * Helper to sign avatars for a list of small groups.
+ */
+async function signGroupAvatars(groups: SmallGroup[]): Promise<SmallGroup[]> {
+  const filePaths: string[] = [];
+  groups.forEach(g => {
+    if (g.leader?.avatarUrl && !g.leader.avatarUrl.startsWith('http')) filePaths.push(g.leader.avatarUrl);
+    if (g.logisticsAssistant?.avatarUrl && !g.logisticsAssistant.avatarUrl.startsWith('http')) filePaths.push(g.logisticsAssistant.avatarUrl);
+    if (g.financeAssistant?.avatarUrl && !g.financeAssistant.avatarUrl.startsWith('http')) filePaths.push(g.financeAssistant.avatarUrl);
+  });
+
+  if (filePaths.length === 0) return groups;
+
+  try {
+    const { getSignedUrls } = await import('./storageService');
+    const signedUrls = await getSignedUrls(filePaths, 'avatars');
+    groups.forEach(g => {
+      if (g.leader?.avatarUrl && signedUrls[g.leader.avatarUrl]) g.leader.avatarUrl = signedUrls[g.leader.avatarUrl];
+      if (g.logisticsAssistant?.avatarUrl && signedUrls[g.logisticsAssistant.avatarUrl]) g.logisticsAssistant.avatarUrl = signedUrls[g.logisticsAssistant.avatarUrl];
+      if (g.financeAssistant?.avatarUrl && signedUrls[g.financeAssistant.avatarUrl]) g.financeAssistant.avatarUrl = signedUrls[g.financeAssistant.avatarUrl];
+    });
+  } catch (e) {
+    console.warn('[SmallGroupService] Batch signing failed:', e);
+  }
+  return groups;
+}
 
 export async function getSmallGroupsBySite(siteId: string): Promise<SmallGroup[]> {
   const { getUser } = getKindeServerSession();
@@ -39,7 +88,8 @@ export async function getSmallGroupsBySite(siteId: string): Promise<SmallGroup[]
       orderBy: { name: 'asc' }
     });
 
-    return groups.map(mapPrismaGroupToSmallGroup);
+    const mappedGroups = groups.map(mapPrismaGroupToSmallGroup);
+    return signGroupAvatars(mappedGroups);
   });
 }
 
@@ -80,7 +130,8 @@ export async function getFilteredSmallGroups({ user, search, siteId }: { user: U
       }
     });
 
-    return groups.map(mapPrismaGroupToSmallGroup);
+    const mappedGroups = groups.map(mapPrismaGroupToSmallGroup);
+    return signGroupAvatars(mappedGroups);
   });
 }
 
@@ -180,7 +231,8 @@ export async function createSmallGroup(siteId: string, formData: SmallGroupFormD
       });
 
       if (!createdGroup) throw new Error('Failed to retrieve created group');
-      return mapPrismaGroupToSmallGroup(createdGroup);
+      const mappedGroups = await signGroupAvatars([mapPrismaGroupToSmallGroup(createdGroup)]);
+      return mappedGroups[0];
     });
   });
 }
@@ -237,7 +289,8 @@ export async function updateSmallGroup(groupId: string, formData: Partial<SmallG
       });
 
       if (!result) throw new Error('Failed to retrieve updated group');
-      return mapPrismaGroupToSmallGroup(result);
+      const mappedGroups = await signGroupAvatars([mapPrismaGroupToSmallGroup(result)]);
+      return mappedGroups[0];
     });
   });
 }

@@ -5,7 +5,7 @@ import { Site, SiteFormData, SiteWithDetails, User } from '@/lib/types';
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { ROLES } from '@/lib/constants';
 
-// Helper to map Prisma Site to Model
+// Helper to map Prisma Site to Model (Synchronous, but profile mapping handled in fetchers if async signing needed)
 const mapPrismaSiteToModel = (site: any): Site => ({
   id: site.id,
   name: site.name,
@@ -13,19 +13,19 @@ const mapPrismaSiteToModel = (site: any): Site => ({
   country: site.country,
   creationDate: site.createdAt.toISOString(),
   coordinatorId: site.coordinatorId || undefined,
-  coordinator: site.coordinator ? mapPrismaProfileToModel(site.coordinator) : undefined,
-});
-
-const mapPrismaProfileToModel = (profile: any) => ({
-  id: profile.id,
-  name: profile.name,
-  email: profile.email,
-  role: profile.role,
-  status: profile.status,
-  siteId: profile.siteId || undefined,
-  smallGroupId: profile.smallGroupId || undefined,
-  mandateStartDate: profile.mandateStartDate?.toISOString() ?? undefined,
-  mandateEndDate: profile.mandateEndDate?.toISOString() ?? undefined,
+  coordinator: site.coordinator ? {
+    id: site.coordinator.id,
+    name: site.coordinator.name,
+    email: site.coordinator.email,
+    role: site.coordinator.role,
+    status: site.coordinator.status,
+    siteId: site.coordinator.siteId || undefined,
+    smallGroupId: site.coordinator.smallGroupId || undefined,
+    mandateStartDate: site.coordinator.mandateStartDate?.toISOString() ?? undefined,
+    mandateEndDate: site.coordinator.mandateEndDate?.toISOString() ?? undefined,
+    // Note: avatarUrl signing handled in individual service functions to avoid making mapPrismaSiteToModel async everywhere
+    avatarUrl: site.coordinator.avatarUrl || undefined,
+  } : undefined,
 });
 
 /**
@@ -65,18 +65,40 @@ export async function getSitesWithDetails(user: User | null): Promise<SiteWithDe
       }
     });
 
-    return (sites as any[]).map((site: any) => ({
-      id: site.id,
-      name: site.name,
-      city: site.city,
-      country: site.country,
-      creationDate: site.createdAt.toISOString(),
-      coordinatorId: site.coordinatorId || undefined,
-      coordinatorName: site.coordinator?.name || null, // ✨ Ensure null for consistent FE fallback
-      coordinatorProfilePicture: undefined,
-      smallGroupsCount: site._count.smallGroups,
-      membersCount: site._count.registeredMembers,
-    }));
+    // Batch sign coordinator avatars
+    const filePaths = sites
+      .map((s: any) => (s.coordinator as any)?.avatarUrl)
+      .filter((url: string | null) => url && !url.startsWith('http')) as string[];
+
+    let signedUrls: Record<string, string> = {};
+    if (filePaths.length > 0) {
+      try {
+        const { getSignedUrls } = await import('./storageService');
+        signedUrls = await getSignedUrls(filePaths, 'avatars');
+      } catch (e) {
+        console.warn('[SiteService] Batch signing failed:', e);
+      }
+    }
+
+    return (sites as any[]).map((site: any) => {
+      const coordinatorAvatarUrl = (site.coordinator as any)?.avatarUrl;
+      const finalAvatarUrl = (coordinatorAvatarUrl && !coordinatorAvatarUrl.startsWith('http'))
+        ? signedUrls[coordinatorAvatarUrl] || coordinatorAvatarUrl
+        : coordinatorAvatarUrl || undefined;
+
+      return {
+        id: site.id,
+        name: site.name,
+        city: site.city,
+        country: site.country,
+        creationDate: site.createdAt.toISOString(),
+        coordinatorId: site.coordinatorId || undefined,
+        coordinatorName: site.coordinator?.name || null,
+        coordinatorProfilePicture: finalAvatarUrl,
+        smallGroupsCount: site._count.smallGroups,
+        membersCount: site._count.registeredMembers,
+      };
+    });
   });
 }
 
@@ -111,8 +133,20 @@ export async function getSiteDetails(siteId: string): Promise<{ site: Site; smal
       throw new Error('Site not found.');
     }
 
+    const siteModel = mapPrismaSiteToModel(site);
+
+    // Sign coordinator avatar
+    if (siteModel.coordinator?.avatarUrl && !siteModel.coordinator.avatarUrl.startsWith('http')) {
+      try {
+        const { getSignedUrl } = await import('./storageService');
+        siteModel.coordinator.avatarUrl = await getSignedUrl(siteModel.coordinator.avatarUrl, 'avatars');
+      } catch (e) {
+        console.warn('[SiteService] Failed to sign coordinator avatar:', e);
+      }
+    }
+
     return {
-      site: mapPrismaSiteToModel(site),
+      site: siteModel,
       smallGroups: (site.smallGroups as any[]).map((sg: any) => ({
         id: sg.id,
         name: sg.name,
@@ -138,7 +172,19 @@ export async function getSiteById(id: string): Promise<Site> {
       throw new Error('Site not found.');
     }
 
-    return mapPrismaSiteToModel(site);
+    const siteModel = mapPrismaSiteToModel(site);
+
+    // Sign coordinator avatar
+    if (siteModel.coordinator?.avatarUrl && !siteModel.coordinator.avatarUrl.startsWith('http')) {
+      try {
+        const { getSignedUrl } = await import('./storageService');
+        siteModel.coordinator.avatarUrl = await getSignedUrl(siteModel.coordinator.avatarUrl, 'avatars');
+      } catch (e) {
+        console.warn('[SiteService] Failed to sign coordinator avatar:', e);
+      }
+    }
+
+    return siteModel;
   });
 }
 

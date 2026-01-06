@@ -7,7 +7,7 @@ import { Edit, Trash2, Eye, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { UserAvatar } from '@/components/shared/UserAvatar';
 import type { SiteWithDetails } from '@/lib/types';
 import {
   AlertDialog,
@@ -105,10 +105,11 @@ export function SitesList({ initialSites, canEditSite, canDeleteSite }: SitesLis
                         <TableCell className="font-medium">{site.name}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <Avatar className={!hasCoordinator ? "opacity-40" : ""}>
-                              {/* Assuming coordinator might not have a profile picture */}
-                              <AvatarFallback>{hasCoordinator ? getInitials(displayCoordinatorName) : '?'}</AvatarFallback>
-                            </Avatar>
+                            <UserAvatar
+                              user={{ name: site.coordinatorName, role: 'SITE_COORDINATOR', avatarUrl: site.coordinatorProfilePicture }}
+                              size="md"
+                              className={!hasCoordinator ? "opacity-40" : ""}
+                            />
                             <span className={!hasCoordinator ? "text-muted-foreground italic text-sm" : ""}>
                               {displayCoordinatorName}
                             </span>

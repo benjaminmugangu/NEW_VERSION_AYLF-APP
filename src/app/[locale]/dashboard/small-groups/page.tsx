@@ -9,7 +9,7 @@ import { UsersRound, PlusCircle, Search, Eye, Edit, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { UserAvatar } from '@/components/shared/UserAvatar';
 import { TableRowSkeleton } from '@/components/shared/skeletons/TableRowSkeleton';
 import { StatCard } from '@/components/shared/StatCard';
 import { StatCardSkeleton } from '@/components/shared/skeletons/StatCardSkeleton';
@@ -158,10 +158,11 @@ export default function SmallGroupsPage() {
                         <TableCell>{sg.siteName}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <Avatar className={!hasLeader ? "opacity-40" : ""}>
-                              {/* Assuming avatar_url might be in user_metadata or similar, but simplified for now */}
-                              <AvatarFallback>{hasLeader ? getInitials(displayLeaderName) : '?'}</AvatarFallback>
-                            </Avatar>
+                            <UserAvatar
+                              user={sg.leader || { name: sg.leaderName, role: 'SMALL_GROUP_LEADER' }}
+                              size="md"
+                              className={!hasLeader ? "opacity-40" : ""}
+                            />
                             <span className={!hasLeader ? "text-muted-foreground italic text-sm" : ""}>
                               {displayLeaderName}
                             </span>

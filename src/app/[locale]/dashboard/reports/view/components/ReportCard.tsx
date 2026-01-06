@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Eye, UserCircle, CalendarDays, Tag, Hash, Users, CheckCircle, XCircle, AlertCircle } from "lucide-react"; // Added Tag for activity type, Hash for thematic
 import Image from "next/image";
 import { format } from "date-fns";
+import { UserAvatar } from "@/components/shared/UserAvatar";
 
 interface ReportCardProps {
   report: ReportWithDetails;
@@ -79,7 +80,13 @@ export function ReportCard({ report, onViewDetails }: ReportCardProps) {
           {report.participantsCountReported !== undefined && (
             <span className="flex items-center"><Users className="mr-1 h-3 w-3" /> {report.participantsCountReported} Participants</span>
           )}
-          <span className="flex items-center"><UserCircle className="mr-1 h-3 w-3" /> By: {report.submittedByName || 'N/A'}</span>
+          <span className="flex items-center gap-1.5">
+            <UserAvatar
+              user={{ name: report.submittedByName, avatarUrl: report.submittedByAvatarUrl, role: 'MEMBER' }}
+              size="sm"
+            />
+            By: {report.submittedByName || 'N/A'}
+          </span>
           <span className="flex items-center"><CalendarDays className="mr-1 h-3 w-3" />Submitted: {new Date(report.submissionDate).toLocaleDateString()}</span>
         </div>
         {report.financialSummary && (
