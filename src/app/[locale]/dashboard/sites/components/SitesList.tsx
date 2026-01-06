@@ -106,7 +106,11 @@ export function SitesList({ initialSites, canEditSite, canDeleteSite }: SitesLis
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <UserAvatar
-                              user={{ name: site.coordinatorName, role: 'SITE_COORDINATOR', avatarUrl: site.coordinatorProfilePicture }}
+                              user={{
+                                name: site.coordinatorName || undefined,
+                                role: 'SITE_COORDINATOR',
+                                avatarUrl: site.coordinatorProfilePicture || undefined
+                              }}
                               size="md"
                               className={!hasCoordinator ? "opacity-40" : ""}
                             />

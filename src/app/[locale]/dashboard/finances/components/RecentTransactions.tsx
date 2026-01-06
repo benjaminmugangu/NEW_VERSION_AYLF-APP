@@ -41,7 +41,10 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
             <div key={item.id} className="flex items-center justify-between group">
               <div className="flex items-center space-x-3">
                 <UserAvatar
-                  user={{ name: item.userName || item.description, avatarUrl: item.userAvatarUrl }}
+                  user={{
+                    name: (item.userName || item.description) || undefined,
+                    avatarUrl: item.userAvatarUrl || undefined
+                  }}
                   size="md"
                   className="border-2 border-border/20 transition-colors group-hover:border-primary/20"
                 />

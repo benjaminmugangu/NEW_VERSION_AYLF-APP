@@ -112,7 +112,14 @@ export default function UsersClient({ initialUsers }: UsersClientProps) {
                                 <TableRow key={user.id} className="hover:bg-muted/30 transition-colors">
                                     <TableCell>
                                         <div className="flex items-center gap-3">
-                                            <UserAvatar user={user as any} size="md" />
+                                            <UserAvatar
+                                                user={{
+                                                    name: user.name || undefined,
+                                                    avatarUrl: user.avatarUrl || undefined,
+                                                    role: user.role as any // Prisma role to UserRole cast
+                                                }}
+                                                size="md"
+                                            />
                                             <div className="flex flex-col max-w-[200px]">
                                                 <TooltipProvider>
                                                     <Tooltip>

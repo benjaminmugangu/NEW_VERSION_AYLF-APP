@@ -82,7 +82,11 @@ export function ReportCard({ report, onViewDetails }: ReportCardProps) {
           )}
           <span className="flex items-center gap-1.5">
             <UserAvatar
-              user={{ name: report.submittedByName, avatarUrl: report.submittedByAvatarUrl, role: 'MEMBER' }}
+              user={{
+                name: report.submittedByName || undefined,
+                avatarUrl: report.submittedByAvatarUrl || undefined,
+                role: 'MEMBER'
+              }}
               size="sm"
             />
             By: {report.submittedByName || 'N/A'}
