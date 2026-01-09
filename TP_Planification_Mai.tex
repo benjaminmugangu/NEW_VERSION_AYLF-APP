@@ -1,0 +1,118 @@
+\documentclass[a4paper,10pt]{article}
+\usepackage{pdflscape}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{amssymb} 
+\usepackage{xcolor}
+
+\geometry{left=1cm,right=1cm,top=1cm,bottom=1cm}
+
+\begin{document}
+\begin{landscape}
+\tiny
+
+\newcommand{\Sone}{${\blacksquare}$} 
+\newcommand{\Stwo}{\textcolor{darkgray}{${\blacksquare}$}} 
+\newcommand{\Sthree}{${\blacklozenge}$} 
+\newcommand{\Sfour}{${\bullet}$}
+
+\begin{longtable}{|c|p{3.5cm}|p{2.8cm}|p{2.5cm}|p{2.5cm}|p{2.5cm}|c|c|c|c|}
+\caption{Planification Opérationnelle : MAI 2026} \\
+\hline
+\multirow{2}{*}{\textbf{N°}} & 
+\multirow{2}{*}{\textbf{Activités}} & 
+\multirow{2}{*}{\textbf{IOV}} & 
+\multirow{2}{*}{\textbf{Source}} & 
+\multirow{2}{*}{\textbf{Stratégie}} & 
+\multirow{2}{*}{\textbf{Hypothèses}} & 
+\multicolumn{4}{c|}{\textbf{Mois : MAI}} \\
+\cline{7-10}
+ & & & & & & \textbf{S1} & \textbf{S2} & \textbf{S3} & \textbf{S4} \\
+\hline
+\multicolumn{10}{|l|}{\textit{Légende : \Sone~Réalisation ~|~ \Stwo~Préparation ~|~ \Sthree~Validation ~|~ \Sfour~Suivi}} \\ - \endfirsthead
+\hline
+\multirow{2}{*}{\textbf{N°}} & 
+\multirow{2}{*}{\textbf{Activités}} & 
+\multirow{2}{*}{\textbf{IOV}} & 
+\multirow{2}{*}{\textbf{Source}} & 
+\multirow{2}{*}{\textbf{Stratégie}} & 
+\multirow{2}{*}{\textbf{Hypothèses}} & 
+\multicolumn{4}{c|}{\textbf{Mois : MAI}} \\
+\cline{7-10}
+ & & & & & & \textbf{S1} & \textbf{S2} & \textbf{S3} & \textbf{S4} \\
+\hline
+\endhead
+\hline
+\multicolumn{10}{|r|}{{Suite page suivante...}} \\
+\hline
+\endfoot
+\hline
+\endlastfoot
+
+% Obj 1
+1 & Étude technique & Rapport & PV & Expertise & Données & & & & \\
+2 & Cahier des charges & DAO & ARMP & Comité & Légal & & & & \\
+3 & Appels d'offre & $>$5 offres & Rapports & Transparence & Marché & & & & \\
+4 & Sélectionner prestataires & PV & Notification & Multicritère & Recours & & & & \\
+5 & Mobiliser matériels & Livrés & Bons & Logistique & Douane & \Sone & \Sone & \Sone & \Sone \\
+6 & Travaux génie civil & 100\% & Rapports & Sous-trait. & Météo & \Sone & \Sone & \Sone & \Sone \\
+7 & Installer turbines & Posés & PV & Supervision & Levage & \Sone & \Sone & \Sone & \Sone \\
+8 & Raccorder réseau & Connexion & Schémas & Coupure & Sécurité & \Sone & \Sone & \Sone & \Sone \\
+9 & Tests mise en service & Rapport & Certificat & Protocole & Carburant & \Sone & \Sone & \Sone & \Sone \\
+10 & Former personnel & 20 agents & Liste & Terrain & Dispo & \Sone & \Sone & \Sone & \Sone \\
+11 & Évaluer performances & Rendement & Dashboard & Mesure & Charge & \Sfour & \Sfour & \Sfour & \Sfour \\
+
+% Obj 2
+12 & Inventaire équipements & BDD & Asset & Audit & Accès & & & & \\
+13 & Diagnostic état & Rapport & Fiches & Tests ND & Outils & & & & \\
+14 & Protocoles & Manuel & Note & Benchmark & Adhésion & & & & \\
+15 & Logiciels GMAO & Actifs & Facture & IT & SI & & & & \\
+16 & Affecter équipes & Validé & Note & RH & Climat & & & & \\
+17 & Calendrier zones & Affiché & Note & Rotation & Urgences & \Sone & \Sone & \Sone & \Sone \\
+18 & Graissage & 100\% & Fiches & Niv 1 & Fournitures & \Sone & \Sone & \Sone & \Sone \\
+19 & Remplacer composants & Stock & Bons & Préventif & Budget & \Sone & \Sone & \Sone & \Sone \\
+20 & Archiver rapports & BDD & Logs & Temps réel & Connect. & \Sfour & \Sfour & \Sfour & \Sfour \\
+21 & Ajustement mensuel & Rapport & Réunion & Agile & Feedback & \Sthree & & & \\
+
+% Obj 3 (Deadline Juin - Rush)
+22 & Identifier sites & Carte & Étude & Multi & Foncier & & & & \\
+23 & Mesures météo & Données & Relevés & Instrum. & Sécurité & \Sfour & \Sfour & \Sfour & \Sfour \\
+24 & Plan hybridation & Schéma & Dossier & Simu & Profil & & & & \\
+25 & Acquérir panneaux & Dédouané & List & Import & Transport & & & & \\
+26 & Aménager parcs & Fini & PV & Génie & Local & \Sone & \Sone & \Sone & \Sone \\
+27 & Monter structures & Fini & PV & Équipes & Levage & \Sone & \Sone & \Sone & \Sone \\
+28 & Système stockage & Batteries & Test & Local & Incendie & \Sone & \Sone & \Sone & \Sone \\
+29 & Piloter intelligent & Algo & Test & EMS & Protocoles & \Sone & \Sone & \Sone & \Sone \\
+30 & Tester injection & 15MW & Courbes & Montée & Fréquence & \Sone & \Sone & \Sone & \Sone \\
+31 & Télégestion & Accès & Écrans & 4G & Cyber & \Sone & \Sone & \Sone & \Sone \\
+
+% Obj 4 (Finie en Avril)
+32 & Recensement & Fichier & BDD & Terrain & Clients & & & & \\
+33 & Sensibilisation & Spots & Média & Radio & Message & \Sfour & & \Sfour & \\
+34 & Commande compteurs & Contrat & Bon & Groupé & Prêt & & & & \\
+35 & Serveur recharge & Opérat. & Test & Vending & Mobile & & & & \\
+36 & Former techniciens & 50 certif & Attest & Ateliers & Assiduité & & & & \\
+37 & Déployer équipes & Pose & Rapports & Zonal & Accès & \Sthree & & & \\
+38 & Points vente & 20 open & Contrats & Privé & GSM & \Sthree & & & \\
+39 & Coupure auto & Validée & Test & STS & Rejet & \Sthree & & & \\
+40 & Support technique & Actif & Logs & CRM & Staff & \Sfour & \Sfour & \Sfour & \Sfour \\
+41 & Vérifier taux & Rapport & Stats & Audit & Données & \Sfour & \Sfour & \Sfour & \Sone \\
+
+% Obj 5
+42 & Analyseurs réseau & Posé & Données & Ciblage & Accès & & & & \\
+43 & Collecte données & Log & Courbes & 24h & Stockage & \Sone & \Sone & \Sone & \Sone \\
+44 & Identifier pics & Liste & Rapport & Pareto & Usage & \Sfour & \Sfour & \Sfour & \Sfour \\
+45 & Simuler scénarios & Validé & Modèle & Grid & Hypoth. & \Sone & \Sone & \Sone & \Sone \\
+46 & Condensateurs & CosPhi & Relevé & Local & Dimens. & \Sone & \Sone & \Sone & \Sone \\
+47 & Délestage & Planning & Réclam. & Équitable & Comms & \Sone & \Sone & \Sone & \Sone \\
+48 & Auto Smart Grid & Automate & Logs & IA & Comms & \Sone & \Sone & \Sone & \Sone \\
+49 & Limiteurs indus & Posés & PV & Contract & Respect & \Sone & \Sone & \Sone & \Sone \\
+50 & Monitorer charge & Alerte & KPI & Superv. & Réactif & \Sfour & \Sfour & \Sfour & \Sfour \\
+
+\end{longtable}
+\end{landscape}
+\end{document}

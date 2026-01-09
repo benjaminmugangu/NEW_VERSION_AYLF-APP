@@ -4,6 +4,8 @@ import { prisma, basePrisma, withRLS } from '@/lib/prisma';
 import { User, UserRole, ServiceResponse } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
+import { checkDeletionEligibility } from '@/lib/safetyChecks';
+import { ROLES } from '@/lib/constants';
 
 /**
  * Helper to map Prisma Profile to User model and sign avatar URLs
@@ -189,10 +191,36 @@ export async function getEligiblePersonnel(siteId: string, smallGroupId?: string
 
 /**
  * Permanently deletes a user.
+ * Only National Coordinators can delete users.
+ * Users with existing data (Reports, Activities, Transactions) cannot be deleted.
  */
 export async function deleteUser(userId: string): Promise<void> {
-  await prisma.profile.delete({
-    where: { id: userId },
+  const { getUser } = getKindeServerSession();
+  const currentUser = await getUser();
+
+  if (!currentUser) throw new Error('Unauthorized');
+
+  return await withRLS(currentUser.id, async () => {
+    // 1. RBAC Guard: Only National Coordinators can delete users
+    const requester = await prisma.profile.findUnique({
+      where: { id: currentUser.id },
+      select: { role: true }
+    });
+
+    if (requester?.role !== ROLES.NATIONAL_COORDINATOR) {
+      throw new Error('UNAUTHORIZED_ACTION: Only National Coordinators can perform user deletion.');
+    }
+
+    // 2. Structural Guard: check if user has data linked to them
+    const eligibility = await checkDeletionEligibility(userId);
+    if (!eligibility.canDelete) {
+      throw new Error(`INELIGIBLE_FOR_DELETION: ${eligibility.reason}`);
+    }
+
+    // 3. Execution
+    await prisma.profile.delete({
+      where: { id: userId },
+    });
   });
 }
 

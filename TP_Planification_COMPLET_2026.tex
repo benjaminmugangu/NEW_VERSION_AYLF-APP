@@ -1,0 +1,236 @@
+\documentclass[a4paper,10pt]{article}
+\usepackage{pdflscape}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{amssymb} 
+\usepackage{xcolor}
+\usepackage{colortbl} % Required for cell colors
+
+% Maximizing space for the 48-column table
+\geometry{left=0.5cm,right=0.5cm,top=1cm,bottom=1cm}
+
+% Define custom colors as requested
+\definecolor{actBlue}{RGB}{50, 100, 250}   % Activité continue : bleu
+\definecolor{actGreen}{RGB}{50, 200, 50}   % Activité discontinue : vert
+\definecolor{actOrange}{RGB}{255, 165, 0}  % Activité concomitante : orange
+\definecolor{actPurple}{RGB}{147, 112, 219} % Activité ponctuelle : violet
+
+% Helper commands for colored cells
+\newcommand{\CBlue}{\cellcolor{actBlue}}
+\newcommand{\CGreen}{\cellcolor{actGreen}}
+\newcommand{\COrange}{\cellcolor{actOrange}}
+\newcommand{\CPurple}{\cellcolor{actPurple}}
+
+\begin{document}
+
+% ==========================================
+% PAGE DE GARDE (PORTRAIT)
+% ==========================================
+\begin{titlepage}
+    \centering
+    \vspace*{2cm}
+    {\Huge \textbf{GROUPE 8}}\\[1.5cm]
+    {\Huge \textbf{Chronogramme des activités}}\\[0.5cm]
+    {\LARGE (Janvier - Décembre 2026)}\\[2cm]
+    
+    {\Large \textbf{TRAVAIL DU COURS DE GESTION DES PROJETS}}\\[0.5cm]
+    {\large Master 1 / ULPGL}\\[0.5cm]
+    {\large \textit{À partir d’une formulation de besoin pour un problème communautaire spécifique}}\\[2cm]
+    
+    \textbf{Membres du groupe :}\\[1cm]
+    \begin{minipage}{0.6\textwidth}
+        \centering
+        \large
+        BANGIRAHE NSHUTI Joachim\\
+        BIZIMANA VUNABANDI Henricus\\
+        ELIE NIRWOTH Jason\\
+        HEMEDY LUTUNDA EDDY-IDRISSA\\
+        KAVUGHO NYONDO Marie\\
+        KAYIHEMBAKO MWENGE Edwige\\
+        MIHIMBI FRANCOIS Matumo\\
+        MUGANGU MUGISHO Benjamin\\
+        MWENGEBUTSA KITSA Jérémie\\
+        CHUBAKA LUBALA Josué\\
+        SALUMU BALINGENE Junior\\
+    \end{minipage}
+    
+    \vfill
+    {\large Année Académique 2025-2026}
+\end{titlepage}
+
+\begin{landscape}
+\tiny
+\setlength{\tabcolsep}{1pt} % Reduce padding between columns to fit 48 weeks
+
+% ==========================================
+% TABLEAU ANNUEL UNIQUE
+% ==========================================
+
+% Column definition: 
+% 1: N° (c)
+% 2: Activités (p tiny) -> Reduced width to give space to weeks
+% 3-6: IOV, Source, strat, Hyp -> Very reduced
+% 7-54: 48 columns for weeks (c)
+\begin{longtable}{|c|p{3cm}|p{1.5cm}|p{1.2cm}|p{1.2cm}|p{1.2cm}|*{48}{c|}}
+\caption{Planification Opérationnelle Annuelle : JANVIER - DÉCEMBRE 2026} \\
+\hline
+\multirow{3}{*}{\textbf{N°}} & 
+\multirow{3}{*}{\textbf{Activités}} & 
+\multirow{3}{*}{\textbf{IOV}} & 
+\multirow{3}{*}{\textbf{Source}} & 
+\multirow{3}{*}{\textbf{Stratégie}} & 
+\multirow{3}{*}{\textbf{Hypothèses}} & 
+\multicolumn{48}{c|}{\textbf{Planning Annuel 2026}} \\
+\cline{7-54}
+ & & & & & & 
+ \multicolumn{4}{c|}{\textbf{JAN}} & \multicolumn{4}{c|}{\textbf{FÉV}} & \multicolumn{4}{c|}{\textbf{MARS}} & 
+ \multicolumn{4}{c|}{\textbf{AVR}} & \multicolumn{4}{c|}{\textbf{MAI}} & \multicolumn{4}{c|}{\textbf{JUIN}} & 
+ \multicolumn{4}{c|}{\textbf{JUIL}} & \multicolumn{4}{c|}{\textbf{AOÛT}} & \multicolumn{4}{c|}{\textbf{SEPT}} & 
+ \multicolumn{4}{c|}{\textbf{OCT}} & \multicolumn{4}{c|}{\textbf{NOV}} & \multicolumn{4}{c|}{\textbf{DÉC}} \\
+\cline{7-54}
+ & & & & & & 
+ \tiny 1 & \tiny 2 & \tiny 3 & \tiny 4 & \tiny 1 & \tiny 2 & \tiny 3 & \tiny 4 & \tiny 1 & \tiny 2 & \tiny 3 & \tiny 4 & 
+ \tiny 1 & \tiny 2 & \tiny 3 & \tiny 4 & \tiny 1 & \tiny 2 & \tiny 3 & \tiny 4 & \tiny 1 & \tiny 2 & \tiny 3 & \tiny 4 & 
+ \tiny 1 & \tiny 2 & \tiny 3 & \tiny 4 & \tiny 1 & \tiny 2 & \tiny 3 & \tiny 4 & \tiny 1 & \tiny 2 & \tiny 3 & \tiny 4 & 
+ \tiny 1 & \tiny 2 & \tiny 3 & \tiny 4 & \tiny 1 & \tiny 2 & \tiny 3 & \tiny 4 & \tiny 1 & \tiny 2 & \tiny 3 & \tiny 4 \\
+\hline
+\multicolumn{54}{|l|}{\textbf{Légende :} \textcolor{actBlue}{\rule{0.3cm}{0.3cm}} Continue (Bleu) \quad \textcolor{actGreen}{\rule{0.3cm}{0.3cm}} Discontinue (Vert) \quad \textcolor{actOrange}{\rule{0.3cm}{0.3cm}} Concomitante (Orange) \quad \textcolor{actPurple}{\rule{0.3cm}{0.3cm}} Ponctuelle (Violet)} \\
+\hline
+\endfirsthead
+\hline
+\multirow{3}{*}{\textbf{N°}} & 
+\multirow{3}{*}{\textbf{Activités}} & 
+\multirow{3}{*}{\textbf{IOV}} & 
+\multirow{3}{*}{\textbf{Source}} & 
+\multirow{3}{*}{\textbf{Stratégie}} & 
+\multirow{3}{*}{\textbf{Hypothèses}} & 
+\multicolumn{48}{c|}{\textbf{Planning Annuel 2026 (Suite)}} \\
+\cline{7-54}
+ & & & & & & 
+ \multicolumn{4}{c|}{\textbf{JAN}} & \multicolumn{4}{c|}{\textbf{FÉV}} & \multicolumn{4}{c|}{\textbf{MARS}} & 
+ \multicolumn{4}{c|}{\textbf{AVR}} & \multicolumn{4}{c|}{\textbf{MAI}} & \multicolumn{4}{c|}{\textbf{JUIN}} & 
+ \multicolumn{4}{c|}{\textbf{JUIL}} & \multicolumn{4}{c|}{\textbf{AOÛT}} & \multicolumn{4}{c|}{\textbf{SEPT}} & 
+ \multicolumn{4}{c|}{\textbf{OCT}} & \multicolumn{4}{c|}{\textbf{NOV}} & \multicolumn{4}{c|}{\textbf{DÉC}} \\
+\cline{7-54}
+ & & & & & & 
+ \tiny 1 & \tiny 2 & \tiny 3 & \tiny 4 & \tiny 1 & \tiny 2 & \tiny 3 & \tiny 4 & \tiny 1 & \tiny 2 & \tiny 3 & \tiny 4 & 
+ \tiny 1 & \tiny 2 & \tiny 3 & \tiny 4 & \tiny 1 & \tiny 2 & \tiny 3 & \tiny 4 & \tiny 1 & \tiny 2 & \tiny 3 & \tiny 4 & 
+ \tiny 1 & \tiny 2 & \tiny 3 & \tiny 4 & \tiny 1 & \tiny 2 & \tiny 3 & \tiny 4 & \tiny 1 & \tiny 2 & \tiny 3 & \tiny 4 & 
+ \tiny 1 & \tiny 2 & \tiny 3 & \tiny 4 & \tiny 1 & \tiny 2 & \tiny 3 & \tiny 4 & \tiny 1 & \tiny 2 & \tiny 3 & \tiny 4 \\
+\hline
+\endhead
+\hline
+\multicolumn{54}{|r|}{{Suite page suivante...}} \\
+\hline
+\endfoot
+\hline
+\endlastfoot
+
+% 1. Etude: Jan 1-4
+1 & Étude technique & Rapport & PV & Expertise & Données & \CBlue & \CBlue & \CBlue & \CBlue & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & \\
+% 2. Cahier: Jan 2-4, Feb 1-2 (Extended)
+2 & Cahier des charges & DAO & ARMP & Comité & Légal & & \COrange & \COrange & \COrange & \COrange & \COrange & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & \\
+% 3. Appel: Feb 1-4
+3 & Appels d'offre & $>$5 offres & Rapports & Transparence & Marché & & & & & \CBlue & \CBlue & \CBlue & \CBlue & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & \\
+% 4. Select: Mar 1-3
+4 & Sélectionner prestataires & PV & Notification & Multicritère & Recours & & & & & & & & & \CPurple & \CPurple & \CPurple & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & \\
+% 5. Mob: Mar 4 - Apr 1-3
+5 & Mobiliser matériels & Livrés & Bons & Logistique & Douane & & & & & & & & & & & & \COrange & \COrange & \COrange & \COrange & & & & & & & & & & & & & & & & & & & & & & & & & & & & \\
+% 6. GC: Apr 2-4, Mai 1-3
+6 & Travaux génie civil & 100\% & Rapports & Sous-trait. & Météo & & & & & & & & & & & & & & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & & & & & & & & & & & & & & & & & & & & & & & & \\
+% 7. Turb: Mai 2-4, Jun 1
+7 & Installer turbines & Posés & PV & Supervision & Levage & & & & & & & & & & & & & & & & & & \CBlue & \CBlue & \CBlue & \CBlue & & & & & & & & & & & & & & & & & & & & & & \\
+% 8. Raccord: Jun 2-4
+8 & Raccorder réseau & Connexion & Schémas & Coupure & Sécurité & & & & & & & & & & & & & & & & & & & & & & \CBlue & \CBlue & \CBlue & & & & & & & & & & & & & & & & & & & \\
+% 9. Tests: Jun 4 - Jul 1-3
+9 & Tests mise en service & Rapport & Certificat & Protocole & Carburant & & & & & & & & & & & & & & & & & & & & & & & & & \CPurple & \CPurple & \CPurple & \CPurple & & & & & & & & & & & & & & & \\
+% 10. Form: Jul 2-4, Aug 1
+10 & Former personnel & 20 agents & Liste & Terrain & Dispo & & & & & & & & & & & & & & & & & & & & & & & & & & & & \CPurple & \CPurple & \CPurple & \CPurple & & & & & & & & & & & & & & \\
+% 11. Eval: Aug 4, Sep 4, Oct 4, Nov 4, Dec 4
+11 & Évaluer performances & Rendement & Dashboard & Mesure & Charge & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & \CPurple & & & & \CPurple & & & & \CPurple & & & & \CPurple \\
+% 12. Inv: Aug 2-3
+12 & Inventaire équipements & BDD & Asset & Audit & Accès & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & \CPurple & \CPurple & & & & & & & & & & & & & & & \\
+% 13. Diag: Aug 4 - Sep 1
+13 & Diagnostic état & Rapport & Fiches & Tests ND & Outils & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & \CPurple & \CPurple & & & & & & & & & & & & & \\
+% 14. Proto: Sep 2-3
+14 & Protocoles & Manuel & Note & Benchmark & Adhésion & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & \CPurple & \CPurple & & & & & & & & & & & \\
+% 15. GMAO: Sep 4 - Oct 1
+15 & Logiciels GMAO & Actifs & Facture & IT & SI & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & \CPurple & \CPurple & & & & & & & & & \\
+% 16. Equipes: Oct 2-3
+16 & Affecter équipes & Validé & Note & RH & Climat & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & \CPurple & \CPurple & & & & & & \\
+% 17. Cal: S4 of Jun, Jul, Aug, Sep, Oct, Nov, Dec
+17 & Calendrier zones & Affiché & Note & Rotation & Urgences & & & & & & & & & & & & & & & & & & \CPurple & & & & \CPurple & & & & \CPurple & & & & \CPurple & & & & \CPurple & & & & \CPurple & & & & \CPurple \\
+% 18. Graiss: Jul - Dec (Continuous) -> Weeks 25-48
+18 & Graissage & 100\% & Fiches & Niv 1 & Fournitures & & & & & & & & & & & & & & & & & & & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue \\
+% 19. Rempl: Jul - Dec (Discontinuous)
+19 & Remplacer composants & Stock & Bons & Préventif & Budget & & & & & & & & & & & & & & & & & & & \CGreen & & \CGreen & & \CGreen & & \CGreen & & \CGreen & & \CGreen & & \CGreen & & \CGreen & & \CGreen & & \CGreen & & \CGreen & & \CGreen & \\
+% 20. Arch: Jul - Dec (Concom)
+20 & Archiver rapports & BDD & Logs & Temps réel & Connect. & & & & & & & & & & & & & & & & & & & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange \\
+% 21. Adjust: S4 of Jun-Dec
+21 & Ajustement mensuel & Rapport & Réunion & Agile & Feedback & & & & & & & & & & & & & & & & & & \CPurple & & & & & & & & \CPurple & & & & & & & & \CPurple & & & & & & & & \CPurple & & & & \\
+% 22. Sites: Jan 1-3
+22 & Identifier sites & Carte & Étude & Multi & Foncier & \CBlue & \CBlue & \CBlue & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & \\
+% 23. Meteo: Jan-Dec (Continuous)
+23 & Mesures météo & Données & Relevés & Instrum. & Sécurité & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue \\
+% 24. Hybrid: Jan 4 - Feb 1-3
+24 & Plan hybridation & Schéma & Dossier & Simu & Profil & & & & \CBlue & \CBlue & \CBlue & \CBlue & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & \\
+% 25. Panneaux: Feb 4 - Mar 1-3
+25 & Acquérir panneaux & Dédouané & List & Import & Transport & & & & & & & & \COrange & \COrange & \COrange & \COrange & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & \\
+% 26. Parc: Mar 4 - Apr 1-3
+26 & Aménager parcs & Fini & PV & Génie & Local & & & & & & & & & & & & \CBlue & \CBlue & \CBlue & \CBlue & & & & & & & & & & & & & & & & & & & & & & & & & & & & \\
+% 27. Struct: Apr 4 - Mai 1-3
+27 & Monter structures & Fini & PV & Équipes & Levage & & & & & & & & & & & & & & & & \CBlue & \CBlue & \CBlue & \CBlue & & & & & & & & & & & & & & & & & & & & & & & & \\
+% 28. Stock: Mai 4 - Jun 1-2
+28 & Système stockage & Batteries & Test & Local & Incendie & & & & & & & & & & & & & & & & & & & & \CPurple & \CPurple & \CPurple & & & & & & & & & & & & & & & & & & & & & \\
+% 29. Pilot: Jun 3 - Dec (Cont) -> Weeks 23-48
+29 & Piloter intelligent & Algo & Test & EMS & Protocoles & & & & & & & & & & & & & & & & & & & & & & & & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue \\
+% 30. Test Inj: S4 of Jun-Dec
+30 & Tester injection & 15MW & Courbes & Montée & Fréquence & & & & & & & & & & & & & & & & & & \CPurple & & & & \CPurple & & & & \CPurple & & & & \CPurple & & & & \CPurple & & & & \CPurple & & & & \CPurple \\
+% 31. Tele: Jul - Dec (Orange) -> Weeks 25-48
+31 & Télégestion & Accès & Écrans & 4G & Cyber & & & & & & & & & & & & & & & & & & & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange \\
+% 32. Recens: Jan 1-4
+32 & Recensement & Fichier & BDD & Terrain & Clients & \CBlue & \CBlue & \CBlue & \CBlue & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & \\
+% 33. Sensi: Jan - Apr (Green Disc) -> Weeks 1-16
+33 & Sensibilisation & Spots & Média & Radio & Message & \CGreen & & \CGreen & & \CGreen & & \CGreen & & \CGreen & & \CGreen & & \CGreen & & \CGreen & & & & & & & & & & & & & & & & & & & & & & & & & & & & \\
+% 34. Compt: Mar 1-4
+34 & Commande compteurs & Contrat & Bon & Groupé & Prêt & & & & & & & & & \CPurple & \CPurple & \CPurple & \CPurple & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & & \\
+% 35. Serv: Apr 1-4
+35 & Serveur recharge & Opérat. & Test & Vending & Mobile & & & & & & & & & & & & & \CPurple & \CPurple & \CPurple & \CPurple & & & & & & & & & & & & & & & & & & & & & & & & & & & \\
+% 36. Tech: Mai 1-4
+36 & Former techniciens & 50 certif & Attest & Ateliers & Assiduité & & & & & & & & & & & & & & & & & \CPurple & \CPurple & \CPurple & \CPurple & & & & & & & & & & & & & & & & & & & & & & & \\
+% 37. Dep: Jun 1-4
+37 & Déployer équipes & Pose & Rapports & Zonal & Accès & & & & & & & & & & & & & & & & & & & & & \CBlue & \CBlue & \CBlue & \CBlue & & & & & & & & & & & & & & & & & & & \\
+% 38. PV: Jul - Dec (Orange) -> Weeks 25-48
+38 & Points vente & 20 open & Contrats & Privé & GSM & & & & & & & & & & & & & & & & & & & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange \\
+% 39. Coup: S4 Jun-Dec
+39 & Coupure auto & Validée & Test & STS & Rejet & & & & & & & & & & & & & & & & & & \CPurple & & & & \CPurple & & & & \CPurple & & & & \CPurple & & & & \CPurple & & & & \CPurple & & & & \CPurple \\
+% 40. Supp: Jun - Dec (Blue)
+40 & Support technique & Actif & Logs & CRM & Staff & & & & & & & & & & & & & & & & & & & & & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue \\
+% 41. Verif: S4 Jul-Dec
+41 & Vérifier taux & Rapport & Stats & Audit & Données & & & & & & & & & & & & & & & & & & & & & & & \CPurple & & & & \CPurple & & & & \CPurple & & & & \CPurple & & & & \CPurple & & & & \CPurple \\
+% 42. Anal: Apr 1-4
+42 & Analyseurs réseau & Posé & Données & Ciblage & Accès & & & & & & & & & & & & & \CPurple & \CPurple & \CPurple & \CPurple & & & & & & & & & & & & & & & & & & & & & & & & & & & \\
+% 43. Coll: Jun - Dec (Blue)
+43 & Collecte données & Log & Courbes & 24h & Stockage & & & & & & & & & & & & & & & & & & & & & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue \\
+% 44. Pics: S4 Jun-Dec
+44 & Identifier pics & Liste & Rapport & Pareto & Usage & & & & & & & & & & & & & & & & & & \CPurple & & & & \CPurple & & & & \CPurple & & & & \CPurple & & & & \CPurple & & & & \CPurple & & & & \CPurple \\
+% 45. Sim: Feb-Jun (Blue) -> Weeks 5-24
+45 & Simuler scénarios & Validé & Modèle & Grid & Hypoth. & & & & & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & & & & & & & & & & & & & & & & & & & & & \\
+% 46. Cond: Mai - Dec (Orange) -> Weeks 17-48
+46 & Condensateurs & CosPhi & Relevé & Local & Dimens. & & & & & & & & & & & & & & & & & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange & \COrange \\
+% 47. Delest: Jul - Dec (Green) -> Weeks 25-48
+47 & Délestage & Planning & Réclam. & Équitable & Comms & & & & & & & & & & & & & & & & & & & \CGreen & \CGreen & \CGreen & \CGreen & \CGreen & \CGreen & \CGreen & \CGreen & \CGreen & \CGreen & \CGreen & \CGreen & \CGreen & \CGreen & \CGreen & \CGreen & \CGreen & \CGreen & \CGreen & \CGreen & \CGreen & \CGreen & \CGreen & \CGreen \\
+% 48. Smart: Jul - Dec (Blue) -> Weeks 25-48
+48 & Auto Smart Grid & Automate & Logs & IA & Comms & & & & & & & & & & & & & & & & & & & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue \\
+% 49. Limit: S4 Jul-Dec
+49 & Limiteurs indus & Posés & PV & Contract & Respect & & & & & & & & & & & & & & & & & & & & & & & \CPurple & & & & \CPurple & & & & \CPurple & & & & \CPurple & & & & \CPurple & & & & \CPurple \\
+% 50. Monitor: Jun - Dec (Blue) -> Weeks 21-48
+50 & Monitorer charge & Alerte & KPI & Superv. & Réactif & & & & & & & & & & & & & & & & & & & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue & \CBlue \\
+
+\end{longtable}
+\end{landscape}
+\end{document}

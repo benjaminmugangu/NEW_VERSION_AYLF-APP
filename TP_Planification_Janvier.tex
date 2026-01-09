@@ -1,0 +1,125 @@
+\documentclass[a4paper,10pt]{article}
+\usepackage{pdflscape}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{amssymb} 
+\usepackage{xcolor}
+
+\geometry{left=1cm,right=1cm,top=1cm,bottom=1cm}
+
+\begin{document}
+\begin{landscape}
+\tiny
+
+% NOUVELLE LÉGENDE CORRIGÉE
+% 1. Continue (Block Noir)
+\newcommand{\Sone}{${\blacksquare}$} 
+% 2. Discontinue (Losange)
+\newcommand{\Stwo}{${\blacklozenge}$}
+% 3. Concomitante (Block Gris - Parallèle)
+\newcommand{\Sthree}{\textcolor{darkgray}{${\blacksquare}$}} 
+% 4. Ponctuelle (Point - One shot)
+\newcommand{\Sfour}{${\bullet}$}
+
+\begin{longtable}{|c|p{3.5cm}|p{2.8cm}|p{2.5cm}|p{2.5cm}|p{2.5cm}|c|c|c|c|}
+\caption{Planification Opérationnelle : JANVIER 2026} \\
+\hline
+\multirow{2}{*}{\textbf{N°}} & 
+\multirow{2}{*}{\textbf{Activités}} & 
+\multirow{2}{*}{\textbf{IOV}} & 
+\multirow{2}{*}{\textbf{Source}} & 
+\multirow{2}{*}{\textbf{Stratégie}} & 
+\multirow{2}{*}{\textbf{Hypothèses}} & 
+\multicolumn{4}{c|}{\textbf{Mois : JANVIER}} \\
+\cline{7-10}
+ & & & & & & \textbf{S1} & \textbf{S2} & \textbf{S3} & \textbf{S4} \\
+\hline
+\multicolumn{10}{|l|}{\textit{Légende : \Sone~Continue ~|~ \Stwo~Discontinue ~|~ \Sthree~Concomitante ~|~ \Sfour~Ponctuelle}} \\
+\hline
+\endfirsthead
+\hline
+\multirow{2}{*}{\textbf{N°}} & 
+\multirow{2}{*}{\textbf{Activités}} & 
+\multirow{2}{*}{\textbf{IOV}} & 
+\multirow{2}{*}{\textbf{Source}} & 
+\multirow{2}{*}{\textbf{Stratégie}} & 
+\multirow{2}{*}{\textbf{Hypothèses}} & 
+\multicolumn{4}{c|}{\textbf{Mois : JANVIER}} \\
+\cline{7-10}
+ & & & & & & \textbf{S1} & \textbf{S2} & \textbf{S3} & \textbf{S4} \\
+\hline
+\endhead
+\hline
+\multicolumn{10}{|r|}{{Suite page suivante...}} \\
+\hline
+\endfoot
+\hline
+\endlastfoot
+
+% Obj 1: Augmenter capacité
+1 & Étude technique faisabilité & Rapport validé & PV & Expertise & Données & \Sone & \Sone & \Sfour & \\
+2 & Cahier des charges & DAO publié & ARMP & Comité & Légal & & \Sthree & \Sthree & \\
+3 & Lancer appels d'offre & $>$ 5 soumissions & Rapports & Transparence & Marché & & & \Sfour & \Sone \\
+4 & Sélectionner prestataires & PV d'attribution & Notification & Multicritère & Recours & & & & \Sfour \\
+5 & Mobiliser matériels & Livrés & Bons & Logistique & Douane & \Sthree & \Sthree & \Sthree & \Sthree \\
+6 & Travaux génie civil & 100\% & Rapports & Sous-trait. & Météo & \Sone & \Sone & \Sone & \\
+7 & Installer turbines & Posés & PV & Supervision & Levage & & \Sthree & \Sthree & \Sthree \\
+8 & Raccorder réseau & Connexion & Schémas & Coupure & Sécurité & & & \Sfour & \Sfour \\
+9 & Tests mise en service & Rapport & Certificat & Protocole & Carburant & & & & \Sfour \\
+10 & Former personnel & 20 agents & Liste & Terrain & Dispo & \Sfour & \Sfour & & \\
+11 & Évaluer performances & Rendement & Dashboard & Mesure & Charge & & & \Sfour & \Sfour \\
+
+% Obj 2: Maintenance
+12 & Inventaire équipements & BDD maj & Asset Mgt & Audit & Accès & \Sfour & \Sfour & & \\
+13 & Diagnostic état & Rapport & Fiches & Tests ND & Outils & & \Stwo & \Stwo & \\
+14 & Protocoles performances & Manuel & Note & Benchmark & Adhésion & & & \Sfour & \\
+15 & Logiciels GMAO & Actifs & Facture & IT & SI & \Sfour & & & \\
+16 & Affecter équipes & Validé & Note & RH & Climat & & \Sfour & & \\
+17 & Calendrier zones & Affiché & Note & Rotation & Urgences & & & \Sfour & \Sfour \\
+18 & Graissage & 100\% & Fiches & Niv 1 & Fournitures & \Sone & \Sone & \Sone & \Sone \\
+19 & Remplacer composants & Stock & Bons & Préventif & Budget & \Stwo & & \Stwo & \\
+20 & Archiver rapports & BDD & Logs & Temps réel & Connect. & \Sthree & \Sthree & \Sthree & \Sthree \\
+21 & Ajustement mensuel & Rapport & Réunion & Agile & Feedback & & & & \Sfour \\
+
+% Obj 3: Hybridation
+22 & Identifier sites & Carte & Étude & Multi & Foncier & \Sone & \Sone & & \\
+23 & Mesures météo & Données & Relevés & Instrum. & Sécurité & \Sone & \Sone & \Sone & \Sone \\
+24 & Plan hybridation & Schéma & Dossier & Simu & Profil & & & \Stwo & \Stwo \\
+25 & Acquérir panneaux & Dédouané & List & Import & Transport & \Sthree & \Sthree & & \\
+26 & Aménager parcs & Fini & PV & Génie & Local & & \Sone & \Sone & \\
+27 & Monter structures & Fini & PV & Équipes & Levage & & & \Sone & \Sone \\
+28 & Système stockage & Batteries & Test & Local & Incendie & & & & \Sfour \\
+29 & Configurer pilotage & Algo & Test & EMS & Protocoles & \Stwo & & \Stwo & \\
+30 & Tester injection & 15MW & Courbes & Montée & Fréquence & & \Sfour & \Sfour & \Sfour \\
+31 & Télégestion & Accès & Écrans & 4G & Cyber & & & \Sthree & \Sthree \\
+
+% Obj 4: Compteurs
+32 & Recensement & Fichier & BDD & Terrain & Clients & \Sone & \Sone & \Sone & \Sone \\
+33 & Sensibilisation & Spots & Média & Radio & Message & \Stwo & \Stwo & & \\
+34 & Commande compteurs & Contrat & Bon & Groupé & Prêt & \Sfour & & & \\
+35 & Serveur recharge & Opérat. & Test & Vending & Mobile & & \Stwo & \Stwo & \\
+36 & Former techniciens & 50 certif & Attest & Ateliers & Assiduité & & & \Sfour & \\
+37 & Déployer équipes & Pose & Rapports & Zonal & Accès & & \Sone & \Sone & \Sone \\
+38 & Points vente & 20 open & Contrats & Privé & GSM & & & \Sthree & \Sthree \\
+39 & Coupure auto & Validée & Test & STS & Rejet & & & & \Sfour \\
+40 & Support technique & Actif & Logs & CRM & Staff & \Sone & \Sone & \Sone & \Sone \\
+41 & Vérifier taux & Rapport & Stats & Audit & Données & & & & \Sfour \\
+
+% Obj 5: Équilibrage
+42 & Analyseurs réseau & Posé & Données & Ciblage & Accès & \Sfour & \Sfour & & \\
+43 & Collecte données & Log & Courbes & 24h & Stockage & \Sone & \Sone & \Sone & \\
+44 & Identifier pics & Liste & Rapport & Pareto & Usage & & \Stwo & \Stwo & \\
+45 & Simuler scénarios & Validé & Modèle & Grid & Hypoth. & & & \Sfour & \\
+46 & Condensateurs & CosPhi & Relevé & Local & Dimens. & & \Sthree & \Sthree & \\
+47 & Délestage & Planning & Réclam. & Équitable & Comms & \Stwo & \Stwo & \Stwo & \Stwo \\
+48 & Auto Smart Grid & Automate & Logs & IA & Comms & & & \Sthree & \Sthree \\
+49 & Limiteurs indus & Posés & PV & Contract & Respect & & \Sfour & \Sfour & \\
+50 & Monitorer charge & Alerte & KPI & Superv. & Réactif & \Sone & \Sone & \Sone & \Sone \\
+
+\end{longtable}
+\end{landscape}
+\end{document}

@@ -18,9 +18,15 @@ CREATE POLICY "Hierarchical view for transactions" ON public.transactions
     (get_my_role() = 'SMALL_GROUP_LEADER' AND small_group_id::TEXT = get_my_small_group_id())
   );
 
--- 2. Users can record transactions in their scope
+-- 2. Users can record transactions in their scope (Strict Enforcement)
 CREATE POLICY "Users can record transactions in their scope" ON public.transactions
-  FOR INSERT WITH CHECK (recorded_by::TEXT = get_my_id());
+  FOR INSERT WITH CHECK (
+    recorded_by::TEXT = get_my_id() AND (
+      get_my_role() = 'NATIONAL_COORDINATOR' OR
+      (get_my_role() = 'SITE_COORDINATOR' AND site_id::TEXT = get_my_site_id()) OR
+      (get_my_role() = 'SMALL_GROUP_LEADER' AND small_group_id::TEXT = get_my_small_group_id())
+    )
+  );
 
 -- 3. National Coordinators can update transactions
 CREATE POLICY "National Coordinators can update transactions" ON public.transactions

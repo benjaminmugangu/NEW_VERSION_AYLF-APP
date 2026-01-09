@@ -65,7 +65,7 @@ export const mapDbReportToReport = (dbReport: DbReport): FrontendReport => {
     girlsCount: dbReport.girlsCount ?? undefined,
     boysCount: dbReport.boysCount ?? undefined,
     participantsCountReported: dbReport.participantsCountReported ?? undefined,
-    totalExpenses: dbReport.totalExpenses ?? undefined,
+    totalExpenses: dbReport.totalExpenses ? Number(dbReport.totalExpenses) : undefined,
     currency: dbReport.currency ?? undefined,
     content: dbReport.content,
     images: dbReport.images ? (dbReport.images as any) : undefined,

@@ -554,7 +554,7 @@ export async function approveReport(
       }
 
       // 3. Generate FinancialTransaction if there are expenses
-      if (approvedReport.totalExpenses && approvedReport.totalExpenses > 0) {
+      if (approvedReport.totalExpenses && Number(approvedReport.totalExpenses) > 0) {
         const transaction = await tx.financialTransaction.create({
           data: {
             type: 'expense',

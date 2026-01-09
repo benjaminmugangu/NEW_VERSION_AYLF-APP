@@ -90,6 +90,13 @@ enum NotificationType {
   USER_INVITED
 }
 
+enum TransactionStatus {
+  draft
+  submitted
+  approved
+  rejected
+}
+
 // Models
 
 model Profile {
@@ -168,7 +175,7 @@ model SmallGroup {
   name String
 
   siteId String @map("site_id")
-  site   Site   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  site   Site   @relation(fields: [siteId], references: [id], onDelete: Restrict)
 
   // Leadership
   leaderId String?  @unique @map("leader_id")
@@ -213,10 +220,10 @@ model Member {
   level ActivityLevel
 
   siteId String? @map("site_id")
-  site   Site?   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  site   Site?   @relation(fields: [siteId], references: [id], onDelete: SetNull)
 
   smallGroupId String?     @map("small_group_id")
-  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id], onDelete: Cascade)
+  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id], onDelete: SetNull)
 
   userId String?  @map("user_id")
   user   Profile? @relation(fields: [userId], references: [id])
@@ -248,10 +255,10 @@ model Activity {
   level    ActivityLevel
 
   siteId String? @map("site_id")
-  site   Site?   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  site   Site?   @relation(fields: [siteId], references: [id], onDelete: Restrict)
 
   smallGroupId String?     @map("small_group_id")
-  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id], onDelete: Cascade)
+  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id], onDelete: Restrict)
 
   activityTypeId String       @map("activity_type_id")
   activityType   ActivityType @relation(fields: [activityTypeId], references: [id])
@@ -289,7 +296,7 @@ model Report {
   girlsCount                Int?    @map("girls_count")
   boysCount                 Int?    @map("boys_count")
   participantsCountReported Int?    @map("participants_count_reported")
-  totalExpenses             Float?  @map("total_expenses")
+  totalExpenses             Decimal? @map("total_expenses") @db.Decimal(10, 2)
   currency                  String?
   financialSummary          String? @map("financial_summary") @db.Text
   reviewNotes               String? @map("review_notes") @db.Text
@@ -308,16 +315,16 @@ model Report {
   rejectionReason String?   @map("rejection_reason") // Reason for rejection
 
   siteId String? @map("site_id")
-  site   Site?   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  site   Site?   @relation(fields: [siteId], references: [id], onDelete: Restrict)
 
   smallGroupId String?     @map("small_group_id")
-  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id], onDelete: Cascade)
+  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id], onDelete: Restrict)
 
   activityTypeId String       @map("activity_type_id")
   activityType   ActivityType @relation(fields: [activityTypeId], references: [id])
 
   activityId String?   @map("activity_id")
-  activity   Activity? @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  activity   Activity? @relation(fields: [activityId], references: [id], onDelete: Restrict)
 
   linkedTransactions FinancialTransaction[]
 
@@ -334,16 +341,16 @@ model FinancialTransaction {
   id          String          @id @default(uuid())
   date        DateTime
   description String
-  amount      Float
+  amount      Decimal  @db.Decimal(10, 2)
   type        TransactionType
   category    String
 
   // Entity Links
   siteId String? @map("site_id")
-  site   Site?   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  site   Site?   @relation(fields: [siteId], references: [id], onDelete: Restrict)
 
   smallGroupId String?     @map("small_group_id")
-  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id], onDelete: Cascade)
+  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id], onDelete: Restrict)
 
   recordedById String  @map("recorded_by")
   recordedBy   Profile @relation("RecordedBy", fields: [recordedById], references: [id])
@@ -351,17 +358,17 @@ model FinancialTransaction {
   attachments Json? // string[]
 
   // Workflow & Approval (NEW)
-  status       String    @default("approved") // 'draft' | 'submitted' | 'approved' | 'rejected'
-  approvedById String?   @map("approved_by_id")
+  status       TransactionStatus @default(approved)
+  approvedById String?           @map("approved_by_id")
   approvedBy   Profile?  @relation("ApprovedTransactions", fields: [approvedById], references: [id])
   approvedAt   DateTime? @map("approved_at")
 
   // Context Links (NEW)
   relatedReportId String? @map("related_report_id")
-  relatedReport   Report? @relation(fields: [relatedReportId], references: [id], onDelete: Cascade)
+  relatedReport   Report? @relation(fields: [relatedReportId], references: [id], onDelete: Restrict)
 
   relatedActivityId String?   @map("related_activity_id")
-  relatedActivity   Activity? @relation(fields: [relatedActivityId], references: [id], onDelete: Cascade)
+  relatedActivity   Activity? @relation(fields: [relatedActivityId], references: [id], onDelete: Restrict)
 
   // Reversal Support (NEW)
   isReversalOfId String?                @map("is_reversal_of_id")
@@ -382,7 +389,7 @@ model FinancialTransaction {
 
 model FundAllocation {
   id             String           @id @default(uuid())
-  amount         Float
+  amount         Decimal          @db.Decimal(10, 2)
   allocationDate DateTime         @map("allocation_date")
   goal           String
   source         String
@@ -408,10 +415,10 @@ model FundAllocation {
   fromSite   Site?   @relation("AllocationsFrom", fields: [fromSiteId], references: [id])
 
   siteId String? @map("site_id")
-  site   Site?   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  site   Site?   @relation(fields: [siteId], references: [id], onDelete: Restrict)
 
   smallGroupId String?     @map("small_group_id")
-  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id], onDelete: Cascade)
+  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id], onDelete: Restrict)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -557,9 +564,9 @@ model InventoryMovement {
 
   // Context
   siteId       String? @map("site_id")
-  site         Site?   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  site         Site?   @relation(fields: [siteId], references: [id], onDelete: Restrict)
   smallGroupId String? @map("small_group_id")
-  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id], onDelete: Cascade)
+  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id], onDelete: Restrict)
 
   createdAt DateTime @default(now()) @map("created_at")
 
