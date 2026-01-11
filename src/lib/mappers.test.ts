@@ -17,7 +17,7 @@ describe('User Mappers', () => {
       mandateEndDate: new Date('2024-01-01T00:00:00.000Z'),
       createdAt: new Date(),
       updatedAt: new Date(),
-    };
+    } as any;
 
     const expectedUser: User = {
       id: 'user-1',

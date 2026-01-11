@@ -12,6 +12,7 @@ import { UserRole } from '@prisma/client';
 import { checkPeriod } from './accountingService';
 import { checkBudgetIntegrity } from './budgetService';
 import { notifyBudgetOverrun } from './notificationService';
+import { deleteFile, extractFilePath } from './storageService';
 
 export async function getAllocations(filters?: { siteId?: string; smallGroupId?: string }): Promise<FundAllocation[]> {
   const { getUser } = getKindeServerSession();
@@ -161,14 +162,22 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
     });
 
     if (!profile) {
-      return { success: false, error: { message: `User profile not found for user ${kindeUser.id}` } };
+      return { success: false, error: { message: "Profile not found" } };
+    }
+
+    // 1b. Idempotency Check (Pre-Transaction)
+    if (formData.idempotencyKey) {
+      const existingKey = await basePrisma.idempotencyKey.findUnique({
+        where: { key: formData.idempotencyKey }
+      });
+      if (existingKey) {
+        return { success: true, data: existingKey.response as any };
+      }
     }
 
     // 2. Wrap entire logic in withRLS to ensure store is set for secondary calls
-    return await withRLS(kindeUser.id, async () => {
-      console.log(`[AllocationService] Starting transaction for ${profile.role}`);
-
-      const result = await basePrisma.$transaction(async (tx: any) => {
+    const result = await withRLS(kindeUser.id, async () => {
+      return await basePrisma.$transaction(async (tx: any) => {
         // Manually set RLS context at the start of the transaction session
         await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${kindeUser.id}'`);
 
@@ -179,6 +188,7 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
         if (profile.role === 'NATIONAL_COORDINATOR') {
           if (!formData.isDirect) {
             // Hierarchical
+            if (formData.smallGroupId) throw new Error("Hierarchical NC allocation must target a Site ONLY");
             if (!formData.siteId) throw new Error("Hierarchical allocation requires a target Site");
 
             const allocation = await tx.fundAllocation.create({
@@ -220,7 +230,7 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
             // Direct
             if (!formData.smallGroupId) throw new Error("Direct allocation requires a target Small Group");
             if (!formData.bypassReason || formData.bypassReason.trim().length < 20) {
-              throw new Error("Direct allocations require a detailed justification (min 20 chars).");
+              throw new Error("Direct allocations require a detailed justification (minimum 20 characters).");
             }
 
             const smallGroup = await tx.smallGroup.findUnique({
@@ -288,10 +298,12 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
         }
         // SC Logic
         else if (profile.role === 'SITE_COORDINATOR') {
-          if (!profile.siteId || !formData.smallGroupId) throw new Error("Invalid SC allocation parameters");
+          if (!profile.siteId) throw new Error("Site Coordinator has no assigned site");
+          if (!formData.smallGroupId) throw new Error("Site Coordinator must allocate to a Small Group");
 
           const smallGroup = await tx.smallGroup.findUnique({ where: { id: formData.smallGroupId } });
-          if (!smallGroup || smallGroup.siteId !== profile.siteId) throw new Error("Invalid target Small Group");
+          if (!smallGroup) throw new Error("Invalid target Small Group");
+          if (smallGroup.siteId !== profile.siteId) throw new Error("Cannot allocate to Small Group from another site");
 
           const budget = await calculateAvailableBudget({ siteId: profile.siteId }, tx);
           // ✅ Informative Phase: We no longer block allocations even if budget is insufficient.
@@ -310,6 +322,7 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
               siteId: profile.siteId,
               smallGroupId: formData.smallGroupId,
               allocationType: 'hierarchical',
+              bypassReason: null,
               allocatedById: kindeUser.id,
               notes: formData.notes,
               fromSiteId: profile.siteId,
@@ -328,37 +341,37 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
             );
           }
 
-          return mapDBAllocationToModel(allocation);
-        } else {
-          throw new Error("Forbidden: Role not authorized for allocations");
-        }
-      }, { timeout: 30000 });
+          const model = mapDBAllocationToModel(allocation);
 
-      revalidatePath('/dashboard/finances');
-
-      // ✅ Real-time Budget Overrun Detection (Point 4)
-      // If funds were sent FROM a site, check if that site is now in overrun
-      if (profile.role === 'SITE_COORDINATOR' && profile.siteId) {
-        try {
-          // Pass the transaction client to checkBudgetIntegrity
-          const integrity = await checkBudgetIntegrity({ siteId: profile.siteId }, basePrisma); // Use basePrisma for checkBudgetIntegrity outside the transaction
-          if (integrity.isOverrun) {
-            await notifyBudgetOverrun({
-              siteId: profile.siteId,
-              entityName: profile.site?.name || 'Site',
-              balance: integrity.balance,
-              tx: basePrisma
+          // ✅ Save Idempotency Key inside transaction
+          if (formData.idempotencyKey) {
+            await tx.idempotencyKey.upsert({
+              where: { key: formData.idempotencyKey },
+              create: {
+                key: formData.idempotencyKey,
+                response: model as any
+              },
+              update: {
+                response: model as any
+              }
             });
           }
-        } catch (e) {
-          console.error('[BudgetAlert] Failed to check site budget integrity:', e);
-        }
-      }
 
-      return { success: true, data: result };
+          return model;
+        } else {
+          throw new Error("Only National Coordinators and Site Coordinators can create allocations.");
+        }
+      }, { timeout: 30000 });
     });
+
+    return { success: true, data: result };
   } catch (error: any) {
-    console.error(`[AllocationService] FATAL: ${error.message}`);
+    if (formData.proofUrl) {
+      console.error('[CreateAllocation] Database failure, initiating rollback for proofUrl...', error);
+      await deleteFile(extractFilePath(formData.proofUrl, 'report-images'), { isRollback: true }).catch(err =>
+        console.error('[CreateAllocation] Critical: Asset rollback failed:', err)
+      );
+    }
     return { success: false, error: { message: error.message } };
   }
 }
@@ -374,184 +387,230 @@ function mapDBAllocationToModel(a: any): FundAllocation {
     status: a.status as any,
     allocatedById: a.allocatedById,
     siteId: a.siteId || undefined,
-    smallGroupId: a.smallGroupId || undefined,
-    notes: a.notes || undefined,
+    smallGroupId: a.smallGroupId,
+    notes: a.notes,
     allocationType: a.allocationType as any,
-    bypassReason: a.bypassReason || undefined,
+    bypassReason: a.bypassReason,
     allocatedByName: a.allocatedBy?.name || 'Unknown',
     siteName: a.site?.name,
     smallGroupName: a.smallGroup?.name,
     fromSiteName: a.fromSite?.name || 'National',
-    fromSiteId: a.fromSiteId || undefined,
-    proofUrl: a.proofUrl || undefined,
+    fromSiteId: a.fromSiteId,
+    proofUrl: a.proofUrl,
   };
 }
 
 
 
-export async function updateAllocation(id: string, formData: Partial<FundAllocationFormData>): Promise<FundAllocation> {
-  const { getUser } = getKindeServerSession();
-  const kindeUser = await getUser();
+export async function updateAllocation(id: string, formData: Partial<FundAllocationFormData>): Promise<ServiceResponse<FundAllocation>> {
+  try {
+    const { getUser } = getKindeServerSession();
+    const kindeUser = await getUser();
 
-  if (!kindeUser) {
-    throw new Error("Unauthorized: User not authenticated");
-  }
+    if (!kindeUser) {
+      return { success: false, error: { message: "Unauthorized: User not authenticated" } };
+    }
 
-  // Fetch profile outside RLS
-  const profile = await prisma.profile.findUnique({
-    where: { id: kindeUser.id },
-    select: { role: true }
-  });
-
-  if (!profile || profile.role !== 'NATIONAL_COORDINATOR') {
-    throw new Error("Forbidden: Only National Coordinators can update allocations.");
-  }
-
-  return await withRLS(kindeUser.id, async () => {
-    // Fetch existing allocation to check date
-    const existing = await prisma.fundAllocation.findUnique({
-      where: { id },
-      select: { allocationDate: true, allocationType: true }
+    // Fetch profile outside RLS
+    const profile = await basePrisma.profile.findUnique({
+      where: { id: kindeUser.id },
+      select: { role: true }
     });
 
-    if (!existing) throw new Error('Allocation not found');
-
-    // ✅ Accounting Period Guard: Check existing and new dates
-    await checkPeriod(existing.allocationDate, 'Modification d\'allocation (existant)');
-    if (formData.allocationDate) {
-      await checkPeriod(new Date(formData.allocationDate), 'Modification d\'allocation (nouvelle date)');
+    if (!profile || profile.role !== 'NATIONAL_COORDINATOR') {
+      return { success: false, error: { message: "Only National Coordinators can update allocations." } };
     }
 
-    const updateData: any = {};
-    if (formData.amount !== undefined) updateData.amount = formData.amount;
-    if (formData.allocationDate) updateData.allocationDate = new Date(formData.allocationDate);
-    if (formData.goal !== undefined) updateData.goal = formData.goal;
-    if (formData.status !== undefined) updateData.status = formData.status;
-    if (formData.notes !== undefined) updateData.notes = formData.notes;
-    if (formData.fromSiteId !== undefined) updateData.fromSiteId = formData.fromSiteId;
-    if (formData.proofUrl !== undefined) updateData.proofUrl = formData.proofUrl;
+    const result = await withRLS(kindeUser.id, async () => {
+      return await basePrisma.$transaction(async (tx: any) => {
+        // 1. Manually set RLS context for this transaction session
+        await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${kindeUser.id}'`);
 
-    // CRITICAL: Prevent changing core audit fields after creation
-    // siteId and smallGroupId can be updated if necessary, but allocationType is fixed
-    if (formData.allocationType !== undefined) {
-      throw new Error("Audit Integrity Error: Cannot change allocationType after creation.");
-    }
+        // 2. Fetch existing allocation inside transaction
+        const existing = await tx.fundAllocation.findUnique({
+          where: { id },
+          include: { site: true, smallGroup: true, allocatedBy: true }
+        });
 
-    // Explicitly handle bypassReason validation if it's being updated
-    if (formData.bypassReason !== undefined) {
-      // Fetch current allocation to check type
-      const existing = await prisma.fundAllocation.findUnique({ where: { id }, select: { allocationType: true } });
-      if (existing?.allocationType === 'direct') {
-        if (!formData.bypassReason || formData.bypassReason.trim().length < 20) {
-          throw new Error("Validation Error: Direct allocations require a justification of minimum 20 characters.");
+        console.log('[AllocationService] DEBUG: existing allocation found:', !!existing);
+        if (!existing) throw new Error('Allocation not found');
+
+        // ✅ Accounting Period Guard: Check existing and new dates
+        await checkPeriod(existing.allocationDate, 'Modification d\'allocation (existant)');
+        if (formData.allocationDate) {
+          await checkPeriod(new Date(formData.allocationDate), 'Modification d\'allocation (nouvelle date)');
         }
-        updateData.bypassReason = formData.bypassReason;
-      }
-    }
 
-    const updated = await prisma.fundAllocation.update({
-      where: { id },
-      data: updateData,
+        const updateData: any = {};
+        if (formData.amount !== undefined) updateData.amount = formData.amount;
+        if (formData.allocationDate) updateData.allocationDate = new Date(formData.allocationDate);
+        if (formData.goal !== undefined) updateData.goal = formData.goal;
+        if (formData.status !== undefined) updateData.status = formData.status;
+        if (formData.notes !== undefined) updateData.notes = formData.notes;
+        if (formData.fromSiteId !== undefined) updateData.fromSiteId = formData.fromSiteId;
+        if (formData.proofUrl !== undefined) updateData.proofUrl = formData.proofUrl;
+
+        // CRITICAL: Prevent changing core audit fields after creation
+        if (formData.allocationType !== undefined) {
+          throw new Error("Audit Integrity Error: Cannot change allocationType after creation.");
+        }
+
+        // Explicitly handle bypassReason validation
+        if (formData.bypassReason !== undefined && existing.allocationType === 'direct') {
+          if (!formData.bypassReason || formData.bypassReason.trim().length < 20) {
+            throw new Error("Validation Error: Direct allocations require a justification of minimum 20 characters.");
+          }
+          updateData.bypassReason = formData.bypassReason;
+        }
+
+        const updated = await tx.fundAllocation.update({
+          where: { id },
+          data: updateData,
+          include: { site: true, smallGroup: true, allocatedBy: true, fromSite: true }
+        });
+
+        // 3. Audit Log inside the transaction
+        await tx.auditLog.create({
+          data: {
+            actorId: kindeUser.id,
+            action: 'update',
+            entityType: 'FundAllocation',
+            entityId: id,
+            metadata: { before: existing, after: updated },
+            createdAt: new Date()
+          }
+        });
+
+        revalidatePath('/dashboard/finances');
+
+        // ✅ Real-time Budget Overrun Detection
+        try {
+          if (updated.siteId) {
+            const siteIntegrity = await checkBudgetIntegrity({ siteId: updated.siteId }, tx);
+            if (siteIntegrity.isOverrun) {
+              const site = await tx.site.findUnique({ where: { id: updated.siteId }, select: { name: true } });
+              await notifyBudgetOverrun({
+                siteId: updated.siteId,
+                entityName: site?.name || 'Site',
+                balance: siteIntegrity.balance,
+                tx
+              });
+            }
+          }
+          if (updated.smallGroupId) {
+            const groupIntegrity = await checkBudgetIntegrity({ smallGroupId: updated.smallGroupId }, tx);
+            if (groupIntegrity.isOverrun) {
+              const group = await tx.smallGroup.findUnique({ where: { id: updated.smallGroupId }, select: { name: true } });
+              await notifyBudgetOverrun({
+                smallGroupId: updated.smallGroupId,
+                entityName: group?.name || 'Petit Groupe',
+                balance: groupIntegrity.balance,
+                tx
+              });
+            }
+          }
+        } catch (e) {
+          console.error('[BudgetAlert] Failed to check budget integrity after update:', e);
+        }
+
+        return mapDBAllocationToModel(updated);
+      }, { timeout: 15000 });
     });
 
-    revalidatePath('/dashboard/finances');
-
-    // ✅ Real-time Budget Overrun Detection (Point 4)
-    // If the amount was reduced or recipient changed, check the affected entities
-    try {
-      if (updated.siteId) {
-        const siteIntegrity = await checkBudgetIntegrity({ siteId: updated.siteId }, basePrisma);
-        if (siteIntegrity.isOverrun) {
-          const site = await basePrisma.site.findUnique({ where: { id: updated.siteId }, select: { name: true } });
-          await notifyBudgetOverrun({
-            siteId: updated.siteId,
-            entityName: site?.name || 'Site',
-            balance: siteIntegrity.balance,
-            tx: basePrisma
-          });
-        }
-      }
-      if (updated.smallGroupId) {
-        const groupIntegrity = await checkBudgetIntegrity({ smallGroupId: updated.smallGroupId }, basePrisma);
-        if (groupIntegrity.isOverrun) {
-          const group = await basePrisma.smallGroup.findUnique({ where: { id: updated.smallGroupId }, select: { name: true } });
-          await notifyBudgetOverrun({
-            smallGroupId: updated.smallGroupId,
-            entityName: group?.name || 'Petit Groupe',
-            balance: groupIntegrity.balance,
-            tx: basePrisma
-          });
-        }
-      }
-    } catch (e) {
-      console.error('[BudgetAlert] Failed to check budget integrity after update:', e);
-    }
-
-    return getAllocationById(id);
-  });
+    return { success: true, data: result };
+  } catch (error: any) {
+    console.error('[AllocationService] Update FATAL ERROR:', error);
+    console.error(`[AllocationService] Update Error: ${error.message}`);
+    return { success: false, error: { message: error.message } };
+  }
 }
 
-export async function deleteAllocation(id: string): Promise<void> {
-  const { getUser } = getKindeServerSession();
-  const kindeUser = await getUser();
+export async function deleteAllocation(id: string): Promise<ServiceResponse<void>> {
+  try {
+    const { getUser } = getKindeServerSession();
+    const kindeUser = await getUser();
 
-  if (!kindeUser) {
-    throw new Error("Unauthorized: User not authenticated");
-  }
+    if (!kindeUser) {
+      return { success: false, error: { message: "Unauthorized: User not authenticated" } };
+    }
 
-  // Fetch profile outside RLS
-  const profile = await prisma.profile.findUnique({
-    where: { id: kindeUser.id },
-    select: { role: true }
-  });
-
-  if (!profile || profile.role !== 'NATIONAL_COORDINATOR') {
-    throw new Error("Forbidden: Only National Coordinators can delete allocations.");
-  }
-
-  return await withRLS(kindeUser.id, async () => {
-    // Fetch deletion targets for budget alerts
-    const target = await prisma.fundAllocation.findUnique({
-      where: { id },
-      select: { siteId: true, smallGroupId: true, allocationDate: true }
+    // Fetch profile outside RLS
+    const profile = await basePrisma.profile.findUnique({
+      where: { id: kindeUser.id },
+      select: { role: true }
     });
 
-    if (!target) throw new Error('Allocation not found');
-
-    // ✅ Accounting Period Guard: Check date
-    await checkPeriod(target.allocationDate, 'Suppression d\'allocation');
-
-    await prisma.fundAllocation.delete({ where: { id } });
-
-    revalidatePath('/dashboard/finances');
-
-    // ✅ Real-time Budget Overrun Detection (Point 4)
-    try {
-      if (target.siteId && !target.smallGroupId) {
-        const siteIntegrity = await checkBudgetIntegrity({ siteId: target.siteId }, basePrisma);
-        if (siteIntegrity.isOverrun) {
-          const site = await basePrisma.site.findUnique({ where: { id: target.siteId }, select: { name: true } });
-          await notifyBudgetOverrun({
-            siteId: target.siteId,
-            entityName: site?.name || 'Site',
-            balance: siteIntegrity.balance,
-            tx: basePrisma
-          });
-        }
-      } else if (target.smallGroupId) {
-        const groupIntegrity = await checkBudgetIntegrity({ smallGroupId: target.smallGroupId }, basePrisma);
-        if (groupIntegrity.isOverrun) {
-          const group = await basePrisma.smallGroup.findUnique({ where: { id: target.smallGroupId }, select: { name: true } });
-          await notifyBudgetOverrun({
-            smallGroupId: target.smallGroupId,
-            entityName: group?.name || 'Petit Groupe',
-            balance: groupIntegrity.balance,
-            tx: basePrisma
-          });
-        }
-      }
-    } catch (e) {
-      console.error('[BudgetAlert] Failed to check budget integrity after deletion:', e);
+    if (!profile || profile.role !== 'NATIONAL_COORDINATOR') {
+      return { success: false, error: { message: "Forbidden: Only National Coordinators can delete allocations." } };
     }
-  });
+
+    await withRLS(kindeUser.id, async () => {
+      return await basePrisma.$transaction(async (tx: any) => {
+        // 1. Manually set RLS context
+        await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${kindeUser.id}'`);
+
+        // 2. Fetch targets inside transaction
+        const target = await tx.fundAllocation.findUnique({
+          where: { id },
+          select: { siteId: true, smallGroupId: true, allocationDate: true, amount: true, goal: true }
+        });
+
+        if (!target) throw new Error('Allocation not found');
+
+        // ✅ Accounting Period Guard
+        await checkPeriod(target.allocationDate, 'Suppression d\'allocation');
+
+        // 3. Mutation
+        await tx.fundAllocation.delete({ where: { id } });
+
+        // 4. Audit Log
+        await tx.auditLog.create({
+          data: {
+            actorId: kindeUser.id,
+            action: 'delete',
+            entityType: 'FundAllocation',
+            entityId: id,
+            metadata: { before: target, comment: 'Allocation supprimée' },
+            createdAt: new Date()
+          }
+        });
+
+        revalidatePath('/dashboard/finances');
+
+        // ✅ Real-time Budget Overrun Detection
+        try {
+          if (target.siteId) {
+            const siteIntegrity = await checkBudgetIntegrity({ siteId: target.siteId }, tx);
+            if (siteIntegrity.isOverrun) {
+              const site = await tx.site.findUnique({ where: { id: target.siteId }, select: { name: true } });
+              await notifyBudgetOverrun({
+                siteId: target.siteId,
+                entityName: site?.name || 'Site',
+                balance: siteIntegrity.balance,
+                tx
+              });
+            }
+          }
+          if (target.smallGroupId) {
+            const groupIntegrity = await checkBudgetIntegrity({ smallGroupId: target.smallGroupId }, tx);
+            if (groupIntegrity.isOverrun) {
+              const group = await tx.smallGroup.findUnique({ where: { id: target.smallGroupId }, select: { name: true } });
+              await notifyBudgetOverrun({
+                smallGroupId: target.smallGroupId,
+                entityName: group?.name || 'Petit Groupe',
+                balance: groupIntegrity.balance,
+                tx
+              });
+            }
+          }
+        } catch (e) {
+          console.error('[BudgetAlert] Failed to check budget integrity after deletion:', e);
+        }
+      }, { timeout: 15000 });
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: { message: error.message } };
+  }
 }

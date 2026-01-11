@@ -231,6 +231,24 @@ export async function deleteFile(
   }
 }
 
+/**
+ * Extracts the file path from a Supabase Storage public URL.
+ * Format: https://[project].supabase.co/storage/v1/object/public/[bucket]/[path]
+ */
+export function extractFilePath(url: string, bucketName: string = 'report-images'): string {
+  if (!url) return '';
+  if (!url.startsWith('http')) return url; // Already a path
+
+  const parts = url.split(`/public/${bucketName}/`);
+  if (parts.length > 1) {
+    return parts[1];
+  }
+
+  // Fallback for other patterns or if bucket name is different than expected
+  const lastSlashIndex = url.lastIndexOf('/');
+  return url.substring(lastSlashIndex + 1);
+}
+
 // Keep the object for backward compatibility if needed, but exported as named
 export const storageService = {
   uploadFile,

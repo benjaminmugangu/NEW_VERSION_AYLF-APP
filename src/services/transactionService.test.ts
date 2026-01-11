@@ -4,18 +4,35 @@ import { prisma } from '@/lib/prisma';
 import { deleteFile } from './storageService';
 
 // Mock Dependencies
-vi.mock('@/lib/prisma', () => ({
-    prisma: {
+const { mockPrisma } = vi.hoisted(() => {
+    const mockPrismaInstance = {
         financialTransaction: {
             create: vi.fn(),
             update: vi.fn(),
         },
-        activity: { // for resolveTransactionContext
+        activity: {
             findUnique: vi.fn(),
         },
-        auditLog: { create: vi.fn() }
-    },
-    withRLS: vi.fn((userId, fn) => fn()), // Bypass RLS wrapper
+        auditLog: { create: vi.fn() },
+        idempotencyKey: {
+            findUnique: vi.fn(),
+            upsert: vi.fn(),
+        },
+        $executeRawUnsafe: vi.fn(),
+        $transaction: vi.fn(async (callback) => {
+            if (typeof callback === 'function') {
+                return await callback(mockPrismaInstance);
+            }
+            return callback;
+        }),
+    };
+    return { mockPrisma: mockPrismaInstance };
+});
+
+vi.mock('@/lib/prisma', () => ({
+    prisma: mockPrisma,
+    basePrisma: mockPrisma,
+    withRLS: vi.fn((userId, fn) => fn()),
 }));
 
 vi.mock('@kinde-oss/kinde-auth-nextjs/server', () => ({
@@ -32,6 +49,10 @@ vi.mock('./auditLogService', () => ({
     logTransactionCreation: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock('./accountingService', () => ({
+    checkPeriod: vi.fn(() => Promise.resolve()),
+}));
+
 describe('Transaction Service Atomic Rollback', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -42,17 +63,21 @@ describe('Transaction Service Atomic Rollback', () => {
             amount: 100,
             date: new Date(),
             description: 'Test',
-            type: 'expense',
+            type: 'income',
             category: 'test',
             recordedById: 'user_123',
-            proofUrl: 'reports/123/proof.pdf', // Dangling file
+            proofUrl: 'reports/123/proof.pdf',
         } as any;
 
         // Mock DB Failure
-        (prisma.financialTransaction.create as any).mockRejectedValue(new Error('DB Constraint Violation'));
+        mockPrisma.financialTransaction.create.mockRejectedValue(new Error('DB Constraint Violation'));
 
-        // Execute and Expect Error
-        await expect(createTransaction(formData)).rejects.toThrow('DB Constraint Violation');
+        // Act
+        const result = await createTransaction(formData);
+
+        // Assert
+        expect(result.success).toBe(false);
+        expect(result.error?.message).toBe('DB Constraint Violation');
 
         // Verify Rollback
         expect(deleteFile).toHaveBeenCalledTimes(1);
@@ -64,16 +89,22 @@ describe('Transaction Service Atomic Rollback', () => {
             amount: 100,
             recordedById: 'user_123',
             proofUrl: 'reports/123/proof.pdf',
+            date: new Date(),
+            type: 'income',
+            category: 'test',
+            description: 'Test',
         } as any;
 
         // Mock Success
-        (prisma.financialTransaction.create as any).mockResolvedValue({
+        mockPrisma.financialTransaction.create.mockResolvedValue({
             id: 'tx_1',
             ...formData,
+            recordedBy: { name: 'Test User' },
         });
 
-        await createTransaction(formData);
+        const result = await createTransaction(formData);
 
+        expect(result.success).toBe(true);
         expect(deleteFile).not.toHaveBeenCalled();
     });
 });

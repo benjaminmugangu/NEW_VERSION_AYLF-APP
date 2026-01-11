@@ -1,12 +1,17 @@
 'use server';
 
-import { prisma, withRLS } from '@/lib/prisma';
+import { prisma, basePrisma, withRLS } from '@/lib/prisma';
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
-import { Activity, ActivityStatus, ActivityType } from '@/lib/types';
+import { Activity, ActivityStatus, ActivityType, ServiceResponse } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
 import { type ActivityFormData } from '@/schemas/activity';
 import { revalidatePath } from 'next/cache';
 import notificationService from './notificationService';
+import {
+  logActivityCreation,
+  logActivityUpdate,
+  logActivityDeletion
+} from './auditLogService';
 import {
   mapPrismaActivityToActivity,
   buildActivityWhereClause,
@@ -69,178 +74,227 @@ export const getActivityById = async (id: string): Promise<Activity> => {
   });
 };
 
-export const createActivity = async (activityData: ActivityFormData, overrideUser?: any): Promise<Activity> => {
-  // Security Check: Get current user
-  const { getUser } = getKindeServerSession();
-  const user = overrideUser || await getUser();
+export const createActivity = async (
+  activityData: ActivityFormData,
+  overrideUser?: any,
+  ipAddress?: string,
+  userAgent?: string
+): Promise<ServiceResponse<Activity>> => {
+  try {
+    const { getUser } = getKindeServerSession();
+    const user = overrideUser || await getUser();
 
-  if (!user) throw new Error('Unauthorized');
+    if (!user) throw new Error('Unauthorized');
 
-  // Fetch full profile (basePrisma to bypass RLS for lookup)
-  const currentUser = await prisma.profile.findUnique({
-    where: { id: user.id },
-    select: { id: true, role: true, siteId: true, smallGroupId: true }
-  });
+    const currentUser = await basePrisma.profile.findUnique({
+      where: { id: user.id },
+      select: { id: true, role: true, siteId: true, smallGroupId: true }
+    });
 
-  if (!currentUser) throw new Error('Unauthorized');
+    if (!currentUser) throw new Error('Unauthorized');
 
-  return await withRLS(currentUser.id, async () => {
-    // Enforce RBAC Overrides and Validations
-    const safeData = await validateAndPrepareCreateData(activityData, currentUser);
+    const result = await withRLS(currentUser.id, async () => {
+      const safeData = await validateAndPrepareCreateData(activityData, currentUser);
 
-    return await prisma.$transaction(async (tx: any) => {
-      const activity = await tx.activity.create({
-        data: {
-          title: safeData.title,
-          thematic: safeData.thematic,
-          date: safeData.date,
-          level: safeData.level,
-          status: safeData.status,
-          siteId: safeData.siteId,
-          smallGroupId: safeData.smallGroupId,
-          activityTypeId: safeData.activityTypeId && safeData.activityTypeId !== '00000000-0000-0000-0000-000000000000'
-            ? safeData.activityTypeId
-            : (await tx.activityType.findFirst({ select: { id: true } }))?.id || '00000000-0000-0000-0000-000000000000',
-          activityTypeEnum: safeData.activityTypeEnum,
-          participantsCountPlanned: safeData.participantsCountPlanned,
-          createdById: safeData.createdBy,
-        },
-        include: {
-          site: true,
-          smallGroup: true,
-          activityType: true,
-        }
-      });
+      return await basePrisma.$transaction(async (tx: any) => {
+        // A. Manually set RLS context
+        await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${currentUser.id.replace(/'/g, "''")}'`);
 
-      // --- Notifications ---
-      // 1. Notify Site Coordinator if activity created by NC or Site Staff for a site
-      if (activity.siteId && activity.level === 'site') {
-        const sc = await tx.profile.findFirst({
-          where: { siteId: activity.siteId, role: ROLES.SITE_COORDINATOR }
-        });
-        if (sc && sc.id !== currentUser.id) {
-          await notificationService.notifyActivityCreated(sc.id, activity.title, activity.id, tx);
-        }
-      }
-
-      // 2. Notify Small Group Leader if activity created for a group
-      if (activity.smallGroupId && activity.level === 'small_group') {
-        const group = await tx.smallGroup.findUnique({
-          where: { id: activity.smallGroupId },
-          select: { leaderId: true, siteId: true }
+        const activity = await tx.activity.create({
+          data: {
+            title: safeData.title,
+            thematic: safeData.thematic,
+            date: safeData.date,
+            level: safeData.level,
+            status: safeData.status,
+            siteId: safeData.siteId,
+            smallGroupId: safeData.smallGroupId,
+            activityTypeId: safeData.activityTypeId && safeData.activityTypeId !== '00000000-0000-0000-0000-000000000000'
+              ? safeData.activityTypeId
+              : (await tx.activityType.findFirst({ select: { id: true } }))?.id || '00000000-0000-0000-0000-000000000000',
+            activityTypeEnum: safeData.activityTypeEnum,
+            participantsCountPlanned: safeData.participantsCountPlanned,
+            createdById: safeData.createdBy,
+          },
+          include: {
+            site: true,
+            smallGroup: true,
+            activityType: true,
+          }
         });
 
-        if (group?.leaderId && group.leaderId !== currentUser.id) {
-          await notificationService.notifyActivityCreated(group.leaderId, activity.title, activity.id, tx);
-        }
+        // Audit Log
+        await logActivityCreation(currentUser.id, activity.id, activity, ipAddress, userAgent, tx);
 
-        // Also notify SC of the site if not the creator
-        if (group?.siteId) {
+        // --- Notifications ---
+        if (activity.siteId && activity.level === 'site') {
           const sc = await tx.profile.findFirst({
-            where: { siteId: group.siteId, role: ROLES.SITE_COORDINATOR }
+            where: { siteId: activity.siteId, role: ROLES.SITE_COORDINATOR }
           });
           if (sc && sc.id !== currentUser.id) {
             await notificationService.notifyActivityCreated(sc.id, activity.title, activity.id, tx);
           }
         }
-      }
 
-      revalidatePath('/dashboard/activities');
-      return mapPrismaActivityToActivity(activity);
+        if (activity.smallGroupId && activity.level === 'small_group') {
+          const group = await tx.smallGroup.findUnique({
+            where: { id: activity.smallGroupId },
+            select: { leaderId: true, siteId: true }
+          });
+
+          if (group?.leaderId && group.leaderId !== currentUser.id) {
+            await notificationService.notifyActivityCreated(group.leaderId, activity.title, activity.id, tx);
+          }
+
+          if (group?.siteId) {
+            const sc = await tx.profile.findFirst({
+              where: { siteId: group.siteId, role: ROLES.SITE_COORDINATOR }
+            });
+            if (sc && sc.id !== currentUser.id) {
+              await notificationService.notifyActivityCreated(sc.id, activity.title, activity.id, tx);
+            }
+          }
+        }
+
+        revalidatePath('/dashboard/activities');
+        return mapPrismaActivityToActivity(activity);
+      });
     });
-  });
+
+    return { success: true, data: result };
+  } catch (error: any) {
+    console.error(`[ActivityService] Create Error: ${error.message}`);
+    return { success: false, error: { message: error.message } };
+  }
 }
 
-export const updateActivity = async (id: string, updatedData: Partial<ActivityFormData | { status: ActivityStatus }>): Promise<Activity> => {
-  const { getUser } = getKindeServerSession();
-  const user = await getUser();
+export const updateActivity = async (
+  id: string,
+  updatedData: Partial<ActivityFormData | { status: ActivityStatus }>,
+  ipAddress?: string,
+  userAgent?: string
+): Promise<ServiceResponse<Activity>> => {
+  try {
+    const { getUser } = getKindeServerSession();
+    const user = await getUser();
 
-  if (!user) throw new Error('Unauthorized');
+    if (!user) throw new Error('Unauthorized');
 
-  const currentUser = await prisma.profile.findUnique({
-    where: { id: user.id },
-    select: { id: true, role: true, siteId: true, smallGroupId: true }
-  });
-
-  if (!currentUser) throw new Error('Unauthorized');
-
-  return await withRLS(currentUser.id, async () => {
-    // Fetch existing activity to verify ownership/access
-    const existingActivity = await prisma.activity.findUnique({
-      where: { id },
-      select: { siteId: true, smallGroupId: true, createdById: true }
+    const currentUser = await basePrisma.profile.findUnique({
+      where: { id: user.id },
+      select: { id: true, role: true, siteId: true, smallGroupId: true }
     });
 
-    if (!existingActivity) throw new Error('Activity not found');
+    if (!currentUser) throw new Error('Unauthorized');
 
-    // Permission Check
-    validateUpdatePermissions(currentUser, existingActivity);
+    const result = await withRLS(currentUser.id, async () => {
+      return await basePrisma.$transaction(async (tx: any) => {
+        // Manually set RLS context
+        await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${currentUser.id.replace(/'/g, "''")}'`);
 
-    // Map frontend data to Prisma update object
-    const dbUpdates = buildActivityUpdateData(updatedData, currentUser);
+        const before = await tx.activity.findUnique({
+          where: { id },
+          select: { siteId: true, smallGroupId: true, createdById: true }
+        });
 
-    const activity = await prisma.activity.update({
-      where: { id },
-      data: dbUpdates,
-      include: {
-        site: true,
-        smallGroup: true,
-        activityType: true,
-        reports: {
-          select: { participantsCountReported: true },
-          take: 1,
-          orderBy: { submissionDate: 'desc' }
+        if (!before) throw new Error('Activity not found');
+
+        // Permission Check
+        validateUpdatePermissions(currentUser, before);
+
+        const dbUpdates = buildActivityUpdateData(updatedData, currentUser);
+
+        const updated = await tx.activity.update({
+          where: { id },
+          data: dbUpdates,
+          include: {
+            site: true,
+            smallGroup: true,
+            activityType: true,
+            reports: {
+              select: { participantsCountReported: true },
+              take: 1,
+              orderBy: { submissionDate: 'desc' }
+            }
+          }
+        });
+
+        // Audit Log
+        await logActivityUpdate(currentUser.id, id, before, updated, ipAddress, userAgent, tx);
+
+        revalidatePath('/dashboard/activities');
+        return mapPrismaActivityToActivity(updated);
+      });
+    });
+
+    return { success: true, data: result };
+  } catch (error: any) {
+    console.error(`[ActivityService] Update Error: ${error.message}`);
+    return { success: false, error: { message: error.message } };
+  }
+}
+
+export const deleteActivity = async (
+  id: string,
+  ipAddress?: string,
+  userAgent?: string
+): Promise<ServiceResponse<void>> => {
+  try {
+    const { getUser } = getKindeServerSession();
+    const user = await getUser();
+
+    if (!user) throw new Error('Unauthorized');
+
+    const currentUser = await basePrisma.profile.findUnique({
+      where: { id: user.id },
+      select: { id: true, role: true, siteId: true, smallGroupId: true }
+    });
+
+    if (!currentUser) throw new Error('Unauthorized');
+
+    await withRLS(currentUser.id, async () => {
+      return await basePrisma.$transaction(async (tx: any) => {
+        // Manually set RLS context
+        await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${currentUser.id.replace(/'/g, "''")}'`);
+
+        const activity = await tx.activity.findUnique({
+          where: { id },
+          select: { siteId: true, smallGroupId: true }
+        });
+
+        if (!activity) throw new Error('Activity not found');
+
+        if (currentUser.role !== ROLES.NATIONAL_COORDINATOR) {
+          if (currentUser.role === ROLES.SITE_COORDINATOR) {
+            if (activity.siteId !== currentUser.siteId) {
+              throw new Error('Forbidden: Cannot delete activity from another site');
+            }
+          } else if (currentUser.role === ROLES.SMALL_GROUP_LEADER) {
+            if (activity.smallGroupId !== currentUser.smallGroupId) {
+              throw new Error('Forbidden: Cannot delete activity from another group');
+            }
+          } else {
+            throw new Error('Forbidden');
+          }
         }
-      }
+
+        // Audit Log
+        await logActivityDeletion(currentUser.id, id, activity, ipAddress, userAgent, tx);
+
+        await tx.activity.delete({
+          where: { id },
+        });
+      });
     });
 
-    revalidatePath('/dashboard/activities');
-    return mapPrismaActivityToActivity(activity);
-  });
-};
-
-export const deleteActivity = async (id: string): Promise<void> => {
-  const { getUser } = getKindeServerSession();
-  const user = await getUser();
-
-  if (!user) throw new Error('Unauthorized');
-
-  const currentUser = await prisma.profile.findUnique({
-    where: { id: user.id },
-    select: { id: true, role: true, siteId: true, smallGroupId: true }
-  });
-
-  if (!currentUser) throw new Error('Unauthorized');
-
-  return await withRLS(currentUser.id, async () => {
-    const activity = await prisma.activity.findUnique({
-      where: { id },
-      select: { siteId: true, smallGroupId: true }
-    });
-
-    if (!activity) throw new Error('Activity not found');
-
-    if (currentUser.role !== ROLES.NATIONAL_COORDINATOR) {
-      if (currentUser.role === ROLES.SITE_COORDINATOR) {
-        if (activity.siteId !== currentUser.siteId) {
-          throw new Error('Forbidden: Cannot delete activity from another site');
-        }
-      } else if (currentUser.role === ROLES.SMALL_GROUP_LEADER) {
-        if (activity.smallGroupId !== currentUser.smallGroupId) {
-          throw new Error('Forbidden: Cannot delete activity from another group');
-        }
-      } else {
-        throw new Error('Forbidden');
-      }
-    }
-
-    await prisma.activity.delete({
-      where: { id },
-    });
     revalidatePath('/dashboard/activities');
     revalidatePath('/dashboard'); // Update metrics
-  });
-};
+    return { success: true };
+  } catch (error: any) {
+    console.error(`[ActivityService] Delete Error: ${error.message}`);
+    return { success: false, error: { message: error.message } };
+  }
+}
 
 export const getActivityTypes = async (): Promise<ActivityType[]> => {
   const types = await prisma.activityType.findMany();

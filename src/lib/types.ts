@@ -248,6 +248,7 @@ export interface FundAllocationFormData {
   isDirect?: boolean; // UI flag to toggle direct allocation mode
   allocationType?: 'hierarchical' | 'direct'; // Internal/Audit field
   bypassReason?: string; // Required when isDirect = true
+  idempotencyKey?: string;
 }
 
 export interface Financials {
@@ -317,6 +318,7 @@ export interface ReportFormData {
   reviewNotes?: string;
   attachments?: string[];
   submittedBy: string; // Should be set to the current user's ID
+  idempotencyKey?: string;
 }
 
 export interface TransactionFormData {
@@ -333,6 +335,7 @@ export interface TransactionFormData {
   proofUrl?: string;
   attachments?: string[];
   recordedById: string; // Set to current user's ID
+  idempotencyKey?: string;
 }
 
 // Duplicate FundAllocationFormData removed. Using definition at line 292.

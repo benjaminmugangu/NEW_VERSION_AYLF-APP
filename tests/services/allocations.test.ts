@@ -9,32 +9,59 @@ import type { FundAllocationFormData } from '@/lib/types';
 // Use vi.hoisted to ensure these are available when vi.mock calls are hoisted
 const { mockGetUser, mockKindeSession, mockPrisma } = vi.hoisted(() => {
     const getUser = vi.fn();
+    const mockPrismaInstance: any = {
+        profile: {
+            findUnique: vi.fn(),
+            findFirst: vi.fn(),
+        },
+        fundAllocation: {
+            create: vi.fn(),
+            update: vi.fn(),
+            delete: vi.fn(),
+            findUnique: vi.fn(),
+            findMany: vi.fn(),
+        },
+        smallGroup: {
+            findUnique: vi.fn(),
+        },
+        site: {
+            findUnique: vi.fn(),
+        },
+        idempotencyKey: {
+            findUnique: vi.fn(),
+            upsert: vi.fn(),
+        },
+        auditLog: {
+            create: vi.fn(),
+        },
+        accountingPeriod: {
+            findFirst: vi.fn(() => Promise.resolve(null)),
+            findUnique: vi.fn(),
+        },
+        $executeRawUnsafe: vi.fn(),
+    };
+
+    // Add $transaction after object is defined to ensure closure capture
+    mockPrismaInstance.$transaction = vi.fn(async (callback) => {
+        if (typeof callback === 'function') {
+            return await callback(mockPrismaInstance);
+        }
+        return callback; // Handle array case if needed (not used in services)
+    });
+
     return {
         mockGetUser: getUser,
         mockKindeSession: {
             getUser: getUser,
         },
-        mockPrisma: {
-            profile: {
-                findUnique: vi.fn(),
-            },
-            fundAllocation: {
-                create: vi.fn(),
-                update: vi.fn(),
-                delete: vi.fn(),
-                findUnique: vi.fn(),
-                findMany: vi.fn(),
-            },
-            smallGroup: {
-                findUnique: vi.fn(),
-            },
-        }
+        mockPrisma: mockPrismaInstance
     };
 });
 
 // Mock Prisma - return mockPrisma instance
 vi.mock('@/lib/prisma', () => ({
     prisma: mockPrisma,
+    basePrisma: mockPrisma,
     withRLS: vi.fn((userId: string, callback: () => any) => callback()), // Execute callback immediately
 }));
 
@@ -43,9 +70,32 @@ vi.mock('@kinde-oss/kinde-auth-nextjs/server', () => ({
     getKindeServerSession: vi.fn(() => mockKindeSession), // Always return same instance
 }));
 
+// Mock next/cache
+vi.mock('next/cache', () => ({
+    revalidatePath: vi.fn(),
+}));
+
 // Mock budget service
 vi.mock('@/services/budgetService', () => ({
     calculateAvailableBudget: vi.fn(() => Promise.resolve({ available: 100000 })),
+    checkBudgetIntegrity: vi.fn(() => Promise.resolve({ isOverrun: false, balance: 100000 })),
+}));
+
+// Mock notification service
+vi.mock('@/services/notificationService', () => ({
+    default: {
+        notifyAllocationReceived: vi.fn(() => Promise.resolve()),
+        createNotification: vi.fn(() => Promise.resolve()),
+    }
+}));
+
+// Mock storage service
+vi.mock('@/services/storageService', () => ({
+    deleteFile: vi.fn().mockResolvedValue(undefined),
+    extractFilePath: vi.fn((url) => {
+        const parts = url.split('/public/report-images/');
+        return parts.length > 1 ? parts[1] : url;
+    }),
 }));
 
 describe('Hybrid Fund Allocation System', () => {
@@ -155,11 +205,12 @@ describe('Hybrid Fund Allocation System', () => {
             const result = await createAllocation(formData);
 
             // Assert
-            expect(result).toBeDefined();
-            expect(result.allocationType).toBe('hierarchical');
-            expect(result.siteId).toBe('site-kinshasa');
-            expect(result.smallGroupId).toBeUndefined();
-            expect(result.bypassReason).toBeUndefined();
+            expect(result.success).toBe(true);
+            const allocation = result.data!;
+            expect(allocation.allocationType).toBe('hierarchical');
+            expect(allocation.siteId).toBe('site-kinshasa');
+            expect(allocation.smallGroupId).toBeNull();
+            expect(allocation.bypassReason).toBeNull();
             expect(mockPrisma.fundAllocation.create).toHaveBeenCalledWith(
                 expect.objectContaining({
                     data: expect.objectContaining({
@@ -188,8 +239,12 @@ describe('Hybrid Fund Allocation System', () => {
                 isDirect: false,
             };
 
-            // Act & Assert
-            await expect(createAllocation(formData)).rejects.toThrow('Hierarchical allocation requires a target Site');
+            // Act
+            const result = await createAllocation(formData);
+
+            // Assert
+            expect(result.success).toBe(false);
+            expect(result.error?.message).toContain('Hierarchical allocation requires a target Site');
         });
 
         it('should reject hierarchical NC allocation with smallGroupId', async () => {
@@ -209,10 +264,12 @@ describe('Hybrid Fund Allocation System', () => {
                 isDirect: false,
             };
 
-            // Act & Assert
-            await expect(createAllocation(formData)).rejects.toThrow(
-                'Hierarchical NC allocation must target a Site ONLY'
-            );
+            // Act
+            const result = await createAllocation(formData);
+
+            // Assert
+            expect(result.success).toBe(false);
+            expect(result.error?.message).toContain('Hierarchical NC allocation must target a Site ONLY');
         });
     });
 
@@ -259,10 +316,11 @@ describe('Hybrid Fund Allocation System', () => {
             const result = await createAllocation(formData);
 
             // Assert
-            expect(result).toBeDefined();
-            expect(result.allocationType).toBe('direct');
-            expect(result.smallGroupId).toBe('group-alpha');
-            expect(result.bypassReason).toBe('Urgence - Activité communautaire imprévue nécessitant financement immédiat');
+            expect(result.success).toBe(true);
+            const allocation = result.data!;
+            expect(allocation.allocationType).toBe('direct');
+            expect(allocation.smallGroupId).toBe('group-alpha');
+            expect(allocation.bypassReason).toBe('Urgence - Activité communautaire imprévue nécessitant financement immédiat');
             expect(mockPrisma.fundAllocation.create).toHaveBeenCalledWith(
                 expect.objectContaining({
                     data: expect.objectContaining({
@@ -292,10 +350,12 @@ describe('Hybrid Fund Allocation System', () => {
                 bypassReason: undefined, // Missing justification
             };
 
-            // Act & Assert
-            await expect(createAllocation(formData)).rejects.toThrow(
-                'Direct allocations require a detailed justification'
-            );
+            // Act
+            const result = await createAllocation(formData);
+
+            // Assert
+            expect(result.success).toBe(false);
+            expect(result.error?.message).toContain('Direct allocations require a detailed justification');
         });
 
         it('should reject direct allocation with short bypassReason (<20 chars)', async () => {
@@ -316,10 +376,12 @@ describe('Hybrid Fund Allocation System', () => {
                 bypassReason: 'Too short', // Only 9 characters
             };
 
-            // Act & Assert
-            await expect(createAllocation(formData)).rejects.toThrow(
-                'minimum 20 characters'
-            );
+            // Act
+            const result = await createAllocation(formData);
+
+            // Assert
+            expect(result.success).toBe(false);
+            expect(result.error?.message).toContain('minimum 20 characters');
         });
 
         it('should reject direct allocation without smallGroupId', async () => {
@@ -340,10 +402,12 @@ describe('Hybrid Fund Allocation System', () => {
                 bypassReason: 'Valid justification with more than twenty characters',
             };
 
-            // Act & Assert
-            await expect(createAllocation(formData)).rejects.toThrow(
-                'Direct allocation requires a target Small Group'
-            );
+            // Act
+            const result = await createAllocation(formData);
+
+            // Assert
+            expect(result.success).toBe(false);
+            expect(result.error?.message).toContain('Direct allocation requires a target Small Group');
         });
     });
 
@@ -388,11 +452,12 @@ describe('Hybrid Fund Allocation System', () => {
             const result = await createAllocation(formData);
 
             // Assert
-            expect(result).toBeDefined();
-            expect(result.allocationType).toBe('hierarchical');
-            expect(result.smallGroupId).toBe('group-alpha');
-            expect(result.siteId).toBe('site-kinshasa');
-            expect(result.bypassReason).toBeUndefined();
+            expect(result.success).toBe(true);
+            const allocation = result.data!;
+            expect(allocation.allocationType).toBe('hierarchical');
+            expect(allocation.smallGroupId).toBe('group-alpha');
+            expect(allocation.siteId).toBe('site-kinshasa');
+            expect(allocation.bypassReason).toBeNull();
             expect(mockPrisma.fundAllocation.create).toHaveBeenCalledWith(
                 expect.objectContaining({
                     data: expect.objectContaining({
@@ -421,10 +486,12 @@ describe('Hybrid Fund Allocation System', () => {
                 smallGroupId: undefined, // Missing target
             };
 
-            // Act & Assert
-            await expect(createAllocation(formData)).rejects.toThrow(
-                'Site Coordinator must allocate to a Small Group'
-            );
+            // Act
+            const result = await createAllocation(formData);
+
+            // Assert
+            expect(result.success).toBe(false);
+            expect(result.error?.message).toContain('Site Coordinator must allocate to a Small Group');
         });
 
         it('should reject SC allocation to Small Group from another site', async () => {
@@ -450,10 +517,12 @@ describe('Hybrid Fund Allocation System', () => {
                 smallGroupId: 'group-beta', // From another site
             };
 
-            // Act & Assert
-            await expect(createAllocation(formData)).rejects.toThrow(
-                'Cannot allocate to Small Group from another site'
-            );
+            // Act
+            const result = await createAllocation(formData);
+
+            // Assert
+            expect(result.success).toBe(false);
+            expect(result.error?.message).toContain('Cannot allocate to Small Group from another site');
         });
 
         it('should reject SC without assigned site', async () => {
@@ -475,10 +544,12 @@ describe('Hybrid Fund Allocation System', () => {
                 smallGroupId: 'group-alpha',
             };
 
-            // Act & Assert
-            await expect(createAllocation(formData)).rejects.toThrow(
-                'Site Coordinator has no assigned site'
-            );
+            // Act
+            const result = await createAllocation(formData);
+
+            // Assert
+            expect(result.success).toBe(false);
+            expect(result.error?.message).toContain('Site Coordinator has no assigned site');
         });
     });
 
@@ -501,8 +572,12 @@ describe('Hybrid Fund Allocation System', () => {
                 siteId: 'site-kinshasa',
             };
 
-            // Act & Assert
-            await expect(createAllocation(formData)).rejects.toThrow('Unauthorized');
+            // Act
+            const result = await createAllocation(formData);
+
+            // Assert
+            expect(result.success).toBe(false);
+            expect(result.error?.message).toContain('Unauthorized');
         });
 
         it('should reject users without profile', async () => {
@@ -521,8 +596,12 @@ describe('Hybrid Fund Allocation System', () => {
                 siteId: 'site-kinshasa',
             };
 
-            // Act & Assert
-            await expect(createAllocation(formData)).rejects.toThrow('Profile not found');
+            // Act
+            const result = await createAllocation(formData);
+
+            // Assert
+            expect(result.success).toBe(false);
+            expect(result.error?.message).toContain('Profile not found');
         });
 
         it('should reject unauthorized roles (e.g., SMALL_GROUP_LEADER)', async () => {
@@ -547,10 +626,12 @@ describe('Hybrid Fund Allocation System', () => {
                 smallGroupId: 'group-alpha',
             };
 
-            // Act & Assert
-            await expect(createAllocation(formData)).rejects.toThrow(
-                'Only National Coordinators and Site Coordinators can create fund allocations'
-            );
+            // Act
+            const result = await createAllocation(formData);
+
+            // Assert
+            expect(result.success).toBe(false);
+            expect(result.error?.message).toContain('Only National Coordinators and Site Coordinators');
         });
     });
 
@@ -565,11 +646,12 @@ describe('Hybrid Fund Allocation System', () => {
             mockGetUser.mockResolvedValue(mockNCUser);
             mockPrisma.profile.findUnique.mockResolvedValue(mockNCProfile as any);
             mockPrisma.fundAllocation.findUnique.mockResolvedValue(mockAllocationCreated as any);
+            mockPrisma.fundAllocation.update.mockResolvedValue({ ...mockAllocationCreated, amount: 6000 } as any);
 
             const updateData = { amount: 6000 };
             const result = await updateAllocation(mockID, updateData);
 
-            expect(result).toBeDefined();
+            expect(result.success).toBe(true);
             expect(mockPrisma.profile.findUnique).toHaveBeenCalledWith(
                 expect.objectContaining({ where: { id: mockNCUser.id } })
             );
@@ -579,16 +661,20 @@ describe('Hybrid Fund Allocation System', () => {
             mockGetUser.mockResolvedValue(mockSCUser);
             mockPrisma.profile.findUnique.mockResolvedValue(mockSCProfile as any);
 
-            await expect(updateAllocation(mockID, { amount: 6000 })).rejects.toThrow(
-                'Only National Coordinators can update allocations'
-            );
+            const result = await updateAllocation(mockID, { amount: 6000 });
+            expect(result.success).toBe(false);
+            expect(result.error?.message).toContain('Only National Coordinators can update allocations');
         });
 
         it('should allow National Coordinator to delete allocation', async () => {
             mockGetUser.mockResolvedValue(mockNCUser);
             mockPrisma.profile.findUnique.mockResolvedValue(mockNCProfile as any);
+            mockPrisma.fundAllocation.findUnique.mockResolvedValue(mockAllocationCreated as any);
+            mockPrisma.fundAllocation.delete.mockResolvedValue(mockAllocationCreated as any);
 
-            await deleteAllocation(mockID);
+            const result = await deleteAllocation(mockID);
+            if (!result.success) console.error('DELETE FAIL ERROR:', result.error?.message);
+            expect(result.success).toBe(true);
 
             expect(mockPrisma.fundAllocation.delete).toHaveBeenCalledWith(
                 expect.objectContaining({ where: { id: mockID } })
@@ -599,18 +685,19 @@ describe('Hybrid Fund Allocation System', () => {
             mockGetUser.mockResolvedValue(mockSCUser);
             mockPrisma.profile.findUnique.mockResolvedValue(mockSCProfile as any);
 
-            await expect(deleteAllocation(mockID)).rejects.toThrow(
-                'Only National Coordinators can delete allocations'
-            );
+            const result = await deleteAllocation(mockID);
+            expect(result.success).toBe(false);
+            expect(result.error?.message).toContain('Only National Coordinators can delete allocations');
         });
 
         it('should reject changing allocationType after creation', async () => {
             mockGetUser.mockResolvedValue(mockNCUser);
             mockPrisma.profile.findUnique.mockResolvedValue(mockNCProfile as any);
+            mockPrisma.fundAllocation.findUnique.mockResolvedValue(mockAllocationCreated as any);
 
-            await expect(updateAllocation(mockID, { allocationType: 'direct' } as any)).rejects.toThrow(
-                'Audit Integrity Error: Cannot change allocationType'
-            );
+            const result = await updateAllocation(mockID, { allocationType: 'direct' } as any);
+            expect(result.success).toBe(false);
+            expect(result.error?.message).toContain('Audit Integrity Error: Cannot change allocationType');
         });
 
         it('should enforce 20 chars bypassReason when updating direct allocation', async () => {
@@ -618,9 +705,9 @@ describe('Hybrid Fund Allocation System', () => {
             mockPrisma.profile.findUnique.mockResolvedValue(mockNCProfile as any);
             mockPrisma.fundAllocation.findUnique.mockResolvedValue({ ...mockAllocationCreated, allocationType: 'direct' } as any);
 
-            await expect(updateAllocation(mockID, { bypassReason: 'Too short' })).rejects.toThrow(
-                'minimum 20 characters'
-            );
+            const result = await updateAllocation(mockID, { bypassReason: 'Too short' });
+            expect(result.success).toBe(false);
+            expect(result.error?.message).toContain('minimum 20 characters');
         });
     });
 

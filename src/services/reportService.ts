@@ -1,11 +1,11 @@
 'use server';
 
-import { prisma, withRLS } from '@/lib/prisma';
+import { prisma, basePrisma, withRLS } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
-import { Report, ReportWithDetails, ReportFormData, User } from '@/lib/types';
+import { Report, ReportWithDetails, ReportFormData, User, ServiceResponse } from '@/lib/types';
 import { logReportApproval, createAuditLog } from './auditLogService';
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
-import { deleteFile } from './storageService';
+import { deleteFile, extractFilePath } from './storageService';
 import notificationService from './notificationService';
 import { ROLES } from '@/lib/constants';
 import { checkPeriod } from './accountingService';
@@ -185,7 +185,7 @@ export async function getReportById(id: string): Promise<Report> {
   });
 }
 
-export async function createReport(reportData: ReportFormData, overrideUser?: any): Promise<Report> {
+export async function createReport(reportData: ReportFormData, overrideUser?: any): Promise<ServiceResponse<ReportWithDetails>> {
   const { getUser } = getKindeServerSession();
   const user = overrideUser || await getUser();
 
@@ -193,8 +193,18 @@ export async function createReport(reportData: ReportFormData, overrideUser?: an
     throw new Error('Unauthorized');
   }
 
+  // 1. Idempotency Check (Pre-Transaction)
+  if (reportData.idempotencyKey) {
+    const existing = await basePrisma.idempotencyKey.findUnique({
+      where: { key: reportData.idempotencyKey }
+    });
+    if (existing) {
+      return existing.response as any;
+    }
+  }
+
   return await withRLS(user.id, async () => {
-    // Mutual Exclusivity & Level Validation
+    // 2. Mutual Exclusivity & Level Validation
     if (reportData.level === 'national') {
       reportData.siteId = undefined;
       reportData.smallGroupId = undefined;
@@ -205,150 +215,169 @@ export async function createReport(reportData: ReportFormData, overrideUser?: an
       throw new Error('Small Group ID is required for small-group-level reports.');
     }
 
-    // CRITICAL: Prevent multiple reports per activity (double financial transactions)
-    if (reportData.activityId) {
-      const existingReport = await prisma.report.findFirst({
-        where: { activityId: reportData.activityId },
-        select: { id: true, title: true, status: true }
-      });
-
-      if (existingReport) {
-        throw new Error(
-          `ACTIVITY_ALREADY_REPORTED: Un rapport existe déjà pour cette activité. ` +
-          `Rapport existant: "${existingReport.title}" (statut: ${existingReport.status}). ` +
-          `Une activité ne peut avoir qu'un seul rapport pour éviter la double comptabilisation.`
-        );
-      }
-    }
-
     try {
-      const report = await prisma.report.create({
-        data: {
-          title: reportData.title,
-          activityDate: reportData.activityDate,
-          level: reportData.level,
-          status: reportData.status,
-          content: reportData.content,
-          thematic: reportData.thematic,
-          speaker: reportData.speaker,
-          moderator: reportData.moderator,
-          girlsCount: reportData.girlsCount,
-          boysCount: reportData.boysCount,
-          participantsCountReported: reportData.participantsCountReported,
-          totalExpenses: reportData.totalExpenses,
-          currency: reportData.currency,
-          financialSummary: reportData.financialSummary,
-          images: reportData.images as any,
-          attachments: reportData.attachments as any,
-          submittedById: user.id,
-          siteId: reportData.siteId,
-          smallGroupId: reportData.smallGroupId,
-          activityTypeId: reportData.activityTypeId,
-          activityId: reportData.activityId,
-        },
-        include: {
-          submittedBy: true,
-          site: true,
-          smallGroup: true,
-          activityType: true,
+      const result = await basePrisma.$transaction(async (tx: any) => {
+        // A. Manually set RLS context
+        await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${user.id.replace(/'/g, "''")}'`);
+
+        // B. CRITICAL: Prevent multiple reports per activity
+        if (reportData.activityId) {
+          const existingReport = await tx.report.findFirst({
+            where: { activityId: reportData.activityId },
+            select: { id: true, title: true, status: true }
+          });
+
+          if (existingReport) {
+            throw new Error(
+              `ACTIVITY_ALREADY_REPORTED: Un rapport existe déjà pour cette activité. ` +
+              `Rapport existant: "${existingReport.title}" (statut: ${existingReport.status}).`
+            );
+          }
         }
-      });
 
-      // Notify Reviewers (National Coordinators)
-      const nationalCoordinators = await prisma.profile.findMany({
-        where: { role: ROLES.NATIONAL_COORDINATOR }
-      });
+        // C. Create Report
+        const report = await tx.report.create({
+          data: {
+            title: reportData.title,
+            activityDate: reportData.activityDate,
+            level: reportData.level,
+            status: reportData.status,
+            content: reportData.content,
+            thematic: reportData.thematic,
+            speaker: reportData.speaker,
+            moderator: reportData.moderator,
+            girlsCount: reportData.girlsCount,
+            boysCount: reportData.boysCount,
+            participantsCountReported: reportData.participantsCountReported,
+            totalExpenses: reportData.totalExpenses,
+            currency: reportData.currency,
+            financialSummary: reportData.financialSummary,
+            images: reportData.images as any,
+            attachments: reportData.attachments as any,
+            submittedById: user.id,
+            siteId: reportData.siteId,
+            smallGroupId: reportData.smallGroupId,
+            activityTypeId: reportData.activityTypeId,
+            activityId: reportData.activityId,
+          },
+          include: {
+            submittedBy: true,
+            site: true,
+            smallGroup: true,
+            activityType: true,
+          }
+        });
 
-      for (const nc of nationalCoordinators) {
-        await notificationService.notifyNewReport(
-          nc.id,
-          report.title,
-          report.id,
-          report.submittedBy.name
-        ).catch(err => console.error(`Failed to notify NC ${nc.id}:`, err));
+        const model = mapPrismaReportToModel(report);
+
+        // D. Update/Create Idempotency Key
+        if (reportData.idempotencyKey) {
+          await tx.idempotencyKey.upsert({
+            where: { key: reportData.idempotencyKey },
+            create: {
+              key: reportData.idempotencyKey,
+              response: model as any
+            },
+            update: {
+              response: model as any
+            }
+          });
+        }
+
+        // E. Notify Reviewers (Best Effort within transaction but safe)
+        const nationalCoordinators = await tx.profile.findMany({
+          where: { role: ROLES.NATIONAL_COORDINATOR }
+        });
+
+        for (const nc of nationalCoordinators) {
+          await notificationService.notifyNewReport(
+            nc.id,
+            report.title,
+            report.id,
+            report.submittedBy.name,
+            tx
+          ).catch(err => console.error(`Failed to notify NC ${nc.id}:`, err));
+        }
+
+        return model;
+      }, { timeout: 20000 });
+
+      return { success: true, data: result };
+
+    } catch (dbError: any) {
+      if (dbError.message?.includes('ACTIVITY_ALREADY_REPORTED')) {
+        return { success: false, error: { message: 'ACTIVITY_ALREADY_REPORTED' } };
       }
 
-      return mapPrismaReportToModel(report);
-
-    } catch (dbError) {
-      // ATOMIC ROLLBACK STRATEGY
+      // ATOMIC ROLLBACK STRATEGY for Assets
       console.error('[CreateReport] Database failure, initiating rollback for uploaded assets...', dbError);
-
       const rollbackQueue = [];
-
-      // 1. Rollback Images
       if (Array.isArray(reportData.images)) {
-        for (const img of reportData.images) {
-          if (img.url) rollbackQueue.push(img.url);
-        }
+        for (const img of reportData.images) if (img.url) rollbackQueue.push(img.url);
       }
-
-      // 2. Rollback Attachments
       if (Array.isArray(reportData.attachments)) {
-        for (const url of reportData.attachments) {
-          if (typeof url === 'string') rollbackQueue.push(url);
-        }
+        for (const url of reportData.attachments) if (typeof url === 'string') rollbackQueue.push(url);
       }
 
-      // Execute Rollbacks (Best Effort)
-      const results = await Promise.allSettled(
-        rollbackQueue.map(url => {
-          // Extract path from URL roughly or use specific logic? 
-          // deleteFile expects filePath (path in bucket), not full URL.
-          // Logic: URL usually contains bucket path. 
-          // Assuming standard Supabase storage URL format: .../report-images/PATH
-          let path = url;
-          if (url.includes('/report-images/')) {
-            path = url.split('/report-images/')[1];
-          }
-          if (path) {
-            return deleteFile(path, { isRollback: true });
-          }
-          return Promise.resolve();
-        })
-      );
+      await Promise.allSettled(
+        rollbackQueue.map(url => deleteFile(extractFilePath(url, 'report-images'), { isRollback: true }))
+      ).catch(err => console.error('[CreateReport] Critical: Multi-asset rollback failed:', err));
 
-      const failedRollbacks = results.filter(r => r.status === 'rejected');
-      if (failedRollbacks.length > 0) {
-        console.error('[CreateReport] Some rollbacks failed!', failedRollbacks);
-      } else if (rollbackQueue.length > 0) {
-        console.log(`[CreateReport] Successfully rolled back ${rollbackQueue.length} assets.`);
-      }
-
-      throw dbError; // Re-throw to propagate error to client
+      return { success: false, error: { message: dbError.message || 'Failed to create report' } };
     }
   });
 }
 
-export async function updateReport(reportId: string, updatedData: Partial<ReportFormData>): Promise<ReportWithDetails> {
-  const { getUser } = getKindeServerSession();
-  const user = await getUser();
-  if (!user?.id) throw new Error('Unauthorized');
+export async function updateReport(reportId: string, updatedData: Partial<ReportFormData>): Promise<ServiceResponse<ReportWithDetails>> {
+  try {
+    const { getUser } = getKindeServerSession();
+    const user = await getUser();
+    if (!user?.id) return { success: false, error: { message: 'Unauthorized' } };
 
-  return await withRLS(user.id, async () => {
-    // If level is changing, enforce exclusivity
-    if (updatedData.level === 'national') {
-      updatedData.siteId = undefined;
-      updatedData.smallGroupId = undefined;
-    } else if (updatedData.level === 'site') {
-      updatedData.smallGroupId = undefined;
-    }
+    const result = await withRLS(user.id, async () => {
+      return await basePrisma.$transaction(async (tx: any) => {
+        // Manually set RLS context
+        await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${user.id.replace(/'/g, "''")}'`);
 
-    const updateData = mapUpdateDataFields(updatedData);
+        // Fetch existing for period check
+        const existing = await tx.report.findUnique({ where: { id: reportId } });
+        if (!existing) throw new Error('Report not found');
 
-    const report = await prisma.report.update({
-      where: { id: reportId },
-      data: updateData,
-      include: {
-        submittedBy: true,
-        site: true,
-        smallGroup: true,
-        activityType: true,
-      }
+        await checkPeriod(existing.activityDate, 'Modification de rapport (existant)');
+        if (updatedData.activityDate) {
+          await checkPeriod(new Date(updatedData.activityDate), 'Modification de rapport (nouvelle date)');
+        }
+
+        // If level is changing, enforce exclusivity
+        if (updatedData.level === 'national') {
+          updatedData.siteId = undefined;
+          updatedData.smallGroupId = undefined;
+        } else if (updatedData.level === 'site') {
+          updatedData.smallGroupId = undefined;
+        }
+
+        const updateData = mapUpdateDataFields(updatedData);
+
+        const report = await tx.report.update({
+          where: { id: reportId },
+          data: updateData,
+          include: {
+            submittedBy: true,
+            site: true,
+            smallGroup: true,
+            activityType: true,
+          }
+        });
+
+        return mapPrismaReportToModel(report);
+      });
     });
 
-    return mapPrismaReportToModel(report);
-  });
+    return { success: true, data: result };
+  } catch (error: any) {
+    console.error(`[ReportService] Update Error: ${error.message}`);
+    return { success: false, error: { message: error.message } };
+  }
 }
 
 function mapUpdateDataFields(updatedData: Partial<ReportFormData>) {
@@ -369,16 +398,32 @@ function mapUpdateDataFields(updatedData: Partial<ReportFormData>) {
   return updateData;
 }
 
-export async function deleteReport(id: string): Promise<void> {
-  const { getUser } = getKindeServerSession();
-  const user = await getUser();
-  if (!user?.id) throw new Error('Unauthorized');
+export async function deleteReport(id: string): Promise<ServiceResponse<void>> {
+  try {
+    const { getUser } = getKindeServerSession();
+    const user = await getUser();
+    if (!user?.id) return { success: false, error: { message: 'Unauthorized' } };
 
-  return await withRLS(user.id, async () => {
-    await prisma.report.delete({
-      where: { id },
+    await withRLS(user.id, async () => {
+      return await basePrisma.$transaction(async (tx: any) => {
+        await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${user.id.replace(/'/g, "''")}'`);
+
+        const existing = await tx.report.findUnique({ where: { id } });
+        if (!existing) throw new Error('Report not found');
+
+        await checkPeriod(existing.activityDate, 'Suppression de rapport');
+
+        await tx.report.delete({
+          where: { id },
+        });
+      });
     });
-  });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error(`[ReportService] Delete Error: ${error.message}`);
+    return { success: false, error: { message: error.message } };
+  }
 }
 
 export async function getFilteredReports(filters: ReportFilters): Promise<ReportWithDetails[]> {
@@ -499,35 +544,27 @@ export async function approveReport(
   approvedById: string,
   ipAddress?: string,
   userAgent?: string
-): Promise<ReportWithDetails> {
-  return await withRLS(approvedById, async () => {
-    // Get current report for audit
-    const before = await prisma.report.findUnique({
-      where: { id: reportId },
-      include: {
-        activity: true,
-        site: true,
-        smallGroup: true,
-      },
-    });
+): Promise<ServiceResponse<ReportWithDetails>> {
+  try {
+    return await basePrisma.$transaction(async (tx: any) => {
+      // 1. Manually set RLS context
+      await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${approvedById.replace(/'/g, "''")}'`);
 
-    if (!before) {
-      throw new Error('Report not found');
-    }
+      // 2. Fetch targets inside transaction for strict isolation
+      const before = await tx.report.findUnique({
+        where: { id: reportId },
+        include: { activity: true, site: true, smallGroup: true }
+      });
 
-    if (before.status === 'approved') {
-      throw new Error('Report already approved');
-    }
+      if (!before) throw new Error('Report not found');
+      if (before.status === 'approved') throw new Error('Report already approved');
 
-    // ✅ Accounting Period Guard: Prevent approval if activity date is in a closed period
-    await checkPeriod(before.activityDate, 'Approbation de rapport');
+      // ✅ Accounting Period Guard
+      await checkPeriod(before.activityDate, 'Approbation de rapport');
 
-    const generatedTransactionIds: string[] = [];
+      const generatedTransactionIds: string[] = [];
 
-    // Update report and generate transactions in a transaction
-    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      // ...
-      // 1. Mark report as approved
+      // 3. Mark report as approved
       const approvedReport = await tx.report.update({
         where: { id: reportId },
         data: {
@@ -545,7 +582,7 @@ export async function approveReport(
         },
       });
 
-      // 2. Mark related activity as executed (if exists)
+      // 4. Mark related activity as executed
       if (approvedReport.activityId) {
         await tx.activity.update({
           where: { id: approvedReport.activityId },
@@ -553,12 +590,12 @@ export async function approveReport(
         });
       }
 
-      // 3. Generate FinancialTransaction if there are expenses
+      // 5. Generate FinancialTransaction if expenses exist
       if (approvedReport.totalExpenses && Number(approvedReport.totalExpenses) > 0) {
         const transaction = await tx.financialTransaction.create({
           data: {
             type: 'expense',
-            category: 'Activity Expense', // Could be more specific based on activityType
+            category: 'Activity Expense',
             amount: approvedReport.totalExpenses,
             date: approvedReport.activityDate,
             description: `Dépenses pour: ${approvedReport.title}`,
@@ -570,15 +607,25 @@ export async function approveReport(
             approvedAt: new Date(),
             relatedReportId: reportId,
             relatedActivityId: approvedReport.activityId,
-            isSystemGenerated: true, // NEW - Mark as immutable
-            // proofUrl: Could link to report's attachments if needed
+            isSystemGenerated: true
           },
         });
-
         generatedTransactionIds.push(transaction.id);
       }
 
-      // 4. Send notification inside transaction
+      // 6. Integrated Audit Log (inside tx)
+      await logReportApproval(
+        approvedById,
+        reportId,
+        before,
+        approvedReport,
+        generatedTransactionIds,
+        ipAddress,
+        userAgent,
+        tx
+      );
+
+      // 7. Notify Submitter (safe within tx)
       await notificationService.notifyReportApproved(
         approvedReport.submittedById,
         approvedReport.title,
@@ -586,8 +633,7 @@ export async function approveReport(
         tx
       );
 
-      // ✅ Real-time Budget Overrun Detection (Point 4)
-      // We check the integrity for the site/group after the new expense is recorded
+      // 8. Budget Overrun Detection
       try {
         const integrity = await checkBudgetIntegrity({
           siteId: approvedReport.siteId || undefined,
@@ -605,26 +651,16 @@ export async function approveReport(
           });
         }
       } catch (e) {
-        console.error('[BudgetAlert] Failed to check budget integrity:', e);
-        // We don't fail the transaction if notification fails
+        console.error('[BudgetAlert] Failed to check budget integrity during approval:', e);
       }
 
-      return approvedReport;
+      const finalModel = mapPrismaReportToModel(approvedReport);
+      return { success: true, data: finalModel };
     });
-
-    // Audit log
-    await logReportApproval(
-      approvedById,
-      reportId,
-      before,
-      result,
-      generatedTransactionIds,
-      ipAddress,
-      userAgent
-    ).catch(console.error);
-
-    return mapPrismaReportToModel(result);
-  });
+  } catch (error: any) {
+    console.error(`[ReportService] Approval Error: ${error.message}`);
+    return { success: false, error: { message: error.message } };
+  }
 }
 
 /**
@@ -636,64 +672,64 @@ export async function rejectReport(
   reason: string,
   ipAddress?: string,
   userAgent?: string
-): Promise<ReportWithDetails> {
-  return await withRLS(rejectedById, async () => {
-    const before = await prisma.report.findUnique({
-      where: { id: reportId },
+): Promise<ServiceResponse<ReportWithDetails>> {
+  try {
+    const result = await withRLS(rejectedById, async () => {
+      return await basePrisma.$transaction(async (tx: any) => {
+        // 1. Manually set RLS context
+        await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${rejectedById.replace(/'/g, "''")}'`);
+
+        const before = await tx.report.findUnique({ where: { id: reportId } });
+        if (!before) throw new Error('Report not found');
+
+        const rejectedReport = await tx.report.update({
+          where: { id: reportId },
+          data: {
+            status: 'rejected',
+            reviewedAt: new Date(),
+            reviewedById: rejectedById,
+            reviewNotes: reason,
+            rejectionReason: reason,
+          },
+          include: {
+            activity: true,
+            smallGroup: true,
+            site: true,
+            submittedBy: true,
+            reviewedBy: true,
+            activityType: true,
+          },
+        });
+
+        // 2. Integrated Audit Log
+        const { logReportRejection } = await import('./auditLogService');
+        await logReportRejection(
+          rejectedById,
+          reportId,
+          before,
+          rejectedReport,
+          reason,
+          ipAddress,
+          userAgent,
+          tx
+        );
+
+        // 3. Notify Submitter
+        await notificationService.notifyReportRejected(
+          rejectedReport.submittedById,
+          rejectedReport.title,
+          rejectedReport.id,
+          reason,
+          tx
+        );
+
+        return mapPrismaReportToModel(rejectedReport);
+      }, { timeout: 20000 });
     });
 
-    if (!before) {
-      throw new Error('Report not found');
-    }
-
-    const rejectedReport = await prisma.$transaction(async (tx: any) => {
-      const updated = await tx.report.update({
-        where: { id: reportId },
-        data: {
-          status: 'rejected',
-          reviewedAt: new Date(),
-          reviewedById: rejectedById,
-          reviewNotes: reason,
-          rejectionReason: reason,
-        },
-        include: {
-          activity: true,
-          smallGroup: true,
-          site: true,
-          submittedBy: true,
-          reviewedBy: true,
-          activityType: true,
-        },
-      });
-
-      // Send notification inside transaction
-      await notificationService.notifyReportRejected(
-        updated.submittedById,
-        updated.title,
-        updated.id,
-        reason,
-        tx
-      );
-
-      return updated;
-    });
-
-    // Audit log
-    await createAuditLog({
-      actorId: rejectedById,
-      action: 'reject',
-      entityType: 'Report',
-      entityId: reportId,
-      metadata: {
-        before,
-        after: rejectedReport,
-        reason,
-        comment: 'Rapport rejeté',
-      },
-      ipAddress,
-      userAgent,
-    }).catch(console.error);
-
-    return mapPrismaReportToModel(rejectedReport);
-  });
+    return { success: true, data: result as ReportWithDetails };
+  } catch (error: any) {
+    console.error(`[ReportService] Rejection Error: ${error.message}`);
+    return { success: false, error: { message: error.message } };
+  }
 }

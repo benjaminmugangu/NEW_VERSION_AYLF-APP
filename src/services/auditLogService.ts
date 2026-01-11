@@ -24,9 +24,10 @@ export interface AuditLogEntry {
 /**
  * Create an audit log entry
  */
-export async function createAuditLog(entry: AuditLogEntry) {
+export async function createAuditLog(entry: AuditLogEntry, tx?: any) {
+    const client = tx || prisma;
     try {
-        const auditLog = await prisma.auditLog.create({
+        const auditLog = await client.auditLog.create({
             data: {
                 actorId: entry.actorId,
                 action: entry.action,
@@ -41,7 +42,8 @@ export async function createAuditLog(entry: AuditLogEntry) {
         return auditLog;
     } catch (error) {
         console.error('[CREATE_AUDIT_LOG_FAILED]', {
-            type: error?.constructor?.name
+            type: error?.constructor?.name,
+            error: error instanceof Error ? error.message : String(error)
         });
         throw new Error('Failed to create audit log entry');
     }
@@ -154,7 +156,8 @@ export async function logTransactionCreation(
     transactionId: string,
     transactionData: any,
     ipAddress?: string,
-    userAgent?: string
+    userAgent?: string,
+    tx?: any
 ) {
     return createAuditLog({
         actorId,
@@ -167,7 +170,7 @@ export async function logTransactionCreation(
         },
         ipAddress,
         userAgent,
-    });
+    }, tx);
 }
 
 /**
@@ -179,7 +182,8 @@ export async function logTransactionApproval(
     before: any,
     after: any,
     ipAddress?: string,
-    userAgent?: string
+    userAgent?: string,
+    tx?: any
 ) {
     return createAuditLog({
         actorId,
@@ -193,7 +197,7 @@ export async function logTransactionApproval(
         },
         ipAddress,
         userAgent,
-    });
+    }, tx);
 }
 
 /**
@@ -206,7 +210,8 @@ export async function logReportApproval(
     after: any,
     generatedTransactionIds?: string[],
     ipAddress?: string,
-    userAgent?: string
+    userAgent?: string,
+    tx?: any
 ) {
     return createAuditLog({
         actorId,
@@ -221,7 +226,7 @@ export async function logReportApproval(
         },
         ipAddress,
         userAgent,
-    });
+    }, tx);
 }
 
 /**
@@ -233,7 +238,8 @@ export async function logAllocationCompletion(
     before: any,
     after: any,
     ipAddress?: string,
-    userAgent?: string
+    userAgent?: string,
+    tx?: any
 ) {
     return createAuditLog({
         actorId,
@@ -247,5 +253,111 @@ export async function logAllocationCompletion(
         },
         ipAddress,
         userAgent,
-    });
+    }, tx);
+}
+
+/**
+ * Helper: Log a report rejection
+ */
+export async function logReportRejection(
+    actorId: string,
+    reportId: string,
+    before: any,
+    after: any,
+    reason: string,
+    ipAddress?: string,
+    userAgent?: string,
+    tx?: any
+) {
+    return createAuditLog({
+        actorId,
+        action: 'reject',
+        entityType: 'Report',
+        entityId: reportId,
+        metadata: {
+            before,
+            after,
+            reason,
+            comment: 'Rapport rejeté',
+        },
+        ipAddress,
+        userAgent,
+    }, tx);
+}
+
+/**
+ * Helper: Log an activity creation
+ */
+export async function logActivityCreation(
+    actorId: string,
+    activityId: string,
+    activityData: any,
+    ipAddress?: string,
+    userAgent?: string,
+    tx?: any
+) {
+    return createAuditLog({
+        actorId,
+        action: 'create',
+        entityType: 'Activity',
+        entityId: activityId,
+        metadata: {
+            after: activityData,
+            comment: 'Activité créée',
+        },
+        ipAddress,
+        userAgent,
+    }, tx);
+}
+
+/**
+ * Helper: Log an activity update
+ */
+export async function logActivityUpdate(
+    actorId: string,
+    activityId: string,
+    before: any,
+    after: any,
+    ipAddress?: string,
+    userAgent?: string,
+    tx?: any
+) {
+    return createAuditLog({
+        actorId,
+        action: 'update',
+        entityType: 'Activity',
+        entityId: activityId,
+        metadata: {
+            before,
+            after,
+            comment: 'Activité mise à jour',
+        },
+        ipAddress,
+        userAgent,
+    }, tx);
+}
+
+/**
+ * Helper: Log an activity deletion
+ */
+export async function logActivityDeletion(
+    actorId: string,
+    activityId: string,
+    before: any,
+    ipAddress?: string,
+    userAgent?: string,
+    tx?: any
+) {
+    return createAuditLog({
+        actorId,
+        action: 'delete',
+        entityType: 'Activity',
+        entityId: activityId,
+        metadata: {
+            before,
+            comment: 'Activité supprimée',
+        },
+        ipAddress,
+        userAgent,
+    }, tx);
 }

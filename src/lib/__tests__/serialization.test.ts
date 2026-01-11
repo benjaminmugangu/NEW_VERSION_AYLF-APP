@@ -60,7 +60,7 @@ describe('ensurePOJO Utility Audit', () => {
             { d: new Date('2024-01-01Z') },
             [new Date('2024-01-02Z')]
         ];
-        const result = ensurePOJO(input);
+        const result = ensurePOJO(input) as any;
         expect(typeof result[0].d).toBe('string');
         expect(typeof result[1][0]).toBe('string');
     });
