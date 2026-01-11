@@ -42,21 +42,7 @@ async function mapProfileToUser(data: any): Promise<User> {
  * Helper to map multiple Prisma Profiles to User models and batch sign avatar URLs
  */
 async function mapProfilesToUsers(profiles: any[]): Promise<User[]> {
-  const filePaths = profiles
-    .map(u => u.avatarUrl)
-    .filter(url => url && !url.startsWith('http')) as string[];
-
-  let signedUrls: Record<string, string> = {};
-  if (filePaths.length > 0) {
-    try {
-      const { getSignedUrls } = await import('./storageService');
-      signedUrls = await getSignedUrls(filePaths, 'avatars');
-    } catch (e) {
-      console.warn('[ProfileService] Batch signing failed:', e);
-    }
-  }
-
-  return profiles.map((p) => ({
+  const users = profiles.map((p) => ({
     id: p.id,
     name: p.name || '',
     email: p.email || '',
@@ -69,10 +55,11 @@ async function mapProfilesToUsers(profiles: any[]): Promise<User[]> {
     createdAt: p.createdAt ? new Date(p.createdAt).toISOString() : undefined,
     siteName: p.site?.name || undefined,
     smallGroupName: p.smallGroup?.name || undefined,
-    avatarUrl: (p.avatarUrl && !p.avatarUrl.startsWith('http'))
-      ? signedUrls[p.avatarUrl] || p.avatarUrl
-      : p.avatarUrl || undefined,
+    avatarUrl: p.avatarUrl || undefined,
   }));
+
+  const { batchSignAvatars } = await import('./enrichmentService');
+  return batchSignAvatars(users, ['avatarUrl']);
 }
 
 /**

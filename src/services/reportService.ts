@@ -10,6 +10,7 @@ import notificationService from './notificationService';
 import { ROLES } from '@/lib/constants';
 import { checkPeriod } from './accountingService';
 import { checkBudgetIntegrity } from './budgetService';
+import { batchSignAvatars } from './enrichmentService';
 import { notifyBudgetOverrun } from './notificationService';
 
 // ... existing code ...
@@ -138,26 +139,7 @@ const mapPrismaReportToModel = (report: any): ReportWithDetails => {
 /**
  * Batch sign avatars for a list of reports
  */
-async function signReportAvatars(reports: ReportWithDetails[]): Promise<ReportWithDetails[]> {
-  const filePaths = reports
-    .map(r => (r as any).submittedByAvatarUrl)
-    .filter(url => url && !url.startsWith('http')) as string[];
-
-  if (filePaths.length === 0) return reports;
-
-  try {
-    const { getSignedUrls } = await import('./storageService');
-    const signedUrls = await getSignedUrls(filePaths, 'avatars');
-    reports.forEach(r => {
-      if ((r as any).submittedByAvatarUrl && signedUrls[(r as any).submittedByAvatarUrl]) {
-        (r as any).submittedByAvatarUrl = signedUrls[(r as any).submittedByAvatarUrl];
-      }
-    });
-  } catch (e) {
-    console.warn('[ReportService] Batch signing failed:', e);
-  }
-  return reports;
-}
+// signReportAvatars is now centralized in enrichmentService.ts
 
 export async function getReportById(id: string): Promise<Report> {
   const { getUser } = getKindeServerSession();
@@ -180,7 +162,7 @@ export async function getReportById(id: string): Promise<Report> {
     }
 
     const model = mapPrismaReportToModel(report);
-    const signed = await signReportAvatars([model]);
+    const signed = await batchSignAvatars([model], ['submittedByAvatarUrl']);
     return signed[0];
   });
 }
@@ -452,7 +434,7 @@ export async function getFilteredReports(filters: ReportFilters): Promise<Report
     });
 
     const models = reports.map(mapPrismaReportToModel);
-    return signReportAvatars(models);
+    return batchSignAvatars(models, ['submittedByAvatarUrl']);
   });
 }
 

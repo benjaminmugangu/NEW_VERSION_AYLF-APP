@@ -12,6 +12,7 @@ import { UserRole } from '@prisma/client';
 import { checkPeriod } from './accountingService';
 import { checkBudgetIntegrity } from './budgetService';
 import { notifyBudgetOverrun } from './notificationService';
+import { batchSignAvatars } from './enrichmentService';
 import { deleteFile, extractFilePath } from './storageService';
 
 export async function getAllocations(filters?: { siteId?: string; smallGroupId?: string }): Promise<FundAllocation[]> {
@@ -66,33 +67,14 @@ export async function getAllocations(filters?: { siteId?: string; smallGroupId?:
       proofUrl: allocation.proofUrl || undefined,
     }));
 
-    return signAllocationAvatars(models);
+    return batchSignAvatars(models, ['allocatedByAvatarUrl']);
   });
 }
 
 /**
  * Batch sign avatars for a list of allocations
  */
-async function signAllocationAvatars(allocations: FundAllocation[]): Promise<FundAllocation[]> {
-  const filePaths = allocations
-    .map(a => a.allocatedByAvatarUrl)
-    .filter(url => url && !url.startsWith('http')) as string[];
-
-  if (filePaths.length === 0) return allocations;
-
-  try {
-    const { getSignedUrls } = await import('./storageService');
-    const signedUrls = await getSignedUrls(filePaths, 'avatars');
-    allocations.forEach(a => {
-      if (a.allocatedByAvatarUrl && signedUrls[a.allocatedByAvatarUrl]) {
-        a.allocatedByAvatarUrl = signedUrls[a.allocatedByAvatarUrl];
-      }
-    });
-  } catch (e) {
-    console.warn('[AllocationService] Batch signing failed:', e);
-  }
-  return allocations;
-}
+// signAllocationAvatars is now centralized in enrichmentService.ts
 
 export async function getAllocationById(id: string): Promise<FundAllocation> {
   const { getUser } = getKindeServerSession();
@@ -139,7 +121,7 @@ export async function getAllocationById(id: string): Promise<FundAllocation> {
       proofUrl: allocation.proofUrl || undefined,
     };
 
-    const signed = await signAllocationAvatars([model]);
+    const signed = await batchSignAvatars([model], ['allocatedByAvatarUrl']);
     return signed[0];
   });
 }
