@@ -15,7 +15,7 @@ import { notifyBudgetOverrun } from './notificationService';
 import { batchSignAvatars } from './enrichmentService';
 import { deleteFile, extractFilePath } from './storageService';
 
-export async function getAllocations(filters?: { siteId?: string; smallGroupId?: string }): Promise<FundAllocation[]> {
+export async function getAllocations(filters?: { siteId?: string; smallGroupId?: string; limit?: number }): Promise<FundAllocation[]> {
   const { getUser } = getKindeServerSession();
   const kindeUser = await getUser();
 
@@ -42,7 +42,8 @@ export async function getAllocations(filters?: { siteId?: string; smallGroupId?:
       },
       orderBy: {
         allocationDate: 'desc'
-      }
+      },
+      take: filters?.limit // Apply limit if provided
     });
 
     const models = allocations.map((allocation: any) => ({

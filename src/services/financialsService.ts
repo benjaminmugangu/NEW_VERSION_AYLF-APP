@@ -23,21 +23,22 @@ export const getFinancials = async (user: User, dateFilter: DateFilterValue): Pr
 
     // For reports, don't pass dateFilter to avoid type mismatch - we filter client-side
     const reportFilters = { user };
-    let allocationFilters: { siteId?: string; smallGroupId?: string } = {};
+    let allocationFilters: { siteId?: string; smallGroupId?: string; limit?: number } = { limit: 55 };
+    transactionFilters.limit = 55;
 
     switch (user.role) {
       case ROLES.SITE_COORDINATOR:
-        allocationFilters = { siteId: user.siteId ?? undefined };
+        allocationFilters.siteId = user.siteId ?? undefined;
         break;
       case ROLES.SMALL_GROUP_LEADER:
-        allocationFilters = { smallGroupId: user.smallGroupId ?? undefined };
+        allocationFilters.smallGroupId = user.smallGroupId ?? undefined;
         break;
       // NATIONAL_COORDINATOR sees all, so no specific filter needed
     }
 
     // 3. New Optimized Fetch Strategy
     // We fetch aggregates AND a limited set of recent activity in parallel.
-    // We DO NOT fetch all transactions/allocations for client-side filtering anymore.
+    // We NOW fetch a limited subset for client-side display, fixing the O(N) scalability issue.
 
     // A. Fetch Aggregates (DB Side)
     const { startDate, endDate } = calculateDateRange(dateFilter); // Need to import this or extract logic
@@ -225,8 +226,10 @@ export const getEntityFinancials = async (
     // For now, let's assume we can filter by ID.
     const allocationFilters = {
       siteId: entity.type === 'site' ? entity.id : undefined,
-      smallGroupId: entity.type === 'smallGroup' ? entity.id : undefined
+      smallGroupId: entity.type === 'smallGroup' ? entity.id : undefined,
+      limit: 55
     };
+    transactionFilters.limit = 55;
 
     // Reports service usually takes a user to decide what to show. 
     // If we want "all reports for this site", we might need a specific service method or a "system" user context.

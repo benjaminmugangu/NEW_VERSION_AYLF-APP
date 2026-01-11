@@ -160,7 +160,11 @@ export async function calculateBudgetAggregates(params: {
     if (role === 'SITE_COORDINATOR' || (siteId && !smallGroupId)) {
         receivedClause.siteId = siteId;
         receivedClause.smallGroupId = null; // Site wallet only
-        receivedClause.fromSiteId = { not: siteId }; // Don't count self-transfers (reallocations) as new income
+        // Fix: Allow allocations from National (null) OR other sites, but exclude self-transfers
+        receivedClause.OR = [
+            { fromSiteId: null },
+            { fromSiteId: { not: siteId } }
+        ];
     } else if (role === 'SMALL_GROUP_LEADER' || smallGroupId) {
         receivedClause.smallGroupId = smallGroupId;
     } else {
