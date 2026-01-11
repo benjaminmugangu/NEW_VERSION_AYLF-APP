@@ -29,12 +29,18 @@ export const POST = withApiRLS(async (request: NextRequest, { params }: { params
         const userAgent = request.headers.get('user-agent') || undefined;
 
         // Approve the report (this will auto-generate transactions)
-        const approvedReport = await reportService.approveReport(
+        const result = await reportService.approveReport(
             reportId,
             profile.id,
             ipAddress,
             userAgent
         );
+
+        if (!result.success || !result.data) {
+            throw new Error(result.error?.message || 'Failed to approve report');
+        }
+
+        const approvedReport = result.data;
 
         // Send notification to submitter
         await notificationService.notifyReportApproved(

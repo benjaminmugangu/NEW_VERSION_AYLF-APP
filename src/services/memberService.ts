@@ -6,6 +6,7 @@ import type { User, Member, MemberWithDetails, MemberFormData, ServiceResponse }
 import notificationService from './notificationService';
 import { ROLES } from '@/lib/constants';
 import { createAuditLog } from './auditLogService';
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 
 // Server-safe date filter definition (avoid importing client component module)
 type ServerDateFilter = {

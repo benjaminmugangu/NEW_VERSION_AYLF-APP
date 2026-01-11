@@ -56,7 +56,12 @@ export function MembersClient({ initialMembers, user }: MembersClientProps) {
   });
 
   const { mutate: deleteMember, isPending: isDeleting } = useMutation<void, Error, string>({
-    mutationFn: (memberId: string) => memberService.deleteMember(memberId),
+    mutationFn: async (memberId: string) => {
+      const result = await memberService.deleteMember(memberId);
+      if (!result.success) {
+        throw new Error(result.error?.message || 'Failed to delete member');
+      }
+    },
     onSuccess: () => {
       toast({ title: 'Success', description: 'Member has been archived.' });
       queryClient.invalidateQueries({ queryKey: ['members'] });

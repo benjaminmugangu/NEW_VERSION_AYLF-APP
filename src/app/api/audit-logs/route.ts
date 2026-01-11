@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import { prisma } from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
+import { Prisma, AuditEntityType } from '@prisma/client';
 import { MESSAGES } from '@/lib/messages';
 import { withApiRLS } from '@/lib/apiWrapper';
 
@@ -25,7 +25,7 @@ export const GET = withApiRLS(async (request: NextRequest) => {
         }
 
         const searchParams = request.nextUrl.searchParams;
-        const entityType = searchParams.get('entityType') || undefined;
+        const entityType = searchParams.get('entityType') as AuditEntityType | undefined;
         const actorId = searchParams.get('actorId') || undefined;
         const from = searchParams.get('from') || undefined;
         const to = searchParams.get('to') || undefined;
@@ -33,7 +33,7 @@ export const GET = withApiRLS(async (request: NextRequest) => {
 
         const where: Prisma.AuditLogWhereInput = {};
 
-        if (entityType) {
+        if (entityType && Object.values(AuditEntityType).includes(entityType)) {
             where.entityType = entityType;
         }
 

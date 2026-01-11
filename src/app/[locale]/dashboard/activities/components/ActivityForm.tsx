@@ -151,7 +151,9 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
       // Force cache invalidation to ensure new activity appears immediately
       router.refresh();
 
-      if (savedActivity) onSave(savedActivity);
+      if (savedActivity.success && savedActivity.data) {
+        onSave(savedActivity.data);
+      }
     } catch (error) {
       console.error('Error saving activity:', error);
       const { getClientErrorMessage } = await import('@/lib/clientErrorHandler');
@@ -163,12 +165,16 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
   const handleStartActivity = async () => {
     if (!initialActivity) return;
     try {
-      const updatedActivity = await activityService.updateActivity(initialActivity.id, { status: 'executed' });
-      toast({
-        title: 'Activity Marked as Executed',
-        description: `Activity "${updatedActivity.title}" is now in executed status.`,
-      });
-      onSave(updatedActivity);
+      const result = await activityService.updateActivity(initialActivity.id, { status: 'executed' });
+      if (result.success && result.data) {
+        toast({
+          title: 'Activity Marked as Executed',
+          description: `Activity "${result.data.title}" is now in executed status.`,
+        });
+        onSave(result.data);
+      } else {
+        throw new Error(result.error?.message || 'Failed to update activity');
+      }
     } catch (error) {
       console.error('Error marking activity as executed:', error);
       const { getClientErrorMessage } = await import('@/lib/clientErrorHandler');

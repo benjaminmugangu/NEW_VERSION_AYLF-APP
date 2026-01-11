@@ -99,8 +99,13 @@ export const useReports = () => {
   };
 
   const updateReportMutation = useMutation({
-    mutationFn: ({ reportId, newStatus, notes }: { reportId: string; newStatus: ReportStatus; notes?: string }) =>
-      reportService.updateReport(reportId, { status: newStatus, reviewNotes: notes }),
+    mutationFn: async ({ reportId, newStatus, notes }: { reportId: string; newStatus: ReportStatus; notes?: string }) => {
+      const result = await reportService.updateReport(reportId, { status: newStatus, reviewNotes: notes });
+      if (!result.success || !result.data) {
+        throw new Error(result.error?.message || 'Failed to update report');
+      }
+      return result.data;
+    },
     onSuccess: (updatedReport) => {
       queryClient.invalidateQueries({ queryKey: ['reports', uiFilters] });
       toast({ title: 'Success', description: `Report has been ${updatedReport.status}.` });

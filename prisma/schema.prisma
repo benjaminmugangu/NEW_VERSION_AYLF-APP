@@ -97,6 +97,51 @@ enum TransactionStatus {
   rejected
 }
 
+enum AllocationType {
+  hierarchical
+  direct
+}
+
+enum InvitationStatus {
+  pending
+  accepted
+  expired
+}
+
+enum AuditAction {
+  create
+  update
+  approve
+  reject
+  complete
+  reverse
+  delete
+}
+
+enum AuditEntityType {
+  Profile
+  Member
+  Site
+  SmallGroup
+  Activity
+  ActivityType
+  Report
+  FinancialTransaction
+  FundAllocation
+  AccountingPeriod
+}
+
+enum AccountingPeriodType {
+  month
+  quarter
+  year
+}
+
+enum AccountingPeriodStatus {
+  open
+  closed
+}
+
 // Models
 
 model Profile {
@@ -397,7 +442,7 @@ model FundAllocation {
   notes          String?
 
   // Hybrid Allocation Support (NEW)
-  allocationType String  @default("hierarchical") @map("allocation_type")
+  allocationType AllocationType @default(hierarchical) @map("allocation_type")
   // Values: 'hierarchical' (NC → Site OR SC → Group) or 'direct' (NC → Group bypass)
   
   bypassReason   String? @map("bypass_reason")
@@ -437,8 +482,8 @@ model UserInvitation {
   smallGroupId String?     @map("small_group_id")
   smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id], onDelete: Cascade)
 
-  token  String @unique @default(uuid())
-  status String @default("pending") // pending, accepted, expired
+  token  String           @unique @default(uuid())
+  status InvitationStatus @default(pending) // pending, accepted, expired
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -478,11 +523,11 @@ model AuditLog {
   actor   Profile @relation(fields: [actorId], references: [id], onDelete: Cascade)
 
   // What was done
-  action String // 'create' | 'update' | 'approve' | 'reject' | 'complete' | 'reverse' | 'delete'
+  action AuditAction
 
   // On which entity
-  entityType String // 'FundAllocation' | 'FinancialTransaction' | 'Report' | 'Activity'
-  entityId   String @map("entity_id")
+  entityType AuditEntityType @map("entity_type")
+  entityId   String          @map("entity_id")
 
   // Context
   metadata Json? // Stores before/after snapshots, comments, reasons
@@ -505,11 +550,11 @@ model AuditLog {
 model AccountingPeriod {
   id String @id @default(uuid())
 
-  type      String // 'month' | 'quarter' | 'year'
-  startDate DateTime @map("start_date")
-  endDate   DateTime @map("end_date")
+  type      AccountingPeriodType
+  startDate DateTime             @map("start_date")
+  endDate   DateTime             @map("end_date")
 
-  status     String    @default("open") // 'open' | 'closed'
+  status     AccountingPeriodStatus @default(open) // 'open' | 'closed'
   closedAt   DateTime? @map("closed_at")
   closedById String?   @map("closed_by_id")
   closedBy   Profile?  @relation(fields: [closedById], references: [id])

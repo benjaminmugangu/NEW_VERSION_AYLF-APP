@@ -217,14 +217,18 @@ export function ReportForm({ onSubmitSuccess, user }: ReportFormProps) {
         // No longer need manual mapping, Zod schema provides `activityId`
       };
 
-      const newReport = await reportService.createReport(reportPayload);
+      const response = await reportService.createReport(reportPayload);
+
+      if (!response.success || !response.data) {
+        throw new Error(response.error?.message || t("error_desc"));
+      }
 
       toast({ title: t("success"), description: t("success_desc") });
       reset();
       setSelectedFiles([]);
       setSelectedActivity(null);
       if (onSubmitSuccess) {
-        onSubmitSuccess(newReport);
+        onSubmitSuccess(response.data);
       }
 
     } catch (error) {

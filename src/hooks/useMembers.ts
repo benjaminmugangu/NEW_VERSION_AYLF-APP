@@ -59,7 +59,12 @@ export const useMembers = () => {
   });
 
   const { mutateAsync: deleteMember, isPending: isDeleting } = useMutation<void, Error, string>({
-    mutationFn: (memberId: string) => memberService.deleteMember(memberId),
+    mutationFn: async (memberId: string) => {
+      const result = await memberService.deleteMember(memberId);
+      if (!result.success) {
+        throw new Error(result.error?.message || 'Failed to delete member');
+      }
+    },
     onSuccess: () => {
       // On success, invalidate the members query to refetch the list
       queryClient.invalidateQueries({ queryKey: ['members', currentUser?.id, uiFilters] });
