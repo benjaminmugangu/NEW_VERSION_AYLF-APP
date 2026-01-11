@@ -34,10 +34,14 @@ export const GET = withApiRLS(async (req: NextRequest) => {
             return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
         }
 
-        // 2. Generate narrative draft
-        const narrative = generateNarrative(stats);
+        if (!stats.success || !stats.data) {
+            return NextResponse.json({ error: stats.error?.message || 'Failed to fetch stats' }, { status: 400 });
+        }
 
-        return NextResponse.json({ stats, narrative });
+        // 2. Generate narrative draft
+        const narrative = await generateNarrative(stats.data);
+
+        return NextResponse.json({ stats: stats.data, narrative });
     } catch (error: any) {
         console.error('Error generating monthly report:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

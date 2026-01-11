@@ -180,7 +180,7 @@ export interface ReportNarrative {
   conclusion: string;
 }
 
-export function generateNarrative(stats: PeriodStats): ReportNarrative {
+export async function generateNarrative(stats: PeriodStats): Promise<ReportNarrative> {
   const { label } = stats.period;
 
   // 1. Introduction
