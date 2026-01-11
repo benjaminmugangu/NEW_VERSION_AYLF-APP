@@ -97,7 +97,7 @@ export async function createReport(reportData: ReportFormData, overrideUser?: an
                     }
                 });
 
-                const model = mapPrismaReportToModel(report);
+                const model = await mapPrismaReportToModel(report);
 
                 // D. Update/Create Idempotency Key
                 if (reportData.idempotencyKey) {
@@ -187,7 +187,7 @@ export async function updateReport(reportId: string, updatedData: Partial<Report
                     updatedData.smallGroupId = undefined;
                 }
 
-                const updateData = mapUpdateDataFields(updatedData);
+                const updateData = await mapUpdateDataFields(updatedData);
 
                 const report = await tx.report.update({
                     where: { id: reportId },
@@ -200,7 +200,7 @@ export async function updateReport(reportId: string, updatedData: Partial<Report
                     }
                 });
 
-                return mapPrismaReportToModel(report);
+                return await mapPrismaReportToModel(report);
             });
         });
 

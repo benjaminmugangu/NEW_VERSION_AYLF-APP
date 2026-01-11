@@ -166,7 +166,7 @@ export async function getReportById(id: string): Promise<Report> {
             throw new Error('Report not found.');
         }
 
-        const model = mapPrismaReportToModel(report);
+        const model = await mapPrismaReportToModel(report);
         const signed = await batchSignAvatars([model], ['submittedByAvatarUrl']);
         return signed[0];
     });
@@ -197,7 +197,7 @@ export async function getFilteredReports(filters: ReportFilters): Promise<Report
             orderBy: { submissionDate: 'desc' }
         });
 
-        const models = reports.map(mapPrismaReportToModel);
+        const models = await Promise.all(reports.map(mapPrismaReportToModel));
         return batchSignAvatars(models, ['submittedByAvatarUrl']);
     });
 }

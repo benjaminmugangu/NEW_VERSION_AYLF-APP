@@ -3,7 +3,7 @@
 import { Report, ReportWithDetails } from '@/lib/types';
 
 // Helper to normalize images from JSON
-export const normalizeImages = (images: any): Array<{ name: string; url: string }> | undefined => {
+export const normalizeImages = async (images: any): Promise<Array<{ name: string; url: string }> | undefined> => {
     if (!images) return undefined;
     if (!Array.isArray(images)) return undefined;
 
@@ -21,14 +21,17 @@ export const normalizeImages = (images: any): Array<{ name: string; url: string 
         .filter(Boolean) as Array<{ name: string; url: string }>;
 };
 
-export const normalizeAttachments = (attachments: any): string[] | undefined => {
+export const normalizeAttachments = async (attachments: any): Promise<string[] | undefined> => {
     if (!attachments) return undefined;
     if (!Array.isArray(attachments)) return undefined;
     return attachments.filter((x: any) => typeof x === 'string');
 };
 
 // Helper to map Prisma result to Report type
-export const mapPrismaReportToModel = (report: any): ReportWithDetails => {
+export const mapPrismaReportToModel = async (report: any): Promise<ReportWithDetails> => {
+    const images = await normalizeImages(report.images);
+    const attachments = await normalizeAttachments(report.attachments);
+
     return {
         id: report.id,
         title: report.title,
@@ -47,8 +50,8 @@ export const mapPrismaReportToModel = (report: any): ReportWithDetails => {
         currency: report.currency ?? undefined,
         financialSummary: report.financialSummary ?? undefined,
         reviewNotes: report.reviewNotes ?? undefined,
-        images: normalizeImages(report.images),
-        attachments: normalizeAttachments(report.attachments),
+        images,
+        attachments,
         submittedBy: report.submittedById,
         siteId: report.siteId ?? undefined,
         smallGroupId: report.smallGroupId ?? undefined,
@@ -62,7 +65,7 @@ export const mapPrismaReportToModel = (report: any): ReportWithDetails => {
     };
 };
 
-export function mapUpdateDataFields(updatedData: any) {
+export async function mapUpdateDataFields(updatedData: any) {
     const updateData: Record<string, any> = {};
     const fields = [
         'title', 'activityDate', 'level', 'status', 'content', 'thematic',

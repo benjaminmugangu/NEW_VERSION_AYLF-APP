@@ -130,7 +130,7 @@ export async function approveReport(
                 console.error('[BudgetAlert] Failed to check budget integrity during approval:', e);
             }
 
-            const finalModel = mapPrismaReportToModel(approvedReport);
+            const finalModel = await mapPrismaReportToModel(approvedReport);
             return { success: true, data: finalModel };
         });
     } catch (error: any) {
@@ -200,7 +200,7 @@ export async function rejectReport(
                     tx
                 );
 
-                return mapPrismaReportToModel(rejectedReport);
+                return await mapPrismaReportToModel(rejectedReport);
             }, { timeout: 20000 });
         });
 
