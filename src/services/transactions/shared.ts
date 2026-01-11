@@ -1,5 +1,5 @@
 import { FinancialTransaction, User } from '@/lib/types';
-import { DateFilterValue } from '@/lib/dateUtils';
+import { DateFilterValue, getDateRangeFromFilterValue } from '@/lib/dateUtils';
 
 export interface TransactionFilters {
     user?: User | null;
@@ -53,4 +53,34 @@ export function applyUserRoleFilter(where: any, user: User) {
     } else if (user.role === 'SMALL_GROUP_LEADER' && user.smallGroupId) {
         where.smallGroupId = user.smallGroupId;
     }
+}
+
+export function buildTransactionWhereClause(filters: TransactionFilters) {
+    const { user, entity, searchTerm, dateFilter, typeFilter } = filters;
+    const where: any = {};
+
+    if (entity) {
+        applyEntityFilter(where, entity);
+    } else if (user) {
+        applyUserRoleFilter(where, user);
+    }
+
+    if (dateFilter) {
+        const { startDate, endDate } = getDateRangeFromFilterValue(dateFilter);
+        if (startDate || endDate) {
+            where.date = {};
+            if (startDate) where.date.gte = startDate;
+            if (endDate) where.date.lte = endDate;
+        }
+    }
+
+    if (searchTerm) {
+        where.description = { contains: searchTerm, mode: 'insensitive' };
+    }
+
+    if (typeFilter) {
+        where.type = typeFilter;
+    }
+
+    return where;
 }

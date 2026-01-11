@@ -9,7 +9,8 @@ import {
     TransactionFilters,
     mapPrismaTransactionToModel,
     applyEntityFilter,
-    applyUserRoleFilter
+    applyUserRoleFilter,
+    buildTransactionWhereClause
 } from './shared';
 
 export async function getTransactionById(id: string): Promise<FinancialTransaction> {
@@ -62,32 +63,4 @@ export async function getFilteredTransactions(filters: TransactionFilters): Prom
     });
 }
 
-export function buildTransactionWhereClause(filters: TransactionFilters) {
-    const { user, entity, searchTerm, dateFilter, typeFilter } = filters;
-    const where: any = {};
 
-    if (entity) {
-        applyEntityFilter(where, entity);
-    } else if (user) {
-        applyUserRoleFilter(where, user);
-    }
-
-    if (dateFilter) {
-        const { startDate, endDate } = getDateRangeFromFilterValue(dateFilter);
-        if (startDate || endDate) {
-            where.date = {};
-            if (startDate) where.date.gte = startDate;
-            if (endDate) where.date.lte = endDate;
-        }
-    }
-
-    if (searchTerm) {
-        where.description = { contains: searchTerm, mode: 'insensitive' };
-    }
-
-    if (typeFilter) {
-        where.type = typeFilter;
-    }
-
-    return where;
-}
