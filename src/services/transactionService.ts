@@ -1,4 +1,4 @@
-'use server';
+
 
 export * from './transactions/shared';
 export * from './transactions/queries';

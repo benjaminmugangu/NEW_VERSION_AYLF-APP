@@ -1,4 +1,4 @@
-'use server';
+
 
 export * from './reports/shared';
 export * from './reports/queries';
