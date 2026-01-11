@@ -82,23 +82,33 @@ export const AllocationList: React.FC<AllocationListProps> = ({ allocations, tit
               }
 
               return (
-                <TableRow key={allocation.id}>
-                  <TableCell>{isClient ? new Date(allocation.allocationDate).toLocaleDateString() : allocation.allocationDate}</TableCell>
+                <TableRow key={allocation.id} className="cursor-pointer hover:bg-muted/50">
                   <TableCell>
-                    <div className="flex flex-col">
-                      <span className="font-medium text-sm">
-                        {allocation.fromSiteId ? renderEntity('site', allocation.fromSiteId, sourceName) : sourceName}
-                      </span>
-                      <span className="text-xs text-muted-foreground">{senderName}</span>
-                    </div>
+                    <Link href={`/dashboard/finances/allocations/${allocation.id}`} className="block w-full">
+                      {isClient ? new Date(allocation.allocationDate).toLocaleDateString() : allocation.allocationDate}
+                    </Link>
                   </TableCell>
                   <TableCell>
-                    {recipientId ? renderEntity(recipientType, recipientId, recipientName) : recipientName}
+                    <Link href={`/dashboard/finances/allocations/${allocation.id}`} className="block w-full">
+                      <div className="flex flex-col">
+                        <span className="font-medium text-sm">
+                          {allocation.fromSiteId ? renderEntity('site', allocation.fromSiteId, sourceName) : sourceName}
+                        </span>
+                        <span className="text-xs text-muted-foreground">{senderName}</span>
+                      </div>
+                    </Link>
+                  </TableCell>
+                  <TableCell>
+                    <Link href={`/dashboard/finances/allocations/${allocation.id}`} className="block w-full">
+                      {recipientId ? renderEntity(recipientType, recipientId, recipientName) : recipientName}
+                    </Link>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Badge variant={allocation.amount > 0 ? 'success' : 'destructive'}>
-                      {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(allocation.amount)}
-                    </Badge>
+                    <Link href={`/dashboard/finances/allocations/${allocation.id}`} className="block w-full">
+                      <Badge variant={allocation.amount > 0 ? 'success' : 'destructive'}>
+                        {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(allocation.amount)}
+                      </Badge>
+                    </Link>
                   </TableCell>
                 </TableRow>
               );
