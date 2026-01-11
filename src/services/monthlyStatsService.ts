@@ -1,6 +1,10 @@
-import { prisma } from '@/lib/prisma';
+'use server';
+
+import { prisma, withRLS } from '@/lib/prisma';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { ServiceResponse, ErrorCode } from '@/lib/types';
+import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 
 export interface BasePeriod {
   start: Date;
@@ -23,135 +27,146 @@ export interface PeriodStats {
   activeSites: string[];
 }
 
-export async function getActivityStatsInPeriod(start: Date, end: Date, label?: string): Promise<PeriodStats> {
-  const queryStart = new Date(start);
-  const queryEnd = new Date(end);
+export async function getActivityStatsInPeriod(start: Date, end: Date, label?: string): Promise<ServiceResponse<PeriodStats>> {
+  try {
+    const { getUser } = getKindeServerSession();
+    const user = await getUser();
+    if (!user) return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
 
-  if (queryEnd.getHours() === 0 && queryEnd.getMinutes() === 0) {
-    queryEnd.setHours(23, 59, 59, 999);
-  }
+    const queryStart = new Date(start);
+    const queryEnd = new Date(end);
 
-  // ANTI-MIRAGE: Check if this period is closed
-  const closedPeriod = await prisma.accountingPeriod.findFirst({
-    where: {
-      status: 'closed',
-      startDate: { equals: queryStart },
-      endDate: { equals: queryEnd }
+    if (queryEnd.getHours() === 0 && queryEnd.getMinutes() === 0) {
+      queryEnd.setHours(23, 59, 59, 999);
     }
-  });
 
-  if (closedPeriod && closedPeriod.snapshotData) {
-    const data = closedPeriod.snapshotData as any;
-    if (data.totalActivities !== undefined) {
-      return {
-        period: { start: queryStart, end: queryEnd, label: label || closedPeriod.id },
-        totalActivities: data.totalActivities,
-        activitiesByType: {}, // Snapshots are aggregate, detailed type breakdown not stored yet
-        specialActivities: [],
-        participation: {
-          total: data.totalParticipants || 0,
-          boys: data.totalBoysCount || 0,
-          girls: data.totalGirlsCount || 0,
-          men: data.totalBoysCount || 0,
-          women: data.totalGirlsCount || 0
-        },
-        activeSites: (data.sitePerformance || []).map((s: any) => s.siteName)
-      };
-    }
-  }
+    const result = await withRLS(user.id, async () => {
+      // ANTI-MIRAGE: Check if this period is closed
+      const closedPeriod = await prisma.accountingPeriod.findFirst({
+        where: {
+          status: 'closed',
+          startDate: { equals: queryStart },
+          endDate: { equals: queryEnd }
+        }
+      });
 
-  // Fetch Activities...
-  const activities = await prisma.activity.findMany({
-    where: {
-      date: {
-        gte: queryStart,
-        lte: queryEnd,
-      },
-      status: { not: 'canceled' }
-    },
-    include: {
-      activityType: true,
-      site: true,
-      reports: {
-        select: {
-          girlsCount: true,
-          boysCount: true,
-          participantsCountReported: true,
+      if (closedPeriod && closedPeriod.snapshotData) {
+        const data = closedPeriod.snapshotData as any;
+        if (data.totalActivities !== undefined) {
+          return {
+            period: { start: queryStart, end: queryEnd, label: label || closedPeriod.id },
+            totalActivities: data.totalActivities,
+            activitiesByType: {},
+            specialActivities: [],
+            participation: {
+              total: data.totalParticipants || 0,
+              boys: data.totalBoysCount || 0,
+              girls: data.totalGirlsCount || 0,
+              men: data.totalBoysCount || 0,
+              women: data.totalGirlsCount || 0
+            },
+            activeSites: (data.sitePerformance || []).map((s: any) => s.siteName)
+          };
         }
       }
-    }
-  });
 
-  // Aggregate Data
-  const periodLabel = label || `Période du ${format(queryStart, 'dd/MM/yyyy')} au ${format(queryEnd, 'dd/MM/yyyy')}`;
-
-  const stats: PeriodStats = {
-    period: { start: queryStart, end: queryEnd, label: periodLabel },
-    totalActivities: activities.length,
-    activitiesByType: {},
-    specialActivities: [],
-    participation: { total: 0, boys: 0, girls: 0, men: 0, women: 0 },
-    activeSites: [],
-  };
-
-  const siteSet = new Set<string>();
-
-  for (const activity of activities) {
-    const typeName = activity.activityType?.name || 'Autre';
-    stats.activitiesByType[typeName] = (stats.activitiesByType[typeName] || 0) + 1;
-
-    if (activity.site?.name) {
-      siteSet.add(activity.site.name);
-    }
-
-    let actParticipants = 0;
-    let actGirls = 0;
-    let actBoys = 0;
-
-    if (activity.reports && activity.reports.length > 0) {
-      const report = activity.reports[0];
-      actParticipants = report.participantsCountReported || 0;
-      actGirls = report.girlsCount || 0;
-      actBoys = report.boysCount || 0;
-    } else {
-      actParticipants = activity.participantsCountPlanned || 0;
-    }
-
-    stats.participation.total += actParticipants;
-    stats.participation.girls += actGirls;
-    stats.participation.boys += actBoys;
-    stats.participation.women += actGirls;
-    stats.participation.men += actBoys;
-
-    const lowerTitle = activity.title.toLowerCase();
-    const lowerType = typeName.toLowerCase();
-
-    if (
-      lowerType.includes('visite') ||
-      lowerType.includes('social') ||
-      lowerType.includes('apostolat') ||
-      lowerTitle.includes('célébration') ||
-      lowerTitle.includes('rencontre')
-    ) {
-      stats.specialActivities.push({
-        title: activity.title,
-        type: typeName,
-        siteName: activity.site?.name || 'National',
-        date: activity.date
+      // Fetch Activities...
+      const activities = await prisma.activity.findMany({
+        where: {
+          date: {
+            gte: queryStart,
+            lte: queryEnd,
+          },
+          status: { not: 'canceled' }
+        },
+        include: {
+          activityType: true,
+          site: true,
+          reports: {
+            select: {
+              girlsCount: true,
+              boysCount: true,
+              participantsCountReported: true,
+            }
+          }
+        }
       });
-    }
-  }
 
-  stats.activeSites = Array.from(siteSet).sort();
-  return stats;
+      // Aggregate Data
+      const periodLabel = label || `Période du ${format(queryStart, 'dd/MM/yyyy')} au ${format(queryEnd, 'dd/MM/yyyy')}`;
+
+      const stats: PeriodStats = {
+        period: { start: queryStart, end: queryEnd, label: periodLabel },
+        totalActivities: activities.length,
+        activitiesByType: {},
+        specialActivities: [],
+        participation: { total: 0, boys: 0, girls: 0, men: 0, women: 0 },
+        activeSites: [],
+      };
+
+      const siteSet = new Set<string>();
+
+      for (const activity of activities) {
+        const typeName = activity.activityType?.name || 'Autre';
+        stats.activitiesByType[typeName] = (stats.activitiesByType[typeName] || 0) + 1;
+
+        if (activity.site?.name) {
+          siteSet.add(activity.site.name);
+        }
+
+        let actParticipants = 0;
+        let actGirls = 0;
+        let actBoys = 0;
+
+        if (activity.reports && activity.reports.length > 0) {
+          const report = activity.reports[0];
+          actParticipants = report.participantsCountReported || 0;
+          actGirls = report.girlsCount || 0;
+          actBoys = report.boysCount || 0;
+        } else {
+          actParticipants = activity.participantsCountPlanned || 0;
+        }
+
+        stats.participation.total += actParticipants;
+        stats.participation.girls += actGirls;
+        stats.participation.boys += actBoys;
+        stats.participation.women += actGirls;
+        stats.participation.men += actBoys;
+
+        const lowerTitle = activity.title.toLowerCase();
+        const lowerType = typeName.toLowerCase();
+
+        if (
+          lowerType.includes('visite') ||
+          lowerType.includes('social') ||
+          lowerType.includes('apostolat') ||
+          lowerTitle.includes('célébration') ||
+          lowerTitle.includes('rencontre')
+        ) {
+          stats.specialActivities.push({
+            title: activity.title,
+            type: typeName,
+            siteName: activity.site?.name || 'National',
+            date: activity.date
+          });
+        }
+      }
+
+      stats.activeSites = Array.from(siteSet).sort();
+      return stats;
+    });
+
+    return { success: true, data: result };
+  } catch (error: any) {
+    return { success: false, error: { message: error.message, code: ErrorCode.INTERNAL_ERROR } };
+  }
 }
 
 // Backward compatibility wrapper
-export async function getMonthlyActivitySummary(month: number, year: number) {
+export async function getMonthlyActivitySummary(month: number, year: number): Promise<ServiceResponse<PeriodStats>> {
   const startDate = new Date(year, month - 1, 1);
   const endDate = new Date(year, month, 0, 23, 59, 59, 999);
   const label = `${format(startDate, 'MMMM yyyy', { locale: fr })}`;
-  // capitalize month
   const capLabel = label.charAt(0).toUpperCase() + label.slice(1);
 
   return await getActivityStatsInPeriod(startDate, endDate, capLabel);

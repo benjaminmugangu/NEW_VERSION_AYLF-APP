@@ -1,4 +1,8 @@
-import { prisma } from '@/lib/prisma';
+'use server';
+
+import { prisma, withRLS } from '@/lib/prisma';
+import { ServiceResponse, ErrorCode } from '@/lib/types';
+import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 
 export type NotificationType =
     | 'REPORT_APPROVED'
@@ -32,6 +36,7 @@ export interface Notification {
 
 /**
  * Create a new notification for a user
+ * Internal method, can be called with or without transaction
  */
 export async function createNotification(data: CreateNotificationData, tx?: any): Promise<Notification> {
     const client = tx || prisma;
@@ -51,101 +56,166 @@ export async function createNotification(data: CreateNotificationData, tx?: any)
  * Get all notifications for a user
  */
 export async function getUserNotifications(
-    userId: string,
+    userId?: string,
     options?: {
         unreadOnly?: boolean;
         limit?: number;
     }
-): Promise<Notification[]> {
-    const where: any = { userId };
+): Promise<ServiceResponse<Notification[]>> {
+    try {
+        const { getUser } = getKindeServerSession();
+        const user = await getUser();
+        if (!user) return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
 
-    if (options?.unreadOnly) {
-        where.read = false;
+        const targetUserId = userId || user.id;
+
+        const result = await withRLS(user.id, async () => {
+            const where: any = { userId: targetUserId };
+            if (options?.unreadOnly) {
+                where.read = false;
+            }
+
+            return await (prisma as any).notification.findMany({
+                where,
+                orderBy: { createdAt: 'desc' },
+                take: options?.limit || 50,
+            });
+        });
+
+        return { success: true, data: result };
+    } catch (error: any) {
+        return { success: false, error: { message: error.message, code: ErrorCode.INTERNAL_ERROR } };
     }
-
-    return await (prisma as any).notification.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        take: options?.limit || 50,
-    });
 }
 
 /**
  * Get count of unread notifications for a user
  */
-export async function getUnreadCount(userId: string): Promise<number> {
-    return await (prisma as any).notification.count({
-        where: {
-            userId,
-            read: false,
-        },
-    });
+export async function getUnreadCount(userId?: string): Promise<ServiceResponse<number>> {
+    try {
+        const { getUser } = getKindeServerSession();
+        const user = await getUser();
+        if (!user) return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
+
+        const targetUserId = userId || user.id;
+
+        const result = await withRLS(user.id, async () => {
+            return await (prisma as any).notification.count({
+                where: {
+                    userId: targetUserId,
+                    read: false,
+                },
+            });
+        });
+
+        return { success: true, data: result };
+    } catch (error: any) {
+        return { success: false, error: { message: error.message, code: ErrorCode.INTERNAL_ERROR } };
+    }
 }
 
 /**
  * Mark a notification as read
  */
-export async function markAsRead(notificationId: string): Promise<Notification> {
-    return await (prisma as any).notification.update({
-        where: { id: notificationId },
-        data: { read: true },
-    });
+export async function markAsRead(notificationId: string): Promise<ServiceResponse<Notification>> {
+    try {
+        const { getUser } = getKindeServerSession();
+        const user = await getUser();
+        if (!user) return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
+
+        const result = await withRLS(user.id, async () => {
+            return await (prisma as any).notification.update({
+                where: { id: notificationId },
+                data: { read: true },
+            });
+        });
+
+        return { success: true, data: result };
+    } catch (error: any) {
+        let code = ErrorCode.INTERNAL_ERROR;
+        if (error.code === 'P2025') code = ErrorCode.NOT_FOUND;
+        return { success: false, error: { message: error.message, code } };
+    }
 }
 
 /**
  * Mark all notifications as read for a user
  */
-export async function markAllAsRead(userId: string): Promise<number> {
-    const result = await (prisma as any).notification.updateMany({
-        where: {
-            userId,
-            read: false,
-        },
-        data: { read: true },
-    });
+export async function markAllAsRead(userId?: string): Promise<ServiceResponse<number>> {
+    try {
+        const { getUser } = getKindeServerSession();
+        const user = await getUser();
+        if (!user) return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
 
-    return result.count;
+        const targetUserId = userId || user.id;
+
+        const result = await withRLS(user.id, async () => {
+            const updateResult = await (prisma as any).notification.updateMany({
+                where: {
+                    userId: targetUserId,
+                    read: false,
+                },
+                data: { read: true },
+            });
+            return updateResult.count;
+        });
+
+        return { success: true, data: result };
+    } catch (error: any) {
+        return { success: false, error: { message: error.message, code: ErrorCode.INTERNAL_ERROR } };
+    }
 }
 
 /**
  * Delete a notification
  */
-export async function deleteNotification(notificationId: string): Promise<void> {
-    await (prisma as any).notification.delete({
-        where: { id: notificationId },
-    });
+export async function deleteNotification(notificationId: string): Promise<ServiceResponse<void>> {
+    try {
+        const { getUser } = getKindeServerSession();
+        const user = await getUser();
+        if (!user) return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
+
+        await withRLS(user.id, async () => {
+            await (prisma as any).notification.delete({
+                where: { id: notificationId },
+            });
+        });
+
+        return { success: true };
+    } catch (error: any) {
+        let code = ErrorCode.INTERNAL_ERROR;
+        if (error.code === 'P2025') code = ErrorCode.NOT_FOUND;
+        return { success: false, error: { message: error.message, code } };
+    }
 }
 
 /**
  * Delete old read notifications (cleanup utility)
  */
-export async function deleteOldNotifications(daysOld: number = 30): Promise<number> {
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+export async function deleteOldNotifications(daysOld: number = 30): Promise<ServiceResponse<number>> {
+    try {
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - daysOld);
 
-    const result = await (prisma as any).notification.deleteMany({
-        where: {
-            read: true,
-            createdAt: {
-                lt: cutoffDate,
+        const result = await (prisma as any).notification.deleteMany({
+            where: {
+                read: true,
+                createdAt: {
+                    lt: cutoffDate,
+                },
             },
-        },
-    });
+        });
 
-    return result.count;
+        return { success: true, data: result.count };
+    } catch (error: any) {
+        return { success: false, error: { message: error.message, code: ErrorCode.INTERNAL_ERROR } };
+    }
 }
 
 // ----- Helper functions for common notification scenarios -----
+// These remain direct as they are used inside other service logic (already standardized at top-level)
 
-/**
- * Notify when a report is approved
- */
-export async function notifyReportApproved(
-    submitterId: string,
-    reportTitle: string,
-    reportId: string,
-    tx?: any
-): Promise<Notification> {
+export async function notifyReportApproved(submitterId: string, reportTitle: string, reportId: string, tx?: any): Promise<Notification> {
     return createNotification({
         userId: submitterId,
         type: 'REPORT_APPROVED',
@@ -156,16 +226,7 @@ export async function notifyReportApproved(
     }, tx);
 }
 
-/**
- * Notify when a report is rejected
- */
-export async function notifyReportRejected(
-    submitterId: string,
-    reportTitle: string,
-    reportId: string,
-    reason?: string,
-    tx?: any
-): Promise<Notification> {
+export async function notifyReportRejected(submitterId: string, reportTitle: string, reportId: string, reason?: string, tx?: any): Promise<Notification> {
     return createNotification({
         userId: submitterId,
         type: 'REPORT_REJECTED',
@@ -176,15 +237,7 @@ export async function notifyReportRejected(
     }, tx);
 }
 
-/**
- * Notify when budget allocation is received
- */
-export async function notifyAllocationReceived(
-    recipientId: string,
-    amount: number,
-    fromEntity: string,
-    tx?: any
-): Promise<Notification> {
+export async function notifyAllocationReceived(recipientId: string, amount: number, fromEntity: string, tx?: any): Promise<Notification> {
     return createNotification({
         userId: recipientId,
         type: 'ALLOCATION_RECEIVED',
@@ -195,15 +248,7 @@ export async function notifyAllocationReceived(
     }, tx);
 }
 
-/**
- * Notify about upcoming activity
- */
-export async function notifyActivityReminder(
-    userId: string,
-    activityTitle: string,
-    activityId: string,
-    daysUntil: number
-): Promise<Notification> {
+export async function notifyActivityReminder(userId: string, activityTitle: string, activityId: string, daysUntil: number): Promise<Notification> {
     return createNotification({
         userId: userId,
         type: 'ACTIVITY_REMINDER',
@@ -214,15 +259,7 @@ export async function notifyActivityReminder(
     });
 }
 
-/**
- * Notify about a new activity created/assigned
- */
-export async function notifyActivityCreated(
-    userId: string,
-    activityTitle: string,
-    activityId: string,
-    tx?: any
-): Promise<Notification> {
+export async function notifyActivityCreated(userId: string, activityTitle: string, activityId: string, tx?: any): Promise<Notification> {
     return createNotification({
         userId: userId,
         type: 'ACTIVITY_REMINDER',
@@ -233,16 +270,7 @@ export async function notifyActivityCreated(
     }, tx);
 }
 
-/**
- * Notify when a new report is submitted (for reviewers)
- */
-export async function notifyNewReport(
-    reviewerId: string,
-    reportTitle: string,
-    reportId: string,
-    submitterName: string,
-    tx?: any
-): Promise<Notification> {
+export async function notifyNewReport(reviewerId: string, reportTitle: string, reportId: string, submitterName: string, tx?: any): Promise<Notification> {
     return createNotification({
         userId: reviewerId,
         type: 'NEW_REPORT',
@@ -253,15 +281,7 @@ export async function notifyNewReport(
     }, tx);
 }
 
-/**
- * Notify when a new member is added to a site or group
- */
-export async function notifyMemberAdded(
-    leaderId: string,
-    memberName: string,
-    entityName: string, // Site or Group name
-    tx?: any
-): Promise<Notification> {
+export async function notifyMemberAdded(leaderId: string, memberName: string, entityName: string, tx?: any): Promise<Notification> {
     return createNotification({
         userId: leaderId,
         type: 'USER_INVITED',
@@ -272,14 +292,7 @@ export async function notifyMemberAdded(
     }, tx);
 }
 
-/**
- * Notify when budget is low (preventive)
- */
-export async function notifyBudgetLow(
-    userId: string,
-    entityName: string,
-    remainingAmount: number
-): Promise<Notification> {
+export async function notifyBudgetLow(userId: string, entityName: string, remainingAmount: number): Promise<Notification> {
     return createNotification({
         userId: userId,
         type: 'BUDGET_ALERT',
@@ -290,9 +303,6 @@ export async function notifyBudgetLow(
     });
 }
 
-/**
- * Notify about a budget overrun (available < 0)
- */
 export async function notifyBudgetOverrun(params: {
     siteId?: string;
     smallGroupId?: string;
@@ -309,12 +319,12 @@ export async function notifyBudgetOverrun(params: {
     const link = '/dashboard/finances';
 
     if (siteId && !smallGroupId) {
-        const ncs = await client.profile.findMany({
+        const ncs = await (client as any).profile.findMany({
             where: { role: 'NATIONAL_COORDINATOR' },
             select: { id: true }
         });
 
-        const scs = await client.profile.findMany({
+        const scs = await (client as any).profile.findMany({
             where: { role: 'SITE_COORDINATOR', siteId },
             select: { id: true }
         });
@@ -332,13 +342,13 @@ export async function notifyBudgetOverrun(params: {
             }, client)
         ));
     } else if (smallGroupId) {
-        const group = await client.smallGroup.findUnique({
+        const group = await (client as any).smallGroup.findUnique({
             where: { id: smallGroupId },
             select: { siteId: true }
         });
 
         if (group?.siteId) {
-            const scs = await client.profile.findMany({
+            const scs = await (client as any).profile.findMany({
                 where: { role: 'SITE_COORDINATOR', siteId: group.siteId },
                 select: { id: true }
             });

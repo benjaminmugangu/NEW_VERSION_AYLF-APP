@@ -3,6 +3,7 @@
 
 import { prisma, basePrisma, withRLS } from '@/lib/prisma';
 import type { User, Member, MemberWithDetails, MemberFormData, ServiceResponse } from '@/lib/types';
+import { ErrorCode } from '@/lib/types';
 import notificationService from './notificationService';
 import { ROLES } from '@/lib/constants';
 import { createAuditLog } from './auditLogService';
@@ -89,11 +90,6 @@ const mapPrismaMemberToBase = (m: any): Member => {
       ? m.joinDate.toISOString().substring(0, 10)
       : m.joinDate ?? new Date().toISOString().substring(0, 10);
   const siteId: string | null | undefined = m.siteId;
-  // National members might not have a siteId, so we verify level instead or just allow it
-  if (!siteId && m.level !== 'national') {
-    // Optional warning or fallback, but don't crash
-    // console.warn('Member missing siteId:', m.id);
-  }
   return {
     id: m.id,
     name: m.name,
@@ -118,27 +114,30 @@ const mapPrismaMemberToWithDetails = (m: any): MemberWithDetails => {
   };
 };
 
-export async function getFilteredMembers(filters: MemberFilters): Promise<MemberWithDetails[]> {
-  const { user, searchTerm, dateFilter, typeFilter, smallGroupId } = filters;
+export async function getFilteredMembers(filters: MemberFilters): Promise<ServiceResponse<MemberWithDetails[]>> {
+  try {
+    const { user } = filters;
+    if (!user) return { success: false, error: { message: 'Authentication required.', code: ErrorCode.UNAUTHORIZED } };
 
-  if (!user) {
-    throw new Error('Authentication required.');
-  }
+    const result = await withRLS(user.id, async () => {
+      const where = buildMemberWhereClause(user, filters);
 
-  return await withRLS(user.id, async () => {
-    const where = buildMemberWhereClause(user, filters);
+      const members = await prisma.member.findMany({
+        where,
+        include: {
+          site: true,
+          smallGroup: true,
+        },
+        orderBy: { joinDate: 'desc' },
+      });
 
-    const members = await prisma.member.findMany({
-      where,
-      include: {
-        site: true,
-        smallGroup: true,
-      },
-      orderBy: { joinDate: 'desc' },
+      return (members as any[]).map(mapPrismaMemberToWithDetails);
     });
 
-    return (members as any[]).map(mapPrismaMemberToWithDetails);
-  });
+    return { success: true, data: result };
+  } catch (error: any) {
+    return { success: false, error: { message: error.message, code: ErrorCode.INTERNAL_ERROR } };
+  }
 }
 
 function buildMemberWhereClause(user: User, filters: Omit<MemberFilters, 'user'>) {
@@ -186,26 +185,122 @@ function buildMemberWhereClause(user: User, filters: Omit<MemberFilters, 'user'>
   return where;
 }
 
-export async function getMemberById(memberId: string): Promise<MemberWithDetails> {
-  const { getUser } = getKindeServerSession();
-  const user = await getUser();
-  if (!user) throw new Error('Unauthorized');
+export async function getMemberById(memberId: string): Promise<ServiceResponse<MemberWithDetails>> {
+  try {
+    const { getUser } = getKindeServerSession();
+    const user = await getUser();
+    if (!user) return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
 
-  return await withRLS(user.id, async () => {
-    const member = await prisma.member.findUnique({
-      where: { id: memberId },
-      include: {
-        site: true,
-        smallGroup: true,
-      },
+    const result = await withRLS(user.id, async () => {
+      const member = await prisma.member.findUnique({
+        where: { id: memberId },
+        include: {
+          site: true,
+          smallGroup: true,
+        },
+      });
+
+      if (!member) throw new Error('NOT_FOUND: Member not found.');
+      return mapPrismaMemberToWithDetails(member);
     });
 
-    if (!member) {
-      throw new Error('Member not found.');
-    }
+    return { success: true, data: result };
+  } catch (error: any) {
+    let code = ErrorCode.INTERNAL_ERROR;
+    if (error.message.includes('NOT_FOUND')) code = ErrorCode.NOT_FOUND;
+    return { success: false, error: { message: error.message, code } };
+  }
+}
 
-    return mapPrismaMemberToWithDetails(member);
-  });
+export async function createMember(
+  formData: MemberFormData,
+  ipAddress?: string,
+  userAgent?: string
+): Promise<ServiceResponse<Member>> {
+  try {
+    const { getUser } = getKindeServerSession();
+    const user = await getUser();
+    if (!user) return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
+
+    const result = await withRLS(user.id, async () => {
+      // Exclusivity Guard
+      if (formData.level === 'national') {
+        formData.siteId = undefined;
+        formData.smallGroupId = undefined;
+      } else if (formData.level === 'site') {
+        formData.smallGroupId = undefined;
+      }
+
+      // Uniqueness Check & Normalization
+      if (formData.email) {
+        formData.email = formData.email.trim();
+        const existingMember = await basePrisma.member.findFirst({
+          where: { email: { equals: formData.email, mode: 'insensitive' } }
+        });
+        if (existingMember) {
+          throw new Error(`CONFLICT: A member with email ${formData.email} already exists.`);
+        }
+      }
+
+      return await basePrisma.$transaction(async (tx: any) => {
+        // Manually set RLS context
+        await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${user.id.replace(/'/g, "''")}'`);
+
+        const member = await tx.member.create({
+          data: {
+            ...formData,
+            joinDate: new Date(formData.joinDate),
+            type: formData.type === 'non-student' ? 'non_student' : 'student',
+          },
+          include: {
+            site: true,
+            smallGroup: true,
+          }
+        });
+
+        const created = mapPrismaMemberToBase(member);
+
+        // Audit Log
+        await createAuditLog({
+          actorId: user.id,
+          action: 'create',
+          entityType: 'Member' as any,
+          entityId: member.id,
+          metadata: { after: created },
+          ipAddress,
+          userAgent
+        }, tx);
+
+        // --- Notifications ---
+        if (member.siteId) {
+          const sc = await tx.profile.findFirst({
+            where: { siteId: member.siteId, role: ROLES.SITE_COORDINATOR }
+          });
+          if (sc && sc.id !== user.id) {
+            await notificationService.notifyMemberAdded(sc.id, member.name, member.site?.name || 'votre site', tx);
+          }
+        }
+
+        if (member.smallGroupId) {
+          const group = await tx.smallGroup.findUnique({
+            where: { id: member.smallGroupId },
+            select: { leaderId: true, name: true }
+          });
+          if (group?.leaderId && group.leaderId !== user.id) {
+            await notificationService.notifyMemberAdded(group.leaderId, member.name, `le groupe ${group.name}`, tx);
+          }
+        }
+
+        return created;
+      });
+    });
+
+    return { success: true, data: result };
+  } catch (error: any) {
+    let code = ErrorCode.INTERNAL_ERROR;
+    if (error.message.includes('CONFLICT')) code = ErrorCode.CONFLICT;
+    return { success: false, error: { message: error.message, code } };
+  }
 }
 
 export async function updateMember(
@@ -217,7 +312,7 @@ export async function updateMember(
   try {
     const { getUser } = getKindeServerSession();
     const user = await getUser();
-    if (!user) throw new Error('Unauthorized');
+    if (!user) return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
 
     const result = await withRLS(user.id, async () => {
       return await basePrisma.$transaction(async (tx: any) => {
@@ -227,7 +322,7 @@ export async function updateMember(
         const before = await tx.member.findUnique({
           where: { id: memberId }
         });
-        if (!before) throw new Error('Member not found');
+        if (!before) throw new Error('NOT_FOUND: Member not found');
 
         // Exclusivity Guard
         if (formData.level === 'national') {
@@ -267,8 +362,9 @@ export async function updateMember(
 
     return { success: true, data: result };
   } catch (error: any) {
-    console.error(`[MemberService] Update Error: ${error.message}`);
-    return { success: false, error: { message: error.message } };
+    let code = ErrorCode.INTERNAL_ERROR;
+    if (error.message.includes('NOT_FOUND')) code = ErrorCode.NOT_FOUND;
+    return { success: false, error: { message: error.message, code } };
   }
 }
 
@@ -280,7 +376,7 @@ export async function deleteMember(
   try {
     const { getUser } = getKindeServerSession();
     const user = await getUser();
-    if (!user) throw new Error('Unauthorized');
+    if (!user) return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
 
     await withRLS(user.id, async () => {
       return await basePrisma.$transaction(async (tx: any) => {
@@ -290,7 +386,7 @@ export async function deleteMember(
         const before = await tx.member.findUnique({
           where: { id: memberId }
         });
-        if (!before) throw new Error('Member not found');
+        if (!before) throw new Error('NOT_FOUND: Member not found');
 
         // Audit Log
         await createAuditLog({
@@ -311,103 +407,8 @@ export async function deleteMember(
 
     return { success: true };
   } catch (error: any) {
-    console.error(`[MemberService] Delete Error: ${error.message}`);
-    return { success: false, error: { message: error.message } };
-  }
-}
-
-
-export async function createMember(
-  formData: MemberFormData,
-  ipAddress?: string,
-  userAgent?: string
-): Promise<ServiceResponse<Member>> {
-  try {
-    const { getUser } = getKindeServerSession();
-    const user = await getUser();
-
-    if (!user) {
-      throw new Error("Unauthorized");
-    }
-
-    const result = await withRLS(user.id, async () => {
-      // Exclusivity Guard
-      if (formData.level === 'national') {
-        formData.siteId = undefined;
-        formData.smallGroupId = undefined;
-      } else if (formData.level === 'site') {
-        formData.smallGroupId = undefined;
-      }
-
-      // Uniqueness Check & Normalization
-      if (formData.email) {
-        formData.email = formData.email.trim(); // Normalize
-        const existingMember = await basePrisma.member.findFirst({
-          where: { email: { equals: formData.email, mode: 'insensitive' } }
-        });
-        if (existingMember) {
-          throw new Error(`A member with email ${formData.email} already exists.`);
-        }
-      }
-
-      return await basePrisma.$transaction(async (tx: any) => {
-        // Manually set RLS context
-        await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${user.id.replace(/'/g, "''")}'`);
-
-        const member = await tx.member.create({
-          data: {
-            ...formData,
-            joinDate: new Date(formData.joinDate),
-            type: formData.type === 'non-student' ? 'non_student' : 'student', // Keeps DB enum sync
-          },
-          include: {
-            site: true,
-            smallGroup: true,
-          }
-        });
-
-        const created = mapPrismaMemberToBase(member);
-
-        // Audit Log
-        await createAuditLog({
-          actorId: user.id,
-          action: 'create',
-          entityType: 'Member' as any,
-          entityId: member.id,
-          metadata: { after: created },
-          ipAddress,
-          userAgent
-        }, tx);
-
-        // --- Notifications ---
-        // 1. Notify Site Coordinator
-        if (member.siteId) {
-          const sc = await tx.profile.findFirst({
-            where: { siteId: member.siteId, role: ROLES.SITE_COORDINATOR }
-          });
-          if (sc && sc.id !== user.id) {
-            await notificationService.notifyMemberAdded(sc.id, member.name, member.site?.name || 'votre site', tx);
-          }
-        }
-
-        // 2. Notify Small Group Leader
-        if (member.smallGroupId) {
-          const group = await tx.smallGroup.findUnique({
-            where: { id: member.smallGroupId },
-            select: { leaderId: true, name: true }
-          });
-          if (group?.leaderId && group.leaderId !== user.id) {
-            await notificationService.notifyMemberAdded(group.leaderId, member.name, `le groupe ${group.name}`, tx);
-          }
-        }
-
-        return created;
-      });
-    });
-
-    return { success: true, data: result };
-  } catch (error: any) {
-    console.error(`[MemberService] Create Error: ${error.message}`);
-    return { success: false, error: { message: error.message } };
+    let code = ErrorCode.INTERNAL_ERROR;
+    if (error.message.includes('NOT_FOUND')) code = ErrorCode.NOT_FOUND;
+    return { success: false, error: { message: error.message, code } };
   }
 }

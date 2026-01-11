@@ -2,7 +2,7 @@
 
 import { prisma, basePrisma, withRLS } from '@/lib/prisma';
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
-import { Activity, ActivityStatus, ActivityType, ServiceResponse } from '@/lib/types';
+import { Activity, ActivityStatus, ActivityType, ServiceResponse, ErrorCode } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
 import { type ActivityFormData } from '@/schemas/activity';
 import { revalidatePath } from 'next/cache';
@@ -20,58 +20,70 @@ import {
   validateAndPrepareCreateData
 } from './activityUtils';
 
-export const getFilteredActivities = async (filters: any): Promise<Activity[]> => {
-  const { user } = filters;
-  if (!user) throw new Error('User not authenticated.');
+export const getFilteredActivities = async (filters: any): Promise<ServiceResponse<Activity[]>> => {
+  try {
+    const { user, limit, offset } = filters;
+    if (!user) return { success: false, error: { message: 'User not authenticated.', code: ErrorCode.UNAUTHORIZED } };
 
-  return await withRLS(user.id, async () => {
-    const where = buildActivityWhereClause(filters);
+    const result = await withRLS(user.id, async () => {
+      const where = buildActivityWhereClause(filters);
 
-    const activities = await prisma.activity.findMany({
-      where,
-      include: {
-        site: true,
-        smallGroup: true,
-        activityType: true,
-        reports: {
-          select: { participantsCountReported: true },
-          take: 1,
-          orderBy: { submissionDate: 'desc' }
-        }
-      },
-      orderBy: { date: 'desc' }
+      const activities = await prisma.activity.findMany({
+        where,
+        include: {
+          site: true,
+          smallGroup: true,
+          activityType: true,
+          reports: {
+            select: { participantsCountReported: true }
+          }
+        },
+        take: limit ? Number(limit) : undefined,
+        skip: offset ? Number(offset) : undefined,
+        orderBy: { date: 'desc' }
+      });
+
+      return activities.map(mapPrismaActivityToActivity);
     });
 
-    return activities.map(mapPrismaActivityToActivity);
-  });
+    return { success: true, data: result };
+  } catch (error: any) {
+    return { success: false, error: { message: error.message, code: ErrorCode.INTERNAL_ERROR } };
+  }
 };
 
-export const getActivityById = async (id: string): Promise<Activity> => {
-  const { getUser } = getKindeServerSession();
-  const user = await getUser();
-  const userId = user?.id || 'anonymous';
+export const getActivityById = async (id: string): Promise<ServiceResponse<Activity>> => {
+  try {
+    const { getUser } = getKindeServerSession();
+    const user = await getUser();
+    const userId = user?.id || 'anonymous';
 
-  return await withRLS(userId, async () => {
-    const activity = await prisma.activity.findUnique({
-      where: { id },
-      include: {
-        site: true,
-        smallGroup: true,
-        activityType: true,
-        reports: {
-          select: { participantsCountReported: true },
-          take: 1,
-          orderBy: { submissionDate: 'desc' }
+    const result = await withRLS(userId, async () => {
+      const activity = await prisma.activity.findUnique({
+        where: { id },
+        include: {
+          site: true,
+          smallGroup: true,
+          activityType: true,
+          reports: {
+            select: { participantsCountReported: true }
+          }
         }
+      });
+
+      if (!activity) {
+        throw new Error('NOT_FOUND: Activity not found');
       }
+
+      return mapPrismaActivityToActivity(activity);
     });
 
-    if (!activity) {
-      throw new Error('Activity not found');
-    }
-
-    return mapPrismaActivityToActivity(activity);
-  });
+    return { success: true, data: result };
+  } catch (error: any) {
+    let code = ErrorCode.INTERNAL_ERROR;
+    if (error.message.includes('NOT_FOUND')) code = ErrorCode.NOT_FOUND;
+    return { success: false, error: { message: error.message, code } };
+  }
 };
 
 export const createActivity = async (
@@ -84,14 +96,14 @@ export const createActivity = async (
     const { getUser } = getKindeServerSession();
     const user = overrideUser || await getUser();
 
-    if (!user) throw new Error('Unauthorized');
+    if (!user) return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
 
     const currentUser = await basePrisma.profile.findUnique({
       where: { id: user.id },
       select: { id: true, role: true, siteId: true, smallGroupId: true }
     });
 
-    if (!currentUser) throw new Error('Unauthorized');
+    if (!currentUser) return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
 
     const result = await withRLS(currentUser.id, async () => {
       const safeData = await validateAndPrepareCreateData(activityData, currentUser);
@@ -164,7 +176,7 @@ export const createActivity = async (
     return { success: true, data: result };
   } catch (error: any) {
     console.error(`[ActivityService] Create Error: ${error.message}`);
-    return { success: false, error: { message: error.message } };
+    return { success: false, error: { message: error.message, code: ErrorCode.INTERNAL_ERROR } };
   }
 }
 
@@ -178,14 +190,14 @@ export const updateActivity = async (
     const { getUser } = getKindeServerSession();
     const user = await getUser();
 
-    if (!user) throw new Error('Unauthorized');
+    if (!user) return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
 
     const currentUser = await basePrisma.profile.findUnique({
       where: { id: user.id },
       select: { id: true, role: true, siteId: true, smallGroupId: true }
     });
 
-    if (!currentUser) throw new Error('Unauthorized');
+    if (!currentUser) return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
 
     const result = await withRLS(currentUser.id, async () => {
       return await basePrisma.$transaction(async (tx: any) => {
@@ -197,7 +209,7 @@ export const updateActivity = async (
           select: { siteId: true, smallGroupId: true, createdById: true }
         });
 
-        if (!before) throw new Error('Activity not found');
+        if (!before) throw new Error('NOT_FOUND: Activity not found');
 
         // Permission Check
         validateUpdatePermissions(currentUser, before);
@@ -212,9 +224,7 @@ export const updateActivity = async (
             smallGroup: true,
             activityType: true,
             reports: {
-              select: { participantsCountReported: true },
-              take: 1,
-              orderBy: { submissionDate: 'desc' }
+              select: { participantsCountReported: true }
             }
           }
         });
@@ -230,7 +240,10 @@ export const updateActivity = async (
     return { success: true, data: result };
   } catch (error: any) {
     console.error(`[ActivityService] Update Error: ${error.message}`);
-    return { success: false, error: { message: error.message } };
+    let code = ErrorCode.INTERNAL_ERROR;
+    if (error.message.includes('NOT_FOUND')) code = ErrorCode.NOT_FOUND;
+    if (error.message.includes('Forbidden')) code = ErrorCode.FORBIDDEN;
+    return { success: false, error: { message: error.message, code } };
   }
 }
 
@@ -243,14 +256,14 @@ export const deleteActivity = async (
     const { getUser } = getKindeServerSession();
     const user = await getUser();
 
-    if (!user) throw new Error('Unauthorized');
+    if (!user) return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
 
     const currentUser = await basePrisma.profile.findUnique({
       where: { id: user.id },
       select: { id: true, role: true, siteId: true, smallGroupId: true }
     });
 
-    if (!currentUser) throw new Error('Unauthorized');
+    if (!currentUser) return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
 
     await withRLS(currentUser.id, async () => {
       return await basePrisma.$transaction(async (tx: any) => {
@@ -262,19 +275,19 @@ export const deleteActivity = async (
           select: { siteId: true, smallGroupId: true }
         });
 
-        if (!activity) throw new Error('Activity not found');
+        if (!activity) throw new Error('NOT_FOUND: Activity not found');
 
         if (currentUser.role !== ROLES.NATIONAL_COORDINATOR) {
           if (currentUser.role === ROLES.SITE_COORDINATOR) {
             if (activity.siteId !== currentUser.siteId) {
-              throw new Error('Forbidden: Cannot delete activity from another site');
+              throw new Error('FORBIDDEN: Cannot delete activity from another site');
             }
           } else if (currentUser.role === ROLES.SMALL_GROUP_LEADER) {
             if (activity.smallGroupId !== currentUser.smallGroupId) {
-              throw new Error('Forbidden: Cannot delete activity from another group');
+              throw new Error('FORBIDDEN: Cannot delete activity from another group');
             }
           } else {
-            throw new Error('Forbidden');
+            throw new Error('FORBIDDEN');
           }
         }
 
@@ -292,55 +305,70 @@ export const deleteActivity = async (
     return { success: true };
   } catch (error: any) {
     console.error(`[ActivityService] Delete Error: ${error.message}`);
-    return { success: false, error: { message: error.message } };
+    let code = ErrorCode.INTERNAL_ERROR;
+    if (error.message.includes('NOT_FOUND')) code = ErrorCode.NOT_FOUND;
+    if (error.message.includes('FORBIDDEN')) code = ErrorCode.FORBIDDEN;
+    return { success: false, error: { message: error.message, code } };
   }
 }
 
-export const getActivityTypes = async (): Promise<ActivityType[]> => {
-  const types = await prisma.activityType.findMany();
+export const getActivityTypes = async (): Promise<ServiceResponse<ActivityType[]>> => {
+  try {
+    const types = await prisma.activityType.findMany();
 
-  return types.map((t: any) => ({
-    id: t.id,
-    name: t.name,
-    description: t.description || undefined,
-    category: t.category,
-  }));
+    const data = types.map((t: any) => ({
+      id: t.id,
+      name: t.name,
+      description: t.description || undefined,
+      category: t.category,
+    }));
+    return { success: true, data };
+  } catch (error: any) {
+    return { success: false, error: { message: error.message, code: ErrorCode.INTERNAL_ERROR } };
+  }
 };
 
-export const updateActivityStatuses = async () => {
-  const now = new Date();
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
+export const updateActivityStatuses = async (): Promise<ServiceResponse<{ plannedToInProgress: number; inProgressToDelayed: number }>> => {
+  try {
+    const now = new Date();
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
 
-  // 1. Planned -> In Progress (if date is today or past)
-  const plannedToInProgress = await prisma.activity.updateMany({
-    where: {
-      status: 'planned',
-      date: { lte: now },
-    },
-    data: { status: 'in_progress' },
-  });
-
-  // 2. In Progress -> Delayed (if date < yesterday and no reports)
-  const activitiesToDelay = await prisma.activity.findMany({
-    where: {
-      status: 'in_progress',
-      date: { lt: yesterday },
-      reports: { none: {} },
-    },
-    select: { id: true },
-  });
-
-  const delayedCount = activitiesToDelay.length;
-  if (delayedCount > 0) {
-    await prisma.activity.updateMany({
-      where: { id: { in: activitiesToDelay.map((a: any) => a.id) } },
-      data: { status: 'delayed' },
+    // 1. Planned -> In Progress (if date is today or past)
+    const plannedToInProgress = await prisma.activity.updateMany({
+      where: {
+        status: 'planned',
+        date: { lte: now },
+      },
+      data: { status: 'in_progress' },
     });
-  }
 
-  return {
-    plannedToInProgress: plannedToInProgress.count,
-    inProgressToDelayed: delayedCount,
-  };
+    // 2. In Progress -> Delayed (if date < yesterday and no reports)
+    const activitiesToDelay = await prisma.activity.findMany({
+      where: {
+        status: 'in_progress',
+        date: { lt: yesterday },
+        reports: { none: {} },
+      },
+      select: { id: true },
+    });
+
+    const delayedCount = activitiesToDelay.length;
+    if (delayedCount > 0) {
+      await prisma.activity.updateMany({
+        where: { id: { in: activitiesToDelay.map((a: any) => a.id) } },
+        data: { status: 'delayed' },
+      });
+    }
+
+    return {
+      success: true,
+      data: {
+        plannedToInProgress: plannedToInProgress.count,
+        inProgressToDelayed: delayedCount,
+      }
+    };
+  } catch (error: any) {
+    return { success: false, error: { message: error.message, code: ErrorCode.INTERNAL_ERROR } };
+  }
 };

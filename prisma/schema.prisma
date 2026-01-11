@@ -1,5 +1,3 @@
-// prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,7 +8,385 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// Enums
+model Profile {
+  id                   String                 @id
+  email                String                 @unique
+  name                 String
+  role                 UserRole
+  status               UserStatus             @default(active)
+  siteId               String?                @map("site_id")
+  smallGroupId         String?                @map("small_group_id")
+  mandateStartDate     DateTime?              @map("mandate_start_date")
+  mandateEndDate       DateTime?              @map("mandate_end_date")
+  createdAt            DateTime               @default(now()) @map("created_at")
+  updatedAt            DateTime               @updatedAt @map("updated_at")
+  avatarUrl            String?                @map("avatar_url")
+  closedPeriods        AccountingPeriod[]
+  createdActivities    Activity[]
+  auditLogs            AuditLog[]
+  certificates         Certificate[]
+  allocatedFunds       FundAllocation[]
+  members              Member[]
+  notifications        Notification[]
+  site                 Site?                  @relation("SiteMembers", fields: [siteId], references: [id])
+  smallGroup           SmallGroup?            @relation("GroupMembers", fields: [smallGroupId], references: [id])
+  reviewedReports      Report[]               @relation("ReportReviewer")
+  submittedReports     Report[]               @relation("ReportSubmitter")
+  managedSite          Site?                  @relation("SiteCoordinator")
+  financeForGroup      SmallGroup?            @relation("GroupFinance")
+  ledSmallGroup        SmallGroup?            @relation("GroupLeader")
+  logisticForGroup     SmallGroup?            @relation("GroupLogistics")
+  approvedTransactions FinancialTransaction[] @relation("ApprovedTransactions")
+  recordedTransactions FinancialTransaction[] @relation("RecordedBy")
+
+  @@map("profiles")
+}
+
+model Site {
+  id                 String                 @id @default(uuid())
+  name               String
+  city               String
+  country            String
+  coordinatorId      String?                @unique @map("coordinator_id")
+  createdAt          DateTime               @default(now()) @map("created_at")
+  updatedAt          DateTime               @updatedAt @map("updated_at")
+  activities         Activity[]
+  allocationsFrom    FundAllocation[]       @relation("AllocationsFrom")
+  allocations        FundAllocation[]
+  inventoryItems     InventoryItem[]
+  inventoryMovements InventoryMovement[]
+  registeredMembers  Member[]
+  members            Profile[]              @relation("SiteMembers")
+  reports            Report[]
+  coordinator        Profile?               @relation("SiteCoordinator", fields: [coordinatorId], references: [id])
+  smallGroups        SmallGroup[]
+  transactions       FinancialTransaction[]
+  invitations        UserInvitation[]
+
+  @@map("sites")
+}
+
+model SmallGroup {
+  id                   String                 @id @default(uuid())
+  name                 String
+  siteId               String                 @map("site_id")
+  leaderId             String?                @unique @map("leader_id")
+  logisticsAssistantId String?                @unique @map("logistics_assistant_id")
+  financeAssistantId   String?                @unique @map("finance_assistant_id")
+  meetingDay           String?                @map("meeting_day")
+  meetingTime          String?                @map("meeting_time")
+  meetingLocation      String?                @map("meeting_location")
+  createdAt            DateTime               @default(now()) @map("created_at")
+  updatedAt            DateTime               @updatedAt @map("updated_at")
+  activities           Activity[]
+  allocations          FundAllocation[]
+  inventoryMovements   InventoryMovement[]
+  registeredMembers    Member[]
+  members              Profile[]              @relation("GroupMembers")
+  reports              Report[]
+  financeAssistant     Profile?               @relation("GroupFinance", fields: [financeAssistantId], references: [id])
+  leader               Profile?               @relation("GroupLeader", fields: [leaderId], references: [id])
+  logisticsAssistant   Profile?               @relation("GroupLogistics", fields: [logisticsAssistantId], references: [id])
+  site                 Site                   @relation(fields: [siteId], references: [id])
+  transactions         FinancialTransaction[]
+  invitations          UserInvitation[]
+
+  @@map("small_groups")
+}
+
+model Member {
+  id           String        @id @default(uuid())
+  name         String
+  gender       MemberGender
+  type         MemberType
+  phone        String?
+  email        String?
+  joinDate     DateTime      @map("join_date")
+  level        ActivityLevel
+  siteId       String?       @map("site_id")
+  smallGroupId String?       @map("small_group_id")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  userId       String?       @map("user_id")
+  site         Site?         @relation(fields: [siteId], references: [id])
+  smallGroup   SmallGroup?   @relation(fields: [smallGroupId], references: [id])
+  user         Profile?      @relation(fields: [userId], references: [id])
+
+  @@map("members")
+}
+
+model ActivityType {
+  id          String           @id @default(uuid())
+  name        String
+  category    ActivityCategory
+  description String?
+  activities  Activity[]
+  reports     Report[]
+
+  @@map("activity_types")
+}
+
+model Activity {
+  id                       String                 @id @default(uuid())
+  title                    String
+  thematic                 String
+  date                     DateTime
+  status                   ActivityStatus         @default(planned)
+  level                    ActivityLevel
+  siteId                   String?                @map("site_id")
+  smallGroupId             String?                @map("small_group_id")
+  activityTypeId           String                 @map("activity_type_id")
+  activityTypeEnum         ActivityTypeEnum?      @map("activity_type_enum")
+  participantsCountPlanned Int?                   @map("participants_count_planned")
+  createdById              String                 @map("created_by")
+  createdAt                DateTime               @default(now()) @map("created_at")
+  updatedAt                DateTime               @updatedAt @map("updated_at")
+  activityType             ActivityType           @relation(fields: [activityTypeId], references: [id])
+  createdBy                Profile                @relation(fields: [createdById], references: [id])
+  site                     Site?                  @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  smallGroup               SmallGroup?            @relation(fields: [smallGroupId], references: [id], onDelete: Restrict)
+  reports                  Report?
+  financialTransactions    FinancialTransaction[]
+
+  @@map("activities")
+}
+
+model Report {
+  id                        String                 @id @default(uuid())
+  title                     String
+  activityDate              DateTime               @map("activity_date")
+  submissionDate            DateTime               @default(now()) @map("submission_date")
+  level                     ActivityLevel
+  status                    ReportStatus           @default(pending)
+  content                   String
+  thematic                  String
+  speaker                   String?
+  moderator                 String?
+  girlsCount                Int?                   @map("girls_count")
+  boysCount                 Int?                   @map("boys_count")
+  participantsCountReported Int?                   @map("participants_count_reported")
+  totalExpenses             Decimal?               @map("total_expenses") @db.Decimal(10, 2)
+  currency                  String?
+  financialSummary          String?                @map("financial_summary")
+  reviewNotes               String?                @map("review_notes")
+  images                    Json?
+  attachments               Json?
+  submittedById             String                 @map("submitted_by")
+  reviewedById              String?                @map("reviewed_by")
+  reviewedAt                DateTime?              @map("reviewed_at")
+  rejectionReason           String?                @map("rejection_reason")
+  siteId                    String?                @map("site_id")
+  smallGroupId              String?                @map("small_group_id")
+  activityTypeId            String                 @map("activity_type_id")
+  activityId                String?                @unique @map("activity_id")
+  createdAt                 DateTime               @default(now()) @map("created_at")
+  updatedAt                 DateTime               @updatedAt @map("updated_at")
+  activity                  Activity?              @relation(fields: [activityId], references: [id], onDelete: Restrict)
+  activityType              ActivityType           @relation(fields: [activityTypeId], references: [id])
+  reviewedBy                Profile?               @relation("ReportReviewer", fields: [reviewedById], references: [id])
+  site                      Site?                  @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  smallGroup                SmallGroup?            @relation(fields: [smallGroupId], references: [id], onDelete: Restrict)
+  submittedBy               Profile                @relation("ReportSubmitter", fields: [submittedById], references: [id])
+  linkedTransactions        FinancialTransaction[]
+
+  @@index([siteId, status])
+  @@index([submissionDate])
+  @@map("reports")
+}
+
+model FinancialTransaction {
+  id                String                 @id @default(uuid())
+  date              DateTime
+  description       String
+  amount            Decimal                @db.Decimal(10, 2)
+  type              TransactionType
+  category          String
+  siteId            String?                @map("site_id")
+  smallGroupId      String?                @map("small_group_id")
+  recordedById      String                 @map("recorded_by")
+  attachments       Json?
+  approvedById      String?                @map("approved_by_id")
+  approvedAt        DateTime?              @map("approved_at")
+  relatedReportId   String?                @map("related_report_id")
+  relatedActivityId String?                @map("related_activity_id")
+  isReversalOfId    String?                @map("is_reversal_of_id")
+  proofUrl          String?                @map("proof_url")
+  createdAt         DateTime               @default(now()) @map("created_at")
+  updatedAt         DateTime               @updatedAt @map("updated_at")
+  isSystemGenerated Boolean                @default(false) @map("is_system_generated")
+  status            TransactionStatus      @default(approved)
+  approvedBy        Profile?               @relation("ApprovedTransactions", fields: [approvedById], references: [id])
+  isReversalOf      FinancialTransaction?  @relation("TransactionReversal", fields: [isReversalOfId], references: [id])
+  reversals         FinancialTransaction[] @relation("TransactionReversal")
+  recordedBy        Profile                @relation("RecordedBy", fields: [recordedById], references: [id])
+  relatedActivity   Activity?              @relation(fields: [relatedActivityId], references: [id], onDelete: Restrict)
+  relatedReport     Report?                @relation(fields: [relatedReportId], references: [id], onDelete: Restrict)
+  site              Site?                  @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  smallGroup        SmallGroup?            @relation(fields: [smallGroupId], references: [id], onDelete: Restrict)
+
+  @@index([siteId, status, type])
+  @@index([smallGroupId, status, type])
+  @@index([date])
+  @@map("transactions")
+}
+
+model FundAllocation {
+  id             String           @id @default(uuid())
+  amount         Decimal          @db.Decimal(10, 2)
+  allocationDate DateTime         @map("allocation_date")
+  goal           String
+  source         String
+  status         AllocationStatus
+  notes          String?
+  proofUrl       String?          @map("proof_url")
+  allocatedById  String           @map("allocated_by_id")
+  fromSiteId     String?          @map("from_site_id")
+  siteId         String?          @map("site_id")
+  smallGroupId   String?          @map("small_group_id")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  allocationType String           @default("hierarchical") @map("allocation_type")
+  bypassReason   String?          @map("bypass_reason")
+  allocatedBy    Profile          @relation(fields: [allocatedById], references: [id])
+  fromSite       Site?            @relation("AllocationsFrom", fields: [fromSiteId], references: [id])
+  site           Site?            @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  smallGroup     SmallGroup?      @relation(fields: [smallGroupId], references: [id], onDelete: Restrict)
+
+  @@index([siteId, status])
+  @@index([fromSiteId, status])
+  @@map("fund_allocations")
+}
+
+model UserInvitation {
+  id               String      @id @default(uuid())
+  email            String      @unique
+  role             UserRole
+  siteId           String?     @map("site_id")
+  smallGroupId     String?     @map("small_group_id")
+  token            String      @unique @default(uuid())
+  status           String      @default("pending")
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+  expiresAt        DateTime    @default(dbgenerated("(now() + '7 days'::interval)")) @map("expires_at")
+  mandateStartDate DateTime?   @map("mandate_start_date")
+  mandateEndDate   DateTime?   @map("mandate_end_date")
+  site             Site?       @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  smallGroup       SmallGroup? @relation(fields: [smallGroupId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([expiresAt])
+  @@map("user_invitations")
+}
+
+model Certificate {
+  id               String   @id @default(uuid())
+  profileId        String   @map("profile_id")
+  role             String
+  mandateStartDate DateTime @map("mandate_start_date")
+  mandateEndDate   DateTime @map("mandate_end_date")
+  pdfUrl           String   @map("pdf_url")
+  generatedAt      DateTime @default(now()) @map("generated_at")
+  downloadCount    Int      @default(0) @map("download_count")
+  profile          Profile  @relation(fields: [profileId], references: [id])
+
+  @@index([profileId])
+  @@map("certificates")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String   @map("actor_id")
+  action     String
+  entityType String
+  entityId   String   @map("entity_id")
+  metadata   Json?
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
+  actor      Profile  @relation(fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@index([createdAt])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
+
+model AccountingPeriod {
+  id           String    @id @default(uuid())
+  type         String
+  startDate    DateTime  @map("start_date")
+  endDate      DateTime  @map("end_date")
+  status       String    @default("open")
+  closedAt     DateTime? @map("closed_at")
+  closedById   String?   @map("closed_by_id")
+  snapshotData Json?     @map("snapshot_data")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  closedBy     Profile?  @relation(fields: [closedById], references: [id])
+
+  @@index([startDate, endDate])
+  @@map("accounting_periods")
+}
+
+model InventoryItem {
+  id          String              @id @default(uuid())
+  name        String
+  description String?
+  category    String?
+  unit        String?
+  siteId      String?             @map("site_id")
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
+  site        Site?               @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  movements   InventoryMovement[]
+
+  @@map("inventory_items")
+}
+
+model InventoryMovement {
+  id                   String        @id @default(uuid())
+  itemId               String        @map("item_id")
+  date                 DateTime
+  direction            String
+  quantity             Decimal
+  reason               String?
+  relatedTransactionId String?       @map("related_transaction_id")
+  relatedReportId      String?       @map("related_report_id")
+  siteId               String?       @map("site_id")
+  smallGroupId         String?       @map("small_group_id")
+  createdAt            DateTime      @default(now()) @map("created_at")
+  item                 InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  site                 Site?         @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  smallGroup           SmallGroup?   @relation(fields: [smallGroupId], references: [id], onDelete: Restrict)
+
+  @@index([itemId, date])
+  @@map("inventory_movements")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String           @map("user_id")
+  type      NotificationType
+  title     String
+  message   String
+  read      Boolean          @default(false)
+  link      String?
+  createdAt DateTime         @default(now()) @map("created_at")
+  metadata  Json?            @map("metadata")
+  user      Profile          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@map("notifications")
+}
+
+model IdempotencyKey {
+  key       String   @id
+  response  Json
+  createdAt DateTime @default(now()) @map("created_at")
+  lockedAt  DateTime @default(now()) @map("locked_at")
+
+  @@map("idempotency_keys")
+}
 
 enum UserRole {
   NATIONAL_COORDINATOR
@@ -95,572 +471,4 @@ enum TransactionStatus {
   submitted
   approved
   rejected
-}
-
-enum AllocationType {
-  hierarchical
-  direct
-}
-
-enum InvitationStatus {
-  pending
-  accepted
-  expired
-}
-
-enum AuditAction {
-  create
-  update
-  approve
-  reject
-  complete
-  reverse
-  delete
-}
-
-enum AuditEntityType {
-  Profile
-  Member
-  Site
-  SmallGroup
-  Activity
-  ActivityType
-  Report
-  FinancialTransaction
-  FundAllocation
-  AccountingPeriod
-}
-
-enum AccountingPeriodType {
-  month
-  quarter
-  year
-}
-
-enum AccountingPeriodStatus {
-  open
-  closed
-}
-
-// Models
-
-model Profile {
-  id     String     @id // Kinde User ID
-  email  String     @unique
-  name   String
-  role   UserRole
-  status UserStatus @default(active)
-  avatarUrl String? @map("avatar_url")
-
-  // Relations
-  siteId String? @map("site_id")
-  site   Site?   @relation("SiteMembers", fields: [siteId], references: [id])
-
-  smallGroupId String?     @map("small_group_id")
-  smallGroup   SmallGroup? @relation("GroupMembers", fields: [smallGroupId], references: [id])
-
-  // Leadership roles
-  ledSmallGroup    SmallGroup? @relation("GroupLeader")
-  logisticForGroup SmallGroup? @relation("GroupLogistics")
-  financeForGroup  SmallGroup? @relation("GroupFinance")
-
-  managedSite Site? @relation("SiteCoordinator")
-
-  // Content ownership
-  createdActivities    Activity[]
-  submittedReports     Report[]               @relation("ReportSubmitter")
-  reviewedReports      Report[]               @relation("ReportReviewer")
-  recordedTransactions FinancialTransaction[] @relation("RecordedBy")
-  approvedTransactions FinancialTransaction[] @relation("ApprovedTransactions") // NEW
-  allocatedFunds       FundAllocation[]
-  certificates         Certificate[]
-  auditLogs            AuditLog[] // NEW
-  closedPeriods        AccountingPeriod[] // NEW
-  notifications        Notification[] // NEW
-  members              Member[]
-
-  mandateStartDate DateTime? @map("mandate_start_date")
-  mandateEndDate   DateTime? @map("mandate_end_date")
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @updatedAt @map("updated_at")
-
-  @@map("profiles")
-}
-
-model Site {
-  id      String @id @default(uuid())
-  name    String
-  city    String
-  country String
-
-  coordinatorId String?  @unique @map("coordinator_id")
-  coordinator   Profile? @relation("SiteCoordinator", fields: [coordinatorId], references: [id])
-
-  // Relations
-  members           Profile[]              @relation("SiteMembers") // Staff members
-  registeredMembers Member[] // Regular members
-  smallGroups       SmallGroup[]
-  activities        Activity[]
-  transactions      FinancialTransaction[]
-  allocations       FundAllocation[]
-  allocationsFrom   FundAllocation[]       @relation("AllocationsFrom") // NEW - for Site → Group allocations
-  reports           Report[]
-  invitations       UserInvitation[]
-  inventoryItems    InventoryItem[] // NEW - for Inventory Management
-  inventoryMovements InventoryMovement[]
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@map("sites")
-}
-
-model SmallGroup {
-  id   String @id @default(uuid())
-  name String
-
-  siteId String @map("site_id")
-  site   Site   @relation(fields: [siteId], references: [id], onDelete: Restrict)
-
-  // Leadership
-  leaderId String?  @unique @map("leader_id")
-  leader   Profile? @relation("GroupLeader", fields: [leaderId], references: [id])
-
-  logisticsAssistantId String?  @unique @map("logistics_assistant_id")
-  logisticsAssistant   Profile? @relation("GroupLogistics", fields: [logisticsAssistantId], references: [id])
-
-  financeAssistantId String?  @unique @map("finance_assistant_id")
-  financeAssistant   Profile? @relation("GroupFinance", fields: [financeAssistantId], references: [id])
-
-  // Meeting details
-  meetingDay      String? @map("meeting_day")
-  meetingTime     String? @map("meeting_time")
-  meetingLocation String? @map("meeting_location")
-
-  // Relations
-  members           Profile[]              @relation("GroupMembers") // Staff members
-  registeredMembers Member[] // Regular members
-  activities        Activity[]
-  transactions      FinancialTransaction[]
-  allocations       FundAllocation[]
-  reports           Report[]
-  invitations       UserInvitation[]
-  inventoryMovements InventoryMovement[]
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@map("small_groups")
-}
-
-model Member {
-  id       String       @id @default(uuid())
-  name     String
-  gender   MemberGender
-  type     MemberType
-  phone    String?
-  email    String?
-  joinDate DateTime     @map("join_date")
-
-  level ActivityLevel
-
-  siteId String? @map("site_id")
-  site   Site?   @relation(fields: [siteId], references: [id], onDelete: SetNull)
-
-  smallGroupId String?     @map("small_group_id")
-  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id], onDelete: SetNull)
-
-  userId String?  @map("user_id")
-  user   Profile? @relation(fields: [userId], references: [id])
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@map("members")
-}
-
-model ActivityType {
-  id          String           @id @default(uuid())
-  name        String
-  category    ActivityCategory
-  description String?
-
-  activities Activity[]
-  reports    Report[]
-
-  @@map("activity_types")
-}
-
-model Activity {
-  id       String         @id @default(uuid())
-  title    String
-  thematic String
-  date     DateTime
-  status   ActivityStatus @default(planned)
-  level    ActivityLevel
-
-  siteId String? @map("site_id")
-  site   Site?   @relation(fields: [siteId], references: [id], onDelete: Restrict)
-
-  smallGroupId String?     @map("small_group_id")
-  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id], onDelete: Restrict)
-
-  activityTypeId String       @map("activity_type_id")
-  activityType   ActivityType @relation(fields: [activityTypeId], references: [id])
-
-  // New enum-based type field
-  activityTypeEnum ActivityTypeEnum? @map("activity_type_enum")
-
-  participantsCountPlanned Int? @map("participants_count_planned")
-
-  createdById String  @map("created_by")
-  createdBy   Profile @relation(fields: [createdById], references: [id])
-
-  // Relations
-  reports               Report[]
-  financialTransactions FinancialTransaction[] // NEW - transactions linked to this activity
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@map("activities")
-}
-
-model Report {
-  id             String        @id @default(uuid())
-  title          String
-  activityDate   DateTime      @map("activity_date")
-  submissionDate DateTime      @default(now()) @map("submission_date")
-  level          ActivityLevel
-  status         ReportStatus  @default(pending)
-
-  content                   String  @db.Text
-  thematic                  String
-  speaker                   String?
-  moderator                 String?
-  girlsCount                Int?    @map("girls_count")
-  boysCount                 Int?    @map("boys_count")
-  participantsCountReported Int?    @map("participants_count_reported")
-  totalExpenses             Decimal? @map("total_expenses") @db.Decimal(10, 2)
-  currency                  String?
-  financialSummary          String? @map("financial_summary") @db.Text
-  reviewNotes               String? @map("review_notes") @db.Text
-
-  // JSON fields for arrays
-  images      Json? // Array<{ name: string; url: string }>
-  attachments Json? // string[]
-
-  // Relations
-  submittedById String  @map("submitted_by")
-  submittedBy   Profile @relation("ReportSubmitter", fields: [submittedById], references: [id])
-
-  reviewedById    String?   @map("reviewed_by")
-  reviewedBy      Profile?  @relation("ReportReviewer", fields: [reviewedById], references: [id])
-  reviewedAt      DateTime? @map("reviewed_at")
-  rejectionReason String?   @map("rejection_reason") // Reason for rejection
-
-  siteId String? @map("site_id")
-  site   Site?   @relation(fields: [siteId], references: [id], onDelete: Restrict)
-
-  smallGroupId String?     @map("small_group_id")
-  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id], onDelete: Restrict)
-
-  activityTypeId String       @map("activity_type_id")
-  activityType   ActivityType @relation(fields: [activityTypeId], references: [id])
-
-  activityId String?   @map("activity_id")
-  activity   Activity? @relation(fields: [activityId], references: [id], onDelete: Restrict)
-
-  linkedTransactions FinancialTransaction[]
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // CRITICAL: Enforce one report per activity to prevent double financial transactions
-  // NULL values are allowed (for reports not linked to activities)
-  @@unique([activityId])
-
-  // SCALABILITY: Indexes for dashboard filtering
-  @@index([siteId, status])
-  @@index([submissionDate])
-  @@map("reports")
-}
-
-model FinancialTransaction {
-  id          String          @id @default(uuid())
-  date        DateTime
-  description String
-  amount      Decimal  @db.Decimal(10, 2)
-  type        TransactionType
-  category    String
-
-  // Entity Links
-  siteId String? @map("site_id")
-  site   Site?   @relation(fields: [siteId], references: [id], onDelete: Restrict)
-
-  smallGroupId String?     @map("small_group_id")
-  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id], onDelete: Restrict)
-
-  recordedById String  @map("recorded_by")
-  recordedBy   Profile @relation("RecordedBy", fields: [recordedById], references: [id])
-
-  attachments Json? // string[]
-
-  // Workflow & Approval (NEW)
-  status       TransactionStatus @default(approved)
-  approvedById String?           @map("approved_by_id")
-  approvedBy   Profile?  @relation("ApprovedTransactions", fields: [approvedById], references: [id])
-  approvedAt   DateTime? @map("approved_at")
-
-  // Context Links (NEW)
-  relatedReportId String? @map("related_report_id")
-  relatedReport   Report? @relation(fields: [relatedReportId], references: [id], onDelete: Restrict)
-
-  relatedActivityId String?   @map("related_activity_id")
-  relatedActivity   Activity? @relation(fields: [relatedActivityId], references: [id], onDelete: Restrict)
-
-  // Reversal Support (NEW)
-  isReversalOfId String?                @map("is_reversal_of_id")
-  isReversalOf   FinancialTransaction?  @relation("TransactionReversal", fields: [isReversalOfId], references: [id], onDelete: SetNull)
-  reversals      FinancialTransaction[] @relation("TransactionReversal")
-
-  // Proof (NEW)
-  proofUrl String? @map("proof_url")
-
-  // NEW: Tracks system-generated transactions for immutability enforcement
-  isSystemGenerated Boolean @default(false) @map("is_system_generated")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // SCALABILITY: Composite indexes for frequent aggregations (BudgetService)
-  @@index([siteId, status, type])
-  @@index([smallGroupId, status, type])
-  @@index([date])
-  @@map("transactions")
-}
-
-model FundAllocation {
-  id             String           @id @default(uuid())
-  amount         Decimal          @db.Decimal(10, 2)
-  allocationDate DateTime         @map("allocation_date")
-  goal           String
-  source         String
-  status         AllocationStatus
-  notes          String?
-
-  // Hybrid Allocation Support (NEW)
-  allocationType AllocationType @default(hierarchical) @map("allocation_type")
-  // Values: 'hierarchical' (NC → Site OR SC → Group) or 'direct' (NC → Group bypass)
-  
-  bypassReason   String? @map("bypass_reason")
-  // Required when allocationType = 'direct'. Min 20 characters.
-  // Justification for why NC is bypassing the Site Coordinator.
-
-  // Proof (NEW)
-  proofUrl String? @map("proof_url") // URL to transfer proof in Supabase
-
-  allocatedById String  @map("allocated_by_id")
-  allocatedBy   Profile @relation(fields: [allocatedById], references: [id])
-
-  // Source tracking (NEW) - for Site → Group allocations
-  fromSiteId String? @map("from_site_id")
-  fromSite   Site?   @relation("AllocationsFrom", fields: [fromSiteId], references: [id])
-
-  siteId String? @map("site_id")
-  site   Site?   @relation(fields: [siteId], references: [id], onDelete: Restrict)
-
-  smallGroupId String?     @map("small_group_id")
-  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id], onDelete: Restrict)
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // SCALABILITY: Indexes for allocations list and helpers
-  @@index([siteId, status])
-  @@index([fromSiteId, status])
-  @@map("fund_allocations")
-}
-
-model UserInvitation {
-  id    String   @id @default(uuid())
-  email String   @unique
-  role  UserRole
-
-  siteId String? @map("site_id")
-  site   Site?   @relation(fields: [siteId], references: [id], onDelete: Cascade)
-
-  smallGroupId String?     @map("small_group_id")
-  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id], onDelete: Cascade)
-
-  token  String           @unique @default(uuid())
-  status InvitationStatus @default(pending) // pending, accepted, expired
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  expiresAt DateTime @default(dbgenerated("NOW() + INTERVAL '7 days'")) @map("expires_at")
-
-  mandateStartDate DateTime? @map("mandate_start_date")
-  mandateEndDate   DateTime? @map("mandate_end_date")
-
-  @@index([token])
-  @@index([expiresAt])
-  @@map("user_invitations")
-}
-
-model Certificate {
-  id               String   @id @default(uuid())
-  profileId        String   @map("profile_id")
-  profile          Profile  @relation(fields: [profileId], references: [id])
-  role             String
-  mandateStartDate DateTime @map("mandate_start_date")
-  mandateEndDate   DateTime @map("mandate_end_date")
-  pdfUrl           String   @map("pdf_url")
-  generatedAt      DateTime @default(now()) @map("generated_at")
-  downloadCount    Int      @default(0) @map("download_count")
-
-  @@index([profileId])
-  @@map("certificates")
-}
-
-// ============================================
-// AUDIT LOG - Complete Traceability
-// ============================================
-model AuditLog {
-  id String @id @default(uuid())
-
-  // Who performed the action
-  // Who performed the action
-  actorId String  @map("actor_id")
-  actor   Profile @relation(fields: [actorId], references: [id], onDelete: Restrict) // COMPLIANCE: Do not delete audits if user is deleted
-
-  // What was done
-  action AuditAction
-
-  // On which entity
-  entityType AuditEntityType @map("entity_type")
-  entityId   String          @map("entity_id")
-
-  // Context
-  metadata Json? // Stores before/after snapshots, comments, reasons
-
-  // Technical details
-  ipAddress String? @map("ip_address")
-  userAgent String? @map("user_agent")
-
-  createdAt DateTime @default(now()) @map("created_at")
-
-  @@index([entityType, entityId])
-  @@index([actorId])
-  @@index([createdAt])
-  @@map("audit_logs")
-}
-
-// ============================================
-// 4. ACCOUNTING PERIODS
-// ============================================
-model AccountingPeriod {
-  id String @id @default(uuid())
-
-  type      AccountingPeriodType
-  startDate DateTime             @map("start_date")
-  endDate   DateTime             @map("end_date")
-
-  status     AccountingPeriodStatus @default(open) // 'open' | 'closed'
-  closedAt   DateTime? @map("closed_at")
-  closedById String?   @map("closed_by_id")
-  closedBy   Profile?  @relation(fields: [closedById], references: [id])
-
-  // Snapshot at closing
-  snapshotData Json? @map("snapshot_data") // Stores balances per entity at closing
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@index([startDate, endDate])
-  @@map("accounting_periods")
-}
-
-// ============================================
-// 5. INVENTORY SYSTEM
-// ============================================
-model InventoryItem {
-  id String @id @default(uuid())
-
-  name        String
-  description String?
-  category    String? // 'equipment' | 'supplies' | 'furniture'
-  unit        String? // 'piece' | 'box' | 'kg'
-
-  // Ownership
-  siteId String? @map("site_id")
-  site   Site?   @relation(fields: [siteId], references: [id], onDelete: Cascade)
-
-  movements InventoryMovement[]
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@map("inventory_items")
-}
-
-model InventoryMovement {
-  id String @id @default(uuid())
-
-  itemId String        @map("item_id")
-  item   InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
-
-  date      DateTime
-  direction String // 'in' (purchase/reception) | 'out' (usage/disposal)
-  quantity  Decimal
-  reason    String? // Description or justification
-
-  // Links to financial records
-  relatedTransactionId String? @map("related_transaction_id")
-  relatedReportId      String? @map("related_report_id")
-
-  // Context
-  siteId       String? @map("site_id")
-  site         Site?   @relation(fields: [siteId], references: [id], onDelete: Restrict)
-  smallGroupId String? @map("small_group_id")
-  smallGroup   SmallGroup? @relation(fields: [smallGroupId], references: [id], onDelete: Restrict)
-
-  createdAt DateTime @default(now()) @map("created_at")
-
-  @@index([itemId, date])
-  @@map("inventory_movements")
-}
-
-// ============================================
-// 6. NOTIFICATIONS SYSTEM
-// ============================================
-
-model Notification {
-  id        String           @id @default(uuid())
-  userId    String           @map("user_id")
-  type      NotificationType
-  title     String
-  message   String
-  read      Boolean          @default(false)
-  link      String?
-  metadata  Json?            @map("metadata")
-  createdAt DateTime         @default(now()) @map("created_at")
-
-  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, read])
-  @@map("notifications")
-}
-
-// ============================================
-// 7. IDEMPOTENCY KEYS (Offline Sync)
-// ============================================
-
-model IdempotencyKey {
-  key        String   @id
-  response   Json
-  createdAt  DateTime @default(now()) @map("created_at")
-  lockedAt   DateTime @default(now()) @map("locked_at") // For concurrent request locking
-
-  @@map("idempotency_keys")
 }

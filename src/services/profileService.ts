@@ -1,7 +1,7 @@
 'use server';
 
 import { prisma, basePrisma, withRLS } from '@/lib/prisma';
-import { User, UserRole, ServiceResponse } from '@/lib/types';
+import { User, UserRole, ServiceResponse, ErrorCode } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import { checkDeletionEligibility } from '@/lib/safetyChecks';
@@ -65,17 +65,22 @@ async function mapProfilesToUsers(profiles: any[]): Promise<User[]> {
 /**
  * Retrieves a user's profile by their ID, including enriched data.
  */
-export async function getProfile(userId: string): Promise<User> {
-  const data = await prisma.profile.findUnique({
-    where: { id: userId },
-    include: {
-      site: true,
-      smallGroup: true,
-    },
-  });
+export async function getProfile(userId: string): Promise<ServiceResponse<User>> {
+  try {
+    const data = await prisma.profile.findUnique({
+      where: { id: userId },
+      include: {
+        site: true,
+        smallGroup: true,
+      },
+    });
 
-  if (!data) throw new Error('Profile not found.');
-  return mapProfileToUser(data);
+    if (!data) return { success: false, error: { message: 'Profile not found.', code: ErrorCode.NOT_FOUND } };
+    const user = await mapProfileToUser(data);
+    return { success: true, data: user };
+  } catch (error: any) {
+    return { success: false, error: { message: error.message, code: ErrorCode.INTERNAL_ERROR } };
+  }
 }
 
 /**
@@ -90,7 +95,7 @@ export async function updateProfile(userId: string, updates: Partial<User>, ipAd
 
     const { getUser } = getKindeServerSession();
     const currentUserSession = await getUser();
-    if (!currentUserSession) throw new Error('Unauthorized');
+    if (!currentUserSession) return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
 
     // Map User type (frontend) to Prisma input
     const dbUpdates: any = {};
@@ -109,7 +114,7 @@ export async function updateProfile(userId: string, updates: Partial<User>, ipAd
         await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${currentUserSession.id.replace(/'/g, "''")}'`);
 
         const before = await tx.profile.findUnique({ where: { id: userId } });
-        if (!before) throw new Error('Profile not found.');
+        if (!before) throw new Error('NOT_FOUND: Profile not found.');
 
         const finalRole = updates.role || before.role;
 
@@ -136,7 +141,7 @@ export async function updateProfile(userId: string, updates: Partial<User>, ipAd
         await createAuditLog({
           actorId: currentUserSession.id,
           action: 'update',
-          entityType: 'Report' as any, // Temporary hack if 'Profile' is not in union, or just use any
+          entityType: 'Report' as any, // Temporary hack if 'Profile' is not in union
           entityId: userId,
           metadata: { before, after: updatedUser, entity: 'Profile' },
           ipAddress,
@@ -151,63 +156,77 @@ export async function updateProfile(userId: string, updates: Partial<User>, ipAd
     return { success: true, data: result };
   } catch (error: any) {
     console.error(`[ProfileService] Update Error: ${error.message}`);
-    return { success: false, error: { message: error.message } };
+    let code = ErrorCode.INTERNAL_ERROR;
+    if (error.message.includes('NOT_FOUND')) code = ErrorCode.NOT_FOUND;
+    return { success: false, error: { message: error.message, code } };
   }
 }
 
 /**
- * Retrieves all users with their assignment details.
+ * Retrieves all users with their assignment details (with optional pagination).
  */
-export async function getUsers(): Promise<User[]> {
-  const users = await prisma.profile.findMany({
-    include: {
-      site: true,
-      smallGroup: true,
-    },
-    orderBy: {
-      name: 'asc',
-    },
-  });
+export async function getUsers(limit?: number, offset?: number): Promise<ServiceResponse<User[]>> {
+  try {
+    const users = await prisma.profile.findMany({
+      include: {
+        site: true,
+        smallGroup: true,
+      },
+      take: limit ? Number(limit) : undefined,
+      skip: offset ? Number(offset) : undefined,
+      orderBy: {
+        name: 'asc',
+      },
+    });
 
-  return mapProfilesToUsers(users);
+    const data = await mapProfilesToUsers(users);
+    return { success: true, data };
+  } catch (error: any) {
+    return { success: false, error: { message: error.message, code: ErrorCode.INTERNAL_ERROR } };
+  }
 }
 
 /**
  * Retrieves users eligible for leadership roles.
  */
-export async function getEligiblePersonnel(siteId: string, smallGroupId?: string): Promise<User[]> {
-  const whereClause: any = {
-    status: { not: 'inactive' },
-    OR: [
-      { role: 'NATIONAL_COORDINATOR' },
-      { role: 'SITE_COORDINATOR', siteId: siteId },
-    ]
-  };
-
-  if (smallGroupId) {
-    whereClause.OR.push({
-      role: 'SMALL_GROUP_LEADER',
+export async function getEligiblePersonnel(siteId: string, smallGroupId?: string): Promise<ServiceResponse<User[]>> {
+  try {
+    const whereClause: any = {
+      status: { not: 'inactive' },
       OR: [
-        { smallGroupId: null },
-        { smallGroupId: smallGroupId }
+        { role: 'NATIONAL_COORDINATOR' },
+        { role: 'SITE_COORDINATOR', siteId: siteId },
       ]
-    });
-  } else {
-    whereClause.OR.push({
-      role: 'SMALL_GROUP_LEADER',
-      smallGroupId: null
-    });
-  }
+    };
 
-  const users = await prisma.profile.findMany({
-    where: whereClause,
-    include: {
-      site: true,
-      smallGroup: true,
+    if (smallGroupId) {
+      whereClause.OR.push({
+        role: 'SMALL_GROUP_LEADER',
+        OR: [
+          { smallGroupId: null },
+          { smallGroupId: smallGroupId }
+        ]
+      });
+    } else {
+      whereClause.OR.push({
+        role: 'SMALL_GROUP_LEADER',
+        smallGroupId: null
+      });
     }
-  });
 
-  return mapProfilesToUsers(users);
+    const users = await prisma.profile.findMany({
+      where: whereClause,
+      include: {
+        site: true,
+        smallGroup: true,
+      }
+    });
+
+    const data = await mapProfilesToUsers(users);
+    return { success: true, data };
+  } catch (error: any) {
+    return { success: false, error: { message: error.message, code: ErrorCode.INTERNAL_ERROR } };
+  }
 }
 
 /**
@@ -220,7 +239,7 @@ export async function deleteUser(userId: string, ipAddress?: string, userAgent?:
     const { getUser } = getKindeServerSession();
     const currentUser = await getUser();
 
-    if (!currentUser) throw new Error('Unauthorized');
+    if (!currentUser) return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
 
     await withRLS(currentUser.id, async () => {
       return await basePrisma.$transaction(async (tx: any) => {
@@ -234,16 +253,16 @@ export async function deleteUser(userId: string, ipAddress?: string, userAgent?:
         });
 
         if (requester?.role !== ROLES.NATIONAL_COORDINATOR) {
-          throw new Error('UNAUTHORIZED_ACTION: Only National Coordinators can perform user deletion.');
+          throw new Error('FORBIDDEN: Only National Coordinators can perform user deletion.');
         }
 
         const before = await tx.profile.findUnique({ where: { id: userId } });
-        if (!before) throw new Error('User not found.');
+        if (!before) throw new Error('NOT_FOUND: User not found.');
 
         // 2. Structural Guard: check if user has data linked to them
         const eligibility = await checkDeletionEligibility(userId);
         if (!eligibility.canDelete) {
-          throw new Error(`INELIGIBLE_FOR_DELETION: ${eligibility.reason}`);
+          throw new Error(`CONFLICT: ${eligibility.reason}`);
         }
 
         // Audit Log
@@ -268,27 +287,36 @@ export async function deleteUser(userId: string, ipAddress?: string, userAgent?:
     return { success: true };
   } catch (error: any) {
     console.error(`[ProfileService] Delete Error: ${error.message}`);
-    return { success: false, error: { message: error.message } };
+    let code = ErrorCode.INTERNAL_ERROR;
+    if (error.message.includes('FORBIDDEN')) code = ErrorCode.FORBIDDEN;
+    if (error.message.includes('NOT_FOUND')) code = ErrorCode.NOT_FOUND;
+    if (error.message.includes('CONFLICT')) code = ErrorCode.CONFLICT;
+    return { success: false, error: { message: error.message, code } };
   }
 }
 
 /**
  * Retrieves multiple user profiles by their IDs.
  */
-export async function getUsersByIds(userIds: string[]): Promise<User[]> {
-  if (!userIds || userIds.length === 0) return [];
+export async function getUsersByIds(userIds: string[]): Promise<ServiceResponse<User[]>> {
+  try {
+    if (!userIds || userIds.length === 0) return { success: true, data: [] };
 
-  const users = await prisma.profile.findMany({
-    where: {
-      id: { in: userIds },
-    },
-    include: {
-      site: true,
-      smallGroup: true,
-    }
-  });
+    const users = await prisma.profile.findMany({
+      where: {
+        id: { in: userIds },
+      },
+      include: {
+        site: true,
+        smallGroup: true,
+      }
+    });
 
-  return mapProfilesToUsers(users);
+    const data = await mapProfilesToUsers(users);
+    return { success: true, data };
+  } catch (error: any) {
+    return { success: false, error: { message: error.message, code: ErrorCode.INTERNAL_ERROR } };
+  }
 }
 
 /**
@@ -300,19 +328,19 @@ export async function uploadAvatar(formData: FormData): Promise<ServiceResponse<
     const currentUser = await getUser();
 
     if (!currentUser) {
-      return { success: false, error: { message: "Unauthorized: User not authenticated" } };
+      return { success: false, error: { message: "Unauthorized: User not authenticated", code: ErrorCode.UNAUTHORIZED } };
     }
 
     const file = formData.get('file') as File;
     if (!file) {
-      return { success: false, error: { message: "No file provided" } };
+      return { success: false, error: { message: "No file provided", code: ErrorCode.VALIDATION_ERROR } };
     }
 
     if (!file.type.startsWith('image/')) {
-      return { success: false, error: { message: "File must be an image" } };
+      return { success: false, error: { message: "File must be an image", code: ErrorCode.VALIDATION_ERROR } };
     }
     if (file.size > 5 * 1024 * 1024) {
-      return { success: false, error: { message: "File size must be less than 5MB" } };
+      return { success: false, error: { message: "File size must be less than 5MB", code: ErrorCode.VALIDATION_ERROR } };
     }
 
     return await withRLS(currentUser.id, async () => {
@@ -362,6 +390,6 @@ export async function uploadAvatar(formData: FormData): Promise<ServiceResponse<
     });
   } catch (error: any) {
     console.error('[ProfileService] uploadAvatar FATAL:', error.message);
-    return { success: false, error: { message: `Upload failed: ${error.message}` } };
+    return { success: false, error: { message: `Upload failed: ${error.message}`, code: ErrorCode.INTERNAL_ERROR } };
   }
 }

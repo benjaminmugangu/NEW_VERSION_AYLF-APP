@@ -2,7 +2,7 @@
 
 import { prisma, withRLS } from '@/lib/prisma';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
-import { ServiceResponse, ReportWithDetails, ReportFormData } from '@/lib/types';
+import { ServiceResponse, ReportWithDetails, ReportFormData, ErrorCode } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
 import notificationService from '../notificationService';
 import { deleteFile, extractFilePath } from '../storageService';
@@ -14,7 +14,7 @@ export async function createReport(reportData: ReportFormData, overrideUser?: an
     const user = overrideUser || await getUser();
 
     if (!user?.id) {
-        throw new Error('Unauthorized');
+        return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
     }
 
     // Idempotency Check (Pre-Transaction) done via basePrisma access inside dynamic import?
@@ -37,10 +37,10 @@ export async function createReport(reportData: ReportFormData, overrideUser?: an
             reportData.siteId = undefined;
             reportData.smallGroupId = undefined;
         } else if (reportData.level === 'site') {
-            if (!reportData.siteId) throw new Error('Site ID is required for site-level reports.');
+            if (!reportData.siteId) return { success: false, error: { message: 'Site ID is required for site-level reports.', code: ErrorCode.VALIDATION_ERROR } };
             reportData.smallGroupId = undefined;
         } else if (reportData.level === 'small_group' && !reportData.smallGroupId) {
-            throw new Error('Small Group ID is required for small-group-level reports.');
+            return { success: false, error: { message: 'Small Group ID is required for small-group-level reports.', code: ErrorCode.VALIDATION_ERROR } };
         }
 
         try {
@@ -135,7 +135,11 @@ export async function createReport(reportData: ReportFormData, overrideUser?: an
 
         } catch (dbError: any) {
             if (dbError.message?.includes('ACTIVITY_ALREADY_REPORTED')) {
-                return { success: false, error: { message: 'ACTIVITY_ALREADY_REPORTED' } };
+                return { success: false, error: { message: 'ACTIVITY_ALREADY_REPORTED', code: ErrorCode.CONFLICT } };
+            }
+
+            if (dbError.message?.includes('PERIOD_CLOSED')) {
+                return { success: false, error: { message: dbError.message, code: ErrorCode.PERIOD_CLOSED } };
             }
 
             // ATOMIC ROLLBACK STRATEGY for Assets
@@ -152,7 +156,7 @@ export async function createReport(reportData: ReportFormData, overrideUser?: an
                 rollbackQueue.map(url => deleteFile(extractFilePath(url, 'report-images'), { isRollback: true }))
             ).catch(err => console.error('[CreateReport] Critical: Multi-asset rollback failed:', err));
 
-            return { success: false, error: { message: dbError.message || 'Failed to create report' } };
+            return { success: false, error: { message: dbError.message || 'Failed to create report', code: ErrorCode.INTERNAL_ERROR } };
         }
     });
 }
@@ -161,7 +165,7 @@ export async function updateReport(reportId: string, updatedData: Partial<Report
     try {
         const { getUser } = getKindeServerSession();
         const user = await getUser();
-        if (!user?.id) return { success: false, error: { message: 'Unauthorized' } };
+        if (!user?.id) return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
 
         const { basePrisma } = await import('@/lib/prisma');
 
@@ -172,7 +176,7 @@ export async function updateReport(reportId: string, updatedData: Partial<Report
 
                 // Fetch existing for period check
                 const existing = await tx.report.findUnique({ where: { id: reportId } });
-                if (!existing) throw new Error('Report not found');
+                if (!existing) throw new Error('NOT_FOUND: Report not found');
 
                 await checkPeriod(existing.activityDate, 'Modification de rapport (existant)');
                 if (updatedData.activityDate) {
@@ -207,7 +211,11 @@ export async function updateReport(reportId: string, updatedData: Partial<Report
         return { success: true, data: result };
     } catch (error: any) {
         console.error(`[ReportService] Update Error: ${error.message}`);
-        return { success: false, error: { message: error.message } };
+        let code = ErrorCode.INTERNAL_ERROR;
+        if (error.message.includes('NOT_FOUND')) code = ErrorCode.NOT_FOUND;
+        if (error.message.includes('PERIOD_CLOSED')) code = ErrorCode.PERIOD_CLOSED;
+
+        return { success: false, error: { message: error.message, code } };
     }
 }
 
@@ -215,7 +223,7 @@ export async function deleteReport(id: string): Promise<ServiceResponse<void>> {
     try {
         const { getUser } = getKindeServerSession();
         const user = await getUser();
-        if (!user?.id) return { success: false, error: { message: 'Unauthorized' } };
+        if (!user?.id) return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
 
         const { basePrisma } = await import('@/lib/prisma');
 
@@ -224,7 +232,7 @@ export async function deleteReport(id: string): Promise<ServiceResponse<void>> {
                 await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${user.id.replace(/'/g, "''")}'`);
 
                 const existing = await tx.report.findUnique({ where: { id } });
-                if (!existing) throw new Error('Report not found');
+                if (!existing) throw new Error('NOT_FOUND: Report not found');
 
                 await checkPeriod(existing.activityDate, 'Suppression de rapport');
 
@@ -237,6 +245,10 @@ export async function deleteReport(id: string): Promise<ServiceResponse<void>> {
         return { success: true };
     } catch (error: any) {
         console.error(`[ReportService] Delete Error: ${error.message}`);
-        return { success: false, error: { message: error.message } };
+        let code = ErrorCode.INTERNAL_ERROR;
+        if (error.message.includes('NOT_FOUND')) code = ErrorCode.NOT_FOUND;
+        if (error.message.includes('PERIOD_CLOSED')) code = ErrorCode.PERIOD_CLOSED;
+
+        return { success: false, error: { message: error.message, code } };
     }
 }

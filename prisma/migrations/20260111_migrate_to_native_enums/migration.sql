@@ -21,19 +21,36 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'AccountingPeriodStatus') THEN
         CREATE TYPE "AccountingPeriodStatus" AS ENUM ('open', 'closed');
     END IF;
+
+    -- 2. Ensure missing columns exist before conversion
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'fund_allocations' AND column_name = 'allocation_type') THEN
+        ALTER TABLE "fund_allocations" ADD COLUMN "allocation_type" TEXT DEFAULT 'hierarchical';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'fund_allocations' AND column_name = 'bypass_reason') THEN
+        ALTER TABLE "fund_allocations" ADD COLUMN "bypass_reason" TEXT;
+    END IF;
 END $$;
 
--- 2. Convert Columns with Data Preservation (USING clause)
+-- 3. Convert Columns with Data Preservation (USING clause)
 
 -- FundAllocation: allocation_type
+-- Drop default first to avoid casting error during type change
+ALTER TABLE "fund_allocations" ALTER COLUMN "allocation_type" DROP DEFAULT;
+
 ALTER TABLE "fund_allocations" 
   ALTER COLUMN "allocation_type" TYPE "AllocationType" 
   USING "allocation_type"::"AllocationType";
 
+ALTER TABLE "fund_allocations" ALTER COLUMN "allocation_type" SET DEFAULT 'hierarchical'::"AllocationType";
+
 -- UserInvitation: status
+ALTER TABLE "user_invitations" ALTER COLUMN "status" DROP DEFAULT;
+
 ALTER TABLE "user_invitations" 
   ALTER COLUMN "status" TYPE "InvitationStatus" 
   USING "status"::"InvitationStatus";
+
+ALTER TABLE "user_invitations" ALTER COLUMN "status" SET DEFAULT 'pending'::"InvitationStatus";
 
 -- AuditLog: action
 ALTER TABLE "audit_logs" 
@@ -58,9 +75,13 @@ ALTER TABLE "accounting_periods"
   USING "type"::"AccountingPeriodType";
 
 -- AccountingPeriod: status
+ALTER TABLE "accounting_periods" ALTER COLUMN "status" DROP DEFAULT;
+
 ALTER TABLE "accounting_periods" 
   ALTER COLUMN "status" TYPE "AccountingPeriodStatus" 
   USING "status"::"AccountingPeriodStatus";
+
+ALTER TABLE "accounting_periods" ALTER COLUMN "status" SET DEFAULT 'open'::"AccountingPeriodStatus";
 
 -- 3. Add Integrity Constraints (CHECK)
 ALTER TABLE "transactions" DROP CONSTRAINT IF EXISTS "transactions_amount_positive";

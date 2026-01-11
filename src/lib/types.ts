@@ -382,8 +382,26 @@ export interface AuthContextType {
   isLoading: boolean;
 }
 
+// =============================================================================
+// SERVICE & ERROR HANDLING
+// =============================================================================
+
+export enum ErrorCode {
+  UNAUTHORIZED = 'UNAUTHORIZED',
+  FORBIDDEN = 'FORBIDDEN',
+  NOT_FOUND = 'NOT_FOUND',
+  VALIDATION_ERROR = 'VALIDATION_ERROR',
+  CONFLICT = 'CONFLICT',
+  DATABASE_ERROR = 'DATABASE_ERROR',
+  INTERNAL_ERROR = 'INTERNAL_ERROR',
+  PERIOD_CLOSED = 'PERIOD_CLOSED',
+}
+
 export interface ServiceResponse<T> {
   success: boolean;
   data?: T;
-  error?: { message: string };
+  error?: {
+    message: string;
+    code?: ErrorCode | string;
+  };
 }

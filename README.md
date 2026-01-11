@@ -62,6 +62,17 @@ npm run dev
 
 Ouvrez [http://localhost:3000](http://localhost:3000) dans votre navigateur pour voir l'application.
 
+### 4. Hypothèses sur les fuseaux horaires (Timezones)
+
+L'application est conçue pour être utilisée principalement en **République Démocratique du Congo (RDC)**. Les fuseaux horaires suivants sont pris en compte :
+- **Kinshasa (WAT - UTC+1)**
+- **Lubumbashi/Goma (CAT - UTC+2)**
+
+**Hypothèses techniques :**
+- Toutes les dates sont stockées en **UTC** dans la base de données.
+- Les agrégations financières et les rapports utilisent des comparaisons de dates basées sur le fuseau horaire du serveur (standardisé sur UTC pour la cohérence).
+- L'interface utilisateur affiche les dates adaptées au fuseau horaire local de l'utilisateur.
+
 ## 3. Comment Contribuer
 
 Nous encourageons les contributions pour améliorer ce projet. Avant de commencer, veuillez prendre connaissance des documents suivants :

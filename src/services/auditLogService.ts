@@ -1,6 +1,8 @@
 'use server';
 
-import { prisma } from '@/lib/prisma';
+import { prisma, withRLS } from '@/lib/prisma';
+import { ServiceResponse, ErrorCode } from '@/lib/types';
+import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 
 /**
  * Interface for AuditLog entry
@@ -23,6 +25,7 @@ export interface AuditLogEntry {
 
 /**
  * Create an audit log entry
+ * Primarily internal method.
  */
 export async function createAuditLog(entry: AuditLogEntry, tx?: any) {
     const client = tx || prisma;
@@ -40,11 +43,8 @@ export async function createAuditLog(entry: AuditLogEntry, tx?: any) {
         });
 
         return auditLog;
-    } catch (error) {
-        console.error('[CREATE_AUDIT_LOG_FAILED]', {
-            type: error?.constructor?.name,
-            error: error instanceof Error ? error.message : String(error)
-        });
+    } catch (error: any) {
+        console.error('[CREATE_AUDIT_LOG_FAILED]', error.message);
         throw new Error('Failed to create audit log entry');
     }
 }
@@ -55,110 +55,110 @@ export async function createAuditLog(entry: AuditLogEntry, tx?: any) {
 export async function getAuditLogsForEntity(
     entityType: AuditLogEntry['entityType'],
     entityId: string
-) {
+): Promise<ServiceResponse<any[]>> {
     try {
-        const logs = await prisma.auditLog.findMany({
-            where: {
-                entityType,
-                entityId,
-            },
-            include: {
-                actor: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
+        const { getUser } = getKindeServerSession();
+        const user = await getUser();
+        if (!user) return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
+
+        const result = await withRLS(user.id, async () => {
+            return await prisma.auditLog.findMany({
+                where: {
+                    entityType,
+                    entityId,
+                },
+                include: {
+                    actor: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true,
+                        },
                     },
                 },
-            },
-            orderBy: {
-                createdAt: 'desc',
-            },
+                orderBy: {
+                    createdAt: 'desc',
+                },
+            });
         });
 
-        return logs;
-    } catch (error) {
-        console.error('[FETCH_AUDIT_LOGS_FAILED]', {
-            type: error?.constructor?.name
-        });
-        throw new Error('Failed to fetch audit logs');
+        return { success: true, data: result };
+    } catch (error: any) {
+        return { success: false, error: { message: error.message, code: ErrorCode.INTERNAL_ERROR } };
     }
 }
 
 /**
  * Get audit logs by actor (user)
  */
-export async function getAuditLogsByActor(actorId: string, limit = 50) {
+export async function getAuditLogsByActor(actorId: string, limit = 50): Promise<ServiceResponse<any[]>> {
     try {
-        const logs = await prisma.auditLog.findMany({
-            where: {
-                actorId,
-            },
-            include: {
-                actor: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
+        const { getUser } = getKindeServerSession();
+        const user = await getUser();
+        if (!user) return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
+
+        const result = await withRLS(user.id, async () => {
+            return await prisma.auditLog.findMany({
+                where: {
+                    actorId,
+                },
+                include: {
+                    actor: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true,
+                        },
                     },
                 },
-            },
-            orderBy: {
-                createdAt: 'desc',
-            },
-            take: limit,
+                orderBy: {
+                    createdAt: 'desc',
+                },
+                take: limit,
+            });
         });
 
-        return logs;
-    } catch (error) {
-        console.error('[FETCH_AUDIT_LOGS_BY_ACTOR_FAILED]', {
-            type: error?.constructor?.name
-        });
-        throw new Error('Failed to fetch audit logs');
+        return { success: true, data: result };
+    } catch (error: any) {
+        return { success: false, error: { message: error.message, code: ErrorCode.INTERNAL_ERROR } };
     }
 }
 
 /**
  * Get recent audit logs (for admin dashboard)
  */
-export async function getRecentAuditLogs(limit = 100) {
+export async function getRecentAuditLogs(limit = 100): Promise<ServiceResponse<any[]>> {
     try {
-        const logs = await prisma.auditLog.findMany({
-            include: {
-                actor: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
+        const { getUser } = getKindeServerSession();
+        const user = await getUser();
+        if (!user) return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
+
+        const result = await withRLS(user.id, async () => {
+            return await prisma.auditLog.findMany({
+                include: {
+                    actor: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true,
+                        },
                     },
                 },
-            },
-            orderBy: {
-                createdAt: 'desc',
-            },
-            take: limit,
+                orderBy: {
+                    createdAt: 'desc',
+                },
+                take: limit,
+            });
         });
 
-        return logs;
-    } catch (error) {
-        console.error('[FETCH_RECENT_AUDIT_LOGS_FAILED]', {
-            type: error?.constructor?.name
-        });
-        throw new Error('Failed to fetch recent audit logs');
+        return { success: true, data: result };
+    } catch (error: any) {
+        return { success: false, error: { message: error.message, code: ErrorCode.INTERNAL_ERROR } };
     }
 }
 
-/**
- * Helper: Log a transaction creation
- */
-export async function logTransactionCreation(
-    actorId: string,
-    transactionId: string,
-    transactionData: any,
-    ipAddress?: string,
-    userAgent?: string,
-    tx?: any
-) {
+// Helper methods remain direct as they are used internal to other service methods
+export async function logTransactionCreation(actorId: string, transactionId: string, transactionData: any, ipAddress?: string, userAgent?: string, tx?: any) {
     return createAuditLog({
         actorId,
         action: 'create',
@@ -173,18 +173,7 @@ export async function logTransactionCreation(
     }, tx);
 }
 
-/**
- * Helper: Log a transaction approval
- */
-export async function logTransactionApproval(
-    actorId: string,
-    transactionId: string,
-    before: any,
-    after: any,
-    ipAddress?: string,
-    userAgent?: string,
-    tx?: any
-) {
+export async function logTransactionApproval(actorId: string, transactionId: string, before: any, after: any, ipAddress?: string, userAgent?: string, tx?: any) {
     return createAuditLog({
         actorId,
         action: 'approve',
@@ -200,19 +189,7 @@ export async function logTransactionApproval(
     }, tx);
 }
 
-/**
- * Helper: Log a report approval
- */
-export async function logReportApproval(
-    actorId: string,
-    reportId: string,
-    before: any,
-    after: any,
-    generatedTransactionIds?: string[],
-    ipAddress?: string,
-    userAgent?: string,
-    tx?: any
-) {
+export async function logReportApproval(actorId: string, reportId: string, before: any, after: any, generatedTransactionIds?: string[], ipAddress?: string, userAgent?: string, tx?: any) {
     return createAuditLog({
         actorId,
         action: 'approve',
@@ -229,18 +206,7 @@ export async function logReportApproval(
     }, tx);
 }
 
-/**
- * Helper: Log an allocation completion
- */
-export async function logAllocationCompletion(
-    actorId: string,
-    allocationId: string,
-    before: any,
-    after: any,
-    ipAddress?: string,
-    userAgent?: string,
-    tx?: any
-) {
+export async function logAllocationCompletion(actorId: string, allocationId: string, before: any, after: any, ipAddress?: string, userAgent?: string, tx?: any) {
     return createAuditLog({
         actorId,
         action: 'complete',
@@ -256,19 +222,7 @@ export async function logAllocationCompletion(
     }, tx);
 }
 
-/**
- * Helper: Log a report rejection
- */
-export async function logReportRejection(
-    actorId: string,
-    reportId: string,
-    before: any,
-    after: any,
-    reason: string,
-    ipAddress?: string,
-    userAgent?: string,
-    tx?: any
-) {
+export async function logReportRejection(actorId: string, reportId: string, before: any, after: any, reason: string, ipAddress?: string, userAgent?: string, tx?: any) {
     return createAuditLog({
         actorId,
         action: 'reject',
@@ -285,17 +239,7 @@ export async function logReportRejection(
     }, tx);
 }
 
-/**
- * Helper: Log an activity creation
- */
-export async function logActivityCreation(
-    actorId: string,
-    activityId: string,
-    activityData: any,
-    ipAddress?: string,
-    userAgent?: string,
-    tx?: any
-) {
+export async function logActivityCreation(actorId: string, activityId: string, activityData: any, ipAddress?: string, userAgent?: string, tx?: any) {
     return createAuditLog({
         actorId,
         action: 'create',
@@ -310,18 +254,7 @@ export async function logActivityCreation(
     }, tx);
 }
 
-/**
- * Helper: Log an activity update
- */
-export async function logActivityUpdate(
-    actorId: string,
-    activityId: string,
-    before: any,
-    after: any,
-    ipAddress?: string,
-    userAgent?: string,
-    tx?: any
-) {
+export async function logActivityUpdate(actorId: string, activityId: string, before: any, after: any, ipAddress?: string, userAgent?: string, tx?: any) {
     return createAuditLog({
         actorId,
         action: 'update',
@@ -337,17 +270,7 @@ export async function logActivityUpdate(
     }, tx);
 }
 
-/**
- * Helper: Log an activity deletion
- */
-export async function logActivityDeletion(
-    actorId: string,
-    activityId: string,
-    before: any,
-    ipAddress?: string,
-    userAgent?: string,
-    tx?: any
-) {
+export async function logActivityDeletion(actorId: string, activityId: string, before: any, ipAddress?: string, userAgent?: string, tx?: any) {
     return createAuditLog({
         actorId,
         action: 'delete',

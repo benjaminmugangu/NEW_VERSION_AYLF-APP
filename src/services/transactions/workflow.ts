@@ -1,7 +1,7 @@
 'use server';
 
 import { prisma, withRLS } from '@/lib/prisma';
-import { ServiceResponse, FinancialTransaction } from '@/lib/types';
+import { ServiceResponse, FinancialTransaction, ErrorCode } from '@/lib/types';
 import { checkPeriod } from '../accountingService';
 import { checkBudgetIntegrity } from '../budgetService';
 import { notifyBudgetOverrun } from '../notificationService';
@@ -26,8 +26,8 @@ export async function approveTransaction(
                 where: { id: transactionId },
             });
 
-            if (!before) throw new Error('Transaction not found');
-            if (before.status === 'approved') throw new Error('Transaction already approved');
+            if (!before) throw new Error('NOT_FOUND: Transaction not found');
+            if (before.status === 'approved') throw new Error('CONFLICT: Transaction already approved');
 
             // ✅ Accounting Period Guard
             await checkPeriod(before.date, 'Approbation de transaction');
@@ -56,8 +56,12 @@ export async function approveTransaction(
 
         return { success: true, data: result };
     } catch (error: any) {
-        console.error(`[TransactionService] Approval failed: ${error.message}`);
-        return { success: false, error: { message: error.message } };
+        let code = ErrorCode.INTERNAL_ERROR;
+        if (error.message.includes('NOT_FOUND')) code = ErrorCode.NOT_FOUND;
+        if (error.message.includes('CONFLICT')) code = ErrorCode.CONFLICT;
+        if (error.message.includes('PERIOD_CLOSED')) code = ErrorCode.PERIOD_CLOSED;
+
+        return { success: false, error: { message: error.message, code } };
     }
 }
 
@@ -80,7 +84,7 @@ export async function rejectTransaction(
                 where: { id: transactionId },
             });
 
-            if (!before) throw new Error('Transaction not found');
+            if (!before) throw new Error('NOT_FOUND: Transaction not found');
 
             // ✅ Accounting Period Guard
             await checkPeriod(before.date, 'Rejet de transaction');
@@ -123,8 +127,11 @@ export async function rejectTransaction(
 
         return { success: true, data: result };
     } catch (error: any) {
-        console.error(`[TransactionService] Rejection failed: ${error.message}`);
-        return { success: false, error: { message: error.message } };
+        let code = ErrorCode.INTERNAL_ERROR;
+        if (error.message.includes('NOT_FOUND')) code = ErrorCode.NOT_FOUND;
+        if (error.message.includes('PERIOD_CLOSED')) code = ErrorCode.PERIOD_CLOSED;
+
+        return { success: false, error: { message: error.message, code } };
     }
 }
 
@@ -147,7 +154,7 @@ export async function createReversalTransaction(
                 where: { id: originalTransactionId },
             });
 
-            if (!original) throw new Error('Original transaction not found');
+            if (!original) throw new Error('NOT_FOUND: Original transaction not found');
 
             // 3. Accounting Period Guard
             await checkPeriod(new Date(), 'Contre-passation (reversal)');
@@ -222,7 +229,10 @@ export async function createReversalTransaction(
 
         return { success: true, data: result };
     } catch (error: any) {
-        console.error(`[TransactionService] Reversal failed: ${error.message}`);
-        return { success: false, error: { message: error.message } };
+        let code = ErrorCode.INTERNAL_ERROR;
+        if (error.message.includes('NOT_FOUND')) code = ErrorCode.NOT_FOUND;
+        if (error.message.includes('PERIOD_CLOSED')) code = ErrorCode.PERIOD_CLOSED;
+
+        return { success: false, error: { message: error.message, code } };
     }
 }

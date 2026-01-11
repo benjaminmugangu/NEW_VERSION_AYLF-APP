@@ -1,5 +1,7 @@
+'use server';
+
 import { prisma, withRLS } from '@/lib/prisma';
-import { User } from '@/lib/types';
+import { User, ServiceResponse, ErrorCode } from '@/lib/types';
 import { startOfMonth, endOfMonth, subMonths, format } from 'date-fns';
 
 export interface AnalyticsMetrics {
@@ -49,65 +51,73 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 export async function getAdvancedDashboard(
     user: User,
     timeRange: 'month' | 'quarter' | 'year' = 'month'
-): Promise<AdvancedDashboardData> {
-    return await withRLS(user.id, async () => {
-        const where = buildUserFilter(user);
-        const periodRange = getPeriodRange(timeRange);
+): Promise<ServiceResponse<AdvancedDashboardData>> {
+    try {
+        if (!user) return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
 
-        // 1. Check if the requested period range contains closed periods
-        const closedPeriods = await prisma.accountingPeriod.findMany({
-            where: {
-                status: 'closed',
-                startDate: { lte: endOfMonth(new Date()) },
-                endDate: { gte: subMonths(new Date(), periodRange) },
-            },
-            orderBy: { endDate: 'desc' }
-        });
+        const result = await withRLS(user.id, async () => {
+            const where = buildUserFilter(user);
+            const periodRange = getPeriodRange(timeRange);
 
-        // Calculate metrics
-        const [
-            activeMembers,
-            ongoingActivities,
-            pendingReports,
-            budgetData
-        ] = await Promise.all([
-            countActiveMembers(where),
-            countOngoingActivities(where),
-            countPendingReports(where),
-            getBudgetUtilization(user, closedPeriods),
-        ]);
+            // 1. Check if the requested period range contains closed periods
+            const closedPeriods = await prisma.accountingPeriod.findMany({
+                where: {
+                    status: 'closed',
+                    startDate: { lte: endOfMonth(new Date()) },
+                    endDate: { gte: subMonths(new Date(), periodRange) },
+                },
+                orderBy: { endDate: 'desc' }
+            });
 
-        // Calculate trends
-        const [memberGrowth, activityCompletion, budgetForecast] = await Promise.all([
-            getMemberGrowthTrend(where, periodRange),
-            getActivityCompletionTrend(where, periodRange),
-            getBudgetForecastTrend(user, periodRange),
-        ]);
-
-        // Get comparisons
-        const [sitePerformance, activityTypes] = await Promise.all([
-            getSitePerformanceComparison(user),
-            getActivityTypeDistribution(where),
-        ]);
-
-        return {
-            metrics: {
+            // Calculate metrics
+            const [
                 activeMembers,
                 ongoingActivities,
                 pendingReports,
-                budgetUtilization: budgetData.utilization,
-            },
-            trends: {
-                memberGrowth,
-                activityCompletion,
-                budgetForecast,
-            },
-            comparisons: {
-                sitePerformance,
-                activityTypes,
-            },
-        };
-    });
+                budgetData
+            ] = await Promise.all([
+                countActiveMembers(where),
+                countOngoingActivities(where),
+                countPendingReports(where),
+                getBudgetUtilization(user, closedPeriods),
+            ]);
+
+            // Calculate trends
+            const [memberGrowth, activityCompletion, budgetForecast] = await Promise.all([
+                getMemberGrowthTrend(where, periodRange),
+                getActivityCompletionTrend(where, periodRange),
+                getBudgetForecastTrend(user, periodRange),
+            ]);
+
+            // Get comparisons
+            const [sitePerformance, activityTypes] = await Promise.all([
+                getSitePerformanceComparison(user),
+                getActivityTypeDistribution(where),
+            ]);
+
+            return {
+                metrics: {
+                    activeMembers,
+                    ongoingActivities,
+                    pendingReports,
+                    budgetUtilization: budgetData.utilization,
+                },
+                trends: {
+                    memberGrowth,
+                    activityCompletion,
+                    budgetForecast,
+                },
+                comparisons: {
+                    sitePerformance,
+                    activityTypes,
+                },
+            };
+        });
+
+        return { success: true, data: result };
+    } catch (error: any) {
+        return { success: false, error: { message: error.message, code: ErrorCode.INTERNAL_ERROR } };
+    }
 }
 
 // ------ Helper Functions ------
@@ -168,6 +178,12 @@ async function countPendingReports(where: Record<string, any>): Promise<number> 
     });
 }
 
+/**
+ * Calculates budget utilization for an entity.
+ * 
+ * NOTE: For National Coordinators, this aggregates across all entities,
+ * effectively providing a cross-site view that bypasses individual site RLS.
+ */
 async function getBudgetUtilization(user: User, closedPeriods: any[]): Promise<{ utilization: number }> {
     let entityId: string | null = null;
     let entityType: 'site' | 'smallGroup' | 'national' = 'national';
@@ -180,7 +196,6 @@ async function getBudgetUtilization(user: User, closedPeriods: any[]): Promise<{
         entityType = 'smallGroup';
     }
 
-    // ANTI-MIRAGE: Check if current month is closed
     const currentMonthStart = startOfMonth(new Date());
     const snapshot = (closedPeriods as any[]).find((p: any) => p.startDate.getTime() === currentMonthStart.getTime());
 
@@ -196,7 +211,6 @@ async function getBudgetUtilization(user: User, closedPeriods: any[]): Promise<{
         return { utilization: 0 };
     }
 
-    // Get total income and expenses
     const where: any = {};
     if (entityType === 'site') {
         where.siteId = entityId;
@@ -226,7 +240,7 @@ async function getBudgetUtilization(user: User, closedPeriods: any[]): Promise<{
     const income = incomeTotal._sum.amount || 0;
     const expenses = expenseTotal._sum.amount || 0;
 
-    const utilization = income > 0 ? (expenses / income) * 100 : 0;
+    const utilization = Number(income) > 0 ? (Number(expenses) / Number(income)) * 100 : 0;
 
     return { utilization: Math.round(utilization) };
 }
@@ -276,12 +290,8 @@ async function getActivityCompletionTrend(where: Record<string, any>, periods: n
 }
 
 async function getBudgetForecastTrend(user: User, periods: number): Promise<TrendData[]> {
-    // Simple forecast based on average spending
     const trend: TrendData[] = [];
-
     const where = buildUserFilter(user);
-
-    // Get last 3 months average
     const threeMonthsAgo = subMonths(new Date(), 3);
 
     const avgExpense = await prisma.financialTransaction.aggregate({
@@ -293,9 +303,8 @@ async function getBudgetForecastTrend(user: User, periods: number): Promise<Tren
         _avg: { amount: true },
     });
 
-    const avgMonthlyExpense = avgExpense._avg.amount || 0;
+    const avgMonthlyExpense = Number(avgExpense._avg.amount) || 0;
 
-    // Project forward
     for (let i = 0; i < periods; i++) {
         const date = subMonths(new Date(), -(i + 1));
         trend.push({
@@ -312,7 +321,6 @@ async function getSitePerformanceComparison(user: User): Promise<SitePerformance
         return [];
     }
 
-    // ANTI-MIRAGE: Check if current month is closed
     const currentMonthStart = startOfMonth(new Date());
     const closedPeriod = await prisma.accountingPeriod.findFirst({
         where: {
@@ -360,7 +368,6 @@ async function getActivityTypeDistribution(where: any): Promise<ActivityTypeDist
         _count: true,
     });
 
-    // Fetch activity type names
     const typeIds = (activities as any[]).map((a: any) => a.activityTypeId).filter(Boolean);
     const activityTypes = await prisma.activityType.findMany({
         where: { id: { in: typeIds as string[] } },

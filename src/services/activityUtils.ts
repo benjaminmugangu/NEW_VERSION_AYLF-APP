@@ -8,8 +8,8 @@ import { ActivityFormData } from '@/schemas/activity';
 
 export const mapPrismaActivityToActivity = (item: any): Activity => {
     let participantsCount = item.participantsCountPlanned || 0;
-    if (item.reports && item.reports.length > 0) {
-        const report = item.reports[0];
+    if (item.reports) {
+        const report = item.reports;
         if (report.participantsCountReported) {
             participantsCount = report.participantsCountReported;
         }

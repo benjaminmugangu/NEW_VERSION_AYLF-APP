@@ -1,44 +1,62 @@
 // src/services/activityTypeService.ts
 'use server';
 
-import { prisma } from '@/lib/prisma';
-import type { ActivityType } from '@/lib/types';
+import { prisma, withRLS } from '@/lib/prisma';
+import type { ActivityType, ServiceResponse } from '@/lib/types';
+import { ErrorCode } from '@/lib/types';
+import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 
 /**
  * Fetches all available activity types from the database.
- * @returns A list of all activity types.
  */
-export const getAllActivityTypes = async (): Promise<ActivityType[]> => {
-  const items = await prisma.activityType.findMany({
-    orderBy: { name: 'asc' },
-  });
+export async function getAllActivityTypes(): Promise<ServiceResponse<ActivityType[]>> {
+  try {
+    const { getUser } = getKindeServerSession();
+    const user = await getUser();
+    // System-level data, but we still verify session for security
+    if (!user) return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
 
-  return items.map((item: any) => ({
-    id: item.id,
-    name: item.name,
-    category: item.category as ActivityType['category'],
-    description: item.description ?? undefined,
-  }));
-};
+    const items = await prisma.activityType.findMany({
+      orderBy: { name: 'asc' },
+    });
+
+    const data = items.map((item: any) => ({
+      id: item.id,
+      name: item.name,
+      category: item.category as ActivityType['category'],
+      description: item.description ?? undefined,
+    }));
+
+    return { success: true, data };
+  } catch (error: any) {
+    return { success: false, error: { message: error.message, code: ErrorCode.INTERNAL_ERROR } };
+  }
+}
 
 /**
  * Fetches a single activity type by its ID.
- * @param id The ID of the activity type to fetch.
- * @returns The activity type or throws if not found.
  */
-export const getActivityTypeById = async (id: string): Promise<ActivityType> => {
-  const item = await prisma.activityType.findUnique({
-    where: { id },
-  });
+export async function getActivityTypeById(id: string): Promise<ServiceResponse<ActivityType>> {
+  try {
+    const { getUser } = getKindeServerSession();
+    const user = await getUser();
+    if (!user) return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
 
-  if (!item) {
-    throw new Error('Activity type not found.');
+    const item = await prisma.activityType.findUnique({
+      where: { id },
+    });
+
+    if (!item) return { success: false, error: { message: 'Activity type not found.', code: ErrorCode.NOT_FOUND } };
+
+    const data = {
+      id: item.id,
+      name: item.name,
+      category: item.category as ActivityType['category'],
+      description: item.description ?? undefined,
+    };
+
+    return { success: true, data };
+  } catch (error: any) {
+    return { success: false, error: { message: error.message, code: ErrorCode.INTERNAL_ERROR } };
   }
-
-  return {
-    id: item.id,
-    name: item.name,
-    category: item.category as ActivityType['category'],
-    description: item.description ?? undefined,
-  };
-};
+}

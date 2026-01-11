@@ -4,6 +4,7 @@
 import { prisma, basePrisma, withRLS } from '@/lib/prisma';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import type { FundAllocation, FundAllocationFormData, ServiceResponse } from '@/lib/types';
+import { ErrorCode } from '@/lib/types';
 import { calculateAvailableBudget } from './budgetService';
 import { revalidatePath } from 'next/cache';
 import notificationService from './notificationService';
@@ -15,119 +16,123 @@ import { notifyBudgetOverrun } from './notificationService';
 import { batchSignAvatars } from './enrichmentService';
 import { deleteFile, extractFilePath } from './storageService';
 
-export async function getAllocations(filters?: { siteId?: string; smallGroupId?: string; limit?: number }): Promise<FundAllocation[]> {
-  const { getUser } = getKindeServerSession();
-  const kindeUser = await getUser();
+export async function getAllocations(filters?: { siteId?: string; smallGroupId?: string; limit?: number }): Promise<ServiceResponse<FundAllocation[]>> {
+  try {
+    const { getUser } = getKindeServerSession();
+    const kindeUser = await getUser();
 
-  // If no user, return empty (RLS will handle this anyway, but this is a fail-safe)
-  if (!kindeUser) return [];
+    if (!kindeUser) return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
 
-  return await withRLS(kindeUser.id, async () => {
-    const where: any = {};
+    const result = await withRLS(kindeUser.id, async () => {
+      const where: any = {};
 
-    if (filters?.siteId) {
-      where.siteId = filters.siteId;
-    }
-    if (filters?.smallGroupId) {
-      where.smallGroupId = filters.smallGroupId;
-    }
-
-    const allocations = await prisma.fundAllocation.findMany({
-      where,
-      include: {
-        allocatedBy: true,
-        site: true,
-        smallGroup: true,
-        fromSite: true,
-      },
-      orderBy: {
-        allocationDate: 'desc'
-      },
-      take: filters?.limit // Apply limit if provided
-    });
-
-    const models = allocations.map((allocation: any) => ({
-      id: allocation.id,
-      amount: allocation.amount,
-      allocationDate: allocation.allocationDate.toISOString(),
-      goal: allocation.goal,
-      source: allocation.source,
-      status: allocation.status as any,
-      allocatedById: allocation.allocatedById,
-      siteId: allocation.siteId || undefined,
-      smallGroupId: allocation.smallGroupId || undefined,
-      notes: allocation.notes || undefined,
-      allocationType: allocation.allocationType as 'hierarchical' | 'direct',
-      bypassReason: allocation.bypassReason || undefined,
-      allocatedByName: allocation.allocatedBy?.name,
-      allocatedByAvatarUrl: allocation.allocatedBy?.avatarUrl,
-      siteName: allocation.site?.name,
-      smallGroupName: allocation.smallGroup?.name,
-      fromSiteName: allocation.fromSite?.name || 'National',
-      fromSiteId: allocation.fromSiteId || undefined,
-      proofUrl: allocation.proofUrl || undefined,
-    }));
-
-    return batchSignAvatars(models, ['allocatedByAvatarUrl']);
-  });
-}
-
-/**
- * Batch sign avatars for a list of allocations
- */
-// signAllocationAvatars is now centralized in enrichmentService.ts
-
-export async function getAllocationById(id: string): Promise<FundAllocation> {
-  const { getUser } = getKindeServerSession();
-  const kindeUser = await getUser();
-
-  if (!kindeUser) {
-    throw new Error("Unauthorized: User not authenticated");
-  }
-
-  return await withRLS(kindeUser.id, async () => {
-    const allocation = await prisma.fundAllocation.findUnique({
-      where: { id },
-      include: {
-        allocatedBy: true,
-        site: true,
-        smallGroup: true,
-        fromSite: true,
+      if (filters?.siteId) {
+        where.siteId = filters.siteId;
       }
+      if (filters?.smallGroupId) {
+        where.smallGroupId = filters.smallGroupId;
+      }
+
+      const allocations = await prisma.fundAllocation.findMany({
+        where,
+        include: {
+          allocatedBy: true,
+          site: true,
+          smallGroup: true,
+          fromSite: true,
+        },
+        orderBy: {
+          allocationDate: 'desc'
+        },
+        take: filters?.limit // Apply limit if provided
+      });
+
+      const models = allocations.map((allocation: any) => ({
+        id: allocation.id,
+        amount: allocation.amount,
+        allocationDate: allocation.allocationDate.toISOString(),
+        goal: allocation.goal,
+        source: allocation.source,
+        status: allocation.status as any,
+        allocatedById: allocation.allocatedById,
+        siteId: allocation.siteId || undefined,
+        smallGroupId: allocation.smallGroupId || undefined,
+        notes: allocation.notes || undefined,
+        allocationType: allocation.allocationType as 'hierarchical' | 'direct',
+        bypassReason: allocation.bypassReason || undefined,
+        allocatedByName: allocation.allocatedBy?.name,
+        allocatedByAvatarUrl: allocation.allocatedBy?.avatarUrl,
+        siteName: allocation.site?.name,
+        smallGroupName: allocation.smallGroup?.name,
+        fromSiteName: allocation.fromSite?.name || 'National',
+        fromSiteId: allocation.fromSiteId || undefined,
+        proofUrl: allocation.proofUrl || undefined,
+      }));
+
+      return batchSignAvatars(models, ['allocatedByAvatarUrl']);
     });
 
-    if (!allocation) {
-      throw new Error('Allocation not found.');
-    }
-
-    const model = {
-      id: allocation.id,
-      amount: allocation.amount,
-      allocationDate: allocation.allocationDate.toISOString(),
-      goal: allocation.goal,
-      source: allocation.source,
-      status: allocation.status as any,
-      allocatedById: allocation.allocatedById,
-      siteId: allocation.siteId || undefined,
-      smallGroupId: allocation.smallGroupId || undefined,
-      notes: allocation.notes || undefined,
-      allocationType: allocation.allocationType as 'hierarchical' | 'direct',
-      bypassReason: allocation.bypassReason || undefined,
-      allocatedByName: allocation.allocatedBy?.name,
-      allocatedByAvatarUrl: allocation.allocatedBy?.avatarUrl,
-      siteName: allocation.site?.name,
-      smallGroupName: allocation.smallGroup?.name,
-      fromSiteName: allocation.fromSite?.name || 'National',
-      fromSiteId: allocation.fromSiteId || undefined,
-      proofUrl: allocation.proofUrl || undefined,
-    };
-
-    const signed = await batchSignAvatars([model], ['allocatedByAvatarUrl']);
-    return signed[0];
-  });
+    return { success: true, data: result };
+  } catch (error: any) {
+    return { success: false, error: { message: error.message, code: ErrorCode.INTERNAL_ERROR } };
+  }
 }
 
-// ... (other exports)
+export async function getAllocationById(id: string): Promise<ServiceResponse<FundAllocation>> {
+  try {
+    const { getUser } = getKindeServerSession();
+    const kindeUser = await getUser();
+
+    if (!kindeUser) return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
+
+    const result = await withRLS(kindeUser.id, async () => {
+      const allocation = await prisma.fundAllocation.findUnique({
+        where: { id },
+        include: {
+          allocatedBy: true,
+          site: true,
+          smallGroup: true,
+          fromSite: true,
+        }
+      });
+
+      if (!allocation) {
+        throw new Error('NOT_FOUND: Allocation not found.');
+      }
+
+      const model = {
+        id: allocation.id,
+        amount: allocation.amount,
+        allocationDate: allocation.allocationDate.toISOString(),
+        goal: allocation.goal,
+        source: allocation.source,
+        status: allocation.status as any,
+        allocatedById: allocation.allocatedById,
+        siteId: allocation.siteId || undefined,
+        smallGroupId: allocation.smallGroupId || undefined,
+        notes: allocation.notes || undefined,
+        allocationType: allocation.allocationType as 'hierarchical' | 'direct',
+        bypassReason: allocation.bypassReason || undefined,
+        allocatedByName: allocation.allocatedBy?.name,
+        allocatedByAvatarUrl: allocation.allocatedBy?.avatarUrl,
+        siteName: allocation.site?.name,
+        smallGroupName: allocation.smallGroup?.name,
+        fromSiteName: allocation.fromSite?.name || 'National',
+        fromSiteId: allocation.fromSiteId || undefined,
+        proofUrl: allocation.proofUrl || undefined,
+      };
+
+      const signed = await batchSignAvatars([model], ['allocatedByAvatarUrl']);
+      return signed[0];
+    });
+
+    return { success: true, data: result };
+  } catch (error: any) {
+    let code = ErrorCode.INTERNAL_ERROR;
+    if (error.message.includes('NOT_FOUND')) code = ErrorCode.NOT_FOUND;
+    return { success: false, error: { message: error.message, code } };
+  }
+}
 
 export async function createAllocation(formData: FundAllocationFormData): Promise<ServiceResponse<FundAllocation>> {
   try {
@@ -135,7 +140,7 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
     const kindeUser = await getUser();
 
     if (!kindeUser) {
-      return { success: false, error: { message: "Unauthorized: User not authenticated" } };
+      return { success: false, error: { message: "Unauthorized: User not authenticated", code: ErrorCode.UNAUTHORIZED } };
     }
 
     // 1. Fetch profile using basePrisma to bypass RLS for role check
@@ -145,7 +150,7 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
     });
 
     if (!profile) {
-      return { success: false, error: { message: "Profile not found" } };
+      return { success: false, error: { message: "Profile not found", code: ErrorCode.NOT_FOUND } };
     }
 
     // 1b. Idempotency Check (Pre-Transaction)
@@ -171,8 +176,8 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
         if (profile.role === 'NATIONAL_COORDINATOR') {
           if (!formData.isDirect) {
             // Hierarchical
-            if (formData.smallGroupId) throw new Error("Hierarchical NC allocation must target a Site ONLY");
-            if (!formData.siteId) throw new Error("Hierarchical allocation requires a target Site");
+            if (formData.smallGroupId) throw new Error("VALIDATION_ERROR: Hierarchical NC allocation must target a Site ONLY");
+            if (!formData.siteId) throw new Error("VALIDATION_ERROR: Hierarchical allocation requires a target Site");
 
             const allocation = await tx.fundAllocation.create({
               data: {
@@ -211,9 +216,9 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
             return mapDBAllocationToModel(allocation);
           } else {
             // Direct
-            if (!formData.smallGroupId) throw new Error("Direct allocation requires a target Small Group");
+            if (!formData.smallGroupId) throw new Error("VALIDATION_ERROR: Direct allocation requires a target Small Group");
             if (!formData.bypassReason || formData.bypassReason.trim().length < 20) {
-              throw new Error("Direct allocations require a detailed justification (minimum 20 characters).");
+              throw new Error("VALIDATION_ERROR: Direct allocations require a detailed justification (minimum 20 characters).");
             }
 
             const smallGroup = await tx.smallGroup.findUnique({
@@ -221,7 +226,7 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
               include: { site: true }
             });
 
-            if (!smallGroup) throw new Error("Small Group not found");
+            if (!smallGroup) throw new Error("NOT_FOUND: Small Group not found");
 
             const allocation = await tx.fundAllocation.create({
               data: {
@@ -281,16 +286,14 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
         }
         // SC Logic
         else if (profile.role === 'SITE_COORDINATOR') {
-          if (!profile.siteId) throw new Error("Site Coordinator has no assigned site");
-          if (!formData.smallGroupId) throw new Error("Site Coordinator must allocate to a Small Group");
+          if (!profile.siteId) throw new Error("FORBIDDEN: Site Coordinator has no assigned site");
+          if (!formData.smallGroupId) throw new Error("VALIDATION_ERROR: Site Coordinator must allocate to a Small Group");
 
           const smallGroup = await tx.smallGroup.findUnique({ where: { id: formData.smallGroupId } });
-          if (!smallGroup) throw new Error("Invalid target Small Group");
-          if (smallGroup.siteId !== profile.siteId) throw new Error("Cannot allocate to Small Group from another site");
+          if (!smallGroup) throw new Error("NOT_FOUND: Invalid target Small Group");
+          if (smallGroup.siteId !== profile.siteId) throw new Error("FORBIDDEN: Cannot allocate to Small Group from another site");
 
           const budget = await calculateAvailableBudget({ siteId: profile.siteId }, tx);
-          // ✅ Informative Phase: We no longer block allocations even if budget is insufficient.
-          // The budget integrity check at the end of the service will trigger the necessary alerts.
           if (budget.available < Number(formData.amount)) {
             console.warn(`[AllocationService] SC ${profile.name} is initiating an allocation that exceeds site budget (${budget.available} < ${formData.amount}). Proceeding in informative mode.`);
           }
@@ -342,7 +345,7 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
 
           return model;
         } else {
-          throw new Error("Only National Coordinators and Site Coordinators can create allocations.");
+          throw new Error("FORBIDDEN: Only National Coordinators and Site Coordinators can create allocations.");
         }
       }, { timeout: 30000 });
     });
@@ -355,7 +358,13 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
         console.error('[CreateAllocation] Critical: Asset rollback failed:', err)
       );
     }
-    return { success: false, error: { message: error.message } };
+    let code = ErrorCode.INTERNAL_ERROR;
+    if (error.message.includes('NOT_FOUND')) code = ErrorCode.NOT_FOUND;
+    if (error.message.includes('FORBIDDEN')) code = ErrorCode.FORBIDDEN;
+    if (error.message.includes('VALIDATION_ERROR')) code = ErrorCode.VALIDATION_ERROR;
+    if (error.message.includes('PERIOD_CLOSED')) code = ErrorCode.PERIOD_CLOSED;
+
+    return { success: false, error: { message: error.message, code } };
   }
 }
 
@@ -383,15 +392,13 @@ function mapDBAllocationToModel(a: any): FundAllocation {
   };
 }
 
-
-
 export async function updateAllocation(id: string, formData: Partial<FundAllocationFormData>): Promise<ServiceResponse<FundAllocation>> {
   try {
     const { getUser } = getKindeServerSession();
     const kindeUser = await getUser();
 
     if (!kindeUser) {
-      return { success: false, error: { message: "Unauthorized: User not authenticated" } };
+      return { success: false, error: { message: "Unauthorized: User not authenticated", code: ErrorCode.UNAUTHORIZED } };
     }
 
     // Fetch profile outside RLS
@@ -401,7 +408,7 @@ export async function updateAllocation(id: string, formData: Partial<FundAllocat
     });
 
     if (!profile || profile.role !== 'NATIONAL_COORDINATOR') {
-      return { success: false, error: { message: "Only National Coordinators can update allocations." } };
+      return { success: false, error: { message: "Only National Coordinators can update allocations.", code: ErrorCode.FORBIDDEN } };
     }
 
     const result = await withRLS(kindeUser.id, async () => {
@@ -415,8 +422,7 @@ export async function updateAllocation(id: string, formData: Partial<FundAllocat
           include: { site: true, smallGroup: true, allocatedBy: true }
         });
 
-        console.log('[AllocationService] DEBUG: existing allocation found:', !!existing);
-        if (!existing) throw new Error('Allocation not found');
+        if (!existing) throw new Error('NOT_FOUND: Allocation not found');
 
         // ✅ Accounting Period Guard: Check existing and new dates
         await checkPeriod(existing.allocationDate, 'Modification d\'allocation (existant)');
@@ -435,13 +441,13 @@ export async function updateAllocation(id: string, formData: Partial<FundAllocat
 
         // CRITICAL: Prevent changing core audit fields after creation
         if (formData.allocationType !== undefined) {
-          throw new Error("Audit Integrity Error: Cannot change allocationType after creation.");
+          throw new Error("CONFLICT: Audit Integrity Error: Cannot change allocationType after creation.");
         }
 
         // Explicitly handle bypassReason validation
         if (formData.bypassReason !== undefined && existing.allocationType === 'direct') {
           if (!formData.bypassReason || formData.bypassReason.trim().length < 20) {
-            throw new Error("Validation Error: Direct allocations require a justification of minimum 20 characters.");
+            throw new Error("VALIDATION_ERROR: Direct allocations require a justification of minimum 20 characters.");
           }
           updateData.bypassReason = formData.bypassReason;
         }
@@ -502,9 +508,14 @@ export async function updateAllocation(id: string, formData: Partial<FundAllocat
 
     return { success: true, data: result };
   } catch (error: any) {
-    console.error('[AllocationService] Update FATAL ERROR:', error);
-    console.error(`[AllocationService] Update Error: ${error.message}`);
-    return { success: false, error: { message: error.message } };
+    let code = ErrorCode.INTERNAL_ERROR;
+    if (error.message.includes('NOT_FOUND')) code = ErrorCode.NOT_FOUND;
+    if (error.message.includes('FORBIDDEN')) code = ErrorCode.FORBIDDEN;
+    if (error.message.includes('VALIDATION_ERROR')) code = ErrorCode.VALIDATION_ERROR;
+    if (error.message.includes('PERIOD_CLOSED')) code = ErrorCode.PERIOD_CLOSED;
+    if (error.message.includes('CONFLICT')) code = ErrorCode.CONFLICT;
+
+    return { success: false, error: { message: error.message, code } };
   }
 }
 
@@ -514,7 +525,7 @@ export async function deleteAllocation(id: string): Promise<ServiceResponse<void
     const kindeUser = await getUser();
 
     if (!kindeUser) {
-      return { success: false, error: { message: "Unauthorized: User not authenticated" } };
+      return { success: false, error: { message: "Unauthorized: User not authenticated", code: ErrorCode.UNAUTHORIZED } };
     }
 
     // Fetch profile outside RLS
@@ -524,7 +535,7 @@ export async function deleteAllocation(id: string): Promise<ServiceResponse<void
     });
 
     if (!profile || profile.role !== 'NATIONAL_COORDINATOR') {
-      return { success: false, error: { message: "Forbidden: Only National Coordinators can delete allocations." } };
+      return { success: false, error: { message: "Forbidden: Only National Coordinators can delete allocations.", code: ErrorCode.FORBIDDEN } };
     }
 
     await withRLS(kindeUser.id, async () => {
@@ -538,7 +549,7 @@ export async function deleteAllocation(id: string): Promise<ServiceResponse<void
           select: { siteId: true, smallGroupId: true, allocationDate: true, amount: true, goal: true }
         });
 
-        if (!target) throw new Error('Allocation not found');
+        if (!target) throw new Error('NOT_FOUND: Allocation not found');
 
         // ✅ Accounting Period Guard
         await checkPeriod(target.allocationDate, 'Suppression d\'allocation');
@@ -594,6 +605,11 @@ export async function deleteAllocation(id: string): Promise<ServiceResponse<void
 
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: { message: error.message } };
+    let code = ErrorCode.INTERNAL_ERROR;
+    if (error.message.includes('NOT_FOUND')) code = ErrorCode.NOT_FOUND;
+    if (error.message.includes('FORBIDDEN')) code = ErrorCode.FORBIDDEN;
+    if (error.message.includes('PERIOD_CLOSED')) code = ErrorCode.PERIOD_CLOSED;
+
+    return { success: false, error: { message: error.message, code } };
   }
 }

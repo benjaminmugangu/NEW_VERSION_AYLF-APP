@@ -2,7 +2,7 @@
 
 import { prisma, withRLS } from '@/lib/prisma';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
-import { TransactionFormData, ServiceResponse, FinancialTransaction } from '@/lib/types';
+import { TransactionFormData, ServiceResponse, FinancialTransaction, ErrorCode } from '@/lib/types';
 import { checkPeriod } from '../accountingService';
 import { deleteFile } from '../storageService';
 import { logTransactionCreation } from '../auditLogService';
@@ -22,7 +22,7 @@ export async function createTransaction(formData: TransactionFormData, idempoten
             if (existing) {
                 const stored = existing.response as any;
                 if (stored?.status === 'PENDING') {
-                    return { success: false, error: { message: 'Request is currently being processed (Idempotency Conflict)' } };
+                    return { success: false, error: { message: 'Request is currently being processed (Idempotency Conflict)', code: ErrorCode.CONFLICT } };
                 }
                 return { success: true, data: stored as FinancialTransaction };
             }
@@ -124,7 +124,11 @@ export async function createTransaction(formData: TransactionFormData, idempoten
                 console.error('[TransactionService] Rollback of file failed:', err)
             );
         }
-        return { success: false, error: { message: error.message } };
+        let code = ErrorCode.INTERNAL_ERROR;
+        if (error.message.includes('PERIOD_CLOSED')) code = ErrorCode.PERIOD_CLOSED;
+        if (error.message.includes('CONFLICT')) code = ErrorCode.CONFLICT;
+
+        return { success: false, error: { message: error.message, code } };
     }
 }
 
@@ -132,7 +136,7 @@ export async function updateTransaction(id: string, formData: Partial<Transactio
     try {
         const { getUser } = getKindeServerSession();
         const user = await getUser();
-        if (!user) return { success: false, error: { message: 'Unauthorized' } };
+        if (!user) return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
 
         const { basePrisma } = await import('@/lib/prisma');
 
@@ -147,7 +151,7 @@ export async function updateTransaction(id: string, formData: Partial<Transactio
                     select: { isSystemGenerated: true, date: true, type: true, category: true, amount: true, description: true, siteId: true, smallGroupId: true }
                 });
 
-                if (!existing) throw new Error('Transaction not found');
+                if (!existing) throw new Error('NOT_FOUND: Transaction not found');
 
                 // ✅ Accounting Period Guard: Prevent updates in closed periods
                 await checkPeriod(existing.date, 'Modification de transaction (existant)');
@@ -158,7 +162,7 @@ export async function updateTransaction(id: string, formData: Partial<Transactio
                 // ✅ Immutability Guard
                 if (existing.isSystemGenerated) {
                     throw new Error(
-                        'TRANSACTION_IMMUTABLE: Cette transaction a été générée automatiquement ' +
+                        'CONFLICT: TRANSACTION_IMMUTABLE: Cette transaction a été générée automatiquement ' +
                         'lors de l\'approbation d\'un rapport et ne peut pas être modifiée.'
                     );
                 }
@@ -218,8 +222,12 @@ export async function updateTransaction(id: string, formData: Partial<Transactio
 
         return { success: true, data: result };
     } catch (error: any) {
-        console.error(`[TransactionService] Update Error: ${error.message}`);
-        return { success: false, error: { message: error.message } };
+        let code = ErrorCode.INTERNAL_ERROR;
+        if (error.message.includes('NOT_FOUND')) code = ErrorCode.NOT_FOUND;
+        if (error.message.includes('PERIOD_CLOSED')) code = ErrorCode.PERIOD_CLOSED;
+        if (error.message.includes('CONFLICT')) code = ErrorCode.CONFLICT;
+
+        return { success: false, error: { message: error.message, code } };
     }
 }
 
@@ -227,7 +235,7 @@ export async function deleteTransaction(id: string): Promise<ServiceResponse<voi
     try {
         const { getUser } = getKindeServerSession();
         const user = await getUser();
-        if (!user) return { success: false, error: { message: 'Unauthorized' } };
+        if (!user) return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
 
         const { basePrisma } = await import('@/lib/prisma');
 
@@ -242,7 +250,7 @@ export async function deleteTransaction(id: string): Promise<ServiceResponse<voi
                     select: { isSystemGenerated: true, date: true, amount: true, status: true, siteId: true, smallGroupId: true }
                 });
 
-                if (!existing) throw new Error('Transaction not found');
+                if (!existing) throw new Error('NOT_FOUND: Transaction not found');
 
                 // ✅ Accounting Period Guard
                 await checkPeriod(existing.date, 'Suppression de transaction');
@@ -250,7 +258,7 @@ export async function deleteTransaction(id: string): Promise<ServiceResponse<voi
                 // ✅ Immutability Guard
                 if (existing.isSystemGenerated) {
                     throw new Error(
-                        'TRANSACTION_IMMUTABLE: Cette transaction a été générée automatiquement ' +
+                        'CONFLICT: TRANSACTION_IMMUTABLE: Cette transaction a été générée automatiquement ' +
                         'et ne peut pas être supprimée.'
                     );
                 }
@@ -299,8 +307,12 @@ export async function deleteTransaction(id: string): Promise<ServiceResponse<voi
 
         return { success: true };
     } catch (error: any) {
-        console.error(`[TransactionService] Delete Error: ${error.message}`);
-        return { success: false, error: { message: error.message } };
+        let code = ErrorCode.INTERNAL_ERROR;
+        if (error.message.includes('NOT_FOUND')) code = ErrorCode.NOT_FOUND;
+        if (error.message.includes('PERIOD_CLOSED')) code = ErrorCode.PERIOD_CLOSED;
+        if (error.message.includes('CONFLICT')) code = ErrorCode.CONFLICT;
+
+        return { success: false, error: { message: error.message, code } };
     }
 }
 

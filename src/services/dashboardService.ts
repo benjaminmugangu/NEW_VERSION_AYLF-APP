@@ -1,7 +1,8 @@
 // src/services/dashboardService.ts
+'use server';
 
-
-import type { Activity, Member, Report, Site, SiteWithDetails, SmallGroup, User, Financials } from '@/lib/types';
+import type { Activity, Member, Report, SiteWithDetails, SmallGroup, User, Financials, ServiceResponse } from '@/lib/types';
+import { ErrorCode } from '@/lib/types';
 import type { DateFilterValue } from '@/lib/dateUtils';
 import * as activityService from './activityService';
 import * as memberService from './memberService';
@@ -30,33 +31,29 @@ export interface DashboardStats {
 }
 
 const dashboardService = {
-  getDashboardStats: async (user: User | null, dateFilter: DateFilterValue): Promise<DashboardStats> => {
-    console.log("[DASHBOARD_SERVICE] Starting stats fetch for user:", user?.id);
-    if (!user) {
-      console.error("[DASHBOARD_SERVICE] No user provided");
-      throw new Error('User not authenticated.');
-    }
-
+  getDashboardStats: async (user: User | null, dateFilter: DateFilterValue): Promise<ServiceResponse<DashboardStats>> => {
     try {
-      // Fetch all data in parallel for efficiency
-      const getResultData = <T>(result: PromiseSettledResult<T>, label: string): T | null => {
+      if (!user) return { success: false, error: { message: 'User not authenticated', code: ErrorCode.UNAUTHORIZED } };
+
+      const getResultData = <T>(result: PromiseSettledResult<ServiceResponse<T>>, label: string): T | null => {
         if (result.status === 'rejected') {
           console.error(`[DASHBOARD_SERVICE] ${label} rejected:`, result.reason);
           return null;
         }
-        return result.value;
+        if (!result.value.success) {
+          console.error(`[DASHBOARD_SERVICE] ${label} response error:`, result.value.error?.message);
+          return null;
+        }
+        return result.value.data as T;
       };
 
-      console.log("[DASHBOARD_SERVICE] Initiating parallel data fetching...");
-      console.log("[DASHBOARD_SERVICE] Initiating batched data fetching...");
-
-      // Batch 1: Structural Data (Sites, Groups) - Critical for context
+      // Batch 1: Structural Data
       const [sitesResult, smallGroupsResult] = await Promise.allSettled([
         siteService.getSitesWithDetails(user),
         smallGroupService.getFilteredSmallGroups({ user }),
       ]);
 
-      // Batch 2: Activity & Member Data (High Volume)
+      // Batch 2: Activity & Member Data
       const [activitiesResult, membersResult] = await Promise.allSettled([
         activityService.getFilteredActivities({
           user,
@@ -68,37 +65,24 @@ const dashboardService = {
         memberService.getFilteredMembers({ user, dateFilter: undefined, searchTerm: '' }),
       ]);
 
-      // Batch 3: Financials & Reports (Complex Aggregations)
+      // Batch 3: Financials & Reports
       const [reportsResult, financialsResult] = await Promise.allSettled([
         reportService.getFilteredReports({ user, dateFilter: undefined, statusFilter: { approved: true, pending: true, rejected: true, submitted: true } }),
         financialsService.getFinancials(user, dateFilter),
       ]);
 
-      const results = [
-        activitiesResult,
-        membersResult,
-        reportsResult,
-        sitesResult,
-        smallGroupsResult,
-        financialsResult
-      ];
-      console.log("[DASHBOARD_SERVICE] All data fetch settled.");
-
-      const activities = getResultData<Activity[]>(results[0] as PromiseSettledResult<Activity[]>, "Activities") || [];
-      const members = getResultData<Member[]>(results[1] as PromiseSettledResult<Member[]>, "Members") || [];
-      const approvedReports = getResultData<Report[]>(results[2] as PromiseSettledResult<Report[]>, "Reports") || [];
-      const sites = getResultData<SiteWithDetails[]>(results[3] as PromiseSettledResult<SiteWithDetails[]>, "Sites") || [];
-      const smallGroups = getResultData<SmallGroup[]>(results[4] as PromiseSettledResult<SmallGroup[]>, "SmallGroups") || [];
-      const financials = getResultData<Financials>(results[5] as PromiseSettledResult<Financials>, "Financials");
-
-      // --- Calculate Statistics ---
+      const activities = getResultData<Activity[]>(activitiesResult as any, "Activities") || [];
+      const members = getResultData<Member[]>(membersResult as any, "Members") || [];
+      const reports = getResultData<Report[]>(reportsResult as any, "Reports") || [];
+      const sites = getResultData<SiteWithDetails[]>(sitesResult as any, "Sites") || [];
+      const smallGroups = getResultData<SmallGroup[]>(smallGroupsResult as any, "SmallGroups") || [];
+      const financials = getResultData<Financials>(financialsResult as any, "Financials");
 
       // Activities
       const totalActivities = activities.length;
       const plannedActivities = activities.filter(a => a.status === 'planned').length;
       const executedActivities = activities.filter(a => a.status === 'executed').length;
 
-      console.log("[DASHBOARD_SERVICE] Mapping recent activities...");
       const recentActivities = [...activities].sort((a, b) => {
         const dateA = a.date ? new Date(a.date).getTime() : 0;
         const dateB = b.date ? new Date(b.date).getTime() : 0;
@@ -109,7 +93,7 @@ const dashboardService = {
           id: activity.id,
           title: activity.title,
           thematic: activity.thematic,
-          date: activity.date, // already ISO string from activityService
+          date: activity.date,
           status: activity.status,
           level: activity.level,
           siteId: activity.siteId,
@@ -126,7 +110,7 @@ const dashboardService = {
       const studentMembers = members.filter(m => m.type === 'student').length;
       const nonStudentMembers = members.filter(m => m.type === 'non-student').length;
 
-      const totalReports = approvedReports.length;
+      const totalReports = reports.length;
       const totalSites = sites.length;
       const totalSmallGroups = smallGroups.length;
 
@@ -167,14 +151,12 @@ const dashboardService = {
         memberTypeData,
       };
 
-      console.log("[DASHBOARD_SERVICE] Stats calculation complete. Ensuring POJO compliance...");
-      return ensurePOJO(stats);
-    } catch (error) {
-      const e = error instanceof Error ? error : new Error('An unknown error occurred');
-      console.error('[DASHBOARD_SERVICE] CRITICAL ERROR:', e.message, e.stack);
-      throw new Error('Failed to fetch dashboard stats');
+      return { success: true, data: ensurePOJO(stats) };
+    } catch (error: any) {
+      console.error('[DASHBOARD_SERVICE] CRITICAL ERROR:', error.message);
+      return { success: false, error: { message: error.message, code: ErrorCode.INTERNAL_ERROR } };
     }
   },
-};;
+};
 
 export default dashboardService;
