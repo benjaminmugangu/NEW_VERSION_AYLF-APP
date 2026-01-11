@@ -38,7 +38,9 @@ export const prisma = basePrisma.$extends({
         // Apply RLS by setting the session variable in a transaction
         // Increased timeout to 30s to handle parallel queries in the dashboard
         return basePrisma.$transaction(async (tx: any) => {
-          await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${userId}'`);
+          // SECURITY: Sanitize userId to prevent SQL injection in SET LOCAL
+          const sanitizedUserId = userId.replace(/'/g, "''");
+          await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${sanitizedUserId}'`);
           return query(args);
         }, { timeout: 30000 });
       },

@@ -379,6 +379,10 @@ model Report {
   // CRITICAL: Enforce one report per activity to prevent double financial transactions
   // NULL values are allowed (for reports not linked to activities)
   @@unique([activityId])
+
+  // SCALABILITY: Indexes for dashboard filtering
+  @@index([siteId, status])
+  @@index([submissionDate])
   @@map("reports")
 }
 
@@ -429,6 +433,10 @@ model FinancialTransaction {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  // SCALABILITY: Composite indexes for frequent aggregations (BudgetService)
+  @@index([siteId, status, type])
+  @@index([smallGroupId, status, type])
+  @@index([date])
   @@map("transactions")
 }
 
@@ -468,6 +476,9 @@ model FundAllocation {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  // SCALABILITY: Indexes for allocations list and helpers
+  @@index([siteId, status])
+  @@index([fromSiteId, status])
   @@map("fund_allocations")
 }
 
@@ -519,8 +530,9 @@ model AuditLog {
   id String @id @default(uuid())
 
   // Who performed the action
+  // Who performed the action
   actorId String  @map("actor_id")
-  actor   Profile @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  actor   Profile @relation(fields: [actorId], references: [id], onDelete: Restrict) // COMPLIANCE: Do not delete audits if user is deleted
 
   // What was done
   action AuditAction

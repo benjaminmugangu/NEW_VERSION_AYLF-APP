@@ -178,12 +178,8 @@ export async function createTransaction(formData: TransactionFormData, idempoten
       await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${actorId.replace(/'/g, "''")}'`);
 
       // B. Accounting Period Guard
-      // We check explicitly here because we are outside the usual withRLS wrapper for this block
-      // (Using internal logic, but checkPeriod uses 'prisma' which is fine, 
-      // but to be safe inside TX we rely on service logic which is mainly reading)
-      // Actually checkPeriod calls 'prisma.accountingPeriod'. 
-      // It's safer to call checkPeriod *before* starting the transaction or trust it.
-      // Calling it before is better for concurrency.
+      // Performing check inside transaction via service logic (safe as periods change rarely)
+      await checkPeriod(new Date(formData.date), 'Création de transaction');
 
       // C. Resolve Context
       const { siteId, smallGroupId } = await resolveTransactionContext(formData);
@@ -487,6 +483,9 @@ export async function approveTransaction(
       if (!before) throw new Error('Transaction not found');
       if (before.status === 'approved') throw new Error('Transaction already approved');
 
+      // ✅ Accounting Period Guard
+      await checkPeriod(before.date, 'Approbation de transaction');
+
       // 3. Mutation
       const updated = await tx.financialTransaction.update({
         where: { id: transactionId },
@@ -537,6 +536,9 @@ export async function rejectTransaction(
       });
 
       if (!before) throw new Error('Transaction not found');
+
+      // ✅ Accounting Period Guard
+      await checkPeriod(before.date, 'Rejet de transaction');
 
       // 3. Mutation
       const updated = await tx.financialTransaction.update({
