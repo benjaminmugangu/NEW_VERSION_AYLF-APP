@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { ROLES } from '@/lib/constants';
 import { DashboardClient } from '../components/DashboardClient';
 import { type DateFilterValue, type PredefinedRange } from '@/lib/dateUtils';
-import dashboardService from '@/services/dashboardService';
+import { getDashboardStats } from '@/services/dashboardService';
 import { Card, CardContent } from '@/components/ui/card';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
@@ -119,7 +119,11 @@ export default async function SmallGroupLeaderDashboard(props: any) {
     };
 
     try {
-        const stats = await dashboardService.getDashboardStats(user, dateFilter);
+        const response = await getDashboardStats(user, dateFilter);
+        if (!response.success || !response.data) {
+            throw new Error(response.error?.message || 'Failed to fetch dashboard stats');
+        }
+        const stats = response.data;
 
         return (
             <DashboardClient

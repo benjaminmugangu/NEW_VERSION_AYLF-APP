@@ -23,7 +23,7 @@ import { useTranslations } from "next-intl";
 
 interface MemberFormProps {
   member?: Member;
-  onSubmitForm: (data: MemberFormData) => Promise<void>;
+  onSubmitForm: (data: MemberFormData) => Promise<any>;
 }
 
 export function MemberForm({ member, onSubmitForm }: MemberFormProps) {
@@ -93,11 +93,15 @@ export function MemberForm({ member, onSubmitForm }: MemberFormProps) {
       if (!currentUser) return;
       try {
         if (currentUser.role === ROLES.NATIONAL_COORDINATOR) {
-          const sitesData = await siteService.getSitesWithDetails(currentUser);
-          setSites(sitesData);
+          const sitesResponse = await siteService.getSitesWithDetails(currentUser);
+          if (sitesResponse.success && sitesResponse.data) {
+            setSites(sitesResponse.data);
+          }
         } else if (currentUser.role === ROLES.SITE_COORDINATOR && currentUser.siteId) {
-          const siteData = await siteService.getSiteById(currentUser.siteId);
-          if (siteData) setSites([siteData]);
+          const siteResponse = await siteService.getSiteById(currentUser.siteId);
+          if (siteResponse.success && siteResponse.data) {
+            setSites([siteResponse.data]);
+          }
         }
       } catch (error) {
         console.error('Failed to fetch sites:', error);
@@ -111,8 +115,10 @@ export function MemberForm({ member, onSubmitForm }: MemberFormProps) {
     const fetchSmallGroups = async () => {
       if (watchedSiteId && currentUser) {
         try {
-          const smallGroupsData = await smallGroupService.getFilteredSmallGroups({ user: currentUser, siteId: watchedSiteId });
-          setSmallGroups(smallGroupsData);
+          const smallGroupsResponse = await smallGroupService.getFilteredSmallGroups({ user: currentUser, siteId: watchedSiteId });
+          if (smallGroupsResponse.success && smallGroupsResponse.data) {
+            setSmallGroups(smallGroupsResponse.data);
+          }
         } catch (error) {
           console.error('Failed to fetch small groups:', error);
           setSmallGroups([]);

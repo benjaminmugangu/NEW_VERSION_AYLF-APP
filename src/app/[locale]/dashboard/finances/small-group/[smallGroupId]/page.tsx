@@ -39,8 +39,12 @@ export default function SmallGroupFinancialDashboardPage() {
       if (!smallGroupId) return;
       setIsSmallGroupLoading(true);
       try {
-        const group = await smallGroupService.getSmallGroupById(smallGroupId);
-        setSmallGroup(group);
+        const response = await smallGroupService.getSmallGroupById(smallGroupId);
+        if (response.success && response.data) {
+          setSmallGroup(response.data);
+        } else {
+          setSmallGroup(null);
+        }
       } catch (error) {
         console.error(error);
         setSmallGroup(null);

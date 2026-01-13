@@ -58,8 +58,14 @@ export const POST = withApiRLS(async (request: NextRequest) => {
 
     const { siteId: _, ...formData } = parsedData.data;
 
-    const newSmallGroup = await smallGroupService.createSmallGroup(actualSiteId, formData);
-    return NextResponse.json(newSmallGroup, { status: 201 });
+    const response = await smallGroupService.createSmallGroup(actualSiteId, formData);
+    if (!response.success) {
+      return NextResponse.json(
+        { error: response.error?.message || MESSAGES.errors.generic },
+        { status: response.error?.code === 'FORBIDDEN' ? 403 : 500 }
+      );
+    }
+    return NextResponse.json(response.data, { status: 201 });
 
   } catch (error) {
     const { sanitizeError, logError } = await import('@/lib/errorSanitizer');

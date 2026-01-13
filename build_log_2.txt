@@ -1,0 +1,48 @@
+
+> nextn@0.1.0 build
+> next build
+
+   ▲ Next.js 15.5.7
+   - Environments: .env.local, .env
+
+   Creating an optimized production build ...
+> [PWA] Compile server
+> [PWA] Compile server
+> [PWA] Compile client (static)
+> [PWA] Auto register service worker with: C:\Users\Guelo\Downloads\AYLF_APP\aylf-group-tracker-main\node_modules\next-pwa\register.js
+> [PWA] Service worker: C:\Users\Guelo\Downloads\AYLF_APP\aylf-group-tracker-main\public\sw.js
+> [PWA]   url: /sw.js
+> [PWA]   scope: /
+ ✓ Compiled successfully in 84s
+   Linting and checking validity of types ...
+ ⨯ ESLint: Converting circular structure to JSON     --> starting at object with constructor 'Object'     |     property 'configs' -> object with constructor 'Object'     |     property 'flat' -> object with constructor 'Object'     |     ...     |     property 'plugins' -> object with constructor 'Object'     --- property 'react' closes the circle Referenced from: C:\Users\Guelo\Downloads\AYLF_APP\aylf-group-tracker-main\.eslintrc.json
+   Collecting page data ...
+Error: A "use server" file can only export async functions, found object.
+Read more: https://nextjs.org/docs/messages/invalid-use-server-value
+    at c (C:\Users\Guelo\Downloads\AYLF_APP\aylf-group-tracker-main\.next\server\chunks\7180.js:1:1475)
+    at 82759 (C:\Users\Guelo\Downloads\AYLF_APP\aylf-group-tracker-main\.next\server\chunks\9161.js:1:15882)
+    at c (C:\Users\Guelo\Downloads\AYLF_APP\aylf-group-tracker-main\.next\server\webpack-runtime.js:1:143)
+    at 29161 (C:\Users\Guelo\Downloads\AYLF_APP\aylf-group-tracker-main\.next\server\chunks\9161.js:1:239)
+    at c (C:\Users\Guelo\Downloads\AYLF_APP\aylf-group-tracker-main\.next\server\webpack-runtime.js:1:143)
+    at 18199 (C:\Users\Guelo\Downloads\AYLF_APP\aylf-group-tracker-main\.next\server\app\api\activities\[id]\route.js:1:767)
+    at c (C:\Users\Guelo\Downloads\AYLF_APP\aylf-group-tracker-main\.next\server\webpack-runtime.js:1:143)
+    at <unknown> (C:\Users\Guelo\Downloads\AYLF_APP\aylf-group-tracker-main\.next\server\app\api\activities\[id]\route.js:1:9606)
+    at c.X (C:\Users\Guelo\Downloads\AYLF_APP\aylf-group-tracker-main\.next\server\webpack-runtime.js:1:1285)
+    at <unknown> (C:\Users\Guelo\Downloads\AYLF_APP\aylf-group-tracker-main\.next\server\app\api\activities\[id]\route.js:1:9552)
+Error: A "use server" file can only export async functions, found object.
+Read more: https://nextjs.org/docs/messages/invalid-use-server-value
+    at c (C:\Users\Guelo\Downloads\AYLF_APP\aylf-group-tracker-main\.next\server\chunks\7180.js:1:1475)
+    at 82759 (C:\Users\Guelo\Downloads\AYLF_APP\aylf-group-tracker-main\.next\server\chunks\9161.js:1:15882)
+    at c (C:\Users\Guelo\Downloads\AYLF_APP\aylf-group-tracker-main\.next\server\webpack-runtime.js:1:143)
+    at 29161 (C:\Users\Guelo\Downloads\AYLF_APP\aylf-group-tracker-main\.next\server\chunks\9161.js:1:239)
+    at c (C:\Users\Guelo\Downloads\AYLF_APP\aylf-group-tracker-main\.next\server\webpack-runtime.js:1:143)
+    at 44145 (C:\Users\Guelo\Downloads\AYLF_APP\aylf-group-tracker-main\.next\server\app\api\activities\route.js:1:974)
+    at c (C:\Users\Guelo\Downloads\AYLF_APP\aylf-group-tracker-main\.next\server\webpack-runtime.js:1:143)
+    at <unknown> (C:\Users\Guelo\Downloads\AYLF_APP\aylf-group-tracker-main\.next\server\app\api\activities\route.js:1:9807)
+    at c.X (C:\Users\Guelo\Downloads\AYLF_APP\aylf-group-tracker-main\.next\server\webpack-runtime.js:1:1285)
+    at <unknown> (C:\Users\Guelo\Downloads\AYLF_APP\aylf-group-tracker-main\.next\server\app\api\activities\route.js:1:9753)
+
+> Build error occurred
+[Error: Failed to collect page data for /api/activities] {
+  type: 'Error'
+}

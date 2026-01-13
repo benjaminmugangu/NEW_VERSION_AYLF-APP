@@ -42,8 +42,14 @@ export const POST = withApiRLS(async (request: NextRequest) => {
       );
     }
 
-    const newSite = await siteService.createSite(parsedData.data);
-    return NextResponse.json(newSite, { status: 201 });
+    const response = await siteService.createSite(parsedData.data);
+    if (!response.success) {
+      return NextResponse.json(
+        { error: response.error?.message || MESSAGES.errors.generic },
+        { status: response.error?.code === 'FORBIDDEN' ? 403 : 500 }
+      );
+    }
+    return NextResponse.json(response.data, { status: 201 });
 
   } catch (error: any) {
     const { sanitizeError, logError } = await import('@/lib/errorSanitizer');

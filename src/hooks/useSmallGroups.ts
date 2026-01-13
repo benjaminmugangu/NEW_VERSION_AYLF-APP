@@ -19,20 +19,29 @@ export const useSmallGroups = () => {
 
   const { data: smallGroups = [], isLoading, isError, error, refetch } = useQuery<SmallGroup[], Error>({
     queryKey,
-    queryFn: () => {
+    queryFn: async (): Promise<SmallGroup[]> => {
       if (!currentUser) throw new Error('User not authenticated');
-      return smallGroupService.getFilteredSmallGroups({ user: currentUser, search: searchTerm });
+      const response = await smallGroupService.getFilteredSmallGroups({ user: currentUser, search: searchTerm });
+      if (!response.success || !response.data) {
+        throw new Error(response.error?.message || 'Failed to fetch small groups');
+      }
+      return response.data;
     },
     enabled: !!currentUser, // Only run the query if the user is loaded
   });
 
   const createSmallGroupMutation = useMutation<
-    any,
+    SmallGroup,
     Error,
     { siteId: string; formData: SmallGroupFormData }
   >({
-    mutationFn: ({ siteId, formData }) =>
-      smallGroupService.createSmallGroup(siteId, formData),
+    mutationFn: async ({ siteId, formData }) => {
+      const response = await smallGroupService.createSmallGroup(siteId, formData);
+      if (!response.success || !response.data) {
+        throw new Error(response.error?.message || 'Failed to create small group');
+      }
+      return response.data;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
     },
@@ -42,12 +51,17 @@ export const useSmallGroups = () => {
   });
 
   const updateSmallGroupMutation = useMutation<
-    any,
+    SmallGroup,
     Error,
     { groupId: string; formData: SmallGroupFormData }
   >({
-    mutationFn: ({ groupId, formData }) =>
-      smallGroupService.updateSmallGroup(groupId, formData),
+    mutationFn: async ({ groupId, formData }) => {
+      const response = await smallGroupService.updateSmallGroup(groupId, formData);
+      if (!response.success || !response.data) {
+        throw new Error(response.error?.message || 'Failed to update small group');
+      }
+      return response.data;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
     },
@@ -56,8 +70,13 @@ export const useSmallGroups = () => {
     },
   });
 
-  const deleteSmallGroupMutation = useMutation<any, Error, string>({
-    mutationFn: (groupId: string) => smallGroupService.deleteSmallGroup(groupId),
+  const deleteSmallGroupMutation = useMutation<void, Error, string>({
+    mutationFn: async (groupId: string) => {
+      const response = await smallGroupService.deleteSmallGroup(groupId);
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to delete small group');
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
     },

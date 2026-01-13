@@ -36,9 +36,13 @@ export const useFinancials = (user: User | null, initialDateFilter?: DateFilterV
     refetch
   } = useQuery<Financials, Error>({
     queryKey: ['financials', user?.id, dateFilter],
-    queryFn: () => {
+    queryFn: async () => {
       if (!user) throw new Error("User not authenticated");
-      return financialsService.getFinancials(user, dateFilter);
+      const response = await financialsService.getFinancials(user, dateFilter);
+      if (!response.success || !response.data) {
+        throw new Error(response.error?.message || 'Failed to fetch financials');
+      }
+      return response.data;
     },
     enabled: !!user, // Only run the query if the user is logged in
     placeholderData: defaultFinancials, // Provide default data while loading

@@ -34,12 +34,20 @@ export const useActivities = ({ initialData = [], user }: UseActivitiesParams) =
     levelFilter,
   }), [user, searchTerm, dateFilter, statusFilter, levelFilter]);
 
-  const { data: activities = [], isLoading, error, refetch } = useQuery<Activity[], Error>({
+  const { data: rawActivities, isLoading, error, refetch } = useQuery({
     queryKey: ['activities', filters],
-    queryFn: () => activityService.getFilteredActivities(filters),
+    queryFn: async (): Promise<Activity[]> => {
+      const response = await activityService.getFilteredActivities(filters);
+      if (!response.success || !response.data) {
+        throw new Error(response.error?.message || 'Failed to fetch activities');
+      }
+      return response.data;
+    },
     initialData: initialData,
     enabled: !!user,
   });
+
+  const activities: Activity[] = rawActivities ?? ([] as Activity[]);
 
   const availableLevelFilters = useMemo(() => {
     if (!user) return [];
@@ -64,8 +72,14 @@ export const useActivities = ({ initialData = [], user }: UseActivitiesParams) =
     }
   }, [user]);
 
-  const createActivityMutation = useMutation<any, Error, Omit<ActivityFormData, 'createdBy'>>({
-    mutationFn: (activityData) => activityService.createActivity({ ...activityData, createdBy: user!.id }),
+  const createActivityMutation = useMutation<Activity, Error, Omit<ActivityFormData, 'createdBy'>>({
+    mutationFn: async (activityData) => {
+      const response = await activityService.createActivity({ ...activityData, createdBy: user!.id });
+      if (!response.success || !response.data) {
+        throw new Error(response.error?.message || 'Failed to create activity');
+      }
+      return response.data;
+    },
     onSuccess: () => {
       toast({ title: 'Success', description: 'Activity created successfully.' });
       queryClient.invalidateQueries({ queryKey: ['activities'] });
@@ -75,8 +89,14 @@ export const useActivities = ({ initialData = [], user }: UseActivitiesParams) =
     },
   });
 
-  const updateActivityMutation = useMutation<any, Error, { id: string; data: Partial<ActivityFormData> }>({
-    mutationFn: ({ id, data }) => activityService.updateActivity(id, data),
+  const updateActivityMutation = useMutation<Activity, Error, { id: string; data: Partial<ActivityFormData> }>({
+    mutationFn: async ({ id, data }) => {
+      const response = await activityService.updateActivity(id, data);
+      if (!response.success || !response.data) {
+        throw new Error(response.error?.message || 'Failed to update activity');
+      }
+      return response.data;
+    },
     onSuccess: (data, variables) => {
       toast({ title: 'Success', description: 'Activity updated successfully.' });
       queryClient.invalidateQueries({ queryKey: ['activities'] });
@@ -87,8 +107,13 @@ export const useActivities = ({ initialData = [], user }: UseActivitiesParams) =
     },
   });
 
-  const deleteActivityMutation = useMutation<any, Error, string>({
-    mutationFn: (activityId: string) => activityService.deleteActivity(activityId),
+  const deleteActivityMutation = useMutation<void, Error, string>({
+    mutationFn: async (activityId: string) => {
+      const response = await activityService.deleteActivity(activityId);
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to delete activity');
+      }
+    },
     onSuccess: () => {
       toast({ title: 'Success', description: 'Activity deleted successfully.' });
       queryClient.invalidateQueries({ queryKey: ['activities'] });

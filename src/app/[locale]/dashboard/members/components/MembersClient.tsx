@@ -50,7 +50,13 @@ export function MembersClient({ initialMembers, user }: MembersClientProps) {
 
   const { data: members, isLoading, error, refetch } = useQuery({
     queryKey: ['members', user.id, filters],
-    queryFn: () => memberService.getFilteredMembers({ user, ...filters }),
+    queryFn: async (): Promise<MemberWithDetails[]> => {
+      const response = await memberService.getFilteredMembers({ user, ...filters });
+      if (!response.success || !response.data) {
+        throw new Error(response.error?.message || 'Failed to fetch members');
+      }
+      return response.data;
+    },
     initialData: initialMembers,
     enabled: !!user,
   });

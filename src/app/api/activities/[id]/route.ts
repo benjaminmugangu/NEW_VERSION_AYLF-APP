@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as z from 'zod';
-import * as activityService from '@/services/activityService';
+import { updateActivity, deleteActivity } from '@/services/activityService';
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { MESSAGES } from '@/lib/messages';
 import { withApiRLS } from '@/lib/apiWrapper';
@@ -33,7 +33,7 @@ export const PATCH = withApiRLS(async (request: NextRequest, context: { params: 
       ...(parsedData.data.date && { date: new Date(parsedData.data.date) }),
     };
 
-    const updatedActivity = await activityService.updateActivity(id, dataForService);
+    const updatedActivity = await updateActivity(id, dataForService);
     return NextResponse.json(updatedActivity);
 
   } catch (error: any) {
@@ -49,7 +49,7 @@ export const DELETE = withApiRLS(async (request: NextRequest, context: { params:
   const { id } = await context.params;
 
   try {
-    await activityService.deleteActivity(id);
+    await deleteActivity(id);
     return new Response(null, { status: 204 });
 
   } catch (error: any) {

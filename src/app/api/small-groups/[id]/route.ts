@@ -26,8 +26,11 @@ export const PATCH = withApiRLS(async (request: NextRequest, { params }: { param
     }
 
     // The service handles the complex logic of updating the group and re-assigning roles
-    const updatedGroup = await smallGroupService.updateSmallGroup(id, parsedData.data);
-    return NextResponse.json(updatedGroup);
+    const response = await smallGroupService.updateSmallGroup(id, parsedData.data);
+    if (!response.success) {
+      return new NextResponse(JSON.stringify({ error: response.error?.message || MESSAGES.errors.generic }), { status: response.error?.code === 'FORBIDDEN' ? 403 : 500 });
+    }
+    return NextResponse.json(response.data);
 
   } catch (error) {
     const { sanitizeError, logError } = await import('@/lib/errorSanitizer');
@@ -41,7 +44,10 @@ export const DELETE = withApiRLS(async (request: NextRequest, { params }: { para
     const { id } = await params;
 
     // The service handles un-assigning members before deleting the group
-    await smallGroupService.deleteSmallGroup(id);
+    const response = await smallGroupService.deleteSmallGroup(id);
+    if (!response.success) {
+      return new NextResponse(JSON.stringify({ error: response.error?.message || MESSAGES.errors.generic }), { status: response.error?.code === 'FORBIDDEN' ? 403 : 500 });
+    }
     return new NextResponse(null, { status: 204 });
 
   } catch (error) {

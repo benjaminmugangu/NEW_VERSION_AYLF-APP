@@ -17,12 +17,23 @@ export const useSiteDetails = (siteId: string) => {
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: [SITE_DETAILS_QUERY_KEY, siteId],
-    queryFn: () => siteService.getSiteDetails(siteId),
+    queryFn: async () => {
+      const response = await siteService.getSiteDetails(siteId);
+      if (!response.success || !response.data) {
+        throw new Error(response.error?.message || 'Failed to fetch site details');
+      }
+      return response.data;
+    },
     enabled: !!siteId, // Only run if siteId is available
   });
 
   const deleteSmallGroupMutation = useMutation({
-    mutationFn: (groupId: string) => smallGroupService.deleteSmallGroup(groupId),
+    mutationFn: async (groupId: string) => {
+      const response = await smallGroupService.deleteSmallGroup(groupId);
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to delete small group');
+      }
+    },
     onSuccess: () => {
       toast({ title: 'Success', description: 'Small group deleted successfully.' });
       queryClient.invalidateQueries({ queryKey: [SITE_DETAILS_QUERY_KEY, siteId] });
@@ -34,7 +45,13 @@ export const useSiteDetails = (siteId: string) => {
   });
 
   const updateSiteMutation = useMutation({
-    mutationFn: (data: Partial<SiteFormData>) => siteService.updateSite(siteId, data),
+    mutationFn: async (data: Partial<SiteFormData>) => {
+      const response = await siteService.updateSite(siteId, data);
+      if (!response.success || !response.data) {
+        throw new Error(response.error?.message || 'Failed to update site');
+      }
+      return response.data;
+    },
     onSuccess: () => {
       toast({ title: 'Success', description: 'Site updated successfully.' });
       queryClient.invalidateQueries({ queryKey: [SITE_DETAILS_QUERY_KEY, siteId] });
@@ -46,7 +63,12 @@ export const useSiteDetails = (siteId: string) => {
   });
 
   const deleteSiteMutation = useMutation({
-    mutationFn: (id: string) => siteService.deleteSite(id),
+    mutationFn: async (id: string) => {
+      const response = await siteService.deleteSite(id);
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to delete site');
+      }
+    },
     onSuccess: () => {
       toast({ title: 'Success', description: 'Site deleted successfully.' });
       queryClient.invalidateQueries({ queryKey: ['sites'] }); // Invalidate the main sites list

@@ -50,10 +50,13 @@ export const useMembers = () => {
     refetch
   } = useQuery({
     queryKey: ['members', currentUser?.id, uiFilters],
-    queryFn: () => {
+    queryFn: async (): Promise<MemberWithDetails[]> => {
       if (!currentUser) return [];
-      // The service now throws on error, and react-query will catch it automatically.
-      return memberService.getFilteredMembers(serviceFilters);
+      const response = await memberService.getFilteredMembers(serviceFilters);
+      if (!response.success || !response.data) {
+        throw new Error(response.error?.message || 'Failed to fetch members');
+      }
+      return response.data;
     },
     enabled: !!currentUser, // Only run query if user is logged in
   });

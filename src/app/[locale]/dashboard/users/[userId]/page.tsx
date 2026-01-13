@@ -27,15 +27,18 @@ export default async function UserDetailPage(
   }
 
   const profileService = await import('@/services/profileService');
-  const [currentUserProfile, targetUser] = await Promise.all([
+  const [profileResponse, targetProfileResponse] = await Promise.all([
     profileService.getProfile(user.id),
     profileService.getProfile(userId)
   ]);
 
-  if (!currentUserProfile) {
+  if (!profileResponse.success || !profileResponse.data) {
     console.error("Failed to retrieve current user's profile.");
     redirect('/dashboard');
   }
+
+  const currentUserProfile = profileResponse.data;
+  const targetUser = targetProfileResponse.success ? targetProfileResponse.data : null;
 
   const { role: currentUserRole } = currentUserProfile;
 

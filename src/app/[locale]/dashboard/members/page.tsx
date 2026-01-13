@@ -17,9 +17,14 @@ export default async function MembersPage() {
     redirect('/api/auth/login');
   }
 
-  const user: User = await profileService.getProfile(kindeUser.id);
+  const profileResponse = await profileService.getProfile(kindeUser.id);
+  if (!profileResponse.success || !profileResponse.data) {
+    redirect('/api/auth/login');
+  }
 
-  if (!user || ![ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER].includes(user.role)) {
+  const user: User = profileResponse.data;
+
+  if (![ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER].includes(user.role)) {
     // Or redirect to an unauthorized page
     return (
       <div className="p-4">
@@ -37,7 +42,10 @@ export default async function MembersPage() {
 
   let initialMembers: MemberWithDetails[] = [];
   try {
-    initialMembers = await memberService.getFilteredMembers({ user, ...initialFilters });
+    const memberResponse = await memberService.getFilteredMembers({ user, ...initialFilters });
+    if (memberResponse.success && memberResponse.data) {
+      initialMembers = memberResponse.data;
+    }
   } catch (error) {
     console.error('Failed to fetch initial members:', error);
     // You might want to render an error state here

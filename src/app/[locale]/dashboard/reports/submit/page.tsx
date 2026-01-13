@@ -19,15 +19,17 @@ export default async function SubmitReportPage() {
     redirect('/api/auth/login');
   }
 
-  const profile: User = await profileService.getProfile(user.id);
+  const profileResponse = await profileService.getProfile(user.id);
 
-  if (!profile || ![ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER].includes(profile.role)) {
+  if (!profileResponse.success || !profileResponse.data || ![ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER].includes(profileResponse.data.role)) {
     return (
       <div className="p-4">
         <p>{t('permission_denied')}</p>
       </div>
     );
   }
+
+  const profile = profileResponse.data;
 
   return (
     <>

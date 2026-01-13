@@ -76,11 +76,11 @@ export function ProfileForm({ onUpdateProfile, canEdit }: ProfileFormProps) {
       }
       setIsLoadingAssignment(true);
       try {
-        const sitesData = await siteService.getSitesWithDetails(currentUser);
-        setSites(sitesData);
+        const sitesResponse = await siteService.getSitesWithDetails(currentUser);
+        setSites(sitesResponse.success && sitesResponse.data ? sitesResponse.data : []);
         if (currentUser.role === ROLES.SMALL_GROUP_LEADER) {
-          const smallGroupsData = await smallGroupService.getFilteredSmallGroups({ user: currentUser });
-          setSmallGroups(smallGroupsData);
+          const smallGroupsResponse = await smallGroupService.getFilteredSmallGroups({ user: currentUser });
+          setSmallGroups(smallGroupsResponse.success && smallGroupsResponse.data ? smallGroupsResponse.data : []);
         }
       } catch (error) {
         console.error("Failed to fetch assignments", error);

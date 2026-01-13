@@ -21,11 +21,12 @@ export default async function AllocationDetailPage(props: AllocationDetailPagePr
 
     try {
         // Fetch allocation details
-        const allocation = await allocationService.getAllocationById(params.id);
+        const response = await allocationService.getAllocationById(params.id);
 
-        if (!allocation) {
+        if (!response.success || !response.data) {
             notFound();
         }
+        const allocation = response.data;
 
         // Fetch user profile for authorization
         const userProfile = await prisma.profile.findUnique({

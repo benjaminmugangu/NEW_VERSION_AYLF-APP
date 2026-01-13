@@ -65,9 +65,12 @@ export const useReports = () => {
     refetch
   } = useQuery<ReportWithDetails[], Error>({
     queryKey: ['reports', uiFilters],
-    queryFn: async () => {
-      const reports = await reportService.getFilteredReports(serviceFilters);
-      return reports;
+    queryFn: async (): Promise<ReportWithDetails[]> => {
+      const response = await reportService.getFilteredReports(serviceFilters);
+      if (!response.success || !response.data) {
+        throw new Error(response.error?.message || 'Failed to fetch reports');
+      }
+      return response.data;
     },
     enabled: !!currentUser, // Only run the query if the user is loaded
   });

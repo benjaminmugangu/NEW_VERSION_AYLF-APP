@@ -4,7 +4,7 @@ import { prisma, withRLS } from '@/lib/prisma';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import { ServiceResponse, ReportWithDetails, ReportFormData, ErrorCode } from '@/lib/types';
 import { ROLES } from '@/lib/constants';
-import notificationService from '../notificationService';
+import { notifyNewReport } from '../notificationService';
 import { deleteFile, extractFilePath } from '../storageService';
 import { checkPeriod } from '../accountingService';
 import { mapPrismaReportToModel, mapUpdateDataFields } from './shared';
@@ -119,7 +119,7 @@ export async function createReport(reportData: ReportFormData, overrideUser?: an
                 });
 
                 for (const nc of nationalCoordinators) {
-                    await notificationService.notifyNewReport(
+                    await notifyNewReport(
                         nc.id,
                         report.title,
                         report.id,

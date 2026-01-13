@@ -1,9 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import { prisma } from '@/lib/prisma';
-import { Prisma, AuditEntityType } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { MESSAGES } from '@/lib/messages';
 import { withApiRLS } from '@/lib/apiWrapper';
+
+// Define the enum locally since it's missing from Prisma schema
+enum AuditEntityType {
+    FinancialTransaction = 'FinancialTransaction',
+    Report = 'Report',
+    Activity = 'Activity',
+    FundAllocation = 'FundAllocation',
+    Member = 'Member',
+    SmallGroup = 'SMALL_GROUP',
+    Site = 'SITE',
+    UserInvitation = 'USER_INVITATION',
+    InventoryItem = 'INVENTORY_ITEM',
+    InventoryMovement = 'INVENTORY_MOVEMENT'
+}
 
 export const GET = withApiRLS(async (request: NextRequest) => {
     try {

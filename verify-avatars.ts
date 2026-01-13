@@ -10,7 +10,12 @@ async function verifyAvatars() {
         // 1. Check Profile Signing
         // We'll use a dummy ID just to see if the mapping and signing logic triggers
         // (This might fail if no profiles exist in DB, but we'll try to get all users first)
-        const users = await getUsers();
+        const response = await getUsers();
+        if (!response.success || !response.data) {
+            console.error('Failed to fetch users:', response.error);
+            return;
+        }
+        const users = response.data;
         console.log(`Fetched ${users.length} users.`);
         users.slice(0, 2).forEach(u => {
             console.log(`User: ${u.name}, avatarUrl: ${u.avatarUrl}`);
@@ -26,7 +31,8 @@ async function verifyAvatars() {
         // 2. Check Site Coordinator Signing
         // Note: requires a mock user for RLS
         const mockUser: any = { id: 'admin-id', role: 'NATIONAL_COORDINATOR' };
-        const sites = await getSitesWithDetails(mockUser);
+        const sitesResponse = await getSitesWithDetails(mockUser);
+        const sites = sitesResponse.success && sitesResponse.data ? sitesResponse.data : [];
         console.log(`Fetched ${sites.length} sites.`);
         sites.slice(0, 2).forEach(s => {
             console.log(`Site: ${s.name}, Coordinator Avatar: ${s.coordinatorProfilePicture}`);
@@ -36,7 +42,8 @@ async function verifyAvatars() {
         });
 
         // 3. Check Small Group Leader Signing
-        const groups = await getFilteredSmallGroups({ user: mockUser });
+        const groupsResponse = await getFilteredSmallGroups({ user: mockUser });
+        const groups = groupsResponse.success && groupsResponse.data ? groupsResponse.data : [];
         console.log(`Fetched ${groups.length} small groups.`);
         groups.slice(0, 2).forEach(g => {
             console.log(`Group: ${g.name}, Leader Avatar: ${g.leader?.avatarUrl}`);

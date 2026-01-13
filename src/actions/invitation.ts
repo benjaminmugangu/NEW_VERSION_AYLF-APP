@@ -26,11 +26,12 @@ export async function processInvitation(token?: string) {
                 return { success: false, error: "No invitation token found" };
             }
 
-            const invitation = await getInvitationByToken(invitationToken);
-
-            if (!invitation) {
-                return { success: false, error: "Invitation not found" };
+            const response = await getInvitationByToken(invitationToken);
+            if (!response.success || !response.data) {
+                return { success: false, error: response.error?.message || "Invitation not found" };
             }
+
+            const invitation = response.data;
 
             if (invitation.status === 'accepted') {
                 return { success: false, error: "Invitation already accepted" };

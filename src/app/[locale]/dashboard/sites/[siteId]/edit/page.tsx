@@ -21,18 +21,20 @@ export default async function EditSitePage(props: any) {
   }
 
   const profileService = await import('@/services/profileService');
-  const profile = await profileService.getProfile(user.id);
+  const profileResponse = await profileService.getProfile(user.id);
 
   // Authorization check: Only National Coordinators can edit sites.
-  if (!profile || profile.role !== ROLES.NATIONAL_COORDINATOR) {
+  if (!profileResponse.success || !profileResponse.data || profileResponse.data.role !== ROLES.NATIONAL_COORDINATOR) {
     return redirect('/dashboard?error=unauthorized');
   }
 
   try {
-    const site = await siteService.getSiteById(siteId);
-    return <EditSiteClient site={site} />;
+    const siteResponse = await siteService.getSiteById(siteId);
+    if (!siteResponse.success || !siteResponse.data) {
+      return redirect('/dashboard/sites?error=not-found');
+    }
+    return <EditSiteClient site={siteResponse.data} />;
   } catch (error) {
-    // If the site is not found, the service throws an error.
     return redirect('/dashboard/sites?error=not-found');
   }
 }

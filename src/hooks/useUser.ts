@@ -19,7 +19,13 @@ export const useUser = (userId: string) => {
     error
   } = useQuery({
     queryKey: [USER_DETAILS_QUERY_KEY, userId],
-    queryFn: () => profileService.getProfile(userId),
+    queryFn: async () => {
+      const response = await profileService.getProfile(userId);
+      if (!response.success || !response.data) {
+        throw new Error(response.error?.message || 'Failed to fetch user profile');
+      }
+      return response.data;
+    },
     enabled: !!userId, // The query will not run until a userId is provided
   });
 

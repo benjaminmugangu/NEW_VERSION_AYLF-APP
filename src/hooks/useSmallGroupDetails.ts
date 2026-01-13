@@ -27,7 +27,11 @@ export const useSmallGroupDetails = (groupId: string | null) => {
   const fetchDetails = async () => {
     if (!groupId || !currentUser) return null;
 
-    const baseGroup = await smallGroupService.getSmallGroupById(groupId);
+    const groupResult = await smallGroupService.getSmallGroupById(groupId);
+    if (!groupResult.success || !groupResult.data) {
+      throw new Error(groupResult.error?.message || 'Failed to fetch small group');
+    }
+    const baseGroup = groupResult.data;
 
     const userIds = [
       baseGroup.leaderId,
@@ -35,16 +39,17 @@ export const useSmallGroupDetails = (groupId: string | null) => {
       baseGroup.financeAssistantId,
     ].filter((id): id is string => !!id);
 
-    const [site, usersResponse, membersResponse] = await Promise.all([
-      baseGroup.siteId ? siteService.getSiteById(baseGroup.siteId) : Promise.resolve(undefined),
+    const [siteResult, usersResult, membersResult] = await Promise.all([
+      baseGroup.siteId ? siteService.getSiteById(baseGroup.siteId) : Promise.resolve({ success: true, data: undefined }),
       profileService.getUsersByIds(userIds),
       memberService.getFilteredMembers({ user: currentUser, smallGroupId: groupId, searchTerm: '' }),
     ]);
 
-    const users = usersResponse as User[];
-    const usersMap = new Map(users.map((u: User) => [u.id, u]));
+    const users = usersResult.success && usersResult.data ? usersResult.data : [];
+    const site = siteResult.success ? siteResult.data : undefined;
+    const groupMembers = membersResult.success && membersResult.data ? membersResult.data : [];
 
-    const groupMembers = membersResponse || [];
+    const usersMap = new Map(users.map((u: User) => [u.id, u]));
 
     return {
       ...baseGroup,
@@ -52,7 +57,7 @@ export const useSmallGroupDetails = (groupId: string | null) => {
       leader: baseGroup.leaderId ? usersMap.get(baseGroup.leaderId) : undefined,
       logisticsAssistant: baseGroup.logisticsAssistantId ? usersMap.get(baseGroup.logisticsAssistantId) : undefined,
       financeAssistant: baseGroup.financeAssistantId ? usersMap.get(baseGroup.financeAssistantId) : undefined,
-      members: groupMembers,
+      members: groupMembers as MemberWithDetails[],
     };
   };
 

@@ -23,9 +23,23 @@ export default async function ManageSitesPage() {
   }
 
   const profileService = await import('@/services/profileService');
-  const userProfile = await profileService.getProfile(user.id);
+  const profileResponse = await profileService.getProfile(user.id);
 
-  if (!userProfile || !ALLOWED_ROLES.includes(userProfile.role)) {
+  if (!profileResponse.success || !profileResponse.data) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center p-8">
+        <h2 className="text-2xl font-semibold text-destructive mb-2">Profile not found</h2>
+        <p className="text-muted-foreground">Please contact your administrator.</p>
+        <Button asChild className="mt-4">
+          <a href="/dashboard">Go to Dashboard</a>
+        </Button>
+      </div>
+    );
+  }
+
+  const userProfile = profileResponse.data;
+
+  if (!ALLOWED_ROLES.includes(userProfile.role)) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-8">
         <h2 className="text-2xl font-semibold text-destructive mb-2">Access Denied</h2>
@@ -37,7 +51,8 @@ export default async function ManageSitesPage() {
     );
   }
 
-  const allSites: SiteWithDetails[] = await siteService.getSitesWithDetails(userProfile);
+  const siteResponse = await siteService.getSitesWithDetails(userProfile);
+  const allSites: SiteWithDetails[] = siteResponse.success ? (siteResponse.data || []) : [];
 
   const analytics = {
     totalSites: allSites.length,

@@ -382,8 +382,4 @@ async function getActivityTypeDistribution(where: any): Promise<ActivityTypeDist
     }));
 }
 
-const analyticsService = {
-    getAdvancedDashboard,
-};
-
-export default analyticsService;
+// End of file

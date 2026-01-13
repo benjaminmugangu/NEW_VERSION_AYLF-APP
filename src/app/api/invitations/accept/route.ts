@@ -19,9 +19,15 @@ export const GET = withApiRLS(async (request: NextRequest) => {
         return NextResponse.redirect(new URL('/dashboard?error=missing_token', request.url));
     }
 
-    const invitation = await getInvitationByToken(token);
+    const response = await getInvitationByToken(token);
 
-    if (invitation?.status !== 'pending') {
+    if (!response.success || !response.data) {
+        return NextResponse.redirect(new URL('/dashboard?error=invalid_invitation', request.url));
+    }
+
+    const invitation = response.data;
+
+    if (invitation.status !== 'pending') {
         return NextResponse.redirect(new URL('/dashboard?error=invalid_invitation', request.url));
     }
 

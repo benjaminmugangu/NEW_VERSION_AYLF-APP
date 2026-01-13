@@ -1,4 +1,4 @@
-'use server';
+
 
 import { renderToBuffer } from '@react-pdf/renderer';
 import { createClient } from '@/utils/supabase/server';

@@ -30,7 +30,7 @@ export async function getTransactionById(id: string): Promise<ServiceResponse<Fi
                 throw new Error('NOT_FOUND: Transaction not found.');
             }
             const model = mapPrismaTransactionToModel(tx);
-            const signed = await batchSignAvatars([model], ['recordedByAvatarUrl']);
+            const signed = await batchSignAvatars([model] as FinancialTransaction[], ['recordedByAvatarUrl']);
             return signed[0];
         });
 
@@ -67,7 +67,7 @@ export async function getFilteredTransactions(filters: TransactionFilters): Prom
             });
 
             const models = transactions.map(mapPrismaTransactionToModel);
-            return batchSignAvatars(models, ['recordedByAvatarUrl']);
+            return batchSignAvatars(models as FinancialTransaction[], ['recordedByAvatarUrl']);
         });
 
         return { success: true, data: result };

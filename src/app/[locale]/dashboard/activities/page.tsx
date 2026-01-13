@@ -30,9 +30,9 @@ export default async function ActivitiesPage() {
 
   // Fetch profile using Prisma service
   const profileService = await import('@/services/profileService');
-  const userProfile = await profileService.getProfile(user.id);
+  const profileResponse = await profileService.getProfile(user.id);
 
-  if (!userProfile) {
+  if (!profileResponse.success || !profileResponse.data) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-8">
         <h2 className="text-2xl font-semibold text-destructive mb-2">Profile not found</h2>
@@ -43,6 +43,8 @@ export default async function ActivitiesPage() {
       </div>
     );
   }
+
+  const userProfile = profileResponse.data;
 
   if (!ALLOWED_ROLES.includes(userProfile.role as any)) {
     return (
@@ -64,7 +66,8 @@ export default async function ActivitiesPage() {
     levelFilter: { national: true, site: true, small_group: true },
   };
 
-  const initialActivities = await activityService.getFilteredActivities(initialFilters);
+  const activityResponse = await activityService.getFilteredActivities(initialFilters);
+  const initialActivities = activityResponse.success ? (activityResponse.data || []) : [];
 
   return <ActivitiesClient initialActivities={initialActivities} user={userProfile} />;
 }

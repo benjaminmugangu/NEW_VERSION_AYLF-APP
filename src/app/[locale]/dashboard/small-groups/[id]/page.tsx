@@ -55,8 +55,10 @@ function CoordinatorHistorySection({ groupId }: { groupId: string | null }) {
       smallGroupId: groupId,
       includeActive: true,
       includePast: true
-    }).then(data => {
-      setHistory(data);
+    }).then(response => {
+      if (response.success && response.data) {
+        setHistory(response.data);
+      }
       setLoading(false);
     }).catch(err => {
       console.error('Failed to fetch history:', err);

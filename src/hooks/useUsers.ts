@@ -14,7 +14,13 @@ export const useUsers = () => {
 
   const { data: users = [], isLoading, isError, error } = useQuery<User[], Error>({
     queryKey: [USERS_QUERY_KEY],
-    queryFn: () => profileService.getUsers(),
+    queryFn: async (): Promise<User[]> => {
+      const response = await profileService.getUsers();
+      if (!response.success || !response.data) {
+        throw new Error(response.error?.message || 'Failed to fetch users');
+      }
+      return response.data;
+    },
   });
 
   const handleMutationError = (error: Error, defaultMessage: string) => {
@@ -59,7 +65,11 @@ export const useUsers = () => {
 
   const { mutateAsync: updateUser, isPending: isUpdatingUser } = useMutation({
     mutationFn: async ({ userId, updates }: { userId: string; updates: Partial<User> }) => {
-      return profileService.updateProfile(userId, updates);
+      const response = await profileService.updateProfile(userId, updates);
+      if (!response.success || !response.data) {
+        throw new Error(response.error?.message || 'Failed to update profile');
+      }
+      return response.data;
     },
     onSuccess: (_, { userId }) => {
       queryClient.invalidateQueries({ queryKey: [USERS_QUERY_KEY] });
@@ -69,7 +79,12 @@ export const useUsers = () => {
   });
 
   const { mutate: deleteUser, isPending: isDeletingUser } = useMutation({
-    mutationFn: (userId: string) => profileService.deleteUser(userId),
+    mutationFn: async (userId: string) => {
+      const response = await profileService.deleteUser(userId);
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to delete user');
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [USERS_QUERY_KEY] });
       toast({ title: 'Success', description: 'User deleted successfully.' });

@@ -22,14 +22,21 @@ export default async function EditActivityPage(props: any) {
   }
 
   const profileService = await import('@/services/profileService');
-  const profile = await profileService.getProfile(user.id);
+  const profileResponse = await profileService.getProfile(user.id);
 
-  if (!profile) {
+  if (!profileResponse.success || !profileResponse.data) {
     return redirect('/dashboard?error=unauthorized');
   }
 
+  const profile = profileResponse.data;
+
   try {
-    const activity = await activityService.getActivityById(activityId);
+    const activityResponse = await activityService.getActivityById(activityId);
+    if (!activityResponse.success || !activityResponse.data) {
+      return redirect('/dashboard?error=not-found');
+    }
+
+    const activity = activityResponse.data;
 
     // Server-side authorization check
     let canEdit = false;

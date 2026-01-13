@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import { prisma } from '@/lib/prisma';
-import analyticsService from '@/services/analyticsService';
+import { getAdvancedDashboard } from '@/services/analyticsService';
 import { withApiRLS } from '@/lib/apiWrapper';
 
 export const GET = withApiRLS(async (request: NextRequest) => {
@@ -42,7 +42,7 @@ export const GET = withApiRLS(async (request: NextRequest) => {
       smallGroupId: profile.smallGroupId,
     };
 
-    const analytics = await analyticsService.getAdvancedDashboard(userForAnalytics, timeRange);
+    const analytics = await getAdvancedDashboard(userForAnalytics, timeRange);
 
     return NextResponse.json(analytics);
   } catch (error: any) {

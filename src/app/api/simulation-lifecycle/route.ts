@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { prisma, withRLS } from "@/lib/prisma";
 import * as activityService from '@/services/activityService';
 import * as reportService from '@/services/reportService';
-import dashboardService from '@/services/dashboardService';
+import { getDashboardStats } from '@/services/dashboardService';
 import { checkPeriod } from '@/services/accountingService';
 
 // This API simulates the "Life Cycle" of data as described in the User Guide
@@ -120,13 +120,15 @@ export async function GET(request: Request) {
                     if (user.role !== 'MEMBER') throw new Error("Role must be MEMBER");
 
                     // Fetch agenda
-                    const activities = await activityService.getFilteredActivities({
+                    const response = await activityService.getFilteredActivities({
                         user: user, // pass full user object for RBAC
                         dateFilter: undefined,
                         searchTerm: '',
                         statusFilter: { planned: true },
                         levelFilter: { small_group: true }
                     });
+
+                    const activities = response.success && response.data ? response.data : [];
 
                     return activities.map(a => ({ title: a.title, date: a.date }));
                 });
@@ -185,10 +187,12 @@ export async function GET(request: Request) {
 
                     // We import dynamically to avoid top-level issues if modules differ
                     const exportService = await import('@/services/exportService');
-                    const csv = await exportService.exportTransactionsToCSV({
+                    const response = await exportService.exportTransactionsToCSV({
                         from: new Date(new Date().getFullYear(), 0, 1).toISOString(), // Start of year
                         to: new Date().toISOString()
                     });
+
+                    const csv = response.success && response.data ? response.data : '';
 
                     if (!csv || csv.length < 10) throw new Error("CSV generation failed or empty");
                     return { csvLength: csv.length, preview: csv.substring(0, 100) };
@@ -232,7 +236,7 @@ export async function GET(request: Request) {
                 result = await executeInContext(async () => {
                     if (user.role !== 'NATIONAL_COORDINATOR') throw new Error("Role must be NC");
 
-                    return await dashboardService.getDashboardStats(user as any, { rangeKey: 'this_year', display: 'This Year' });
+                    return await getDashboardStats(user as any, { rangeKey: 'this_year', display: 'This Year' });
                 });
                 break;
 

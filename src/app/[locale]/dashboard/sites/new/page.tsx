@@ -14,7 +14,8 @@ export default async function NewSitePage() {
   }
 
   const profileService = await import('@/services/profileService');
-  const profile = await profileService.getProfile(user.id);
+  const profileResponse = await profileService.getProfile(user.id);
+  const profile = profileResponse.success ? profileResponse.data : null;
 
   // Authorization check: Only National Coordinators can create new sites.
   if (!profile || profile.role !== ROLES.NATIONAL_COORDINATOR) {

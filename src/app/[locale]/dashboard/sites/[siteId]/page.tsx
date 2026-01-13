@@ -22,14 +22,20 @@ export default async function SiteDetailPage(props: any) {
   }
 
   const profileService = await import('@/services/profileService');
-  const profile = await profileService.getProfile(user.id);
+  const profileResponse = await profileService.getProfile(user.id);
 
-  if (!profile) {
+  if (!profileResponse.success || !profileResponse.data) {
     return redirect('/dashboard?error=unauthorized');
   }
 
+  const profile = profileResponse.data;
+
   try {
-    const site = await siteService.getSiteById(siteId);
+    const siteResponse = await siteService.getSiteById(siteId);
+    if (!siteResponse.success || !siteResponse.data) {
+      return redirect('/dashboard/sites?error=not-found');
+    }
+    const site = siteResponse.data;
 
     // Authorization check
     const isNationalCoordinator = profile.role === ROLES.NATIONAL_COORDINATOR;
@@ -40,18 +46,19 @@ export default async function SiteDetailPage(props: any) {
     }
 
     // Fetch related data
-    // The return type of getSmallGroupsBySite includes members_count
-    const smallGroups = await smallGroupService.getSmallGroupsBySite(siteId);
+    const sgResponse = await smallGroupService.getSmallGroupsBySite(siteId);
+    const smallGroups = sgResponse.success && sgResponse.data ? sgResponse.data : [];
     const totalMembers = smallGroups.reduce((acc: number, sg) => acc + (sg.memberCount || 0), 0);
 
     // Fetch coordinator history
     const historyService = await import('@/services/coordinatorHistoryService');
-    const historyData = await historyService.getCoordinatorHistory({
+    const historyResponse = await historyService.getCoordinatorHistory({
       entityType: 'site',
       siteId: site.id,
       includeActive: true,
       includePast: true
     });
+    const historyData = historyResponse.success && historyResponse.data ? historyResponse.data : [];
 
     // Determine if the user has management rights (only NC can edit/delete sites)
     const canManageSite = isNationalCoordinator;

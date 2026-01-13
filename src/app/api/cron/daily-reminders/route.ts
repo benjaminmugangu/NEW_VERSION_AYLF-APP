@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import notificationService from '@/services/notificationService';
+import { notifyActivityReminder, createNotification } from '@/services/notificationService';
 import { sendEmail, emailTemplates } from '@/lib/email/emailService';
 
 export async function GET(req: NextRequest) {
@@ -93,7 +93,7 @@ function getRecipientsForActivity(activity: any) {
 
 async function sendActivityReminder(recipient: any, activity: any) {
     // In-App Notification
-    await notificationService.notifyActivityReminder(
+    await notifyActivityReminder(
         recipient.id,
         activity.title,
         activity.id,
@@ -129,7 +129,7 @@ async function processOverdueReports(yesterday: Date): Promise<number> {
 
 async function sendOverdueReportAlert(report: any) {
     // In-App Nudge
-    await notificationService.createNotification({
+    await createNotification({
         userId: report.submittedById,
         type: 'ACTIVITY_REMINDER',
         title: 'Rapport en attente',

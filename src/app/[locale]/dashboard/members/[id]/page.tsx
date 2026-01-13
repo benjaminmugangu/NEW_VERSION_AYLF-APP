@@ -15,7 +15,11 @@ export default async function MemberDetailPage({ params }: PageProps) {
   const { id } = await params;
 
   try {
-    const member = await memberService.getMemberById(id);
+    const response = await memberService.getMemberById(id);
+    if (!response.success || !response.data) {
+      notFound();
+    }
+    const member = response.data;
 
     return (
       <>

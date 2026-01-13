@@ -35,10 +35,11 @@ export default async function CoordinatorHistoryPage() {
         redirect('/dashboard');
     }
 
-    const historyData = await getCoordinatorHistory({
+    const response = await getCoordinatorHistory({
         includeActive: true,
         includePast: true
     });
+    const historyData = response.success && response.data ? response.data : [];
 
     return (
         <div className="flex-1 space-y-4 p-8 pt-6">

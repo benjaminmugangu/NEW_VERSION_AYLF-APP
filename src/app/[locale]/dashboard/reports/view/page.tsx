@@ -16,14 +16,21 @@ const ViewReportsPage = async () => {
     redirect('/api/auth/login');
   }
 
-  const profile: User = await profileService.getProfile(user.id);
+  const profileResponse = await profileService.getProfile(user.id);
 
-  if (!profile || ![ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER].includes(profile.role)) {
+  if (!profileResponse.success || !profileResponse.data) {
+    redirect('/api/auth/login');
+  }
+
+  const profile = profileResponse.data;
+
+  if (![ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR, ROLES.SMALL_GROUP_LEADER].includes(profile.role)) {
     return <p>You do not have permission to view this page.</p>;
   }
 
   try {
-    const reports = await reportService.getFilteredReports({ user: profile });
+    const reportResponse = await reportService.getFilteredReports({ user: profile });
+    const reports = reportResponse.success ? (reportResponse.data || []) : [];
 
     return <ViewReportsClient initialReports={reports} user={profile} />;
   } catch (error: any) {

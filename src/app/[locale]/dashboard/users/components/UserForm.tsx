@@ -75,10 +75,16 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
       try {
         if (currentUser) {
           if (isNational) {
-            const sites = await siteService.getSitesWithDetails(currentUser);
-            setAvailableSites(sites);
+            const response = await siteService.getSitesWithDetails(currentUser);
+            if (response.success && response.data) {
+              setAvailableSites(response.data);
+            } else {
+              console.error("Failed to load sites:", response.error);
+              setAvailableSites([]);
+            }
           } else if (currentUser.siteId) {
-            const sites = await siteService.getSitesWithDetails(currentUser);
+            const response = await siteService.getSitesWithDetails(currentUser);
+            const sites = response.success && response.data ? response.data : [];
             const mySite = sites.find(s => s.id === currentUser.siteId);
             setAvailableSites(mySite ? [mySite] : []);
           }
@@ -96,8 +102,13 @@ export function UserForm({ user, onSubmitForm, isSubmitting: isSubmittingProp }:
     const fetchSmallGroups = async () => {
       if (watchedSiteId && (watchedRole === ROLES.SMALL_GROUP_LEADER)) {
         try {
-          const smallGroups = await smallGroupService.getSmallGroupsBySite(watchedSiteId);
-          setAvailableSmallGroups(smallGroups);
+          const response = await smallGroupService.getSmallGroupsBySite(watchedSiteId);
+          if (response.success && response.data) {
+            setAvailableSmallGroups(response.data);
+          } else {
+            console.error('Failed to fetch small groups:', response.error);
+            setAvailableSmallGroups([]);
+          }
         } catch (error) {
           console.error('Error fetching small groups:', error);
           setAvailableSmallGroups([]);

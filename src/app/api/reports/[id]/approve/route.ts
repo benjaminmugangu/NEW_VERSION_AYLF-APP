@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import * as profileService from '@/services/profileService';
 import * as reportService from '@/services/reportService';
-import notificationService from '@/services/notificationService';
+import { notifyReportApproved } from '@/services/notificationService';
 import { MESSAGES } from '@/lib/messages';
 import { withApiRLS } from '@/lib/apiWrapper';
 
@@ -15,10 +15,10 @@ export const POST = withApiRLS(async (request: NextRequest, { params }: { params
             return NextResponse.json({ error: MESSAGES.errors.unauthorized }, { status: 401 });
         }
 
-        const profile = await profileService.getProfile(user.id);
+        const profileResponse = await profileService.getProfile(user.id);
+        const profile = profileResponse.success ? profileResponse.data : null;
 
-        // Only National Coordinators can approve reports
-        if (profile.role !== 'NATIONAL_COORDINATOR') {
+        if (!profile || profile.role !== 'NATIONAL_COORDINATOR') {
             return NextResponse.json({ error: MESSAGES.errors.forbidden }, { status: 403 });
         }
 
@@ -43,7 +43,7 @@ export const POST = withApiRLS(async (request: NextRequest, { params }: { params
         const approvedReport = result.data;
 
         // Send notification to submitter
-        await notificationService.notifyReportApproved(
+        await notifyReportApproved(
             approvedReport.submittedBy,
             approvedReport.title,
             approvedReport.id

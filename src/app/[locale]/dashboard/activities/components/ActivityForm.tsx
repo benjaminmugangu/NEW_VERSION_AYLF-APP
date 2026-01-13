@@ -430,25 +430,25 @@ function initializeForm(form: any, user: any, initialActivity: any) {
 
 async function loadContextData(user: any, setSites: any, setSmallGroups: any) {
   if (user.role === ROLES.NATIONAL_COORDINATOR) {
-    const [sitesData, smallGroupsData] = await Promise.all([
+    const [sitesResponse, smallGroupsResponse] = await Promise.all([
       siteService.getSitesWithDetails(user),
       smallGroupService.getFilteredSmallGroups({ user })
     ]);
-    setSites(sitesData);
-    setSmallGroups(smallGroupsData);
+    if (sitesResponse.success && sitesResponse.data) setSites(sitesResponse.data);
+    if (smallGroupsResponse.success && smallGroupsResponse.data) setSmallGroups(smallGroupsResponse.data);
   } else if (user.role === ROLES.SITE_COORDINATOR && user.siteId) {
-    const [siteData, smallGroupsData] = await Promise.all([
+    const [siteResponse, smallGroupsResponse] = await Promise.all([
       siteService.getSiteById(user.siteId),
       smallGroupService.getSmallGroupsBySite(user.siteId)
     ]);
-    if (siteData) setSites([siteData]);
-    setSmallGroups(smallGroupsData);
+    if (siteResponse.success && siteResponse.data) setSites([siteResponse.data]);
+    if (smallGroupsResponse.success && smallGroupsResponse.data) setSmallGroups(smallGroupsResponse.data);
   } else if (user.role === ROLES.SMALL_GROUP_LEADER && user.smallGroupId) {
-    const smallGroupData = await smallGroupService.getSmallGroupById(user.smallGroupId);
-    if (smallGroupData) {
-      setSmallGroups([smallGroupData]);
-      const siteData = await siteService.getSiteById(smallGroupData.siteId);
-      if (siteData) setSites([siteData]);
+    const smallGroupResponse = await smallGroupService.getSmallGroupById(user.smallGroupId);
+    if (smallGroupResponse.success && smallGroupResponse.data) {
+      setSmallGroups([smallGroupResponse.data]);
+      const siteResponse = await siteService.getSiteById(smallGroupResponse.data.siteId);
+      if (siteResponse.success && siteResponse.data) setSites([siteResponse.data]);
     }
   }
 }

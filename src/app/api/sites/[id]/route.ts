@@ -48,8 +48,11 @@ export const PATCH = withApiRLS(async (request: NextRequest, { params }: { param
       return new NextResponse(JSON.stringify({ error: MESSAGES.errors.validation, details: parsedData.error.format() }), { status: 400 });
     }
 
-    const updatedSite = await siteService.updateSite(id, parsedData.data);
-    return NextResponse.json(updatedSite);
+    const response = await siteService.updateSite(id, parsedData.data);
+    if (!response.success) {
+      return new NextResponse(JSON.stringify({ error: response.error?.message || MESSAGES.errors.generic }), { status: response.error?.code === 'FORBIDDEN' ? 403 : 500 });
+    }
+    return NextResponse.json(response.data);
 
   } catch (error) {
     const { sanitizeError, logError } = await import('@/lib/errorSanitizer');
@@ -81,7 +84,10 @@ export const DELETE = withApiRLS(async (request: NextRequest, { params }: { para
   try {
     const { id } = await params;
 
-    await siteService.deleteSite(id);
+    const response = await siteService.deleteSite(id);
+    if (!response.success) {
+      return new NextResponse(JSON.stringify({ error: response.error?.message || MESSAGES.errors.generic }), { status: response.error?.code === 'FORBIDDEN' ? 403 : 500 });
+    }
     return new NextResponse(null, { status: 204 });
 
   } catch (error) {

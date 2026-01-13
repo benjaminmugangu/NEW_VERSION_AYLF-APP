@@ -44,9 +44,10 @@ export default async function AcceptInvitationPage({ searchParams }: PageProps) 
         );
     }
 
-    const invitation = await getInvitationByToken(token);
+    const response = await getInvitationByToken(token);
+    const invitation = response.data;
 
-    if (!invitation || invitation.status === 'accepted') {
+    if (!response.success || !invitation || invitation.status === 'accepted') {
         if (currentUser) {
             redirect('/dashboard');
         }

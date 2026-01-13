@@ -32,7 +32,13 @@ export const useTransactions = ({ user, initialData, initialFilters = {} }: UseT
     refetch
   } = useQuery({
     queryKey: ['transactions', user?.id, filters],
-    queryFn: () => transactionService.getFilteredTransactions(filters),
+    queryFn: async (): Promise<FinancialTransaction[]> => {
+      const response = await transactionService.getFilteredTransactions(filters);
+      if (!response.success || !response.data) {
+        throw new Error(response.error?.message || 'Failed to fetch transactions');
+      }
+      return response.data;
+    },
     initialData: initialData,
     enabled: !!user,
   });
@@ -50,21 +56,35 @@ export const useTransactions = ({ user, initialData, initialFilters = {} }: UseT
 
   const { mutateAsync: createTransaction, isPending: isCreating } = useMutation({
     ...mutationOptions,
-    mutationFn: (formData: TransactionFormData) => {
+    mutationFn: async (formData: TransactionFormData) => {
       const idempotencyKey = crypto.randomUUID();
-      return transactionService.createTransaction(formData, idempotencyKey);
+      const response = await transactionService.createTransaction(formData, idempotencyKey);
+      if (!response.success || !response.data) {
+        throw new Error(response.error?.message || 'Failed to create transaction');
+      }
+      return response.data;
     },
   });
 
   const { mutateAsync: updateTransaction, isPending: isUpdating } = useMutation({
     ...mutationOptions,
-    mutationFn: ({ id, formData }: { id: string, formData: Partial<TransactionFormData> }) =>
-      transactionService.updateTransaction(id, formData),
+    mutationFn: async ({ id, formData }: { id: string, formData: Partial<TransactionFormData> }) => {
+      const response = await transactionService.updateTransaction(id, formData);
+      if (!response.success || !response.data) {
+        throw new Error(response.error?.message || 'Failed to update transaction');
+      }
+      return response.data;
+    },
   });
 
   const { mutateAsync: deleteTransaction, isPending: isDeleting } = useMutation({
     ...mutationOptions,
-    mutationFn: (id: string) => transactionService.deleteTransaction(id),
+    mutationFn: async (id: string) => {
+      const response = await transactionService.deleteTransaction(id);
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to delete transaction');
+      }
+    },
   });
 
   return {

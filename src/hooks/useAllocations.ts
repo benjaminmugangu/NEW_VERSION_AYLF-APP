@@ -9,11 +9,14 @@ export const useAllocations = () => {
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['allocations', user?.id],
-    queryFn: async () => {
+    queryFn: async (): Promise<any[]> => {
       if (!user) return [];
       // Assuming getAllocations fetches all allocations relevant to the user's role and entity
-      const allocations = await allocationService.getAllocations();
-      return allocations;
+      const response = await allocationService.getAllocations();
+      if (!response.success || !response.data) {
+        throw new Error(response.error?.message || 'Failed to fetch allocations');
+      }
+      return response.data;
     },
     enabled: !!user, // Only run the query if the user is loaded
   });

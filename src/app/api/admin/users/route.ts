@@ -7,6 +7,7 @@ import { UserRole } from '@prisma/client';
 import { z } from 'zod';
 import { MESSAGES } from '@/lib/messages';
 import { withApiRLS } from '@/lib/apiWrapper';
+import { generateCoordinatorCertificate } from '@/services/certificateGenerationService';
 
 const inviteSchema = z.object({
     email: z.string().email(),
@@ -122,7 +123,6 @@ async function handleReplacementFlow(payload: any) {
         }
 
         // 4. Trigger certificate generation
-        const { generateCoordinatorCertificate } = await import('@/services/certificateGenerationService');
         try {
             await generateCoordinatorCertificate(payload.existingCoordinatorId);
         } catch (error: any) {

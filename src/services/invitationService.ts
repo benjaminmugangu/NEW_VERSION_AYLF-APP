@@ -3,7 +3,7 @@
 import { prisma, withRLS } from '@/lib/prisma';
 import { UserRole, Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
-import notificationService from './notificationService';
+import { createNotification } from './notificationService';
 import { ROLES } from '@/lib/constants';
 import { ServiceResponse, ErrorCode } from '@/lib/types';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
@@ -85,7 +85,7 @@ export async function createInvitation(data: CreateInvitationData): Promise<Serv
                 });
 
                 for (const nc of nationalCoordinators) {
-                    await notificationService.createNotification({
+                    await createNotification({
                         userId: nc.id,
                         type: 'USER_INVITED',
                         title: '👤 Nouvelle Invitation Envoyée',

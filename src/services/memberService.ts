@@ -4,7 +4,7 @@
 import { prisma, basePrisma, withRLS } from '@/lib/prisma';
 import type { User, Member, MemberWithDetails, MemberFormData, ServiceResponse } from '@/lib/types';
 import { ErrorCode } from '@/lib/types';
-import notificationService from './notificationService';
+import { notifyMemberAdded } from './notificationService';
 import { ROLES } from '@/lib/constants';
 import { createAuditLog } from './auditLogService';
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
@@ -277,7 +277,7 @@ export async function createMember(
             where: { siteId: member.siteId, role: ROLES.SITE_COORDINATOR }
           });
           if (sc && sc.id !== user.id) {
-            await notificationService.notifyMemberAdded(sc.id, member.name, member.site?.name || 'votre site', tx);
+            await notifyMemberAdded(sc.id, member.name, member.site?.name || 'votre site', tx);
           }
         }
 
@@ -287,7 +287,7 @@ export async function createMember(
             select: { leaderId: true, name: true }
           });
           if (group?.leaderId && group.leaderId !== user.id) {
-            await notificationService.notifyMemberAdded(group.leaderId, member.name, `le groupe ${group.name}`, tx);
+            await notifyMemberAdded(group.leaderId, member.name, `le groupe ${group.name}`, tx);
           }
         }
 

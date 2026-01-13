@@ -28,7 +28,7 @@ interface AllocationFormProps {
   readonly recipients: Array<{ id: string; name: string; }>;
   readonly recipientType: 'site' | 'smallGroup';
   readonly recipientLabel: string;
-  readonly onSubmit: (data: z.infer<typeof allocationFormSchema>) => Promise<void>;
+  readonly onSubmit: (data: z.infer<typeof allocationFormSchema>) => Promise<any>;
   readonly isLoading: boolean;
 }
 

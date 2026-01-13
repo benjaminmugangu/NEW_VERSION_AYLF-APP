@@ -19,7 +19,7 @@ export default async function NewActivityPage() {
 
   return await withRLS(user.id, async () => {
     const profileService = await import('@/services/profileService');
-    const profile = await profileService.getProfile(user.id);
+    const profileResponse = await profileService.getProfile(user.id);
 
     const allowedRoles = [
       ROLES.NATIONAL_COORDINATOR,
@@ -27,7 +27,7 @@ export default async function NewActivityPage() {
       ROLES.SMALL_GROUP_LEADER,
     ];
 
-    if (!profile || !allowedRoles.includes(profile.role)) {
+    if (!profileResponse.success || !profileResponse.data || !allowedRoles.includes(profileResponse.data.role)) {
       console.error('Profile not found or access denied for user:', user.id, user.email);
       return (
         <div className="p-4">

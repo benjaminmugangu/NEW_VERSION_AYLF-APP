@@ -19,9 +19,13 @@ export const useEntityFinancials = (options: FinancialOptions) => {
   const fetchFinancials = useCallback(async () => {
     try {
       setIsLoading(true);
-      const data = await financialsService.getEntityFinancials(options.entity, options.dateFilter);
-      setStats(data);
-      setError(null);
+      const response = await financialsService.getEntityFinancials(options.entity, options.dateFilter);
+      if (response.success && response.data) {
+        setStats(response.data);
+        setError(null);
+      } else {
+        setError(response.error?.message || 'Failed to load entity financials.');
+      }
     } catch (err) {
       console.error(err);
       setError('Failed to load entity financials.');

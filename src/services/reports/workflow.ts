@@ -4,8 +4,7 @@ import { withRLS } from '@/lib/prisma';
 import { ServiceResponse, ReportWithDetails } from '@/lib/types';
 import { checkPeriod } from '../accountingService';
 import { checkBudgetIntegrity } from '../budgetService';
-import { notifyBudgetOverrun } from '../notificationService';
-import notificationService from '../notificationService';
+import { notifyBudgetOverrun, notifyReportApproved, notifyReportRejected } from '../notificationService';
 import { logReportApproval, logReportRejection } from '../auditLogService';
 import { mapPrismaReportToModel } from './shared';
 
@@ -102,7 +101,7 @@ export async function approveReport(
             );
 
             // 7. Notify Submitter (safe within tx)
-            await notificationService.notifyReportApproved(
+            await notifyReportApproved(
                 approvedReport.submittedById,
                 approvedReport.title,
                 approvedReport.id,
@@ -192,7 +191,7 @@ export async function rejectReport(
                 );
 
                 // 3. Notify Submitter
-                await notificationService.notifyReportRejected(
+                await notifyReportRejected(
                     rejectedReport.submittedById,
                     rejectedReport.title,
                     rejectedReport.id,

@@ -25,7 +25,7 @@ const transactionSchema = z.object({
 type TransactionFormValues = z.infer<typeof transactionSchema>;
 
 interface TransactionFormProps {
-    onSave: (data: TransactionFormValues) => Promise<void>;
+    onSave: (data: TransactionFormValues) => Promise<any>;
     initialData?: FinancialTransaction;
     isSaving: boolean;
 }

@@ -22,7 +22,7 @@ const ALLOWED_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'S
 interface SmallGroupFormProps {
   smallGroup?: SmallGroup; // For editing
   siteId: string;
-  onSubmitForm: (data: SmallGroupFormData) => Promise<void>;
+  onSubmitForm: (data: SmallGroupFormData) => Promise<any>;
   isSaving?: boolean;
 }
 
@@ -67,8 +67,16 @@ export function SmallGroupForm({ smallGroup, siteId, onSubmitForm, isSaving }: S
     const fetchPersonnel = async () => {
       setIsLoadingPersonnel(true);
       try {
-        const users = await profileService.getEligiblePersonnel(siteId, smallGroup?.id);
-        setAvailablePersonnel(users);
+        const response = await profileService.getEligiblePersonnel(siteId, smallGroup?.id);
+        if (response.success && response.data) {
+          setAvailablePersonnel(response.data);
+        } else {
+          // Optionally handle error here or just set empty
+          setAvailablePersonnel([]);
+          if (!response.success && response.error) {
+            console.error("Failed to fetch personnel:", response.error);
+          }
+        }
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         toast({ title: "Error", description: `Failed to load personnel: ${message}`, variant: 'destructive' });

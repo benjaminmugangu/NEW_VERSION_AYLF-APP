@@ -45,22 +45,24 @@ export default function NewAllocationPage() {
         if (isNC) {
           if (isDirect) {
             // NC direct mode: load ALL small groups
-            const sites = await siteService.getSitesWithDetails(user);
+            const sitesResponse = await siteService.getSitesWithDetails(user);
+            const sites = sitesResponse.success && sitesResponse.data ? sitesResponse.data : [];
             const allGroups: Array<{ id: string, name: string }> = [];
             for (const site of sites) {
-              const groups = await smallGroupService.getFilteredSmallGroups({ user, siteId: site.id });
+              const groupsResponse = await smallGroupService.getFilteredSmallGroups({ user, siteId: site.id });
+              const groups = groupsResponse.success && groupsResponse.data ? groupsResponse.data : [];
               allGroups.push(...groups.map(g => ({ ...g, name: `${g.name} (${site.name})` })));
             }
             setRecipients(allGroups);
           } else {
             // NC hierarchical mode: load sites
-            const sites = await siteService.getSitesWithDetails(user);
-            setRecipients(sites);
+            const sitesResponse = await siteService.getSitesWithDetails(user);
+            setRecipients(sitesResponse.success && sitesResponse.data ? sitesResponse.data : []);
           }
         } else if (isSC && user.siteId) {
           // SC: always load small groups from their site
-          const smallGroups = await smallGroupService.getFilteredSmallGroups({ user, siteId: user.siteId });
-          setRecipients(smallGroups);
+          const smallGroupsResponse = await smallGroupService.getFilteredSmallGroups({ user, siteId: user.siteId });
+          setRecipients(smallGroupsResponse.success && smallGroupsResponse.data ? smallGroupsResponse.data : []);
         }
       } catch (error) {
         toast({ title: "Error", description: "Could not load recipient data.", variant: 'destructive' });

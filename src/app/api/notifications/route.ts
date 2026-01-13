@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
-import notificationService from '@/services/notificationService';
+import { getUserNotifications, getUnreadCount, markAsRead, markAllAsRead, deleteNotification } from '@/services/notificationService';
 import { MESSAGES } from '@/lib/messages';
 import * as z from 'zod';
 import { withApiRLS } from '@/lib/apiWrapper';
@@ -37,16 +37,23 @@ export const GET = withApiRLS(async (request: NextRequest) => {
         const unreadOnly = searchParams.get('unread') === 'true';
         const limit = Number.parseInt(searchParams.get('limit') || '100', 10);
 
-        const notifications = await notificationService.getUserNotifications(user.id, {
+        const notificationsResponse = await getUserNotifications(user.id, {
             unreadOnly,
             limit,
         });
 
-        const unreadCount = await notificationService.getUnreadCount(user.id);
+        const unreadCountResponse = await getUnreadCount(user.id);
+
+        if (!notificationsResponse.success || !unreadCountResponse.success) {
+            return NextResponse.json(
+                { error: MESSAGES.errors.serverError },
+                { status: 500 }
+            );
+        }
 
         return NextResponse.json({
-            notifications,
-            unreadCount,
+            notifications: notificationsResponse.data,
+            unreadCount: unreadCountResponse.data,
         });
     } catch (error) {
         console.error('Error fetching notifications:', error);
@@ -85,7 +92,14 @@ export const PATCH = withApiRLS(async (request: NextRequest) => {
 
         if (markAllRead) {
             // Mark all notifications as read
-            const count = await notificationService.markAllAsRead(user.id);
+            const response = await markAllAsRead(user.id);
+            if (!response.success) {
+                return NextResponse.json(
+                    { error: response.error?.message || MESSAGES.errors.serverError },
+                    { status: 500 }
+                );
+            }
+            const count = response.data;
             return NextResponse.json({
                 success: true,
                 message: `${count} notification(s) marquée(s) comme lue(s)`,
@@ -101,11 +115,17 @@ export const PATCH = withApiRLS(async (request: NextRequest) => {
             );
         }
 
-        const notification = await notificationService.markAsRead(notificationId);
+        const response = await markAsRead(notificationId);
+        if (!response.success) {
+            return NextResponse.json(
+                { error: response.error?.message || MESSAGES.errors.serverError },
+                { status: 500 }
+            );
+        }
 
         return NextResponse.json({
             success: true,
-            notification,
+            notification: response.data,
         });
     } catch (error) {
         console.error('Error marking notification as read:', error);
@@ -136,7 +156,13 @@ export const DELETE = withApiRLS(async (request: NextRequest) => {
             return NextResponse.json({ error: 'ID requis' }, { status: 400 });
         }
 
-        await notificationService.deleteNotification(notificationId);
+        const response = await deleteNotification(notificationId);
+        if (!response.success) {
+            return NextResponse.json(
+                { error: response.error?.message || MESSAGES.errors.serverError },
+                { status: 500 }
+            );
+        }
 
         return NextResponse.json({
             success: true,

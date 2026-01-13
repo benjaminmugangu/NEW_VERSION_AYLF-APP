@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as z from 'zod';
-import * as activityService from '@/services/activityService';
+import { createActivity } from '@/services/activityService';
 import { MESSAGES } from '@/lib/messages';
 import { withApiRLS } from '@/lib/apiWrapper';
 
@@ -52,7 +52,7 @@ export const POST = withApiRLS(async (request: NextRequest) => {
       createdBy: 'unknown', // Will be overwritten by RLS or derived in service if needed
     };
 
-    const newActivity = await activityService.createActivity(activityDataForService);
+    const newActivity = await createActivity(activityDataForService);
     return NextResponse.json(newActivity, { status: 201 });
 
   } catch (error: any) {

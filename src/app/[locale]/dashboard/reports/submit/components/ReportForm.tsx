@@ -108,15 +108,15 @@ export function ReportForm({ onSubmitSuccess, user }: ReportFormProps) {
     const fetchData = async () => {
       if (!user) return;
       try {
-        const [activities, types] = await Promise.all([
+        const [activitiesResponse, typesResponse] = await Promise.all([
           activityService.getFilteredActivities({
             user,
             statusFilter: { planned: true },
           }),
           getAllActivityTypes()
         ]);
-        setPlannedActivities(activities);
-        setActivityTypes(types);
+        setPlannedActivities(activitiesResponse.success && activitiesResponse.data ? activitiesResponse.data : []);
+        setActivityTypes(typesResponse.success && typesResponse.data ? typesResponse.data : []);
       } catch (error) {
         console.error("Failed to fetch initial data:", error);
         toast({

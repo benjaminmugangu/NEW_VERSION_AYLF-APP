@@ -40,8 +40,12 @@ export default function SiteFinancialDashboardPage() {
       if (!siteId) return;
       setIsSiteLoading(true);
       try {
-        const siteData = await siteService.getSiteById(siteId);
-        setSite(siteData);
+        const siteResponse = await siteService.getSiteById(siteId);
+        if (siteResponse.success && siteResponse.data) {
+          setSite(siteResponse.data);
+        } else {
+          setSite(null);
+        }
       } catch (error) {
         console.error('Failed to fetch site:', error);
         setSite(null);

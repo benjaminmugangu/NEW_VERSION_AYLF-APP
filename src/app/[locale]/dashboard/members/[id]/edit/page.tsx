@@ -11,18 +11,20 @@ interface PageProps {
 export default async function EditMemberPage({ params }: PageProps) {
   const { id } = await params;
 
-  let member;
-  try {
-    member = await memberService.getMemberById(id);
-  } catch (error) {
+  const response = await memberService.getMemberById(id);
+  if (!response.success || !response.data) {
     notFound();
   }
+  const member = response.data;
 
   // Bind the ID to the update action
   const updateMemberAction = async (data: MemberFormData) => {
     'use server';
-    await memberService.updateMember(id, data);
-    redirect('/dashboard/members');
+    const result = await memberService.updateMember(id, data);
+    if (result.success) {
+      redirect('/dashboard/members');
+    }
+    return { success: false, error: result.error?.message || "Failed to update member" };
   };
 
   return (

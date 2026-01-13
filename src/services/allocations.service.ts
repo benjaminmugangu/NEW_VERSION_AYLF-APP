@@ -7,7 +7,7 @@ import type { FundAllocation, FundAllocationFormData, ServiceResponse } from '@/
 import { ErrorCode } from '@/lib/types';
 import { calculateAvailableBudget } from './budgetService';
 import { revalidatePath } from 'next/cache';
-import notificationService from './notificationService';
+import { notifyAllocationReceived, createNotification } from './notificationService';
 import { ROLES } from '@/lib/constants';
 import { UserRole } from '@prisma/client';
 import { checkPeriod } from './accountingService';
@@ -69,7 +69,7 @@ export async function getAllocations(filters?: { siteId?: string; smallGroupId?:
         proofUrl: allocation.proofUrl || undefined,
       }));
 
-      return batchSignAvatars(models, ['allocatedByAvatarUrl']);
+      return batchSignAvatars(models as FundAllocation[], ['allocatedByAvatarUrl']);
     });
 
     return { success: true, data: result };
@@ -204,7 +204,7 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
                 where: { siteId: formData.siteId, role: ROLES.SITE_COORDINATOR }
               });
               if (sc) {
-                await notificationService.notifyAllocationReceived(
+                await notifyAllocationReceived(
                   sc.id,
                   Number(formData.amount),
                   'Coordination Nationale',
@@ -261,7 +261,7 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
 
             // Notify Group Leader
             if (smallGroup.leaderId) {
-              await notificationService.notifyAllocationReceived(
+              await notifyAllocationReceived(
                 smallGroup.leaderId,
                 Number(formData.amount),
                 'Coordination Nationale (Direct)',
@@ -272,7 +272,7 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
             // Notify Site Coordinator about the bypass
             const sc = await tx.profile.findFirst({ where: { siteId: smallGroup.siteId, role: ROLES.SITE_COORDINATOR } });
             if (sc?.id) {
-              await notificationService.createNotification({
+              await createNotification({
                 userId: sc.id,
                 type: 'BUDGET_ALERT',
                 title: '⚠️ Allocation Directe au Groupe',
@@ -319,7 +319,7 @@ export async function createAllocation(formData: FundAllocationFormData): Promis
 
           // Notify Small Group Leader
           if (smallGroup.leaderId) {
-            await notificationService.notifyAllocationReceived(
+            await notifyAllocationReceived(
               smallGroup.leaderId,
               Number(formData.amount),
               `Site: ${profile.name || 'Votre Site'}`,

@@ -367,24 +367,5 @@ export async function notifyBudgetOverrun(params: {
     }
 }
 
-const notificationService = {
-    createNotification,
-    getUserNotifications,
-    getUnreadCount,
-    markAsRead,
-    markAllAsRead,
-    deleteNotification,
-    deleteOldNotifications,
-    // Helpers
-    notifyReportApproved,
-    notifyReportRejected,
-    notifyAllocationReceived,
-    notifyActivityReminder,
-    notifyActivityCreated,
-    notifyMemberAdded,
-    notifyNewReport,
-    notifyBudgetLow,
-    notifyBudgetOverrun,
-};
-
-export default notificationService;
+// All functions are exported individually as named exports
+// (compatible with 'use server' directive)

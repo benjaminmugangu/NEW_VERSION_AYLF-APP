@@ -19,10 +19,15 @@ export default function NewSmallGroupPage() {
 
   const handleCreateSmallGroup = async (data: SmallGroupFormData) => {
     try {
-      const newSmallGroup = await smallGroupService.createSmallGroup(siteId, data);
+      const response = await smallGroupService.createSmallGroup(siteId, data);
+
+      if (!response.success || !response.data) {
+        throw new Error(response.error?.message || 'Failed to create small group');
+      }
+
       toast({
         title: 'Small Group Created!',
-        description: `Small Group "${newSmallGroup.name}" has been successfully created.`,
+        description: `Small Group "${response.data.name}" has been successfully created.`,
       });
       router.push(`/dashboard/sites/${siteId}`);
     } catch (error) {

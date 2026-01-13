@@ -6,7 +6,7 @@ import { Activity, ActivityStatus, ActivityType, ServiceResponse, ErrorCode } fr
 import { ROLES } from '@/lib/constants';
 import { type ActivityFormData } from '@/schemas/activity';
 import { revalidatePath } from 'next/cache';
-import notificationService from './notificationService';
+import { notifyActivityCreated } from './notificationService';
 import {
   logActivityCreation,
   logActivityUpdate,
@@ -144,7 +144,7 @@ export const createActivity = async (
             where: { siteId: activity.siteId, role: ROLES.SITE_COORDINATOR }
           });
           if (sc && sc.id !== currentUser.id) {
-            await notificationService.notifyActivityCreated(sc.id, activity.title, activity.id, tx);
+            await notifyActivityCreated(sc.id, activity.title, activity.id, tx);
           }
         }
 
@@ -155,7 +155,7 @@ export const createActivity = async (
           });
 
           if (group?.leaderId && group.leaderId !== currentUser.id) {
-            await notificationService.notifyActivityCreated(group.leaderId, activity.title, activity.id, tx);
+            await notifyActivityCreated(group.leaderId, activity.title, activity.id, tx);
           }
 
           if (group?.siteId) {
@@ -163,7 +163,7 @@ export const createActivity = async (
               where: { siteId: group.siteId, role: ROLES.SITE_COORDINATOR }
             });
             if (sc && sc.id !== currentUser.id) {
-              await notificationService.notifyActivityCreated(sc.id, activity.title, activity.id, tx);
+              await notifyActivityCreated(sc.id, activity.title, activity.id, tx);
             }
           }
         }

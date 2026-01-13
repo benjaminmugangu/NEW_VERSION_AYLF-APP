@@ -12,9 +12,13 @@ export const GET = withApiRLS(async (request: NextRequest) => {
             smallGroupId: searchParams.get('smallGroupId') || undefined,
         };
 
-        const csv = await exportAllocationsToCSV(filters);
+        const response = await exportAllocationsToCSV(filters);
 
-        return new NextResponse(csv, {
+        if (!response.success || !response.data) {
+            return NextResponse.json({ error: response.error || 'Export failed' }, { status: 500 });
+        }
+
+        return new NextResponse(response.data, {
             status: 200,
             headers: {
                 'Content-Type': 'text/csv; charset=utf-8',

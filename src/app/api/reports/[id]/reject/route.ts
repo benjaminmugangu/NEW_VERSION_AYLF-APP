@@ -41,11 +41,18 @@ export const POST = withApiRLS(async (request: NextRequest, { params }: { params
             return NextResponse.json({ error: MESSAGES.errors.validation }, { status: 400 });
         }
 
-        const rejectedReport = await reportService.rejectReport(reportId, user.id, rejectionReason || '');
+        const result = await reportService.rejectReport(reportId, user.id, rejectionReason || '');
+
+        if (!result.success || !result.data) {
+            return NextResponse.json(
+                { error: result.error?.message || 'Failed to reject report' },
+                { status: 500 }
+            );
+        }
 
         return NextResponse.json({
             success: true,
-            report: rejectedReport,
+            report: result.data,
             message: MESSAGES.success.rejected,
         });
     } catch (error: any) {

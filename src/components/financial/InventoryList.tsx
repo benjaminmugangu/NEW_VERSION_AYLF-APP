@@ -30,7 +30,8 @@ export function InventoryList({ items }: InventoryListProps) {
             const stockData: Record<string, number> = {};
             for (const item of items) {
                 try {
-                    stockData[item.id] = await getCurrentStock(item.id);
+                    const response = await getCurrentStock(item.id);
+                    stockData[item.id] = response.success && response.data !== undefined ? response.data : 0;
                 } catch {
                     stockData[item.id] = 0;
                 }
