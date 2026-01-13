@@ -117,10 +117,13 @@ export async function calculateBudgetAggregates(params: {
         return { [dateField]: clause };
     };
 
+    // For NC without siteId, filter for national-level (siteId = null) transactions
+    const isNationalScope = role === 'NATIONAL_COORDINATOR' && !siteId && !smallGroupId;
+
     const incomeAgg = await client.financialTransaction.aggregate({
         where: {
-            siteId: siteId || undefined,
-            smallGroupId: smallGroupId || undefined,
+            siteId: isNationalScope ? null : (siteId || undefined),
+            smallGroupId: isNationalScope ? null : (smallGroupId || undefined),
             type: 'income',
             status: 'approved',
             ...dateClause('date')
@@ -131,8 +134,8 @@ export async function calculateBudgetAggregates(params: {
 
     const expenseAgg = await client.financialTransaction.aggregate({
         where: {
-            siteId: siteId || undefined,
-            smallGroupId: smallGroupId || undefined,
+            siteId: isNationalScope ? null : (siteId || undefined),
+            smallGroupId: isNationalScope ? null : (smallGroupId || undefined),
             type: 'expense',
             status: 'approved',
             ...dateClause('date')
@@ -145,7 +148,10 @@ export async function calculateBudgetAggregates(params: {
         status: 'completed',
         ...dateClause('allocationDate')
     };
-    if (role === 'SITE_COORDINATOR' || (siteId && !smallGroupId)) {
+    if (isNationalScope) {
+        // NC: no allocations are "received" at national level (NC sends, doesn't receive)
+        receivedClause.id = { in: [] };
+    } else if (role === 'SITE_COORDINATOR' || (siteId && !smallGroupId)) {
         receivedClause.siteId = siteId;
         receivedClause.smallGroupId = null;
         receivedClause.OR = [

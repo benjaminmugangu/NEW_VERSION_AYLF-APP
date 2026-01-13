@@ -111,11 +111,19 @@ export function ReportForm({ onSubmitSuccess, user }: ReportFormProps) {
         const [activitiesResponse, typesResponse] = await Promise.all([
           activityService.getFilteredActivities({
             user,
-            statusFilter: { planned: true },
+            statusFilter: { planned: true, in_progress: true, delayed: true },
           }),
           getAllActivityTypes()
         ]);
-        setPlannedActivities(activitiesResponse.success && activitiesResponse.data ? activitiesResponse.data : []);
+        // Apply 5-hour eligibility rule: activity.date + 5h <= now
+        const REPORT_DELAY_HOURS = 5;
+        const now = new Date();
+        const eligibleActivities = (activitiesResponse.success && activitiesResponse.data ? activitiesResponse.data : []).filter(activity => {
+          const activityDate = new Date(activity.date);
+          const eligibleAfter = new Date(activityDate.getTime() + REPORT_DELAY_HOURS * 60 * 60 * 1000);
+          return eligibleAfter <= now;
+        });
+        setPlannedActivities(eligibleActivities);
         setActivityTypes(typesResponse.success && typesResponse.data ? typesResponse.data : []);
       } catch (error) {
         console.error("Failed to fetch initial data:", error);
@@ -269,7 +277,9 @@ export function ReportForm({ onSubmitSuccess, user }: ReportFormProps) {
                         </SelectItem>
                       ))
                     ) : (
-                      <SelectItem value="none" disabled>{t("no_activities")}</SelectItem>
+                      <SelectItem value="none" disabled>
+                        Aucune activité éligible (date + 5h dépassée requise)
+                      </SelectItem>
                     )}
                   </SelectContent>
                 </Select>
