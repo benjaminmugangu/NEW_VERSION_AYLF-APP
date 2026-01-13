@@ -123,7 +123,9 @@ export function ReportForm({ onSubmitSuccess, user }: ReportFormProps) {
           const eligibleAfter = new Date(activityDate.getTime() + REPORT_DELAY_HOURS * 60 * 60 * 1000);
           return eligibleAfter <= now;
         });
-        setPlannedActivities(eligibleActivities);
+        // ISOLATION RULE: User can only submit reports for activities they created
+        const userOwnedActivities = eligibleActivities.filter(activity => activity.createdBy === user.id);
+        setPlannedActivities(userOwnedActivities);
         setActivityTypes(typesResponse.success && typesResponse.data ? typesResponse.data : []);
       } catch (error) {
         console.error("Failed to fetch initial data:", error);
