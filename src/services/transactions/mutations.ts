@@ -49,7 +49,7 @@ export async function createTransaction(formData: TransactionFormData, idempoten
                     type: formData.type,
                     category: formData.category,
                     amount: formData.amount,
-                    date: formData.date,
+                    date: new Date(formData.date),
                     description: formData.description,
                     siteId,
                     smallGroupId,
@@ -171,7 +171,7 @@ export async function updateTransaction(id: string, formData: Partial<Transactio
                 if (formData.type) updateData.type = formData.type;
                 if (formData.category) updateData.category = formData.category;
                 if (formData.amount !== undefined) updateData.amount = formData.amount;
-                if (formData.date) updateData.date = formData.date;
+                if (formData.date) updateData.date = new Date(formData.date);
                 if (formData.description) updateData.description = formData.description;
                 if (formData.siteId !== undefined) updateData.siteId = formData.siteId;
                 if (formData.smallGroupId !== undefined) updateData.smallGroupId = formData.smallGroupId;
