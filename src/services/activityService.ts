@@ -20,13 +20,72 @@ import {
   validateAndPrepareCreateData
 } from './activityUtils';
 
+// ==============================================================================
+// DEDICATED USE-CASE: GET REPORTABLE ACTIVITIES
+// Strict Server-Side Enforcement of:
+// 1. Creator Only (Isolation)
+// 2. 5-Hour Delay Rule
+// 3. Uniqueness (No existing report)
+// ==============================================================================
+export const getReportableActivities = async (): Promise<ServiceResponse<Activity[]>> => {
+  try {
+    const { getUser } = getKindeServerSession();
+    const user = await getUser();
+    if (!user || !user.id) {
+      return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
+    }
+
+    const result = await withRLS(user.id, async () => {
+      // 1. Calculate 5-Hour Delay Cutoff
+      const REPORT_DELAY_HOURS = 5;
+      const now = new Date();
+      const delayMs = REPORT_DELAY_HOURS * 60 * 60 * 1000;
+      const cutoffDate = new Date(now.getTime() - delayMs);
+
+      // 2. Execute Strict Query
+      const activities = await prisma.activity.findMany({
+        where: {
+          createdById: user.id, // STRICT ISOLATION
+          date: { lte: cutoffDate }, // STRICT TIMING
+          status: { in: ['planned', 'in_progress', 'delayed'] }, // LOGICAL STATUS
+          reports: { none: {} } // STRICT UNIQUENESS
+        },
+        include: {
+          site: true,
+          smallGroup: true,
+          activityType: true,
+          reports: {
+            select: { participantsCountReported: true }
+          }
+        },
+        orderBy: { date: 'desc' }
+      });
+
+      return activities.map(mapPrismaActivityToActivity);
+    });
+
+    return { success: true, data: result };
+  } catch (error: any) {
+    console.error(`[ActivityService] getReportableActivities Error: ${error.message}`);
+    return { success: false, error: { message: error.message, code: ErrorCode.INTERNAL_ERROR } };
+  }
+};
+
 export const getFilteredActivities = async (filters: any): Promise<ServiceResponse<Activity[]>> => {
   try {
     const { user, limit, offset } = filters;
     if (!user) return { success: false, error: { message: 'User not authenticated.', code: ErrorCode.UNAUTHORIZED } };
 
     const result = await withRLS(user.id, async () => {
+      console.log('[getFilteredActivities] Filters received:', JSON.stringify({ ...filters, user: { id: user.id, role: user.role } }, null, 2));
       const where = buildActivityWhereClause(filters);
+      console.log('[getFilteredActivities] Generated WHERE:', JSON.stringify(where, null, 2));
+
+      // 🛡️ SAFETY NET: Strict Isolation for Reporting
+      // Ensure that under no circumstances can a user see activities they didn't create
+      if (filters.isReportingContext && user?.id) {
+        where.createdById = user.id;
+      }
 
       const activities = await prisma.activity.findMany({
         where,

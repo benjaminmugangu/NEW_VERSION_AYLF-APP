@@ -49,6 +49,36 @@ export async function createReport(reportData: ReportFormData, overrideUser?: an
                 await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${user.id.replace(/'/g, "''")}'`);
 
                 // B. CRITICAL: Prevent multiple reports per activity
+                // B1. Fetch Activity Source (Trusted Source)
+                let activitySource = null;
+                if (reportData.activityId) {
+                    activitySource = await tx.activity.findUnique({
+                        where: { id: reportData.activityId },
+                        select: { id: true, date: true, createdById: true, title: true, status: true }
+                    });
+
+                    if (!activitySource) throw new Error("NOT_FOUND: Activity source not found");
+
+                    // B2. GUARD: Creator Only (Strict Ownership)
+                    if (activitySource.createdById !== user.id) {
+                        throw new Error("FORBIDDEN: Security Violation. You can only submit reports for activities you created.");
+                    }
+
+                    // B3. GUARD: 5-Hour Delay Rule (Anti-Anticipation)
+                    const REPORT_DELAY_MS = 5 * 60 * 60 * 1000;
+                    const now = new Date();
+                    const activityTime = new Date(activitySource.date).getTime();
+
+                    if (now.getTime() - activityTime < REPORT_DELAY_MS) {
+                        const eligibleTime = new Date(activityTime + REPORT_DELAY_MS);
+                        throw new Error(`VALIDATION_ERROR: Integrity Rule. Reports can only be submitted 5 hours after activity start. Eligible at: ${eligibleTime.toLocaleTimeString()}`);
+                    }
+
+                    // B4. GUARD: Accounting Period Lock
+                    await checkPeriod(activitySource.date, 'Création de rapport');
+                }
+
+                // B. GUARD: Prevent multiple reports per activity
                 if (reportData.activityId) {
                     const existingReport = await tx.report.findFirst({
                         where: { activityId: reportData.activityId },
@@ -140,6 +170,15 @@ export async function createReport(reportData: ReportFormData, overrideUser?: an
 
             if (dbError.message?.includes('PERIOD_CLOSED')) {
                 return { success: false, error: { message: dbError.message, code: ErrorCode.PERIOD_CLOSED } };
+            }
+            if (dbError.message?.includes('FORBIDDEN')) {
+                return { success: false, error: { message: dbError.message, code: ErrorCode.FORBIDDEN } };
+            }
+            if (dbError.message?.includes('VALIDATION_ERROR')) {
+                return { success: false, error: { message: dbError.message, code: ErrorCode.VALIDATION_ERROR } };
+            }
+            if (dbError.message?.includes('NOT_FOUND')) {
+                return { success: false, error: { message: dbError.message, code: ErrorCode.NOT_FOUND } };
             }
 
             // ATOMIC ROLLBACK STRATEGY for Assets

@@ -48,7 +48,10 @@ export function applyEntityFilter(where: any, entity: { type: 'site' | 'smallGro
 }
 
 export function applyUserRoleFilter(where: any, user: User) {
-    if (user.role === 'SITE_COORDINATOR' && user.siteId) {
+    if (user.role === 'NATIONAL_COORDINATOR') {
+        // NC sees national-level transactions (siteId = null)
+        where.siteId = null;
+    } else if (user.role === 'SITE_COORDINATOR' && user.siteId) {
         where.siteId = user.siteId;
     } else if (user.role === 'SMALL_GROUP_LEADER' && user.smallGroupId) {
         where.smallGroupId = user.smallGroupId;

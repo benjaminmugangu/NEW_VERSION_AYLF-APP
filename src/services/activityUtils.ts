@@ -41,7 +41,7 @@ export const mapPrismaActivityToActivity = (item: any): Activity => {
 // ============================================
 
 export function buildActivityWhereClause(filters: any) {
-    const { user, searchTerm, dateFilter, statusFilter, levelFilter } = filters;
+    const { user, searchTerm, dateFilter, statusFilter, levelFilter, isReportingContext } = filters;
     const where: any = {};
 
     // 1. apply RBAC
@@ -50,19 +50,44 @@ export function buildActivityWhereClause(filters: any) {
         Object.assign(where, rbacClause);
     }
 
-    // 2. apply Search
+    // 2. CONTEXTUAL ISOLATION: For reporting, strictly filter by creator
+    if (isReportingContext && user?.id) {
+        where.createdById = user.id;
+
+        // 3. SERVER-SIDE TIMING: Activity must have started + 5h delay
+        const REPORT_DELAY_HOURS = 5;
+        const now = new Date();
+        const delayMs = REPORT_DELAY_HOURS * 60 * 60 * 1000;
+        const cutoffDate = new Date(now.getTime() - delayMs);
+
+        // Mix with existing date filter if any
+        if (where.date) {
+            where.date.lte = where.date.lte
+                ? new Date(Math.min(new Date(where.date.lte).getTime(), cutoffDate.getTime()))
+                : cutoffDate;
+        } else {
+            where.date = { lte: cutoffDate };
+        }
+    }
+
+    // 4. apply Search
     if (searchTerm) {
         where.title = { contains: searchTerm, mode: 'insensitive' };
     }
 
-    // 3. apply Date
+    // 5. apply Date (if not already handled or additional range provided)
     if (dateFilter?.from || dateFilter?.to) {
-        where.date = {};
+        if (!where.date) where.date = {};
         if (dateFilter.from) where.date.gte = dateFilter.from;
-        if (dateFilter.to) where.date.lte = dateFilter.to;
+        if (dateFilter.to) {
+            const requestedTo = new Date(dateFilter.to);
+            where.date.lte = where.date.lte
+                ? new Date(Math.min(new Date(where.date.lte).getTime(), requestedTo.getTime()))
+                : requestedTo;
+        }
     }
 
-    // 4. apply Filters
+    // 6. apply Filters
     applyListFilter(where, 'status', statusFilter);
     applyListFilter(where, 'level', levelFilter);
 

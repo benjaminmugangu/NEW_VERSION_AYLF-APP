@@ -109,23 +109,11 @@ export function ReportForm({ onSubmitSuccess, user }: ReportFormProps) {
       if (!user) return;
       try {
         const [activitiesResponse, typesResponse] = await Promise.all([
-          activityService.getFilteredActivities({
-            user,
-            statusFilter: { planned: true, in_progress: true, delayed: true },
-          }),
+          activityService.getReportableActivities(), // Dedicated strict method
           getAllActivityTypes()
         ]);
-        // Apply 5-hour eligibility rule: activity.date + 5h <= now
-        const REPORT_DELAY_HOURS = 5;
-        const now = new Date();
-        const eligibleActivities = (activitiesResponse.success && activitiesResponse.data ? activitiesResponse.data : []).filter(activity => {
-          const activityDate = new Date(activity.date);
-          const eligibleAfter = new Date(activityDate.getTime() + REPORT_DELAY_HOURS * 60 * 60 * 1000);
-          return eligibleAfter <= now;
-        });
-        // ISOLATION RULE: User can only submit reports for activities they created
-        const userOwnedActivities = eligibleActivities.filter(activity => activity.createdBy === user.id);
-        setPlannedActivities(userOwnedActivities);
+
+        setPlannedActivities(activitiesResponse.success && activitiesResponse.data ? activitiesResponse.data : []);
         setActivityTypes(typesResponse.success && typesResponse.data ? typesResponse.data : []);
       } catch (error) {
         console.error("Failed to fetch initial data:", error);

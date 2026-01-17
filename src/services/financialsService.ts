@@ -28,6 +28,10 @@ export async function getFinancials(user: User, dateFilter: DateFilterValue): Pr
     transactionFilters.limit = 55;
 
     switch (user.role) {
+      case ROLES.NATIONAL_COORDINATOR:
+        // NC sees national-level allocations (siteId = null)
+        allocationFilters.siteId = null as any;
+        break;
       case ROLES.SITE_COORDINATOR:
         allocationFilters.siteId = user.siteId ?? undefined;
         break;
@@ -36,20 +40,21 @@ export async function getFinancials(user: User, dateFilter: DateFilterValue): Pr
         break;
     }
 
+    // For NC, explicitly pass undefined to trigger national scope in budgetService
+    const isNC = user.role === ROLES.NATIONAL_COORDINATOR;
     const { startDate, endDate } = calculateDateRange(dateFilter);
     const aggregatePromise = import('./budgetService').then(mod => mod.calculateBudgetAggregates({
       role: user.role,
-      siteId: user.siteId || undefined,
-      smallGroupId: user.smallGroupId || undefined,
+      siteId: isNC ? undefined : (user.siteId || undefined),
+      smallGroupId: isNC ? undefined : (user.smallGroupId || undefined),
       dateFilter: { startDate, endDate }
     }));
 
-    const [statsResult, transactionsRes, allocationsRes, reportsRes] = await Promise.all([
-      aggregatePromise,
-      transactionService.getFilteredTransactions(transactionFilters),
-      allocationService.getAllocations(allocationFilters),
-      reportService.getFilteredReports(reportFilters),
-    ]);
+    // Execute sequentially to avoid exhausting DB connection pool with multiple simultaneous RLS transactions
+    const statsResult = await aggregatePromise;
+    const transactionsRes = await transactionService.getFilteredTransactions(transactionFilters);
+    const allocationsRes = await allocationService.getAllocations(allocationFilters);
+    const reportsRes = await reportService.getFilteredReports(reportFilters);
 
     // Handle service responses
     if (!transactionsRes.success) throw new Error(transactionsRes.error?.message || 'Failed to fetch transactions');
@@ -177,12 +182,11 @@ export async function getEntityFinancials(
       dateFilter: { startDate, endDate }
     }));
 
-    const [statsResult, transactionsRes, allocationsRes, reportsRes] = await Promise.all([
-      aggregatePromise,
-      transactionService.getFilteredTransactions(transactionFilters),
-      allocationService.getAllocations(allocationFilters),
-      reportService.getFilteredReports({ entity }),
-    ]);
+    // Execute sequentially to avoid exhausting DB connection pool
+    const statsResult = await aggregatePromise;
+    const transactionsRes = await transactionService.getFilteredTransactions(transactionFilters);
+    const allocationsRes = await allocationService.getAllocations(allocationFilters);
+    const reportsRes = await reportService.getFilteredReports({ entity });
 
     // Handle service responses
     if (!transactionsRes.success) throw new Error(transactionsRes.error?.message || 'Failed to fetch transactions');

@@ -26,10 +26,10 @@ export async function getAllocations(filters?: { siteId?: string; smallGroupId?:
     const result = await withRLS(kindeUser.id, async () => {
       const where: any = {};
 
-      if (filters?.siteId) {
+      if (filters?.siteId !== undefined) {
         where.siteId = filters.siteId;
       }
-      if (filters?.smallGroupId) {
+      if (filters?.smallGroupId !== undefined) {
         where.smallGroupId = filters.smallGroupId;
       }
 

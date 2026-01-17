@@ -149,6 +149,8 @@ model Activity {
   financialTransactions    FinancialTransaction[]
 
   @@map("activities")
+  @@index([createdById])
+  @@index([date])
 }
 
 model Report {
