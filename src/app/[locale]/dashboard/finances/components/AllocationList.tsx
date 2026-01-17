@@ -89,19 +89,15 @@ export const AllocationList: React.FC<AllocationListProps> = ({ allocations, tit
                     </Link>
                   </TableCell>
                   <TableCell>
-                    <Link href={`/dashboard/finances/allocations/${allocation.id}`} className="block w-full">
-                      <div className="flex flex-col">
-                        <span className="font-medium text-sm">
-                          {allocation.fromSiteId ? renderEntity('site', allocation.fromSiteId, sourceName) : sourceName}
-                        </span>
-                        <span className="text-xs text-muted-foreground">{senderName}</span>
-                      </div>
-                    </Link>
+                    <div className="flex flex-col">
+                      <span className="font-medium text-sm">
+                        {allocation.fromSiteId ? renderEntity('site', allocation.fromSiteId, sourceName) : sourceName}
+                      </span>
+                      <span className="text-xs text-muted-foreground">{senderName}</span>
+                    </div>
                   </TableCell>
                   <TableCell>
-                    <Link href={`/dashboard/finances/allocations/${allocation.id}`} className="block w-full">
-                      {recipientId ? renderEntity(recipientType, recipientId, recipientName) : recipientName}
-                    </Link>
+                    {recipientId ? renderEntity(recipientType, recipientId, recipientName) : recipientName}
                   </TableCell>
                   <TableCell className="text-right">
                     <Link href={`/dashboard/finances/allocations/${allocation.id}`} className="block w-full">

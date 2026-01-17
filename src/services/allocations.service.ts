@@ -49,7 +49,7 @@ export async function getAllocations(filters?: { siteId?: string; smallGroupId?:
 
       const models = allocations.map((allocation: any) => ({
         id: allocation.id,
-        amount: allocation.amount,
+        amount: Number(allocation.amount),
         allocationDate: allocation.allocationDate.toISOString(),
         goal: allocation.goal,
         source: allocation.source,

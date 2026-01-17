@@ -42,7 +42,8 @@
         "date": "Date",
         "success": "Succès",
         "try_again": "Réessayer",
-        "unknown": "Inconnu"
+        "unknown": "Inconnu",
+        "amount": "Montant"
     },
     "Dashboard": {
         "welcome": "Bienvenue, {name} !",
@@ -370,6 +371,7 @@
         "dashboard_title": "Tableau de bord financier",
         "dashboard_desc": "Gérez et suivez vos activités financières.",
         "current_balance": "Solde Actuel",
+        "allocation": "Allocation",
         "funds_received": "Fonds Reçus",
         "reported_expenses": "Dépenses Déclarées",
         "reallocated_funds": "Fonds Réalloués",

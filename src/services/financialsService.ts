@@ -29,8 +29,9 @@ export async function getFinancials(user: User, dateFilter: DateFilterValue): Pr
 
     switch (user.role) {
       case ROLES.NATIONAL_COORDINATOR:
-        // NC sees national-level allocations (siteId = null)
-        allocationFilters.siteId = null as any;
+        // NC sees all national-level allocations (managed by RLS or internal logic)
+        // We shouldn't restrict to siteId: null because that hides allocations SENT by NC (where fromSiteId=null, but siteId=target)
+        // allocationFilters.siteId = null as any; 
         break;
       case ROLES.SITE_COORDINATOR:
         allocationFilters.siteId = user.siteId ?? undefined;
@@ -70,6 +71,7 @@ export async function getFinancials(user: User, dateFilter: DateFilterValue): Pr
     const unifiedActivity = [
       ...transactions.map(t => ({
         ...t,
+        amount: Number(t.amount),
         activityType: 'transaction' as const,
         userName: t.recordedByName,
         userAvatarUrl: t.recordedByAvatarUrl
@@ -78,7 +80,7 @@ export async function getFinancials(user: User, dateFilter: DateFilterValue): Pr
         id: a.id,
         date: a.allocationDate,
         description: a.goal,
-        amount: a.amount,
+        amount: Number(a.amount),
         type: 'income' as const,
         category: 'Allocation',
         status: (a.status === 'completed' ? 'approved' : 'pending') as any,

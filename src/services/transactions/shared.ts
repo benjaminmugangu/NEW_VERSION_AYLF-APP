@@ -16,7 +16,7 @@ export const mapPrismaTransactionToModel = (tx: any): FinancialTransaction => {
         id: tx.id,
         date: tx.date ? tx.date.toISOString() : '',
         description: tx.description,
-        amount: tx.amount,
+        amount: Number(tx.amount),
         type: tx.type,
         category: tx.category,
         siteId: tx.siteId || undefined,
