@@ -25,6 +25,7 @@ import {
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import Link from 'next/link';
+import { useLocale } from 'next-intl';
 
 interface NotificationDetailsModalProps {
     notification: any | null;
@@ -33,7 +34,16 @@ interface NotificationDetailsModalProps {
 }
 
 export function NotificationDetailsModal({ notification, isOpen, onClose }: NotificationDetailsModalProps) {
+    const locale = useLocale();
     if (!notification) return null;
+
+    const getLocalizedLink = (link: string) => {
+        if (!link) return '';
+        // If it already starts with the locale, don't double prepend
+        if (link.startsWith(`/${locale}/`)) return link;
+        // Prepend locale
+        return `/${locale}${link.startsWith('/') ? '' : '/'}${link}`;
+    };
 
     const renderMetadata = () => {
         if (!notification.metadata) return null;
@@ -168,7 +178,7 @@ export function NotificationDetailsModal({ notification, isOpen, onClose }: Noti
                 <DialogFooter className="flex-col sm:flex-row gap-2">
                     {notification.link && (
                         <Button asChild className="w-full sm:flex-1" onClick={onClose}>
-                            <Link href={notification.link}>
+                            <Link href={getLocalizedLink(notification.link)}>
                                 <ExternalLink className="h-4 w-4 mr-2" />
                                 Ouvrir le lien
                             </Link>
