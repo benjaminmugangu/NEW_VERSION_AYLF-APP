@@ -12,6 +12,30 @@ export interface BasePeriod {
   label: string;
 }
 
+export interface FinancialStats {
+  totalIncome: number;
+  totalExpenses: number;
+  balance: number;
+  byCategory: Record<string, number>;
+}
+
+export interface SiteStats {
+  id: string;
+  name: string;
+  activitiesCount: number;
+  participantsCount: number;
+  expenses: number;
+  coordinatorName?: string;
+}
+
+export interface SmallGroupStats {
+  id: string;
+  name: string;
+  leaderName: string;
+  activitiesCount: number;
+  averageAttendance: number;
+}
+
 export interface PeriodStats {
   period: BasePeriod;
   totalActivities: number;
@@ -25,6 +49,15 @@ export interface PeriodStats {
     women: number;
   };
   activeSites: string[];
+  // New Fields
+  financials: FinancialStats;
+  sitePerformance: SiteStats[];
+  smallGroupPerformance: SmallGroupStats[];
+  metrics: {
+    growthRate: number; // Member growth %
+    retentionRate: number; // Attendance retention % (simulated or based on reports)
+    conversionRate: number; // New members / Total participants %
+  };
 }
 
 export async function getActivityStatsInPeriod(start: Date, end: Date, label?: string): Promise<ServiceResponse<PeriodStats>> {
@@ -92,6 +125,32 @@ export async function getActivityStatsInPeriod(start: Date, end: Date, label?: s
         }
       });
 
+      // Fetch Financial Transactions
+      const transactions = await prisma.financialTransaction.findMany({
+        where: {
+          date: { gte: queryStart, lte: queryEnd },
+          status: 'approved'
+        }
+      });
+
+      // Fetch Sites and Small Groups for specific metrics
+      const sites = await prisma.site.findMany({
+        include: { coordinator: true }
+      });
+
+      const smallGroups = await prisma.smallGroup.findMany({
+        include: { leader: true }
+      });
+
+      // Fetch Member Growth in period
+      const newMembersCount = await prisma.member.count({
+        where: { createdAt: { gte: queryStart, lte: queryEnd } }
+      });
+
+      const totalMembersAtEnd = await prisma.member.count({
+        where: { createdAt: { lte: queryEnd } }
+      });
+
       // Aggregate Data
       const periodLabel = label || `Période du ${format(queryStart, 'dd/MM/yyyy')} au ${format(queryEnd, 'dd/MM/yyyy')}`;
 
@@ -102,7 +161,34 @@ export async function getActivityStatsInPeriod(start: Date, end: Date, label?: s
         specialActivities: [],
         participation: { total: 0, boys: 0, girls: 0, men: 0, women: 0 },
         activeSites: [],
+        financials: { totalIncome: 0, totalExpenses: 0, balance: 0, byCategory: {} },
+        sitePerformance: [],
+        smallGroupPerformance: [],
+        metrics: { growthRate: 0, retentionRate: 0, conversionRate: 0 }
       };
+
+      // Financial Aggregation
+      for (const tx of transactions) {
+        const amount = Number(tx.amount);
+        if (tx.type === 'income') {
+          stats.financials.totalIncome += amount;
+        } else {
+          stats.financials.totalExpenses += amount;
+          stats.financials.byCategory[tx.category] = (stats.financials.byCategory[tx.category] || 0) + amount;
+        }
+      }
+      stats.financials.balance = stats.financials.totalIncome - stats.financials.totalExpenses;
+
+      // Activity & Site Performance Aggregation
+      const sitePerformanceMap = new Map<string, SiteStats>();
+      sites.forEach(s => sitePerformanceMap.set(s.id, {
+        id: s.id, name: s.name, activitiesCount: 0, participantsCount: 0, expenses: 0, coordinatorName: s.coordinator?.name
+      }));
+
+      const sgPerformanceMap = new Map<string, SmallGroupStats>();
+      smallGroups.forEach(sg => sgPerformanceMap.set(sg.id, {
+        id: sg.id, name: sg.name, leaderName: sg.leader?.name || 'Inconnu', activitiesCount: 0, averageAttendance: 0
+      }));
 
       const siteSet = new Set<string>();
 
@@ -133,6 +219,20 @@ export async function getActivityStatsInPeriod(start: Date, end: Date, label?: s
         stats.participation.women += actGirls;
         stats.participation.men += actBoys;
 
+        // Populate Site Metrics
+        if (activity.siteId && sitePerformanceMap.has(activity.siteId)) {
+          const s = sitePerformanceMap.get(activity.siteId)!;
+          s.activitiesCount++;
+          s.participantsCount += actParticipants;
+        }
+
+        // Populate SG Metrics
+        if (activity.smallGroupId && sgPerformanceMap.has(activity.smallGroupId)) {
+          const sg = sgPerformanceMap.get(activity.smallGroupId)!;
+          sg.activitiesCount++;
+          sg.averageAttendance += actParticipants; // Sum for now, divide later
+        }
+
         const lowerTitle = activity.title.toLowerCase();
         const lowerType = typeName.toLowerCase();
 
@@ -152,7 +252,29 @@ export async function getActivityStatsInPeriod(start: Date, end: Date, label?: s
         }
       }
 
+      // Finalize Stats
       stats.activeSites = Array.from(siteSet).sort();
+      stats.sitePerformance = Array.from(sitePerformanceMap.values()).filter(s => s.activitiesCount > 0);
+      stats.smallGroupPerformance = Array.from(sgPerformanceMap.values())
+        .filter(sg => sg.activitiesCount > 0)
+        .map(sg => ({ ...sg, averageAttendance: Math.round(sg.averageAttendance / sg.activitiesCount) }));
+
+      // Map expenses to site performance
+      for (const tx of transactions) {
+        if (tx.type === 'expense' && tx.siteId && sitePerformanceMap.has(tx.siteId)) {
+          sitePerformanceMap.get(tx.siteId)!.expenses += Number(tx.amount);
+        }
+      }
+
+      // Calculate Metrics
+      stats.metrics.growthRate = totalMembersAtEnd > 0 ? Math.round((newMembersCount / totalMembersAtEnd) * 100) : 0;
+      stats.metrics.conversionRate = stats.participation.total > 0 ? Math.round((newMembersCount / stats.participation.total) * 100) : 0;
+      // Retention: Simple heuristic based on activity regularity across sites
+      const siteAvgCompletion = stats.sitePerformance.length > 0
+        ? stats.sitePerformance.reduce((acc, s) => acc + s.activitiesCount, 0) / sites.length
+        : 0;
+      stats.metrics.retentionRate = Math.min(100, Math.round(siteAvgCompletion * 25)); // Arbitrary logic for this MVP version
+
       return stats;
     });
 

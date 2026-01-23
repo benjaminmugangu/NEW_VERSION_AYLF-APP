@@ -126,105 +126,181 @@ export default function MonthlyReportPage() {
             </Card>
 
             {/* Editor & Preview */}
-            {narrative && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Editor Side */}
-                    <Card className="lg:col-span-1">
-                        <CardHeader>
-                            <CardTitle>Édition du contenu</CardTitle>
-                            <CardDescription>Modifiez le texte généré pour personnaliser le rapport.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <Label>1. Introduction</Label>
-                                    <AIAssistantButton
-                                        textToImprove={narrative.intro}
-                                        onApply={(val) => updateNarrative('intro', val)}
-                                    />
-                                </div>
-                                <Textarea
-                                    value={narrative.intro}
-                                    onChange={(e) => updateNarrative('intro', e.target.value)}
-                                    className="min-h-[150px]"
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label>2. Bilan Général (une phrase par ligne)</Label>
-                                <Textarea
-                                    value={getSummaryText()}
-                                    onChange={(e) => updateNarrative('generalSummary', e.target.value)}
-                                    className="min-h-[150px]"
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label>3. Participation</Label>
-                                <Textarea
-                                    value={narrative.participation}
-                                    onChange={(e) => updateNarrative('participation', e.target.value)}
-                                    className="min-h-[100px]"
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label>4. Sites Actifs (liste textuelle)</Label>
-                                <Textarea
-                                    value={narrative.activeSites}
-                                    onChange={(e) => updateNarrative('activeSites', e.target.value)}
-                                    className="min-h-[100px]"
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <Label>5. Conclusion</Label>
-                                    <AIAssistantButton
-                                        textToImprove={narrative.conclusion}
-                                        onApply={(val) => updateNarrative('conclusion', val)}
-                                    />
-                                </div>
-                                <Textarea
-                                    value={narrative.conclusion}
-                                    onChange={(e) => updateNarrative('conclusion', e.target.value)}
-                                    className="min-h-[100px]"
-                                />
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Action Side */}
-                    <div className="space-y-6">
-                        <Card className="bg-slate-50 border-blue-100">
-                            <CardHeader>
-                                <CardTitle className="text-blue-900">Rapport Prêt</CardTitle>
-                                <CardDescription>
-                                    Une fois satisfait du contenu ci-contre, téléchargez la version officielle.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="p-4 bg-white rounded border border-slate-200 mb-6 shadow-sm">
-                                    <h3 className="font-serif font-bold text-center underline mb-4">Aperçu Rapide</h3>
-                                    <p className="text-xs text-muted-foreground text-center mb-4 italic">(Le PDF aura une mise en page officielle)</p>
-                                    <div className="text-xs space-y-2 max-h-[400px] overflow-y-auto font-serif">
-                                        <p className="whitespace-pre-wrap">{narrative.intro}</p>
-                                        <hr className="my-2" />
-                                        <ul className="list-disc pl-4">
-                                            {narrative.generalSummary.map((l, i) => <li key={i}>{l}</li>)}
-                                        </ul>
-                                    </div>
-                                </div>
-
-                                <MonthlyReportDownloader
-                                    narrative={narrative}
-                                    stats={stats}
-                                    period={stats?.period?.label || dateFilter.display || 'Période Personnalisée'}
-                                    fileName={`Rapport_${(stats?.period?.label || 'export').replace(/[^a-z0-9]/gi, '_')}.pdf`}
-                                    label="Télécharger le Rapport Officiel (PDF)"
-                                />
+            {narrative && stats && (
+                <div className="space-y-6">
+                    {/* 1. KPIs Overview */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <Card className="bg-green-50/50">
+                            <CardContent className="pt-6">
+                                <div className="text-2xl font-bold text-green-700">{stats.metrics.growthRate}%</div>
+                                <p className="text-xs text-muted-foreground uppercase tracking-wider">Croissance Membres</p>
                             </CardContent>
                         </Card>
+                        <Card className="bg-blue-50/50">
+                            <CardContent className="pt-6">
+                                <div className="text-2xl font-bold text-blue-700">{stats.metrics.retentionRate}%</div>
+                                <p className="text-xs text-muted-foreground uppercase tracking-wider">Taux de Rétention</p>
+                            </CardContent>
+                        </Card>
+                        <Card className="bg-purple-50/50">
+                            <CardContent className="pt-6">
+                                <div className="text-2xl font-bold text-purple-700">{stats.metrics.conversionRate}%</div>
+                                <p className="text-xs text-muted-foreground uppercase tracking-wider">Taux de Conversion</p>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* 2. Detailed Data Sections */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="lg:col-span-2 space-y-6">
+                            {/* Narratives Section */}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Synthèse Narrative</CardTitle>
+                                    <CardDescription>Éditez le texte généré par l'IA pour le rapport final.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label>Introduction</Label>
+                                        <Textarea
+                                            value={narrative.intro}
+                                            onChange={(e) => updateNarrative('intro', e.target.value)}
+                                            className="min-h-[120px]"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Bilan Général (une phrase par ligne)</Label>
+                                        <Textarea
+                                            value={getSummaryText()}
+                                            onChange={(e) => updateNarrative('generalSummary', e.target.value)}
+                                            className="min-h-[120px]"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Conclusion</Label>
+                                        <Textarea
+                                            value={narrative.conclusion}
+                                            onChange={(e) => updateNarrative('conclusion', e.target.value)}
+                                            className="min-h-[100px]"
+                                        />
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            {/* Detailed Tables Section */}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Données Détaillées par Site</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="relative overflow-x-auto border rounded-lg">
+                                        <table className="w-full text-sm text-left">
+                                            <thead className="bg-slate-50 text-slate-700 text-xs uppercase">
+                                                <tr>
+                                                    <th className="px-4 py-3">Site</th>
+                                                    <th className="px-4 py-3">Act.</th>
+                                                    <th className="px-4 py-3">Part.</th>
+                                                    <th className="px-4 py-3">Dépenses</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y">
+                                                {stats.sitePerformance.map((site: any) => (
+                                                    <tr key={site.id} className="hover:bg-slate-50/50">
+                                                        <td className="px-4 py-3 font-medium">{site.name}</td>
+                                                        <td className="px-4 py-3">{site.activitiesCount}</td>
+                                                        <td className="px-4 py-3">{site.participantsCount}</td>
+                                                        <td className="px-4 py-3 font-mono text-xs">{site.expenses.toLocaleString()}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Performance des Petits Groupes</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="relative overflow-x-auto border rounded-lg">
+                                        <table className="w-full text-sm text-left">
+                                            <thead className="bg-slate-50 text-slate-700 text-xs uppercase">
+                                                <tr>
+                                                    <th className="px-4 py-3">Petit Groupe</th>
+                                                    <th className="px-4 py-3">Act.</th>
+                                                    <th className="px-4 py-3">Moy. Présence</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y">
+                                                {stats.smallGroupPerformance.map((sg: any) => (
+                                                    <tr key={sg.id} className="hover:bg-slate-50/50">
+                                                        <td className="px-4 py-3 font-medium">{sg.name}</td>
+                                                        <td className="px-4 py-3">{sg.activitiesCount}</td>
+                                                        <td className="px-4 py-3">{sg.averageAttendance}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* Sidebar: Financials and Export */}
+                        <div className="space-y-6">
+                            <Card className="border-blue-100 bg-blue-50/30">
+                                <CardHeader>
+                                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                                        Bilan Financier
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="flex justify-between items-center bg-white p-2 rounded border">
+                                        <span className="text-xs text-muted-foreground">Revenus</span>
+                                        <span className="text-sm font-bold text-green-600">{stats.financials.totalIncome.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center bg-white p-2 rounded border">
+                                        <span className="text-xs text-muted-foreground">Dépenses</span>
+                                        <span className="text-sm font-bold text-red-600">{stats.financials.totalExpenses.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center bg-white p-3 rounded border border-blue-200 bg-blue-50/50">
+                                        <span className="text-sm font-bold">Solde</span>
+                                        <span className="text-lg font-black text-blue-700">{stats.financials.balance.toLocaleString()}</span>
+                                    </div>
+
+                                    <div className="pt-4 border-t space-y-2">
+                                        <p className="text-[10px] font-bold uppercase text-muted-foreground">Catégories de dépenses</p>
+                                        {Object.entries(stats.financials.byCategory as Record<string, number>).map(([cat, val]) => (
+                                            <div key={cat} className="flex justify-between text-xs">
+                                                <span>{cat}</span>
+                                                <span className="font-medium">{val.toLocaleString()}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card className="bg-slate-900 text-white border-none shadow-xl">
+                                <CardHeader>
+                                    <CardTitle className="text-white text-lg flex items-center gap-2">
+                                        <FileText className="h-5 w-5" /> Export Final
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <p className="text-slate-400 text-xs">
+                                        Vérifiez bien toutes les données ci-contre avant de générer le rapport PDF officiel.
+                                    </p>
+                                    <MonthlyReportDownloader
+                                        narrative={narrative}
+                                        stats={stats}
+                                        period={stats?.period?.label || dateFilter.display || 'Période'}
+                                        fileName={`Report_Detailed_${(stats?.period?.label || 'export').replace(/[^a-z0-9]/gi, '_')}.pdf`}
+                                        label="Télécharger le Rapport Complet"
+                                    />
+                                </CardContent>
+                            </Card>
+                        </div>
                     </div>
                 </div>
             )}

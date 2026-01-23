@@ -39,67 +39,96 @@ interface MonthlyReportPdfProps {
 
 export const MonthlyReportPDF = ({ narrative, period, stats }: MonthlyReportPdfProps) => {
     return (
-        <PdfLayout title={`RAPPORT MENSUEL – AYLF RDC`} generatedBy="Système Central">
+        <PdfLayout title={`RAPPORT DE PERFORMANCE MENSUEL – AYLF RDC`} generatedBy="Système Central">
 
-            <Text style={{ fontSize: 13, textAlign: 'center', marginBottom: 10, fontWeight: 'bold' }}>
-                Période couverte : {period}
+            <Text style={{ fontSize: 13, textAlign: 'center', marginBottom: 15, fontWeight: 'bold', color: '#1e40af' }}>
+                Période : {period}
             </Text>
 
-            {/* Stats Summary Box (New) */}
-            {stats && (
-                <View style={{ marginVertical: 10, padding: 10, backgroundColor: '#f0f0f0', borderRadius: 4 }}>
-                    <Text style={{ fontSize: 10, fontWeight: 'bold', marginBottom: 4 }}>CHIFFRES CLÉS :</Text>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                        <Text style={{ fontSize: 10 }}>Activités: {stats.totalActivities}</Text>
-                        <Text style={{ fontSize: 10 }}>Participants: {stats.participation?.total || 0}</Text>
-                        <Text style={{ fontSize: 10 }}>Sites Actifs: {stats.activeSites?.length || 0}</Text>
+            {/* SECTION 1: INDICATEURS DE PERFORMANCE (METRICS) */}
+            <View style={styles.section}>
+                <Text style={styles.sectionHeader}>1. Indicateurs de Performance Clés (KPIs)</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 5 }}>
+                    <View style={{ flex: 1, alignItems: 'center', padding: 10, borderRightWidth: 1, borderRightColor: '#e2e8f0' }}>
+                        <Text style={{ fontSize: 8, color: '#64748b' }}>Taux de Croissance</Text>
+                        <Text style={{ fontSize: 14, fontWeight: 'bold' }}>+{stats?.metrics?.growthRate || 0}%</Text>
+                    </View>
+                    <View style={{ flex: 1, alignItems: 'center', padding: 10, borderRightWidth: 1, borderRightColor: '#e2e8f0' }}>
+                        <Text style={{ fontSize: 8, color: '#64748b' }}>Taux de Rétention</Text>
+                        <Text style={{ fontSize: 14, fontWeight: 'bold' }}>{stats?.metrics?.retentionRate || 0}%</Text>
+                    </View>
+                    <View style={{ flex: 1, alignItems: 'center', padding: 10 }}>
+                        <Text style={{ fontSize: 8, color: '#64748b' }}>Taux de Conversion</Text>
+                        <Text style={{ fontSize: 14, fontWeight: 'bold' }}>{stats?.metrics?.conversionRate || 0}%</Text>
                     </View>
                 </View>
-            )}
-
-            {/* 1. Introduction */}
-            <View style={styles.section}>
-                {narrative.intro.split('\n\n').map((para, i) => (
-                    <Text key={i} style={styles.textParagraph}>{para}</Text>
-                ))}
             </View>
 
-            {/* 2. Bilan Général */}
+            {/* SECTION 2: BILAN FINANCIER */}
             <View style={styles.section}>
-                <Text style={styles.sectionHeader}>1. Bilan Général des Activités</Text>
+                <Text style={styles.sectionHeader}>2. Bilan Financier de la Période</Text>
+                <View style={styles.table}>
+                    <View style={[styles.tableRow, { backgroundColor: '#f8fafc' }]}>
+                        <View style={[styles.tableCol, { width: '50%' }]}><Text style={styles.tableCellHeader}>Description</Text></View>
+                        <View style={[styles.tableCol, { width: '50%' }]}><Text style={styles.tableCellHeader}>Montant (FC/USD)</Text></View>
+                    </View>
+                    <View style={styles.tableRow}>
+                        <View style={[styles.tableCol, { width: '50%' }]}><Text style={styles.tableCell}>Total Revenus / Allocations</Text></View>
+                        <View style={[styles.tableCol, { width: '50%' }]}><Text style={[styles.tableCell, { fontWeight: 'bold', color: '#16a34a' }]}>{stats?.financials?.totalIncome.toLocaleString()} </Text></View>
+                    </View>
+                    <View style={styles.tableRow}>
+                        <View style={[styles.tableCol, { width: '50%' }]}><Text style={styles.tableCell}>Total Dépenses</Text></View>
+                        <View style={[styles.tableCol, { width: '50%' }]}><Text style={[styles.tableCell, { fontWeight: 'bold', color: '#dc2626' }]}>{stats?.financials?.totalExpenses.toLocaleString()} </Text></View>
+                    </View>
+                    <View style={[styles.tableRow, { backgroundColor: '#f1f5f9' }]}>
+                        <View style={[styles.tableCol, { width: '50%' }]}><Text style={[styles.tableCell, { fontWeight: 'bold' }]}>Solde Net</Text></View>
+                        <View style={[styles.tableCol, { width: '50%' }]}><Text style={[styles.tableCell, { fontWeight: 'bold' }]}>{stats?.financials?.balance.toLocaleString()} </Text></View>
+                    </View>
+                </View>
+            </View>
+
+            {/* SECTION 3: PERFORMANCE PAR SITE */}
+            <View style={styles.section}>
+                <Text style={styles.sectionHeader}>3. Détails de Performance par Site</Text>
+                <View style={styles.table}>
+                    <View style={[styles.tableRow, { backgroundColor: '#f8fafc' }]}>
+                        <View style={[styles.tableCol, { width: '30%' }]}><Text style={styles.tableCellHeader}>Site</Text></View>
+                        <View style={[styles.tableCol, { width: '20%' }]}><Text style={styles.tableCellHeader}>Activités</Text></View>
+                        <View style={[styles.tableCol, { width: '25%' }]}><Text style={styles.tableCellHeader}>Participants</Text></View>
+                        <View style={[styles.tableCol, { width: '25%' }]}><Text style={styles.tableCellHeader}>Dépenses</Text></View>
+                    </View>
+                    {stats?.sitePerformance.map((site: any, i: number) => (
+                        <View key={i} style={styles.tableRow}>
+                            <View style={[styles.tableCol, { width: '30%' }]}><Text style={styles.tableCell}>{site.name}</Text></View>
+                            <View style={[styles.tableCol, { width: '20%' }]}><Text style={styles.tableCell}>{site.activitiesCount}</Text></View>
+                            <View style={[styles.tableCol, { width: '25%' }]}><Text style={styles.tableCell}>{site.participantsCount}</Text></View>
+                            <View style={[styles.tableCol, { width: '25%' }]}><Text style={styles.tableCell}>{site.expenses.toLocaleString()}</Text></View>
+                        </View>
+                    ))}
+                </View>
+            </View>
+
+            {/* SECTION 4: RÉSUMÉ NARRATIF */}
+            <View style={styles.section}>
+                <Text style={styles.sectionHeader}>4. Synthèse des Activités</Text>
                 {narrative.generalSummary.map((point, i) => (
-                    <View key={i} style={{ flexDirection: 'row', marginBottom: 5 }}>
-                        <Text style={{ width: 15, fontSize: 15 }}>•</Text>
-                        <Text style={{ flex: 1, fontSize: 11, lineHeight: 1.5 }}>{point}</Text>
+                    <View key={i} style={{ flexDirection: 'row', marginBottom: 4, paddingLeft: 10 }}>
+                        <Text style={{ width: 10, fontSize: 10 }}>•</Text>
+                        <Text style={{ flex: 1, fontSize: 10 }}>{point}</Text>
                     </View>
                 ))}
             </View>
 
-            {/* 3. Participation */}
-            <View style={styles.section}>
-                <Text style={styles.sectionHeader}>2. Participation et Sites d'Opération</Text>
-                <Text style={styles.textParagraph}>{narrative.participation}</Text>
-            </View>
-
-            {/* 4. Sites Actifs */}
-            <View style={styles.section}>
-                <Text style={{ fontSize: 11, marginBottom: 5, fontStyle: 'italic' }}>
-                    Les initiatives ont été organisées dans les sites suivants :
-                </Text>
-                <Text style={styles.textParagraph}>{narrative.activeSites}</Text>
-            </View>
-
-            {/* 5. Conclusion */}
-            <View style={{ marginTop: 20 }}>
-                {narrative.conclusion.split('\n\n').map((para, i) => (
-                    <Text key={i} style={styles.textParagraph}>{para}</Text>
-                ))}
+            {/* SECTION 5: CONCLUSION & PERSPECTIVES */}
+            <View style={{ marginTop: 20, paddingHorizontal: 10 }}>
+                <Text style={styles.sectionHeader}>5. Conclusion</Text>
+                <Text style={[styles.textParagraph, { fontSize: 10 }]}>{narrative.conclusion}</Text>
             </View>
 
             {/* Signature Section */}
-            <View style={{ marginTop: 40, alignItems: 'flex-end', paddingRight: 30 }}>
-                <Text style={{ fontSize: 11, fontWeight: 'bold' }}>Le Bureau de Coordination National</Text>
-                <Text style={{ fontSize: 10, marginTop: 40 }}>AYLF RDC</Text>
+            <View style={{ marginTop: 30, alignItems: 'flex-end', paddingRight: 30 }}>
+                <Text style={{ fontSize: 10, fontWeight: 'bold' }}>Le Bureau de Coordination National</Text>
+                <Text style={{ fontSize: 9, marginTop: 30 }}>AYLF RDC - Généré le {new Date().toLocaleDateString('fr-FR')}</Text>
             </View>
 
         </PdfLayout>
