@@ -17,11 +17,17 @@ export async function createReport(reportData: ReportFormData, overrideUser?: an
         return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
     }
 
-    // Idempotency Check (Pre-Transaction) done via basePrisma access inside dynamic import?
-    // Original code used basePrisma at line 180.
     const { basePrisma } = await import('@/lib/prisma');
 
-    // 1. Idempotency Check (Pre-Transaction)
+    // 1. Fetch full profile for RBAC
+    const { getProfile } = await import('../profileService');
+    const profileResponse = await getProfile(user.id);
+    if (!profileResponse.success || !profileResponse.data) {
+        return { success: false, error: { message: 'Profile not found', code: ErrorCode.NOT_FOUND } };
+    }
+    const dbProfile = profileResponse.data;
+
+    // 2. Idempotency Check (Pre-Transaction)
     if (reportData.idempotencyKey) {
         const existing = await basePrisma.idempotencyKey.findUnique({
             where: { key: reportData.idempotencyKey }
@@ -32,7 +38,7 @@ export async function createReport(reportData: ReportFormData, overrideUser?: an
     }
 
     return await withRLS(user.id, async () => {
-        // 2. Mutual Exclusivity & Level Validation
+        // 3. Mutual Exclusivity & Level Validation
         if (reportData.level === 'national') {
             reportData.siteId = undefined;
             reportData.smallGroupId = undefined;
@@ -54,14 +60,29 @@ export async function createReport(reportData: ReportFormData, overrideUser?: an
                 if (reportData.activityId) {
                     activitySource = await tx.activity.findUnique({
                         where: { id: reportData.activityId },
-                        select: { id: true, date: true, createdById: true, title: true, status: true }
+                        select: { id: true, date: true, createdById: true, title: true, status: true, level: true, siteId: true, smallGroupId: true }
                     });
 
                     if (!activitySource) throw new Error("NOT_FOUND: Activity source not found");
 
-                    // B2. GUARD: Creator Only (Strict Ownership)
-                    if (activitySource.createdById !== user.id) {
-                        throw new Error("FORBIDDEN: Security Violation. You can only submit reports for activities you created.");
+                    // B2. GUARD: Role-Based Scope Validation (NC: all, SC: site activities, SGL: group activities)
+                    const { role, siteId, smallGroupId } = dbProfile;
+
+                    if (role === ROLES.SITE_COORDINATOR) {
+                        if (activitySource.level !== 'site' || activitySource.siteId !== siteId) {
+                            throw new Error("FORBIDDEN: Site Coordinators can only report site-level activities in their site.");
+                        }
+                    } else if (role === ROLES.SMALL_GROUP_LEADER) {
+                        if (activitySource.level !== 'small_group' || activitySource.smallGroupId !== smallGroupId) {
+                            throw new Error("FORBIDDEN: Small Group Leaders can only report activities for their specific group.");
+                        }
+                    } else if (role === ROLES.NATIONAL_COORDINATOR) {
+                        // NC can report anything (national priority)
+                    } else {
+                        // Fallback: Creator Only
+                        if (activitySource.createdById !== user.id) {
+                            throw new Error("FORBIDDEN: Security Violation. Unauthorized to report this activity.");
+                        }
                     }
 
                     // B3. GUARD: 5-Hour Delay Rule (Anti-Anticipation)
@@ -71,7 +92,8 @@ export async function createReport(reportData: ReportFormData, overrideUser?: an
 
                     if (now.getTime() - activityTime < REPORT_DELAY_MS) {
                         const eligibleTime = new Date(activityTime + REPORT_DELAY_MS);
-                        throw new Error(`VALIDATION_ERROR: Integrity Rule. Reports can only be submitted 5 hours after activity start. Eligible at: ${eligibleTime.toLocaleTimeString()}`);
+                        const { format } = await import('date-fns');
+                        throw new Error(`VALIDATION_ERROR: Integrity Rule. Reports can only be submitted 5 hours after activity start. Eligible at: ${format(eligibleTime, 'HH:mm')}`);
                     }
 
                     // B4. GUARD: Accounting Period Lock
@@ -118,176 +140,185 @@ export async function createReport(reportData: ReportFormData, overrideUser?: an
                         activityTypeId: reportData.activityTypeId,
                         activityId: reportData.activityId,
                     },
-                    include: {
-                        submittedBy: true,
-                        site: true,
-                        smallGroup: true,
-                        activityType: true,
-                        // smallGroup: { select: { level: true } } // Why did I assume simple include? Original was `smallGroup: true`.
-                    }
                 });
 
-                const model = await mapPrismaReportToModel(report);
+                // D. Link back to Activity (Update Status) - Atomic
+                if (reportData.activityId) {
+                    await tx.activity.update({
+                        where: { id: reportData.activityId },
+                        data: { status: 'executed' }
+                    });
+                }
 
-                // D. Update/Create Idempotency Key
+                const finalReport = await mapPrismaReportToModel(report);
+
+                // E. Record Idempotency
                 if (reportData.idempotencyKey) {
-                    await tx.idempotencyKey.upsert({
-                        where: { key: reportData.idempotencyKey },
-                        create: {
+                    await tx.idempotencyKey.create({
+                        data: {
                             key: reportData.idempotencyKey,
-                            response: model as any
-                        },
-                        update: {
-                            response: model as any
+                            response: { success: true, data: finalReport } as any,
+                            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
                         }
                     });
                 }
 
-                // E. Notify Reviewers (Best Effort within transaction but safe)
-                const nationalCoordinators = await tx.profile.findMany({
-                    where: { role: ROLES.NATIONAL_COORDINATOR }
-                });
+                return finalReport;
+            });
 
-                for (const nc of nationalCoordinators) {
-                    await notifyNewReport(
-                        nc.id,
-                        report.title,
-                        report.id,
-                        report.submittedBy.name,
-                        tx
-                    ).catch(err => console.error(`Failed to notify NC ${nc.id}:`, err));
+            // F. Notifications
+            if (result) {
+                try {
+                    await notifyNewReport(result, user.id);
+                } catch (notifyError) {
+                    console.error('[Mutation] Notification failed:', notifyError);
                 }
-
-                return model;
-            }, { timeout: 20000 });
+            }
 
             return { success: true, data: result };
-
-        } catch (dbError: any) {
-            if (dbError.message?.includes('ACTIVITY_ALREADY_REPORTED')) {
-                return { success: false, error: { message: 'ACTIVITY_ALREADY_REPORTED', code: ErrorCode.CONFLICT } };
-            }
-
-            if (dbError.message?.includes('PERIOD_CLOSED')) {
-                return { success: false, error: { message: dbError.message, code: ErrorCode.PERIOD_CLOSED } };
-            }
-            if (dbError.message?.includes('FORBIDDEN')) {
-                return { success: false, error: { message: dbError.message, code: ErrorCode.FORBIDDEN } };
-            }
-            if (dbError.message?.includes('VALIDATION_ERROR')) {
-                return { success: false, error: { message: dbError.message, code: ErrorCode.VALIDATION_ERROR } };
-            }
-            if (dbError.message?.includes('NOT_FOUND')) {
-                return { success: false, error: { message: dbError.message, code: ErrorCode.NOT_FOUND } };
-            }
-
-            // ATOMIC ROLLBACK STRATEGY for Assets
-            console.error('[CreateReport] Database failure, initiating rollback for uploaded assets...', dbError);
-            const rollbackQueue = [];
-            if (Array.isArray(reportData.images)) {
-                for (const img of reportData.images) if (img.url) rollbackQueue.push(img.url);
-            }
-            if (Array.isArray(reportData.attachments)) {
-                for (const url of reportData.attachments) if (typeof url === 'string') rollbackQueue.push(url);
-            }
-
-            await Promise.allSettled(
-                rollbackQueue.map(url => deleteFile(extractFilePath(url, 'report-images'), { isRollback: true }))
-            ).catch(err => console.error('[CreateReport] Critical: Multi-asset rollback failed:', err));
-
-            return { success: false, error: { message: dbError.message || 'Failed to create report', code: ErrorCode.INTERNAL_ERROR } };
+        } catch (error: any) {
+            console.error(`[Mutation] createReport Error: ${error.message}`);
+            let code = ErrorCode.INTERNAL_ERROR;
+            if (error.message.includes('FORBIDDEN')) code = ErrorCode.FORBIDDEN;
+            if (error.message.includes('NOT_FOUND')) code = ErrorCode.NOT_FOUND;
+            if (error.message.includes('VALIDATION_ERROR')) code = ErrorCode.VALIDATION_ERROR;
+            if (error.message.includes('ACTIVITY_ALREADY_REPORTED')) code = ErrorCode.CONFLICT;
+            return { success: false, error: { message: error.message, code } };
         }
     });
 }
 
-export async function updateReport(reportId: string, updatedData: Partial<ReportFormData>): Promise<ServiceResponse<ReportWithDetails>> {
-    try {
-        const { getUser } = getKindeServerSession();
-        const user = await getUser();
-        if (!user?.id) return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
+export async function updateReport(reportId: string, updates: Partial<ReportFormData>): Promise<ServiceResponse<ReportWithDetails>> {
+    const { getUser } = getKindeServerSession();
+    const user = await getUser();
 
-        const { basePrisma } = await import('@/lib/prisma');
+    if (!user?.id) {
+        return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
+    }
 
-        const result = await withRLS(user.id, async () => {
-            return await basePrisma.$transaction(async (tx: any) => {
-                // Manually set RLS context
+    return await withRLS(user.id, async () => {
+        try {
+            const { basePrisma } = await import('@/lib/prisma');
+            const result = await basePrisma.$transaction(async (tx: any) => {
                 await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${user.id.replace(/'/g, "''")}'`);
 
-                // Fetch existing for period check
-                const existing = await tx.report.findUnique({ where: { id: reportId } });
-                if (!existing) throw new Error('NOT_FOUND: Report not found');
-
-                await checkPeriod(existing.activityDate, 'Modification de rapport (existant)');
-                if (updatedData.activityDate) {
-                    await checkPeriod(new Date(updatedData.activityDate), 'Modification de rapport (nouvelle date)');
-                }
-
-                // If level is changing, enforce exclusivity
-                if (updatedData.level === 'national') {
-                    updatedData.siteId = undefined;
-                    updatedData.smallGroupId = undefined;
-                } else if (updatedData.level === 'site') {
-                    updatedData.smallGroupId = undefined;
-                }
-
-                const updateData = await mapUpdateDataFields(updatedData);
-
-                const report = await tx.report.update({
+                const existing = await tx.report.findUnique({
                     where: { id: reportId },
-                    data: updateData,
-                    include: {
-                        submittedBy: true,
-                        site: true,
-                        smallGroup: true,
-                        activityType: true,
-                    }
+                    select: { submittedById: true, status: true, activityDate: true }
                 });
 
-                return await mapPrismaReportToModel(report);
+                if (!existing) throw new Error('NOT_FOUND: Report not found.');
+
+                // RBAC Guard
+                const { role } = await tx.profile.findUnique({ where: { id: user.id }, select: { role: true } });
+                if (existing.submittedById !== user.id && role !== ROLES.NATIONAL_COORDINATOR) {
+                    throw new Error('FORBIDDEN: You can only edit your own reports.');
+                }
+
+                // Status Guard
+                if (existing.status !== 'pending' && existing.status !== 'rejected' && role !== ROLES.NATIONAL_COORDINATOR) {
+                    throw new Error('FORBIDDEN: Once submitted, reports can only be edited by a National Coordinator or if rejected.');
+                }
+
+                // Accounting Period Guard
+                if (updates.activityDate) {
+                    await checkPeriod(new Date(updates.activityDate), 'Modification de rapport');
+                } else {
+                    await checkPeriod(existing.activityDate, 'Modification de rapport');
+                }
+
+                const dbUpdates = mapUpdateDataFields(updates);
+
+                const updated = await tx.report.update({
+                    where: { id: reportId },
+                    data: dbUpdates
+                });
+
+                return await mapPrismaReportToModel(updated);
             });
-        });
 
-        return { success: true, data: result };
-    } catch (error: any) {
-        console.error(`[ReportService] Update Error: ${error.message}`);
-        let code = ErrorCode.INTERNAL_ERROR;
-        if (error.message.includes('NOT_FOUND')) code = ErrorCode.NOT_FOUND;
-        if (error.message.includes('PERIOD_CLOSED')) code = ErrorCode.PERIOD_CLOSED;
-
-        return { success: false, error: { message: error.message, code } };
-    }
+            return { success: true, data: result };
+        } catch (error: any) {
+            console.error(`[Mutation] updateReport Error: ${error.message}`);
+            let code = ErrorCode.INTERNAL_ERROR;
+            if (error.message.includes('FORBIDDEN')) code = ErrorCode.FORBIDDEN;
+            if (error.message.includes('NOT_FOUND')) code = ErrorCode.NOT_FOUND;
+            return { success: false, error: { message: error.message, code } };
+        }
+    });
 }
 
-export async function deleteReport(id: string): Promise<ServiceResponse<void>> {
-    try {
-        const { getUser } = getKindeServerSession();
-        const user = await getUser();
-        if (!user?.id) return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
+export async function deleteReport(reportId: string): Promise<ServiceResponse<void>> {
+    const { getUser } = getKindeServerSession();
+    const user = await getUser();
 
-        const { basePrisma } = await import('@/lib/prisma');
+    if (!user?.id) {
+        return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
+    }
 
-        await withRLS(user.id, async () => {
-            return await basePrisma.$transaction(async (tx: any) => {
+    return await withRLS(user.id, async () => {
+        try {
+            const { basePrisma } = await import('@/lib/prisma');
+            await basePrisma.$transaction(async (tx: any) => {
                 await tx.$executeRawUnsafe(`SET LOCAL "app.current_user_id" = '${user.id.replace(/'/g, "''")}'`);
 
-                const existing = await tx.report.findUnique({ where: { id } });
-                if (!existing) throw new Error('NOT_FOUND: Report not found');
+                const existing = await tx.report.findUnique({
+                    where: { id: reportId },
+                    select: { submittedById: true, images: true, activityDate: true }
+                });
 
+                if (!existing) throw new Error('NOT_FOUND: Report not found.');
+
+                // RBAC Guard
+                const { role } = await tx.profile.findUnique({ where: { id: user.id }, select: { role: true } });
+                if (existing.submittedById !== user.id && role !== ROLES.NATIONAL_COORDINATOR) {
+                    throw new Error('FORBIDDEN: You can only delete your own reports.');
+                }
+
+                // Accounting Period Guard
                 await checkPeriod(existing.activityDate, 'Suppression de rapport');
 
-                await tx.report.delete({
-                    where: { id },
-                });
+                // Cleanup files
+                if (existing.images) {
+                    const images = existing.images as string[];
+                    for (const img of images) {
+                        const path = extractFilePath(img);
+                        if (path) await deleteFile(path, { bucketName: 'reports', isRollback: true });
+                    }
+                }
+
+                await tx.report.delete({ where: { id: reportId } });
+            });
+
+            return { success: true };
+        } catch (error: any) {
+            console.error(`[Mutation] deleteReport Error: ${error.message}`);
+            let code = ErrorCode.INTERNAL_ERROR;
+            if (error.message.includes('FORBIDDEN')) code = ErrorCode.FORBIDDEN;
+            if (error.message.includes('NOT_FOUND')) code = ErrorCode.NOT_FOUND;
+            return { success: false, error: { message: error.message, code } };
+        }
+    });
+}
+
+export async function approveReport(reportId: string, reviewerId: string): Promise<ServiceResponse<void>> {
+    try {
+        const { basePrisma } = await import('@/lib/prisma');
+        await basePrisma.$transaction(async (tx: any) => {
+            const existing = await tx.report.findUnique({ where: { id: reportId } });
+            if (!existing) throw new Error("Report not found");
+
+            await tx.report.update({
+                where: { id: reportId },
+                data: {
+                    status: 'approved',
+                    reviewedById: reviewerId,
+                    reviewedAt: new Date()
+                }
             });
         });
-
         return { success: true };
     } catch (error: any) {
-        console.error(`[ReportService] Delete Error: ${error.message}`);
-        let code = ErrorCode.INTERNAL_ERROR;
-        if (error.message.includes('NOT_FOUND')) code = ErrorCode.NOT_FOUND;
-        if (error.message.includes('PERIOD_CLOSED')) code = ErrorCode.PERIOD_CLOSED;
-
-        return { success: false, error: { message: error.message, code } };
+        return { success: false, error: { message: error.message, code: ErrorCode.INTERNAL_ERROR } };
     }
 }
