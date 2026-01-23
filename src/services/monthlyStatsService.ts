@@ -181,12 +181,12 @@ export async function getActivityStatsInPeriod(start: Date, end: Date, label?: s
 
       // Activity & Site Performance Aggregation
       const sitePerformanceMap = new Map<string, SiteStats>();
-      sites.forEach(s => sitePerformanceMap.set(s.id, {
+      sites.forEach((s: any) => sitePerformanceMap.set(s.id, {
         id: s.id, name: s.name, activitiesCount: 0, participantsCount: 0, expenses: 0, coordinatorName: s.coordinator?.name
       }));
 
       const sgPerformanceMap = new Map<string, SmallGroupStats>();
-      smallGroups.forEach(sg => sgPerformanceMap.set(sg.id, {
+      smallGroups.forEach((sg: any) => sgPerformanceMap.set(sg.id, {
         id: sg.id, name: sg.name, leaderName: sg.leader?.name || 'Inconnu', activitiesCount: 0, averageAttendance: 0
       }));
 
