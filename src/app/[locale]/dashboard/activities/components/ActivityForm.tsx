@@ -46,6 +46,10 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
   const [smallGroups, setSmallGroups] = useState<SmallGroup[]>([]);
   const [filteredSmallGroups, setFilteredSmallGroups] = useState<SmallGroup[]>([]);
 
+  // Compute initial level based on role to avoid mismatch during first render
+  const initialLevel = currentUser?.role === ROLES.SMALL_GROUP_LEADER ? 'small_group' :
+    currentUser?.role === ROLES.SITE_COORDINATOR ? 'site' : 'national';
+
   const form = useForm<ActivityFormData>({
     resolver: zodResolver(activityFormSchema),
     defaultValues: {
@@ -53,9 +57,9 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
       thematic: '',
       date: new Date(),
       status: 'planned',
-      level: 'national',
-      siteId: '',
-      smallGroupId: '',
+      level: initialLevel,
+      siteId: currentUser?.siteId || '',
+      smallGroupId: currentUser?.smallGroupId || '',
       participantsCountPlanned: 0,
       activityTypeEnum: 'small_group_meeting',
       startTime: '09:00',
@@ -205,7 +209,6 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
 
   // Debug form errors
   const onError = (errors: any) => {
-    console.error("Form Validation Errors:", errors);
     toast({
       title: "Validation Error",
       description: "Please check the form for missing or invalid fields.",

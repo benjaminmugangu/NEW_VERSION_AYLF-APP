@@ -182,6 +182,7 @@
         "thematic_label": "Thématique",
         "thematic_placeholder": "Thématique détaillée de l'activité...",
         "date_label": "Date",
+        "start_time_label": "Heure de Début",
         "pick_date": "Choisir une date",
         "level_label": "Niveau",
         "level_placeholder": "Sélectionner le niveau",

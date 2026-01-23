@@ -53,8 +53,6 @@ export const getReportableActivities = async (): Promise<ServiceResponse<Activit
         statusFilter: { planned: true, in_progress: true, delayed: true }
       });
 
-      console.log(`[DEBUG] getReportableActivities - User: ${fullUser.name} (${fullUser.id}), Role: ${fullUser.role}, Site: ${fullUser.siteId}, Group: ${fullUser.smallGroupId}`);
-      console.log(`[DEBUG] getReportableActivities - Generated WHERE clause:`, JSON.stringify(where, null, 2));
 
       const activities = await prisma.activity.findMany({
         where: {
@@ -72,14 +70,6 @@ export const getReportableActivities = async (): Promise<ServiceResponse<Activit
         orderBy: { date: 'desc' }
       });
 
-      console.log(`[DEBUG] getReportableActivities - Found ${activities.length} activities.`);
-
-      if (activities.length === 0) {
-        // Diagnostic: Check for ANY activities in this site/owned by this user to narrow down the filter issue
-        const siteCount = await prisma.activity.count({ where: { siteId: fullUser.siteId } });
-        const ownedCount = await prisma.activity.count({ where: { createdById: fullUser.id } });
-        console.log(`[DEBUG] Diagnostic - Site activities count: ${siteCount}, Owned activities count: ${ownedCount}`);
-      }
 
       const { mapPrismaActivityToActivity } = await import('./activityUtils');
       return activities.map(mapPrismaActivityToActivity);
