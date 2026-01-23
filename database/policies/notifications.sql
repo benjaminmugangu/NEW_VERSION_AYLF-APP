@@ -18,3 +18,9 @@ CREATE POLICY "Users can delete their own notifications" ON public.notifications
 -- 4. National Coordinators can view all (optional, for debugging)
 CREATE POLICY "National Coordinators can view all notifications" ON public.notifications
   FOR SELECT USING (get_my_role() = 'NATIONAL_COORDINATOR');
+
+-- 5. Allow notification creation
+-- Since notifications are often cross-user (e.g. NC notifies submitter), 
+-- we allow authenticated users to insert notifications.
+CREATE POLICY "Authenticated users can insert notifications" ON public.notifications
+  FOR INSERT WITH CHECK (get_my_id() IS NOT NULL);

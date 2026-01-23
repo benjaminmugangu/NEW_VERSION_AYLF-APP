@@ -101,12 +101,22 @@ export async function approveReport(
             );
 
             // 7. Notify Submitter (safe within tx)
-            await notifyReportApproved(
-                approvedReport.submittedById,
-                approvedReport.title,
-                approvedReport.id,
-                tx
-            );
+            const submitterId = approvedReport.submittedById || (approvedReport.submittedBy as any)?.id;
+            console.log(`[approveReport] Notifying submitter: ${submitterId} for report: ${approvedReport.id}`);
+            try {
+                if (!submitterId) throw new Error('No submitter ID found for notification');
+
+                const notificationResult = await notifyReportApproved(
+                    submitterId,
+                    approvedReport.title,
+                    approvedReport.id,
+                    tx
+                );
+                console.log(`[approveReport] Notification created: ${notificationResult.id}`);
+            } catch (notifError: any) {
+                console.error(`[approveReport] Failed to send notification: ${notifError.message}`);
+                // Don't fail the whole transaction if notification fails, but log it
+            }
 
             // 8. Budget Overrun Detection
             try {
@@ -191,13 +201,22 @@ export async function rejectReport(
                 );
 
                 // 3. Notify Submitter
-                await notifyReportRejected(
-                    rejectedReport.submittedById,
-                    rejectedReport.title,
-                    rejectedReport.id,
-                    reason,
-                    tx
-                );
+                const submitterId = rejectedReport.submittedById || (rejectedReport.submittedBy as any)?.id;
+                console.log(`[rejectReport] Notifying submitter: ${submitterId} for report: ${rejectedReport.id}`);
+                try {
+                    if (!submitterId) throw new Error('No submitter ID found for notification');
+
+                    const notificationResult = await notifyReportRejected(
+                        submitterId,
+                        rejectedReport.title,
+                        rejectedReport.id,
+                        reason,
+                        tx
+                    );
+                    console.log(`[rejectReport] Notification created: ${notificationResult.id}`);
+                } catch (notifError: any) {
+                    console.error(`[rejectReport] Failed to send notification: ${notifError.message}`);
+                }
 
                 return await mapPrismaReportToModel(rejectedReport);
             }, { timeout: 20000 });

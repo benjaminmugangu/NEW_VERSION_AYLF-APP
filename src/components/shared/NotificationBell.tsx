@@ -12,7 +12,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
-import { useTranslations, useFormatter } from 'next-intl'
+import { useTranslations, useFormatter, useLocale } from 'next-intl'
 
 interface Notification {
     id: string
@@ -31,9 +31,16 @@ interface NotificationsResponse {
 
 export function NotificationBell() {
     const [open, setOpen] = useState(false)
+    const locale = useLocale()
     const queryClient = useQueryClient()
     const t = useTranslations('Notifications')
     const tCommon = useTranslations('Common')
+
+    const getLocalizedLink = (link: string | null) => {
+        if (!link) return '#'
+        if (link.startsWith(`/${locale}/`)) return link
+        return `/${locale}${link.startsWith('/') ? '' : '/'}${link}`
+    }
 
     // Fetch notifications
     const { data, isLoading } = useQuery<NotificationsResponse>({
@@ -157,7 +164,7 @@ export function NotificationBell() {
                                 >
                                     {notification.link ? (
                                         <Link
-                                            href={notification.link}
+                                            href={getLocalizedLink(notification.link)}
                                             onClick={() => handleNotificationClick(notification)}
                                             className="block"
                                         >
