@@ -7,31 +7,6 @@ export function useOfflineSync() {
     const [isOnline, setIsOnline] = useState(true)
     const [pendingOps, setPendingOps] = useState(0)
 
-    useEffect(() => {
-        // Set initial online status
-        setIsOnline(navigator.onLine)
-
-        const handleOnline = async () => {
-            setIsOnline(true)
-            await syncPending()
-        }
-
-        const handleOffline = () => {
-            setIsOnline(false)
-        }
-
-        window.addEventListener('online', handleOnline)
-        window.addEventListener('offline', handleOffline)
-
-        // Initial sync check
-        checkPending()
-
-        return () => {
-            window.removeEventListener('online', handleOnline)
-            window.removeEventListener('offline', handleOffline)
-        }
-    }, [syncPending, checkPending])
-
     const checkPending = useCallback(async () => {
         const pending = await db.syncQueue.where('synced').equals(0).count()
         setPendingOps(pending)
@@ -57,6 +32,31 @@ export function useOfflineSync() {
 
         await checkPending()
     }, [checkPending]);
+
+    useEffect(() => {
+        // Set initial online status
+        setIsOnline(navigator.onLine)
+
+        const handleOnline = async () => {
+            setIsOnline(true)
+            await syncPending()
+        }
+
+        const handleOffline = () => {
+            setIsOnline(false)
+        }
+
+        window.addEventListener('online', handleOnline)
+        window.addEventListener('offline', handleOffline)
+
+        // Initial sync check
+        checkPending()
+
+        return () => {
+            window.removeEventListener('online', handleOnline)
+            window.removeEventListener('offline', handleOffline)
+        }
+    }, [syncPending, checkPending])
 
     const queueOperation = async (endpoint: string, method: string, data: any) => {
         await db.syncQueue.add({
