@@ -300,25 +300,3 @@ export async function deleteReport(reportId: string): Promise<ServiceResponse<vo
         }
     });
 }
-
-export async function approveReport(reportId: string, reviewerId: string): Promise<ServiceResponse<void>> {
-    try {
-        const { basePrisma } = await import('@/lib/prisma');
-        await basePrisma.$transaction(async (tx: any) => {
-            const existing = await tx.report.findUnique({ where: { id: reportId } });
-            if (!existing) throw new Error("Report not found");
-
-            await tx.report.update({
-                where: { id: reportId },
-                data: {
-                    status: 'approved',
-                    reviewedById: reviewerId,
-                    reviewedAt: new Date()
-                }
-            });
-        });
-        return { success: true };
-    } catch (error: any) {
-        return { success: false, error: { message: error.message, code: ErrorCode.INTERNAL_ERROR } };
-    }
-}
