@@ -58,6 +58,7 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
       smallGroupId: '',
       participantsCountPlanned: 0,
       activityTypeEnum: 'small_group_meeting',
+      startTime: '09:00',
       createdBy: currentUser?.id || '',
     },
   });
@@ -137,8 +138,16 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
         siteId: data.level === 'national' ? undefined : data.siteId,
         smallGroupId: data.level === 'small_group' ? data.smallGroupId : undefined,
         participantsCountPlanned: Number(data.participantsCountPlanned) || 0,
-        createdBy: currentUser.id, // Ensure createdBy is set from current session
+        createdBy: currentUser.id,
       };
+
+      // Merge Date and Time
+      if (data.date && data.startTime) {
+        const [hours, minutes] = data.startTime.split(':').map(Number);
+        const mergedDate = new Date(data.date);
+        mergedDate.setHours(hours, minutes, 0, 0);
+        payload.date = mergedDate;
+      }
 
       let savedActivity;
       if (isEditMode && initialActivity?.id) {
@@ -313,6 +322,20 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
                 {form.formState.errors.date && <p className="text-sm text-destructive mt-1">{form.formState.errors.date.message}</p>}
               </div>
 
+              {/* Start Time */}
+              <div>
+                <Label htmlFor="startTime">{t('start_time_label') || "Heure de Début"}</Label>
+                <div className="flex items-center mt-1">
+                  <Input
+                    id="startTime"
+                    type="time"
+                    {...form.register('startTime')}
+                    className="w-full"
+                  />
+                </div>
+                {form.formState.errors.startTime && <p className="text-sm text-destructive mt-1">{form.formState.errors.startTime.message}</p>}
+              </div>
+
               {/* Activity Type */}
               <div>
                 <Label htmlFor="activityTypeEnum">{t('type_label')}</Label>
@@ -410,6 +433,7 @@ function initializeForm(form: any, user: any, initialActivity: any) {
       smallGroupId: initialActivity.smallGroupId ?? '',
       participantsCountPlanned: initialActivity.participantsCountPlanned ?? 0,
       activityTypeEnum: (initialActivity as any).activityTypeEnum ?? 'small_group_meeting',
+      startTime: initialActivity.date ? format(new Date(initialActivity.date), 'HH:mm') : '09:00',
       createdBy: initialActivity.createdBy || user.id,
     });
   } else if (!isEditMode) {

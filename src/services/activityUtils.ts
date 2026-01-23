@@ -50,9 +50,28 @@ export function buildActivityWhereClause(filters: any) {
         Object.assign(where, rbacClause);
     }
 
-    // 2. CONTEXTUAL ISOLATION: For reporting, strictly filter by creator
-    if (isReportingContext && user?.id) {
-        where.createdById = user.id;
+    // 2. CONTEXTUAL ISOLATION: For reporting, strictly filter by role scope instead of just creator
+    if (isReportingContext && user) {
+        // Site Coordinator: Only reports for 'site' level activities in their site
+        if (user.role === ROLES.SITE_COORDINATOR && user.siteId) {
+            where.level = 'site';
+            where.siteId = user.siteId;
+        }
+        // Small Group Leader: Only reports for their specific group
+        else if (user.role === ROLES.SMALL_GROUP_LEADER && user.smallGroupId) {
+            where.level = 'small_group';
+            where.smallGroupId = user.smallGroupId;
+        }
+        // National Coordinator: Can report anything (usually national level)
+        // If we want to be strict even for NC: where.level = 'national' if they select national? 
+        // Actually NC usually only reports national ones themselves.
+        else if (user.role === ROLES.NATIONAL_COORDINATOR) {
+            // No extra level restriction, they see all via RBAC clause (which is null for NC -> all)
+        }
+        else {
+            // For other roles or if IDs are missing, restrict to what they created as fallback
+            where.createdById = user.id;
+        }
 
         // 3. SERVER-SIDE TIMING: Activity must have started + 5h delay
         const REPORT_DELAY_HOURS = 5;

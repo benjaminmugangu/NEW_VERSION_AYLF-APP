@@ -12,6 +12,7 @@ export const activityFormSchema = z.object({
     activityTypeId: z.string().optional(), // Keep for legacy compatibility
     activityTypeEnum: z.enum(["small_group_meeting", "conference", "apostolat", "deuil", "other"]).optional(),
     participantsCountPlanned: z.number().int().min(0).optional(),
+    startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:mm)').default('09:00'),
     createdBy: z.string(),
 }).refine(data => {
     if (data.level === 'national') return !data.siteId && !data.smallGroupId;

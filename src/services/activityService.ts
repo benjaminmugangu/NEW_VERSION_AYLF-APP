@@ -36,18 +36,17 @@ export const getReportableActivities = async (): Promise<ServiceResponse<Activit
     }
 
     const result = await withRLS(user.id, async () => {
-      // 1. Calculate 5-Hour Delay Cutoff
-      const REPORT_DELAY_HOURS = 5;
-      const now = new Date();
-      const delayMs = REPORT_DELAY_HOURS * 60 * 60 * 1000;
-      const cutoffDate = new Date(now.getTime() - delayMs);
+      // Use standardized query builder with reporting context
+      const { buildActivityWhereClause } = await import('./activityUtils');
+      const where = buildActivityWhereClause({
+        user,
+        isReportingContext: true,
+        statusFilter: { planned: true, in_progress: true, delayed: true }
+      });
 
-      // 2. Execute Strict Query
       const activities = await prisma.activity.findMany({
         where: {
-          createdById: user.id, // STRICT ISOLATION
-          date: { lte: cutoffDate }, // STRICT TIMING
-          status: { in: ['planned', 'in_progress', 'delayed'] }, // LOGICAL STATUS
+          ...where,
           reports: { none: {} } // STRICT UNIQUENESS
         },
         include: {
@@ -61,6 +60,7 @@ export const getReportableActivities = async (): Promise<ServiceResponse<Activit
         orderBy: { date: 'desc' }
       });
 
+      const { mapPrismaActivityToActivity } = await import('./activityUtils');
       return activities.map(mapPrismaActivityToActivity);
     });
 
