@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useCurrentUser } from '@/contexts/AuthContext';
 import { useTransactions } from '@/hooks/useTransactions';
 import { TransactionTable } from './components/TransactionTable';
@@ -36,13 +36,13 @@ export default function TransactionsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<FinancialTransaction | null>(null);
 
-  const handleEdit = React.useCallback((transaction: FinancialTransaction) => {
+  const handleEdit = useCallback((transaction: FinancialTransaction) => {
     if (transaction.isSystemGenerated) return;
     setSelectedTransaction(transaction);
     setIsModalOpen(true);
   }, []);
 
-  const handleDelete = React.useCallback(async (id: string) => {
+  const handleDelete = useCallback(async (id: string) => {
     // Extra safety check
     const transaction = transactions.find(t => t.id === id);
     if (transaction?.isSystemGenerated) {

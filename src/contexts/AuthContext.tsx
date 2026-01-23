@@ -1,7 +1,7 @@
 // src/contexts/AuthContext.tsx
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
 import type { User } from "@/lib/types";
 
@@ -21,7 +21,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [authError, setAuthError] = useState<{ code: string; message: string; details?: any } | null>(null);
   const [isAppLoading, setIsAppLoading] = useState(true);
 
-  const fetchUserProfile = React.useCallback(async (isManualRefresh = false) => {
+  const fetchUserProfile = useCallback(async (isManualRefresh = false) => {
     if (!kindeUser) {
       setCurrentUser(null);
       setAuthError(null);

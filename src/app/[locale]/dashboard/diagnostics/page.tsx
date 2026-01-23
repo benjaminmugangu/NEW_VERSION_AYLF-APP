@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ export default function DiagnosticsPage() {
     const [isSyncing, setIsSyncing] = useState(false);
     const { toast } = useToast();
 
-    const fetchReport = React.useCallback(async () => {
+    const fetchReport = useCallback(async () => {
         setIsLoading(true);
         try {
             const data = await getIdentityReport();

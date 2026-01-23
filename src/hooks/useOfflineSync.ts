@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { db } from '@/lib/offline-db'
 
 export function useOfflineSync() {
@@ -32,12 +32,12 @@ export function useOfflineSync() {
         }
     }, [syncPending, checkPending])
 
-    const checkPending = React.useCallback(async () => {
+    const checkPending = useCallback(async () => {
         const pending = await db.syncQueue.where('synced').equals(0).count()
         setPendingOps(pending)
     }, []);
 
-    const syncPending = React.useCallback(async () => {
+    const syncPending = useCallback(async () => {
         const pending = await db.syncQueue.where('synced').equals(0).toArray()
         setPendingOps(pending.length)
 

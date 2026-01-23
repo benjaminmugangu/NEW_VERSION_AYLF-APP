@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { activityFormSchema, type ActivityFormData } from '@/schemas/activity';
@@ -70,8 +70,7 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
   const selectedLevel = form.watch('level');
   const selectedSiteId = form.watch('siteId');
 
-  // ALL useEffect hooks MUST be called unconditionally
-  const initializeFormCallback = React.useCallback(() => {
+  const initializeFormCallback = useCallback(() => {
     initializeForm(form, currentUser, initialActivity);
   }, [form, currentUser, initialActivity]);
 
@@ -80,7 +79,7 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
     initializeFormCallback();
   }, [initializeFormCallback, currentUser, isAuthLoading]);
 
-  const loadDataCallback = React.useCallback(async () => {
+  const loadDataCallback = useCallback(async () => {
     if (!currentUser) return;
     try {
       await loadContextData(currentUser, setSites, setSmallGroups);

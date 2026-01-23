@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -56,7 +56,7 @@ export function MemberForm({ member, onSubmitForm }: MemberFormProps) {
       return true;
     }, { message: t('validation.group_required'), path: ["smallGroupId"] }), [t]);
 
-  const getInitialLevel = React.useCallback(() => {
+  const getInitialLevel = useCallback(() => {
     if (member) return member.level;
     if (currentUser?.role === ROLES.SITE_COORDINATOR) return 'site';
     if (currentUser?.role === ROLES.SMALL_GROUP_LEADER) return 'small_group';

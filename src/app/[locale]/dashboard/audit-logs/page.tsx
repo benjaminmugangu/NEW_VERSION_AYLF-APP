@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -60,7 +60,7 @@ export default function AuditLogsPage() {
     const [fromDate, setFromDate] = useState<Date | undefined>(undefined);
     const [toDate, setToDate] = useState<Date | undefined>(undefined);
 
-    const fetchLogs = React.useCallback(async () => {
+    const fetchLogs = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
