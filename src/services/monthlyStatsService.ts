@@ -98,7 +98,12 @@ export async function getActivityStatsInPeriod(start: Date, end: Date, label?: s
               men: data.totalBoysCount || 0,
               women: data.totalGirlsCount || 0
             },
-            activeSites: (data.sitePerformance || []).map((s: any) => s.siteName)
+            activeSites: (data.sitePerformance || []).map((s: any) => s.siteName),
+            // Add missing fields for PeriodStats type compatibility
+            financials: { totalIncome: 0, totalExpenses: 0, balance: 0, byCategory: {} },
+            sitePerformance: [],
+            smallGroupPerformance: [],
+            metrics: { growthRate: 0, retentionRate: 0, conversionRate: 0 }
           };
         }
       }
