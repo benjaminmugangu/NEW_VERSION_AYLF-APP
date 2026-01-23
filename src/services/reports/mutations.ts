@@ -163,17 +163,20 @@ export async function createReport(reportData: ReportFormData, overrideUser?: an
                     });
                 }
 
-                return finalReport;
-            });
-
-            // F. Notifications
-            if (result) {
+                // F. Notifications (Inside Transaction)
                 try {
-                    await notifyNewReport(result, user.id);
+                    const reviewers = await tx.profile.findMany({
+                        where: { role: ROLES.NATIONAL_COORDINATOR }
+                    });
+                    for (const reviewer of reviewers) {
+                        await notifyNewReport(reviewer.id, finalReport.title, finalReport.id, dbProfile.name, tx);
+                    }
                 } catch (notifyError) {
                     console.error('[Mutation] Notification failed:', notifyError);
                 }
-            }
+
+                return finalReport;
+            });
 
             return { success: true, data: result };
         } catch (error: any) {
