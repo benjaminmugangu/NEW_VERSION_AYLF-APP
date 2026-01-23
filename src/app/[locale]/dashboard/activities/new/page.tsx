@@ -2,6 +2,7 @@
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { redirect } from 'next/navigation';
 import { ROLES } from '@/lib/constants';
+import Link from 'next/link';
 import NewActivityClient from './NewActivityClient';
 
 export const dynamic = 'force-dynamic';
@@ -35,7 +36,7 @@ export default async function NewActivityPage() {
             <h1 className="text-2xl font-bold text-destructive">Profile Sync Required</h1>
             <p className="text-muted-foreground">
               Your account identity needs to be synchronized. Please visit the
-              <a href="/dashboard/diagnostics" className="text-primary underline ml-1">Diagnostics Page</a>
+              <Link href="/dashboard/diagnostics" className="text-primary underline ml-1">Diagnostics Page</Link>
               to fix this issue and access this form.
             </p>
           </div>

@@ -71,23 +71,29 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({ initialActivity, onS
   const selectedSiteId = form.watch('siteId');
 
   // ALL useEffect hooks MUST be called unconditionally
-  useEffect(() => {
-    if (!currentUser || isAuthLoading) return;
+  const initializeFormCallback = React.useCallback(() => {
     initializeForm(form, currentUser, initialActivity);
-  }, [initialActivity, currentUser, form, isAuthLoading]);
+  }, [form, currentUser, initialActivity]);
 
   useEffect(() => {
     if (!currentUser || isAuthLoading) return;
-    const fetchData = async () => {
-      try {
-        await loadContextData(currentUser, setSites, setSmallGroups);
-      } catch (error) {
-        console.error("Error fetching data for activity form:", error);
-        toast({ title: 'Error', description: t('error_fetch'), variant: 'destructive' });
-      }
-    };
-    fetchData();
-  }, [currentUser, isAuthLoading, toast, t]);
+    initializeFormCallback();
+  }, [initializeFormCallback, currentUser, isAuthLoading]);
+
+  const loadDataCallback = React.useCallback(async () => {
+    if (!currentUser) return;
+    try {
+      await loadContextData(currentUser, setSites, setSmallGroups);
+    } catch (error) {
+      console.error("Error fetching data for activity form:", error);
+      toast({ title: 'Error', description: t('error_fetch'), variant: 'destructive' });
+    }
+  }, [currentUser, toast, t]);
+
+  useEffect(() => {
+    if (!currentUser || isAuthLoading) return;
+    loadDataCallback();
+  }, [currentUser, isAuthLoading, loadDataCallback]);
 
   useEffect(() => {
     if (selectedSiteId) {

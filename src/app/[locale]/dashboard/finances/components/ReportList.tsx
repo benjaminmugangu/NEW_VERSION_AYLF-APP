@@ -22,7 +22,7 @@ export const ReportList: React.FC<ReportListProps> = ({
     <Card>
       <CardHeader>
         <CardTitle>{title}</CardTitle>
-        <CardDescription>Liste des dépenses déclarées via les rapports d'activité.</CardDescription>
+        <CardDescription>Liste des dépenses déclarées via les rapports d&apos;activité.</CardDescription>
       </CardHeader>
       <CardContent>
         <ScrollArea className="h-[300px]">

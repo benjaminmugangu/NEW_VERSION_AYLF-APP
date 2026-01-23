@@ -166,7 +166,7 @@ export default function ReportReviewClient({ report, currentUser }: ReportReview
                             {/* Report Content */}
                             <div className="prose prose-sm max-w-none dark:prose-invert">
                                 <h3 className="text-lg font-semibold flex items-center gap-2">
-                                    <FileText className="h-5 w-5 text-primary" /> Description de l'activité
+                                    <FileText className="h-5 w-5 text-primary" /> Description de l&apos;activité
                                 </h3>
                                 <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
                                     {report.content}
@@ -188,7 +188,7 @@ export default function ReportReviewClient({ report, currentUser }: ReportReview
                             {/* Images Grid */}
                             {report.images && report.images.length > 0 && (
                                 <div className="space-y-3">
-                                    <h3 className="text-sm font-semibold">Photos de l'activité</h3>
+                                    <h3 className="text-sm font-semibold">Photos de l&apos;activité</h3>
                                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                         {report.images.map((img, idx) => (
                                             <div key={idx} className="relative aspect-video rounded-lg overflow-hidden border group">
@@ -235,7 +235,7 @@ export default function ReportReviewClient({ report, currentUser }: ReportReview
                 <div className="space-y-6">
                     <Card>
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-semibold">Détails de l'événement</CardTitle>
+                            <CardTitle className="text-sm font-semibold">Détails de l&apos;événement</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="space-y-1">
@@ -244,7 +244,7 @@ export default function ReportReviewClient({ report, currentUser }: ReportReview
                             </div>
 
                             <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">Type d'activité</Label>
+                                <Label className="text-xs text-muted-foreground">Type d&apos;activité</Label>
                                 <Badge variant="outline" className="font-normal capitalize">
                                     {report.activityTypeName || 'N/A'}
                                 </Badge>
@@ -336,7 +336,7 @@ export default function ReportReviewClient({ report, currentUser }: ReportReview
                     <AlertDialogHeader>
                         <AlertDialogTitle>Rejeter le rapport</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Veuillez expliquer pourquoi ce rapport est rejeté. L'auteur recevra une notification avec ce message pour pouvoir le corriger.
+                            Veuillez expliquer pourquoi ce rapport est rejeté. L&apos;auteur recevra une notification avec ce message pour pouvoir le corriger.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <div className="py-2">

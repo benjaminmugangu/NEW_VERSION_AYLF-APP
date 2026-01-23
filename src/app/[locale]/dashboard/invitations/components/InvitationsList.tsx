@@ -157,7 +157,7 @@ export function InvitationsList({ invitations }: InvitationsListProps) {
                     <CardHeader>
                         <CardTitle>Invitations en attente ({pendingInvitations.length})</CardTitle>
                         <CardDescription>
-                            Ces utilisateurs n'ont pas encore accepté leur invitation ou créé leur compte.
+                            Ces utilisateurs n&apos;ont pas encore accepté leur invitation ou créé leur compte.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -207,10 +207,10 @@ export function InvitationsList({ invitations }: InvitationsListProps) {
                                                     </AlertDialogTrigger>
                                                     <AlertDialogContent>
                                                         <AlertDialogHeader>
-                                                            <AlertDialogTitle>Supprimer l'invitation ?</AlertDialogTitle>
+                                                            <AlertDialogTitle>Supprimer l&apos;invitation ?</AlertDialogTitle>
                                                             <AlertDialogDescription>
-                                                                Cette action supprimera l'invitation pour <strong>{invitation.email}</strong>.
-                                                                Le lien d'invitation ne fonctionnera plus.
+                                                                Cette action supprimera l&apos;invitation pour <strong>{invitation.email}</strong>.
+                                                                Le lien d&apos;invitation ne fonctionnera plus.
                                                             </AlertDialogDescription>
                                                         </AlertDialogHeader>
                                                         <AlertDialogFooter>
@@ -282,10 +282,10 @@ export function InvitationsList({ invitations }: InvitationsListProps) {
                                                 </AlertDialogTrigger>
                                                 <AlertDialogContent>
                                                     <AlertDialogHeader>
-                                                        <AlertDialogTitle>Supprimer l'invitation ?</AlertDialogTitle>
+                                                        <AlertDialogTitle>Supprimer l&apos;invitation ?</AlertDialogTitle>
                                                         <AlertDialogDescription>
-                                                            Cette action supprimera l'enregistrement de l'invitation pour <strong>{invitation.email}</strong>.
-                                                            L'utilisateur restera actif dans le système.
+                                                            Cette action supprimera l&apos;enregistrement de l&apos;invitation pour <strong>{invitation.email}</strong>.
+                                                            L&apos;utilisateur restera actif dans le système.
                                                         </AlertDialogDescription>
                                                     </AlertDialogHeader>
                                                     <AlertDialogFooter>

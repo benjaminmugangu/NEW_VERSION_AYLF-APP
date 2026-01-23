@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { useCurrentUser } from "@/contexts/AuthContext";
 import { ROLES } from "@/lib/constants";
 import { useTranslations } from "next-intl";
+import Link from 'next/link';
 
 interface MemberFormProps {
   member?: Member;
@@ -148,7 +149,7 @@ export function MemberForm({ member, onSubmitForm }: MemberFormProps) {
         smallGroupId: currentUser.smallGroupId ?? undefined,
       });
     }
-  }, [currentUser, member, reset]);
+  }, [currentUser, member, reset, getInitialLevel]);
 
   // NOW we can do early returns after all hooks are called
   if (isAuthLoading) {
@@ -165,7 +166,7 @@ export function MemberForm({ member, onSubmitForm }: MemberFormProps) {
             <div className="mt-4 p-3 bg-destructive/10 rounded-md border border-destructive/20">
               <p className="text-sm font-semibold mb-2">💡 Solution :</p>
               <p className="text-sm">
-                Veuillez visiter la <a href="/dashboard/diagnostics" className="underline font-bold">Page de Diagnostic</a> pour synchroniser votre identité.
+                Veuillez visiter la <Link href="/dashboard/diagnostics" className="underline font-bold">Page de Diagnostic</Link> pour synchroniser votre identité.
               </p>
             </div>
           </CardDescription>

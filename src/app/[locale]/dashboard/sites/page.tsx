@@ -31,7 +31,7 @@ export default async function ManageSitesPage() {
         <h2 className="text-2xl font-semibold text-destructive mb-2">Profile not found</h2>
         <p className="text-muted-foreground">Please contact your administrator.</p>
         <Button asChild className="mt-4">
-          <a href="/dashboard">Go to Dashboard</a>
+          <Link href="/dashboard">Go to Dashboard</Link>
         </Button>
       </div>
     );
@@ -45,7 +45,7 @@ export default async function ManageSitesPage() {
         <h2 className="text-2xl font-semibold text-destructive mb-2">Access Denied</h2>
         <p className="text-muted-foreground">You do not have permission to view this page.</p>
         <Button asChild className="mt-4">
-          <a href="/dashboard">Go to Dashboard</a>
+          <Link href="/dashboard">Go to Dashboard</Link>
         </Button>
       </div>
     );

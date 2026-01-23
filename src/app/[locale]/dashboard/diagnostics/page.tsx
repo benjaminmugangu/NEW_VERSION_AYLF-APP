@@ -33,7 +33,7 @@ export default function DiagnosticsPage() {
 
     useEffect(() => {
         fetchReport();
-    }, []);
+    }, [fetchReport]);
 
     const handleSync = async () => {
         setIsSyncing(true);
@@ -80,7 +80,7 @@ export default function DiagnosticsPage() {
                     <AlertDescription className="space-y-4">
                         <p>
                             Your Kinde ID (<strong>{report.kinde.id}</strong>) does not match your Database Profile ID (<strong>{report.sql.db_profile_id}</strong>).
-                            This is why you see 0 stats: the database filters all data because it doesn't recognize your new identity.
+                            This is why you see 0 stats: the database filters all data because it doesn&apos;t recognize your new identity.
                         </p>
                         <Button variant="outline" onClick={handleSync} disabled={isSyncing} className="bg-white text-destructive hover:bg-destructive/10 border-destructive">
                             {isSyncing ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}

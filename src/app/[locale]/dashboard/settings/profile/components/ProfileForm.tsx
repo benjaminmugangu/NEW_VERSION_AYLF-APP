@@ -38,8 +38,6 @@ export function ProfileForm({ onUpdateProfile, canEdit }: ProfileFormProps) {
   const { currentUser, refreshUser } = useCurrentUser();
   const router = useRouter();
 
-  if (!currentUser) return null;
-
   const [sites, setSites] = useState<Site[]>([]);
   const [smallGroups, setSmallGroups] = useState<SmallGroup[]>([]);
   const [isLoadingAssignment, setIsLoadingAssignment] = useState(true);
@@ -49,8 +47,8 @@ export function ProfileForm({ onUpdateProfile, canEdit }: ProfileFormProps) {
   const tRoles = useTranslations('Roles');
   const formatDateTime = useFormatter();
 
-  // Optimistic UI for Avatar
-  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(currentUser.avatarUrl);
+  // Optimistic UI for Avatar - Safely handle missing currentUser
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(currentUser?.avatarUrl);
 
   const profileFormSchema = useMemo(() => z.object({
     name: z.string().min(3, t('name_error')),
@@ -65,11 +63,12 @@ export function ProfileForm({ onUpdateProfile, canEdit }: ProfileFormProps) {
   type ProfileFormData = z.infer<typeof profileFormSchema>;
 
   useEffect(() => {
+    if (!currentUser) return;
+
     // Sync Avatar if prop updates (revalidation)
     setAvatarUrl(currentUser.avatarUrl);
 
     const fetchAssignments = async () => {
-      // ... existing fetch logic
       if (!currentUser.siteId && !currentUser.smallGroupId) {
         setIsLoadingAssignment(false);
         return;
@@ -89,17 +88,19 @@ export function ProfileForm({ onUpdateProfile, canEdit }: ProfileFormProps) {
       }
     };
     fetchAssignments();
-  }, [currentUser, t]); // Removed toast from dependencies to avoid loop
+  }, [currentUser, t]);
 
   const { control, register, handleSubmit, formState: { errors, isSubmitting, isDirty } } = useForm<ProfileFormData>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
-      name: currentUser.name || "",
-      email: currentUser.email || "",
-      mandateStartDate: currentUser.mandateStartDate ? parseISO(currentUser.mandateStartDate) : undefined,
-      mandateEndDate: currentUser.mandateEndDate ? parseISO(currentUser.mandateEndDate) : undefined,
+      name: currentUser?.name || "",
+      email: currentUser?.email || "",
+      mandateStartDate: currentUser?.mandateStartDate ? parseISO(currentUser.mandateStartDate) : undefined,
+      mandateEndDate: currentUser?.mandateEndDate ? parseISO(currentUser.mandateEndDate) : undefined,
     },
   });
+
+  if (!currentUser) return null;
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

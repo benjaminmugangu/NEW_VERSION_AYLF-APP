@@ -13,7 +13,7 @@ import { useTranslations } from 'next-intl';
 
 export default function ProfileSettingsPage() {
   const t = useTranslations('Profile');
-  const { currentUser, isLoading } = useCurrentUser();
+  const { currentUser, isLoading, authError } = useCurrentUser();
 
   if (isLoading) {
     return (
@@ -31,8 +31,6 @@ export default function ProfileSettingsPage() {
       </div>
     );
   }
-
-  const { authError } = useCurrentUser();
 
   if (!currentUser) {
     return (
@@ -59,8 +57,6 @@ export default function ProfileSettingsPage() {
   // National coordinators can view their profile but might have different editing capabilities elsewhere (e.g. user management page)
   // Site and SG leaders can edit their profiles here.
   const canEdit = currentUser.role === ROLES.SITE_COORDINATOR || currentUser.role === ROLES.SMALL_GROUP_LEADER || currentUser.role === ROLES.NATIONAL_COORDINATOR;
-
-
 
   return (
     <>

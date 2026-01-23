@@ -39,7 +39,7 @@ export async function SuccessStories() {
                         <Card key={story.id} className="flex flex-col overflow-hidden hover:shadow-lg transition-shadow">
                             {/* Placeholder image if no image in DB (currently DB has no image field for activity, assuming future expansion) */}
                             <div className="h-48 w-full bg-slate-200 flex items-center justify-center text-slate-400">
-                                <span className="text-sm">Image de l'activité</span>
+                                <span className="text-sm">Image de l&apos;activité</span>
                             </div>
                             <CardHeader>
                                 <div className="flex items-center gap-x-4 text-xs text-slate-500 mb-2">

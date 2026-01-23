@@ -39,7 +39,7 @@ export function CertificateTemplate({ data }: { readonly data: CertificateData }
                     <Text>Pour avoir servi avec dévouement en tant que :</Text>
                     <Text style={{ fontSize: 14, marginVertical: 5, fontWeight: 'bold' }}>{data.role}</Text>
 
-                    <Text>Au sein de l'entité :</Text>
+                    <Text>Au sein de l&apos;entité :</Text>
                     <Text style={{ fontSize: 14, marginVertical: 5 }}>{data.entity}</Text>
 
                     <Text style={{ marginTop: 20 }}>Période de service :</Text>

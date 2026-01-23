@@ -66,7 +66,7 @@ export const AIAssistantButton = ({ textToImprove, onApply, className, label }: 
                     <Sparkles className="mr-2 h-4 w-4" /> Améliorer le style
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleAction('fix_spelling')}>
-                    <SpellCheck className="mr-2 h-4 w-4" /> Corriger l'orthographe
+                    <SpellCheck className="mr-2 h-4 w-4" /> Corriger l&apos;orthographe
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => handleAction('summary')}>

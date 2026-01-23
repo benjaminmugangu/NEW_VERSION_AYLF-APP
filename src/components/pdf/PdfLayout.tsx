@@ -25,7 +25,7 @@ export const PdfLayout = ({ children, title, generatedBy = 'AYLF Group Tracker',
             {/* Logo */}
             {/* The image path must be relative to the public folder or an absolute URL (if CORS allowed) */}
             {/* For client-side generation, window.location.origin + '/logo.png' is safest if local */}
-            <Image src="/logo.png" style={styles.logo} />
+            <Image src="/logo.png" style={styles.logo} alt="AYLF Logo" />
             <Text style={styles.organizationName}>AYLF</Text>
             <Text style={styles.organizationSubtitle}>African Youth Leadership Forum</Text>
             <Text style={styles.organizationSubtitle}>Group Tracking System</Text>

@@ -99,7 +99,7 @@ export default function MonthlyReportPage() {
         <div className="space-y-6">
             <PageHeader
                 title="Générateur de Rapport Mensuel"
-                description="Créez des rapports narratifs professionnels basés sur les données d'activités."
+                description="Créez des rapports narratifs professionnels basés sur les données d&apos;activités."
                 icon={FileText}
             />
 
@@ -157,7 +157,7 @@ export default function MonthlyReportPage() {
                             <Card>
                                 <CardHeader>
                                     <CardTitle>Synthèse Narrative</CardTitle>
-                                    <CardDescription>Éditez le texte généré par l'IA pour le rapport final.</CardDescription>
+                                    <CardDescription>Éditez le texte généré par l&apos;IA pour le rapport final.</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
                                     <div className="space-y-2">

@@ -94,7 +94,7 @@ export default async function AcceptInvitationPage({ searchParams }: PageProps) 
             <Card className="w-full max-w-md shadow-lg">
                 <CardHeader className="text-center">
                     <CheckCircle className="mx-auto h-12 w-12 text-green-500 mb-4" />
-                    <CardTitle className="text-2xl font-bold">You're Invited!</CardTitle>
+                    <CardTitle className="text-2xl font-bold">You&apos;re Invited!</CardTitle>
                     <CardDescription className="text-base mt-2">
                         You have been invited to join the <strong>AYLF Group Tracker</strong>.
                     </CardDescription>
@@ -125,9 +125,9 @@ export default async function AcceptInvitationPage({ searchParams }: PageProps) 
 
                     {needsLogout ? (
                         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-2">
-                            <p className="text-sm text-amber-900 font-medium">⚠️ You're currently signed in</p>
+                            <p className="text-sm text-amber-900 font-medium">⚠️ You&apos;re currently signed in</p>
                             <p className="text-xs text-amber-700">
-                                You're logged in as <strong>{currentUser.email}</strong>. To accept this invitation for <strong>{invitation.email}</strong>, you need to log out first.
+                                You&apos;re logged in as <strong>{currentUser.email}</strong>. To accept this invitation for <strong>{invitation.email}</strong>, you need to log out first.
                             </p>
                         </div>
                     ) : (

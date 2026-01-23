@@ -48,8 +48,8 @@ export default async function ReportDetailPage({ params }: ReportPageProps) {
             <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
                 <h1 className="text-2xl font-bold text-destructive">Accès Refusé</h1>
                 <p className="text-muted-foreground text-center max-w-md">
-                    Vous n'avez pas les permissions nécessaires pour consulter ce rapport.
-                    Si vous pensez qu'il s'agit d'une erreur, contactez votre administrateur.
+                    Vous n&apos;avez pas les permissions nécessaires pour consulter ce rapport.
+                    Si vous pensez qu&apos;il s&apos;agit d&apos;une erreur, contactez votre administrateur.
                 </p>
             </div>
         );

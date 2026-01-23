@@ -41,7 +41,7 @@ export function DirectAllocationCheckbox({
                 <Alert variant="default" className="border-amber-200 bg-amber-50">
                     <AlertDescription className="text-sm text-amber-800">
                         <strong>Mode Exceptionnel :</strong> Vous allouez directement à un Small Group sans passer par le Site Coordinator.
-                        Une <strong>justification détaillée</strong> (minimum 20 caractères) est requise pour l'audit.
+                        Une <strong>justification détaillée</strong> (minimum 20 caractères) est requise pour l&apos;audit.
                     </AlertDescription>
                 </Alert>
             )}

@@ -306,7 +306,7 @@ export default function ViewReportsClient({ initialReports, user }: ViewReportsC
                     {isRejectingReport && (
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Reject Report: "{isRejectingReport.title}"</AlertDialogTitle>
+                          <AlertDialogTitle>Reject Report: &quot;{isRejectingReport.title}&quot;</AlertDialogTitle>
                           <AlertDialogDescription>Please provide a reason for rejecting this report. These notes will be visible to the submitter.</AlertDialogDescription>
                         </AlertDialogHeader>
                         <Textarea placeholder="Enter rejection notes here..." value={rejectionNotes} onChange={(e) => setRejectionNotes(e.target.value)} rows={4} />

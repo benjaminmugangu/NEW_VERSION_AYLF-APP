@@ -99,7 +99,7 @@ export function AllocationForm({ recipients, recipientType, recipientLabel, onSu
           name="allocationDate"
           render={({ field }) => (
             <FormItem className="flex flex-col">
-              <FormLabel>Date d'allocation</FormLabel>
+              <FormLabel>Date d&apos;allocation</FormLabel>
               <Popover>
                 <PopoverTrigger asChild>
                   <FormControl>

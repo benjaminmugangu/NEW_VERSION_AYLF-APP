@@ -65,7 +65,7 @@ export function NotificationDetailsModal({ notification, isOpen, onClose }: Noti
                             <div className="space-y-1">
                                 <span className="text-sm font-medium text-destructive">Raison du rejet:</span>
                                 <p className="text-sm bg-destructive/10 p-2 rounded border border-destructive/20 italic">
-                                    "{metadata.reason}"
+                                    &quot;{metadata.reason}&quot;
                                 </p>
                             </div>
                         )}

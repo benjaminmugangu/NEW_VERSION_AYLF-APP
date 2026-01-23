@@ -21,7 +21,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [authError, setAuthError] = useState<{ code: string; message: string; details?: any } | null>(null);
   const [isAppLoading, setIsAppLoading] = useState(true);
 
-  const fetchUserProfile = async (isManualRefresh = false) => {
+  const fetchUserProfile = React.useCallback(async (isManualRefresh = false) => {
     if (!kindeUser) {
       setCurrentUser(null);
       setAuthError(null);
@@ -65,13 +65,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setIsAppLoading(false);
     }
-  };
+  }, [kindeUser]);
 
   useEffect(() => {
     if (!isKindeLoading) {
       fetchUserProfile();
     }
-  }, [kindeUser, isKindeLoading]);
+  }, [fetchUserProfile, isKindeLoading]);
 
   const value = {
     currentUser,

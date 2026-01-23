@@ -15,7 +15,7 @@ export function ImpactHero() {
                         Ensemble, transformons des vies
                     </h1>
                     <p className="mt-6 text-lg leading-8 text-slate-300">
-                        Découvrez comment l'AYLF mobilise la jeunesse pour un leadership responsable et un impact communautaire durable à travers l'Afrique.
+                        Découvrez comment l&apos;AYLF mobilise la jeunesse pour un leadership responsable et un impact communautaire durable à travers l&apos;Afrique.
                     </p>
                     <div className="mt-10 flex items-center justify-center gap-x-6">
                         <Button size="lg" className="bg-blue-600 hover:bg-blue-500" asChild>

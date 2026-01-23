@@ -81,7 +81,7 @@ export function DateRangeFilter({
 
   const [popoverOpen, setPopoverOpen] = useState(false);
 
-  const getDisplayLabel = (
+  const getDisplayLabel = React.useCallback((
     rangeKey: PredefinedRange,
     currentCustomRange?: DateRange,
     year?: string,
@@ -104,13 +104,13 @@ export function DateRangeFilter({
       return t('specific_period_display_year', { year });
     }
     return PREDEFINED_RANGES_OPTIONS.find(r => r.value === rangeKey)?.label || t('select_range');
-  };
+  }, [t, format, MONTH_OPTIONS, PREDEFINED_RANGES_OPTIONS]);
 
   const [displayLabel, setDisplayLabel] = useState<string>(() => getDisplayLabel(initialRangeKey, initialCustomRange, currentSpecificYear, currentSpecificMonth));
 
   useEffect(() => {
     setDisplayLabel(getDisplayLabel(selectedRangeKey, customDateRange, currentSpecificYear, currentSpecificMonth));
-  }, [selectedRangeKey, customDateRange, currentSpecificYear, currentSpecificMonth, t, format, PREDEFINED_RANGES_OPTIONS, MONTH_OPTIONS]);
+  }, [selectedRangeKey, customDateRange, currentSpecificYear, currentSpecificMonth, getDisplayLabel]);
 
 
   const triggerFilterChange = (

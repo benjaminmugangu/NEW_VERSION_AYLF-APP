@@ -30,14 +30,14 @@ export function useOfflineSync() {
             window.removeEventListener('online', handleOnline)
             window.removeEventListener('offline', handleOffline)
         }
-    }, [])
+    }, [syncPending, checkPending])
 
-    const checkPending = async () => {
+    const checkPending = React.useCallback(async () => {
         const pending = await db.syncQueue.where('synced').equals(0).count()
         setPendingOps(pending)
-    }
+    }, []);
 
-    const syncPending = async () => {
+    const syncPending = React.useCallback(async () => {
         const pending = await db.syncQueue.where('synced').equals(0).toArray()
         setPendingOps(pending.length)
 
@@ -56,7 +56,7 @@ export function useOfflineSync() {
         }
 
         await checkPending()
-    }
+    }, [checkPending]);
 
     const queueOperation = async (endpoint: string, method: string, data: any) => {
         await db.syncQueue.add({

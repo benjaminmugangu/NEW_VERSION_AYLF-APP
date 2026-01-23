@@ -46,14 +46,14 @@ export const ActivityReportPDF = ({ report }: ActivityReportPdfProps) => {
     });
 
     return (
-        <PdfLayout title="RAPPORT D'ACTIVITÉ" generatedBy={report.submittedBy.name}>
+        <PdfLayout title="RAPPORT D&apos;ACTIVITÉ" generatedBy={report.submittedBy.name}>
 
             {/* General Info Section */}
             <View style={styles.section}>
                 <Text style={styles.sectionTitle}>1. Informations Générales</Text>
 
                 <View style={styles.row}>
-                    <Text style={styles.label}>Titre de l'activité:</Text>
+                    <Text style={styles.label}>Titre de l&apos;activité:</Text>
                     <Text style={styles.value}>{report.title}</Text>
                 </View>
 
