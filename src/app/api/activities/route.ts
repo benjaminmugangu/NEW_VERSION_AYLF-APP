@@ -16,6 +16,7 @@ const activityCreateSchema = z.object({
   activityTypeId: z.string().uuid().optional(),
   activityTypeEnum: z.enum(["small_group_meeting", "conference", "apostolat", "deuil", "other"]).optional(),
   participantsCountPlanned: z.number().int().min(0).optional(),
+  startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).default('09:00'),
 }).refine(data => {
   if (data.level === 'national') return !data.siteId && !data.smallGroupId;
   if (data.level === 'site') return !!data.siteId && !data.smallGroupId;
@@ -49,6 +50,7 @@ export const POST = withApiRLS(async (request: NextRequest) => {
       siteId: parsedData.data.siteId,
       smallGroupId: parsedData.data.smallGroupId,
       participantsCountPlanned: parsedData.data.participantsCountPlanned,
+      startTime: parsedData.data.startTime || '09:00',
       createdBy: 'unknown', // Will be overwritten by RLS or derived in service if needed
     };
 

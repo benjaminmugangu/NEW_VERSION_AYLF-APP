@@ -54,6 +54,7 @@ export async function GET(request: Request) {
                         activityTypeId: activityType.id,
                         siteId: user.siteId!,
                         smallGroupId: user.smallGroupId!,
+                        startTime: '09:00',
                         createdBy: user.id
                     }, user); // Pass user context
                 });
