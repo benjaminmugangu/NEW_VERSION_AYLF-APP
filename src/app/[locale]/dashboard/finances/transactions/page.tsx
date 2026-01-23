@@ -36,13 +36,13 @@ export default function TransactionsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<FinancialTransaction | null>(null);
 
-  const handleEdit = (transaction: FinancialTransaction) => {
+  const handleEdit = React.useCallback((transaction: FinancialTransaction) => {
     if (transaction.isSystemGenerated) return;
     setSelectedTransaction(transaction);
     setIsModalOpen(true);
-  };
+  }, []);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = React.useCallback(async (id: string) => {
     // Extra safety check
     const transaction = transactions.find(t => t.id === id);
     if (transaction?.isSystemGenerated) {
@@ -59,7 +59,7 @@ export default function TransactionsPage() {
         alert(`Failed to delete transaction: ${error.message}`);
       }
     }
-  };
+  }, [transactions, deleteTransaction]);
 
   const memoizedColumns = useMemo(() => columns.map(col => {
     if (col.id === 'actions') {
@@ -84,7 +84,7 @@ export default function TransactionsPage() {
       };
     }
     return col;
-  }), [handleEdit, handleDelete]);
+  }), [handleEdit]);
 
   if (isLoading) {
     return <Skeleton className="h-[500px] w-full" />;

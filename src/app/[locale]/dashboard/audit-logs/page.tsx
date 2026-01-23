@@ -60,7 +60,7 @@ export default function AuditLogsPage() {
     const [fromDate, setFromDate] = useState<Date | undefined>(undefined);
     const [toDate, setToDate] = useState<Date | undefined>(undefined);
 
-    const fetchLogs = async () => {
+    const fetchLogs = React.useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
@@ -80,11 +80,11 @@ export default function AuditLogsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [entityType, fromDate, toDate]);
 
     useEffect(() => {
         fetchLogs();
-    }, []);
+    }, [fetchLogs]);
 
     const handleApplyFilters = () => {
         fetchLogs();

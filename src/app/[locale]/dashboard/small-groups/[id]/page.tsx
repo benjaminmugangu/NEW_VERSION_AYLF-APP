@@ -66,7 +66,7 @@ function CoordinatorHistorySection({ groupId }: { groupId: string | null }) {
     });
   }, [groupId]);
 
-  if (loading) return <div className="p-4 text-center text-muted-foreground">Chargement de l'historique...</div>;
+  if (loading) return <div className="p-4 text-center text-muted-foreground">Chargement de l&apos;historique...</div>;
   if (history.length === 0) return null;
 
   return (

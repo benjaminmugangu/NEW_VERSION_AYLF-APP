@@ -15,7 +15,7 @@ export default function DiagnosticsPage() {
     const [isSyncing, setIsSyncing] = useState(false);
     const { toast } = useToast();
 
-    const fetchReport = async () => {
+    const fetchReport = React.useCallback(async () => {
         setIsLoading(true);
         try {
             const data = await getIdentityReport();
@@ -29,7 +29,7 @@ export default function DiagnosticsPage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [toast]);
 
     useEffect(() => {
         fetchReport();

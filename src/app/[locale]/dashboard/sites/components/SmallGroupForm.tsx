@@ -86,7 +86,7 @@ export function SmallGroupForm({ smallGroup, siteId, onSubmitForm, isSaving }: S
     };
 
     fetchPersonnel();
-  }, [siteId, smallGroup?.id]);
+  }, [siteId, smallGroup?.id, toast]);
 
   const processSubmit = async (data: SmallGroupFormData) => {
     await onSubmitForm(data);

@@ -56,12 +56,12 @@ export function MemberForm({ member, onSubmitForm }: MemberFormProps) {
       return true;
     }, { message: t('validation.group_required'), path: ["smallGroupId"] }), [t]);
 
-  const getInitialLevel = () => {
+  const getInitialLevel = React.useCallback(() => {
     if (member) return member.level;
     if (currentUser?.role === ROLES.SITE_COORDINATOR) return 'site';
     if (currentUser?.role === ROLES.SMALL_GROUP_LEADER) return 'small_group';
     return 'national';
-  };
+  }, [member, currentUser]);
 
   const { control, handleSubmit, register, watch, formState: { errors, isSubmitting }, reset, setValue } = useForm<MemberFormData>({
     resolver: zodResolver(memberFormSchema),
