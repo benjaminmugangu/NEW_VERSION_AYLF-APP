@@ -167,6 +167,15 @@ export function ReportForm({ onSubmitSuccess, user }: ReportFormProps) {
     setSelectedFiles(prev => prev.filter((_, index) => index !== indexToRemove));
   };
 
+  const onValidationError = (errors: any) => {
+    console.error("ReportForm Validation Errors:", errors);
+    toast({
+      title: "Formulaire Incomplet",
+      description: "Veuillez vérifier les champs rouges ou manquants.",
+      variant: "destructive",
+    });
+  };
+
   const processSubmit = async (data: z.infer<typeof reportFormSchema>) => {
     if (!user) {
       toast({ title: t("error_title"), description: t("error_user"), variant: "destructive" });
@@ -175,6 +184,8 @@ export function ReportForm({ onSubmitSuccess, user }: ReportFormProps) {
     setIsSubmitting(true);
 
     try {
+      console.log("[ReportForm] Processing submission with data:", data);
+
       let imageUrls: Array<{ name: string; url: string }> = [];
       if (selectedFiles.length > 0) {
         // Upload files via API route (server-side storage with RLS)
@@ -208,19 +219,21 @@ export function ReportForm({ onSubmitSuccess, user }: ReportFormProps) {
 
       const reportPayload: ReportFormData = {
         ...data,
-        activityDate: format(data.activityDate, 'yyyy-MM-dd'),
+        activityDate: data.activityDate.toISOString(), // Ensure ISO string for the backend
         submittedBy: user.id,
         images: imageUrls,
         status: 'submitted',
-        // No longer need manual mapping, Zod schema provides `activityId`
       };
 
+      console.log("[ReportForm] Sending payload to server:", JSON.stringify(reportPayload, null, 2));
       const response = await reportService.createReport(reportPayload);
 
       if (!response.success || !response.data) {
+        console.error("[ReportForm] Server returned error:", response.error);
         throw new Error(response.error?.message || t("error_desc"));
       }
 
+      console.log("[ReportForm] Submission successful:", response.data);
       toast({ title: t("success"), description: t("success_desc") });
       reset();
       setSelectedFiles([]);
@@ -246,7 +259,7 @@ export function ReportForm({ onSubmitSuccess, user }: ReportFormProps) {
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit(processSubmit)} className="space-y-8">
+        <form onSubmit={handleSubmit(processSubmit, onValidationError)} className="space-y-8">
 
           {/* Activity Selector */}
           <div>

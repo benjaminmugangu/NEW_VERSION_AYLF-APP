@@ -10,10 +10,12 @@ import { checkPeriod } from '../accountingService';
 import { mapPrismaReportToModel, mapUpdateDataFields } from './shared';
 
 export async function createReport(reportData: ReportFormData, overrideUser?: any): Promise<ServiceResponse<ReportWithDetails>> {
+    console.log(`[createReport] Received data:`, JSON.stringify(reportData, null, 2));
     const { getUser } = getKindeServerSession();
     const user = overrideUser || await getUser();
 
     if (!user?.id) {
+        console.error(`[createReport] Unauthorized: No user ID found.`);
         return { success: false, error: { message: 'Unauthorized', code: ErrorCode.UNAUTHORIZED } };
     }
 
@@ -23,9 +25,11 @@ export async function createReport(reportData: ReportFormData, overrideUser?: an
     const { getProfile } = await import('../profileService');
     const profileResponse = await getProfile(user.id);
     if (!profileResponse.success || !profileResponse.data) {
+        console.error(`[createReport] Profile not found for user ${user.id}`);
         return { success: false, error: { message: 'Profile not found', code: ErrorCode.NOT_FOUND } };
     }
     const dbProfile = profileResponse.data;
+    console.log(`[createReport] Profile fetched: ${dbProfile.name} (${dbProfile.role})`);
 
     // 2. Idempotency Check (Pre-Transaction)
     if (reportData.idempotencyKey) {
@@ -33,19 +37,25 @@ export async function createReport(reportData: ReportFormData, overrideUser?: an
             where: { key: reportData.idempotencyKey }
         });
         if (existing) {
+            console.log(`[createReport] Idempotency hit: ${reportData.idempotencyKey}`);
             return existing.response as any;
         }
     }
 
     return await withRLS(user.id, async () => {
         // 3. Mutual Exclusivity & Level Validation
+        console.log(`[createReport] Validating level: ${reportData.level}, Site ID: ${reportData.siteId}, Group ID: ${reportData.smallGroupId}`);
         if (reportData.level === 'national') {
             reportData.siteId = undefined;
             reportData.smallGroupId = undefined;
         } else if (reportData.level === 'site') {
-            if (!reportData.siteId) return { success: false, error: { message: 'Site ID is required for site-level reports.', code: ErrorCode.VALIDATION_ERROR } };
+            if (!reportData.siteId) {
+                console.error(`[createReport] Missing Site ID for site-level report.`);
+                return { success: false, error: { message: 'Site ID is required for site-level reports.', code: ErrorCode.VALIDATION_ERROR } };
+            }
             reportData.smallGroupId = undefined;
         } else if (reportData.level === 'small_group' && !reportData.smallGroupId) {
+            console.error(`[createReport] Missing Group ID for small-group-level report.`);
             return { success: false, error: { message: 'Small Group ID is required for small-group-level reports.', code: ErrorCode.VALIDATION_ERROR } };
         }
 
@@ -58,22 +68,26 @@ export async function createReport(reportData: ReportFormData, overrideUser?: an
                 // B1. Fetch Activity Source (Trusted Source)
                 let activitySource = null;
                 if (reportData.activityId) {
+                    console.log(`[createReport] Fetching activity source: ${reportData.activityId}`);
                     activitySource = await tx.activity.findUnique({
                         where: { id: reportData.activityId },
                         select: { id: true, date: true, createdById: true, title: true, status: true, level: true, siteId: true, smallGroupId: true }
                     });
 
                     if (!activitySource) throw new Error("NOT_FOUND: Activity source not found");
+                    console.log(`[createReport] Activity source found: "${activitySource.title}" (Level: ${activitySource.level})`);
 
                     // B2. GUARD: Role-Based Scope Validation (NC: all, SC: site activities, SGL: group activities)
                     const { role, siteId, smallGroupId } = dbProfile;
 
                     if (role === ROLES.SITE_COORDINATOR) {
                         if (activitySource.level !== 'site' || activitySource.siteId !== siteId) {
+                            console.error(`[createReport] FORBIDDEN: SC scope mismatch. User Site: ${siteId}, Activity Site: ${activitySource.siteId}`);
                             throw new Error("FORBIDDEN: Site Coordinators can only report site-level activities in their site.");
                         }
                     } else if (role === ROLES.SMALL_GROUP_LEADER) {
                         if (activitySource.level !== 'small_group' || activitySource.smallGroupId !== smallGroupId) {
+                            console.error(`[createReport] FORBIDDEN: SGL scope mismatch. User Group: ${smallGroupId}, Activity Group: ${activitySource.smallGroupId}`);
                             throw new Error("FORBIDDEN: Small Group Leaders can only report activities for their specific group.");
                         }
                     } else if (role === ROLES.NATIONAL_COORDINATOR) {
@@ -81,6 +95,7 @@ export async function createReport(reportData: ReportFormData, overrideUser?: an
                     } else {
                         // Fallback: Creator Only
                         if (activitySource.createdById !== user.id) {
+                            console.error(`[createReport] FORBIDDEN: User ${user.id} is not the creator ${activitySource.createdById}`);
                             throw new Error("FORBIDDEN: Security Violation. Unauthorized to report this activity.");
                         }
                     }
@@ -93,6 +108,7 @@ export async function createReport(reportData: ReportFormData, overrideUser?: an
                     if (now.getTime() - activityTime < REPORT_DELAY_MS) {
                         const eligibleTime = new Date(activityTime + REPORT_DELAY_MS);
                         const { format } = await import('date-fns');
+                        console.error(`[createReport] VALIDATION_ERROR: Activity started at ${new Date(activitySource.date).toISOString()}. Too early to report.`);
                         throw new Error(`VALIDATION_ERROR: Integrity Rule. Reports can only be submitted 5 hours after activity start. Eligible at: ${format(eligibleTime, 'HH:mm')}`);
                     }
 
@@ -108,6 +124,7 @@ export async function createReport(reportData: ReportFormData, overrideUser?: an
                     });
 
                     if (existingReport) {
+                        console.error(`[createReport] CONFLICT: Activity ${reportData.activityId} already reported by report ${existingReport.id}`);
                         throw new Error(
                             `ACTIVITY_ALREADY_REPORTED: Un rapport existe déjà pour cette activité. ` +
                             `Rapport existant: "${existingReport.title}" (statut: ${existingReport.status}).`
@@ -116,6 +133,7 @@ export async function createReport(reportData: ReportFormData, overrideUser?: an
                 }
 
                 // C. Create Report
+                console.log(`[createReport] Creating report in database...`);
                 const report = await tx.report.create({
                     data: {
                         title: reportData.title,
@@ -144,6 +162,7 @@ export async function createReport(reportData: ReportFormData, overrideUser?: an
 
                 // D. Link back to Activity (Update Status) - Atomic
                 if (reportData.activityId) {
+                    console.log(`[createReport] Updating activity status to 'executed'`);
                     await tx.activity.update({
                         where: { id: reportData.activityId },
                         data: { status: 'executed' }
@@ -165,6 +184,7 @@ export async function createReport(reportData: ReportFormData, overrideUser?: an
 
                 // F. Notifications (Inside Transaction)
                 try {
+                    console.log(`[createReport] Sending notifications to NCs...`);
                     const reviewers = await tx.profile.findMany({
                         where: { role: ROLES.NATIONAL_COORDINATOR }
                     });
@@ -178,14 +198,17 @@ export async function createReport(reportData: ReportFormData, overrideUser?: an
                 return finalReport;
             });
 
+            console.log(`[createReport] Success: Report created with ID ${result.id}`);
             return { success: true, data: result };
         } catch (error: any) {
-            console.error(`[Mutation] createReport Error: ${error.message}`);
+            console.error(`[createReport] Transaction Error: ${error.message}`);
             let code = ErrorCode.INTERNAL_ERROR;
             if (error.message.includes('FORBIDDEN')) code = ErrorCode.FORBIDDEN;
             if (error.message.includes('NOT_FOUND')) code = ErrorCode.NOT_FOUND;
             if (error.message.includes('VALIDATION_ERROR')) code = ErrorCode.VALIDATION_ERROR;
             if (error.message.includes('ACTIVITY_ALREADY_REPORTED')) code = ErrorCode.CONFLICT;
+            if (error.message.includes('PERIOD_CLOSED')) code = ErrorCode.PERIOD_CLOSED;
+
             return { success: false, error: { message: error.message, code } };
         }
     });
