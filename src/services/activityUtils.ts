@@ -95,24 +95,32 @@ export function buildActivityWhereClause(filters: any) {
 }
 
 function getRbacWhereClause(user: any) {
-    if (user.role === ROLES.SITE_COORDINATOR && user.siteId) {
-        return {
-            OR: [
-                { level: 'national' },
-                { level: 'site', siteId: user.siteId },
-                { level: 'small_group', siteId: user.siteId }
-            ]
-        };
+    if (user.role === ROLES.SITE_COORDINATOR) {
+        if (user.siteId) {
+            return {
+                OR: [
+                    { level: 'national' },
+                    { level: 'site', siteId: user.siteId },
+                    { level: 'small_group', siteId: user.siteId }
+                ]
+            };
+        }
+        // Fallback: If no siteId, show only national (or nothing)
+        return { level: 'national' };
     }
 
-    if (user.role === ROLES.SMALL_GROUP_LEADER && user.siteId && user.smallGroupId) {
-        return {
-            OR: [
-                { level: 'national' },
-                { level: 'site', siteId: user.siteId },
-                { level: 'small_group', smallGroupId: user.smallGroupId }
-            ]
-        };
+    if (user.role === ROLES.SMALL_GROUP_LEADER) {
+        if (user.siteId && user.smallGroupId) {
+            return {
+                OR: [
+                    { level: 'national' },
+                    { level: 'site', siteId: user.siteId },
+                    { level: 'small_group', smallGroupId: user.smallGroupId }
+                ]
+            };
+        }
+        // Fallback: If no group assigned, show only national
+        return { level: 'national' };
     }
 
     return null;
