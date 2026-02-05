@@ -133,7 +133,7 @@ export const MonthlyReportPDF = ({ narrative, period, stats }: MonthlyReportPdfP
                         <Text style={{ fontSize: 10, fontWeight: 'bold' }}>{stats?.metrics?.avgSubmissionDelay} jours</Text>
                     </View>
                     <View style={{ width: '50%', marginBottom: 8 }}>
-                        <Text style={{ fontSize: 8, color: '#64748b' }}>Délai Moyen d'Approbation</Text>
+                        <Text style={{ fontSize: 8, color: '#64748b' }}>Délai Moyen d&apos;Approbation</Text>
                         <Text style={{ fontSize: 10, fontWeight: 'bold' }}>{stats?.metrics?.avgReviewDelay} jours</Text>
                     </View>
                 </View>
