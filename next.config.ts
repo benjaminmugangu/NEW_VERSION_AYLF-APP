@@ -73,11 +73,11 @@ const securityHeaders = [
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://*.kinde.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://*.kinde.com https://vercel.live https://*.vercel.live",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: blob: https://lymsxnyqicjmsxdkeinn.supabase.co https://encrypted-tbn0.gstatic.com https://picsum.photos",
-      "connect-src 'self' https://lymsxnyqicjmsxdkeinn.supabase.co https://*.kinde.com wss://lymsxnyqicjmsxdkeinn.supabase.co",
+      "connect-src 'self' https://lymsxnyqicjmsxdkeinn.supabase.co https://*.kinde.com wss://lymsxnyqicjmsxdkeinn.supabase.co https://vercel.live https://*.vercel.live",
       "frame-src 'self' https://*.kinde.com",
       "frame-ancestors 'none'",
       "base-uri 'self'",

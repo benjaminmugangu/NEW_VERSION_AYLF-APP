@@ -5,11 +5,23 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export const formatCurrency = (amount: number) => {
-  if (typeof amount !== 'number') {
+export const formatCurrency = (amount: number, currency: string = 'USD') => {
+  if (typeof amount !== 'number' || isNaN(amount)) {
     amount = 0;
   }
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount);
+
+  try {
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: currency
+    }).format(amount);
+  } catch (error) {
+    console.error('Invalid currency code:', currency);
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(amount);
+  }
 };
 
 export const formatDate = (dateString: string) => {
@@ -34,7 +46,7 @@ export function getInitials(name: string | null | undefined): string {
   }
 
   const names = name.trim().split(/\s+/);
-  
+
   // If only one name, return the first two letters.
   if (names.length === 1 && names[0]) {
     return names[0].substring(0, 2).toUpperCase();
