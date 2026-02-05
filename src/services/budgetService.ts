@@ -122,8 +122,8 @@ export async function calculateBudgetAggregates(params: {
 
     const incomeAgg = await client.financialTransaction.aggregate({
         where: {
-            siteId: isNationalScope ? null : (siteId || undefined),
-            smallGroupId: isNationalScope ? null : (smallGroupId || undefined),
+            siteId: isNationalScope ? undefined : (siteId || undefined), // Consolidated for NC
+            smallGroupId: isNationalScope ? undefined : (smallGroupId || undefined),
             type: 'income',
             status: 'approved',
             ...dateClause('date')
@@ -134,8 +134,8 @@ export async function calculateBudgetAggregates(params: {
 
     const expenseAgg = await client.financialTransaction.aggregate({
         where: {
-            siteId: isNationalScope ? null : (siteId || undefined),
-            smallGroupId: isNationalScope ? null : (smallGroupId || undefined),
+            siteId: isNationalScope ? undefined : (siteId || undefined), // Consolidated for NC
+            smallGroupId: isNationalScope ? undefined : (smallGroupId || undefined),
             type: 'expense',
             status: 'approved',
             ...dateClause('date')
@@ -204,7 +204,7 @@ export async function calculateBudgetAggregates(params: {
     const totalAllocated = Number(sentAgg._sum.amount || 0);
 
     const reportWhere: any = {
-        status: 'approved',
+        status: { in: ['approved', 'submitted'] },
         ...dateClause('submissionDate')
     };
     if (siteId) reportWhere.siteId = siteId;
@@ -217,7 +217,13 @@ export async function calculateBudgetAggregates(params: {
     const totalSpentInReports = Number(reportAgg._sum.totalExpenses || 0);
 
     const totalIncome = directIncome + totalAllocationsReceived;
-    const netBalance = totalIncome - (expenses + totalAllocated);
+
+    // NC CONSOLIDATED VISION:
+    // If we are at national scope, netBalance is what's left in the entire organization (Income - Expenses)
+    // Internal allocations (sent to sites) are NOT subtracted from organizational net balance.
+    const netBalance = isNationalScope
+        ? totalIncome - expenses
+        : totalIncome - (expenses + totalAllocated);
     const allocationBalance = totalAllocated - totalSpentInReports;
 
     return {

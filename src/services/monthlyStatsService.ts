@@ -200,7 +200,7 @@ export async function getActivityStatsInPeriod(start: Date, end: Date, label?: s
       const reportsInPeriod = await prisma.report.findMany({
         where: {
           activityDate: { gte: queryStart, lte: queryEnd },
-          status: 'approved'
+          status: { in: ['approved', 'submitted'] }
         }
       });
 

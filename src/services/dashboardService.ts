@@ -116,7 +116,8 @@ export async function getDashboardStats(user: User | null, dateFilter: DateFilte
     // Financials
     const netBalance = financials?.netBalance ?? 0;
     const totalIncome = financials?.income ?? 0;
-    const totalExpenses = financials?.expenses ?? 0;
+    // For NC, totalExpenses on dashboard should include both accounted transactions and reported activity expenses
+    const totalExpenses = (financials?.expenses ?? 0) + (financials?.totalSpent ?? 0);
 
     // Data for charts
     const activityStatusData = [
