@@ -79,19 +79,23 @@ export const MonthlyReportPDF = ({ narrative, period, stats }: MonthlyReportPdfP
                 </View>
             </View>
 
-            {/* SECTION 2: BILAN FINANCIER */}
+            {/* SECTION 2: BILAN FINANCIER & FLUX HIÉRARCHIQUES */}
             <View style={styles.section}>
-                <Text style={styles.sectionHeader}>2. Bilan Financier de la Période</Text>
+                <Text style={styles.sectionHeader}>2. Bilan Financier & Flux Hiérarchiques</Text>
                 <View style={styles.table}>
                     <View style={[styles.tableRow, { backgroundColor: '#f8fafc' }]}>
-                        <View style={[styles.tableCol, { width: '50%' }]}><Text style={styles.tableCellHeader}>Description</Text></View>
-                        <View style={[styles.tableCol, { width: '50%' }]}><Text style={styles.tableCellHeader}>Montant (FC/USD)</Text></View>
+                        <View style={[styles.tableCol, { width: '50%' }]}><Text style={styles.tableCellHeader}>Flux de Trésorerie NC → SC → SGL</Text></View>
+                        <View style={[styles.tableCol, { width: '50%' }]}><Text style={styles.tableCellHeader}>Montant (USD)</Text></View>
                     </View>
                     <View style={styles.tableRow}>
-                        <View style={[styles.tableCol, { width: '50%' }]}><Text style={styles.tableCell}>Allocations Nationales Reçues</Text></View>
-                        <View style={[styles.tableCol, { width: '50%' }]}><Text style={[styles.tableCell, { fontWeight: 'bold', color: '#16a34a' }]}>{stats?.financials?.allocationsReceived?.toLocaleString()} USD</Text></View>
+                        <View style={[styles.tableCol, { width: '50%' }]}><Text style={styles.tableCell}>Allocations Nationales Reçues (NC → SC)</Text></View>
+                        <View style={[styles.tableCol, { width: '50%' }]}><Text style={[styles.tableCell, { fontWeight: 'bold' }]}>{stats?.hierarchy?.nationalToSite?.toLocaleString()} USD</Text></View>
                     </View>
                     <View style={styles.tableRow}>
+                        <View style={[styles.tableCol, { width: '50%' }]}><Text style={styles.tableCell}>Allocations Sites vers Groupes (SC → SGL)</Text></View>
+                        <View style={[styles.tableCol, { width: '50%' }]}><Text style={[styles.tableCell, { fontWeight: 'bold' }]}>{stats?.hierarchy?.siteToGroup?.toLocaleString()} USD</Text></View>
+                    </View>
+                    <View style={[styles.tableRow, { marginTop: 5, borderTopWidth: 1 }]}>
                         <View style={[styles.tableCol, { width: '50%' }]}><Text style={styles.tableCell}>Dépenses Déclarées (Rapports)</Text></View>
                         <View style={[styles.tableCol, { width: '50%' }]}><Text style={[styles.tableCell, { fontWeight: 'bold', color: '#dc2626' }]}>{stats?.financials?.reportedExpenses?.toLocaleString()} USD</Text></View>
                     </View>
@@ -141,8 +145,8 @@ export const MonthlyReportPDF = ({ narrative, period, stats }: MonthlyReportPdfP
                         )}
                     </View>
                     <View style={{ width: '50%', marginBottom: 8 }}>
-                        <Text style={{ fontSize: 8, color: '#64748b' }}>Sites & Groupes</Text>
-                        <Text style={{ fontSize: 10, fontWeight: 'bold' }}>{stats?.organizational?.sitesCount} sites / {stats?.organizational?.smallGroupsCount} groupes</Text>
+                        <Text style={{ fontSize: 8, color: '#64748b' }}>Réalisation Objectifs</Text>
+                        <Text style={{ fontSize: 10, fontWeight: 'bold' }}>Taux de Réalisation : {stats?.metrics?.realizationRate}%</Text>
                     </View>
                     <View style={{ width: '50%', marginBottom: 8 }}>
                         <Text style={{ fontSize: 8, color: '#64748b' }}>Délai Moyen de Soumission</Text>
@@ -155,10 +159,33 @@ export const MonthlyReportPDF = ({ narrative, period, stats }: MonthlyReportPdfP
                 </View>
             </View>
 
-            {/* SECTION 5: MOUVEMENTS D'INVENTAIRE (Audit Royal) */}
+            {/* SECTION 5: PHOTOGRAPHIE MICROSCOPIQUE DES ACTIVITÉS */}
+            <View style={styles.section}>
+                <Text style={styles.sectionHeader}>5. Photographie Microscopique des Activités</Text>
+                <View style={styles.table}>
+                    <View style={[styles.tableRow, { backgroundColor: '#f8fafc' }]}>
+                        <View style={[styles.tableCol, { width: '15%' }]}><Text style={styles.tableCellHeader}>Date</Text></View>
+                        <View style={[styles.tableCol, { width: '35%' }]}><Text style={styles.tableCellHeader}>Activité</Text></View>
+                        <View style={[styles.tableCol, { width: '15%' }]}><Text style={styles.tableCellHeader}>Site</Text></View>
+                        <View style={[styles.tableCol, { width: '15%' }]}><Text style={styles.tableCellHeader}>Part. (R/P)</Text></View>
+                        <View style={[styles.tableCol, { width: '20%' }]}><Text style={styles.tableCellHeader}>Dépenses</Text></View>
+                    </View>
+                    {stats?.detailedActivities?.map((act: any, i: number) => (
+                        <View key={i} style={styles.tableRow}>
+                            <View style={[styles.tableCol, { width: '15%' }]}><Text style={styles.tableCell}>{new Date(act.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}</Text></View>
+                            <View style={[styles.tableCol, { width: '35%' }]}><Text style={styles.tableCell}>{act.title}</Text></View>
+                            <View style={[styles.tableCol, { width: '15%' }]}><Text style={styles.tableCell}>{act.siteName}</Text></View>
+                            <View style={[styles.tableCol, { width: '15%' }]}><Text style={styles.tableCell}>{act.participantsReal}/{act.participantsPlanned}</Text></View>
+                            <View style={[styles.tableCol, { width: '20%' }]}><Text style={[styles.tableCell, { fontWeight: 'bold' }]}>{act.expenseDeclared.toLocaleString()} USD</Text></View>
+                        </View>
+                    ))}
+                </View>
+            </View>
+
+            {/* SECTION 6: MOUVEMENTS D'INVENTAIRE (Audit Royal) */}
             {stats?.inventory && (stats.inventory.movementsIn > 0 || stats.inventory.movementsOut > 0) && (
                 <View style={styles.section}>
-                    <Text style={styles.sectionHeader}>5. Gestion Patrimoniale (Inventaire)</Text>
+                    <Text style={styles.sectionHeader}>6. Gestion Patrimoniale (Inventaire)</Text>
                     <View style={styles.table}>
                         <View style={[styles.tableRow, { backgroundColor: '#f8fafc' }]}>
                             <View style={[styles.tableCol, { width: '40%' }]}><Text style={styles.tableCellHeader}>Article</Text></View>
@@ -180,9 +207,9 @@ export const MonthlyReportPDF = ({ narrative, period, stats }: MonthlyReportPdfP
                 </View>
             )}
 
-            {/* SECTION 6: RÉSUMÉ NARRATIF */}
+            {/* SECTION 7: RÉSUMÉ NARRATIF */}
             <View style={styles.section}>
-                <Text style={styles.sectionHeader}>{stats?.inventory ? '6' : '5'}. Synthèse Stratégique</Text>
+                <Text style={styles.sectionHeader}>{stats?.inventory ? '7' : '6'}. Synthèse Stratégique</Text>
                 {narrative.generalSummary.map((point, i) => (
                     <View key={i} style={{ flexDirection: 'row', marginBottom: 4, paddingLeft: 10 }}>
                         <Text style={{ width: 10, fontSize: 10 }}>•</Text>
@@ -193,7 +220,7 @@ export const MonthlyReportPDF = ({ narrative, period, stats }: MonthlyReportPdfP
 
             {/* SECTION CONCLUSION */}
             <View style={{ marginTop: 20, paddingHorizontal: 10 }}>
-                <Text style={styles.sectionHeader}>{stats?.inventory ? '7' : '6'}. Conclusion & Recommandations</Text>
+                <Text style={styles.sectionHeader}>{stats?.inventory ? '8' : '7'}. Conclusion & Recommandations</Text>
                 <Text style={[styles.textParagraph, { fontSize: 10 }]}>{narrative.conclusion}</Text>
             </View>
 
