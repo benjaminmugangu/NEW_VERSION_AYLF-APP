@@ -1,7 +1,7 @@
 'use server';
 
 import { prisma, withRLS } from '@/lib/prisma';
-import { format } from 'date-fns';
+import { startOfMonth, endOfMonth, subMonths, format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { ServiceResponse, ErrorCode } from '@/lib/types';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
@@ -65,6 +65,20 @@ export interface PeriodStats {
     reportingRate: number;
     avgSubmissionDelay: number; // in days
     avgReviewDelay: number;      // in days
+    qualityScore: number;       // % of reports with evidence
+  };
+  trends?: {
+    incomeDelta: number;
+    expenseDelta: number;
+    activityDelta: number;
+    participationDelta: number;
+  };
+  inventory?: {
+    movementsIn: number;
+    movementsOut: number;
+    totalQuantityIn: number;
+    totalQuantityOut: number;
+    topMovedItems: Array<{ name: string; quantity: number; direction: 'in' | 'out' }>;
   };
   organizational?: {
     totalMembers: number;
@@ -169,7 +183,7 @@ export async function getActivityStatsInPeriod(start: Date, end: Date, label?: s
         }
       });
 
-      // Fetch all reports in period (some might not have activities if dated differently)
+      // Fetch all reports in period
       const reportsInPeriod = await prisma.report.findMany({
         where: {
           activityDate: { gte: queryStart, lte: queryEnd },
@@ -197,6 +211,16 @@ export async function getActivityStatsInPeriod(start: Date, end: Date, label?: s
         where: { createdAt: { lte: queryEnd } }
       });
 
+      // Fetch Inventory Movements
+      const inventoryMovements = await prisma.inventoryMovement.findMany({
+        where: {
+          date: { gte: queryStart, lte: queryEnd }
+        },
+        include: {
+          item: true
+        }
+      });
+
       // Aggregate Data
       const periodLabel = label || `Période du ${format(queryStart, 'dd/MM/yyyy')} au ${format(queryEnd, 'dd/MM/yyyy')}`;
 
@@ -218,7 +242,13 @@ export async function getActivityStatsInPeriod(start: Date, end: Date, label?: s
         smallGroupPerformance: [],
         metrics: {
           growthRate: 0, retentionRate: 0, conversionRate: 0,
-          reportingRate: 0, avgSubmissionDelay: 0, avgReviewDelay: 0
+          reportingRate: 0, avgSubmissionDelay: 0, avgReviewDelay: 0,
+          qualityScore: 0
+        },
+        inventory: {
+          movementsIn: 0, movementsOut: 0,
+          totalQuantityIn: 0, totalQuantityOut: 0,
+          topMovedItems: []
         },
         organizational: {
           totalMembers: totalMembersAtEnd,
@@ -229,6 +259,30 @@ export async function getActivityStatsInPeriod(start: Date, end: Date, label?: s
         },
         reporting: { pending: 0, approved: 0, rejected: 0, missing: 0 }
       };
+
+      // 0. Inventory Aggregation (Audit Royal)
+      const itemMovements = new Map<string, { name: string, quantity: number, direction: 'in' | 'out' }>();
+
+      for (const m of inventoryMovements) {
+        const qty = Number(m.quantity);
+        if (m.direction === 'in') {
+          stats.inventory!.movementsIn++;
+          stats.inventory!.totalQuantityIn += qty;
+        } else {
+          stats.inventory!.movementsOut++;
+          stats.inventory!.totalQuantityOut += qty;
+        }
+
+        const key = `${m.itemId}-${m.direction}`;
+        if (!itemMovements.has(key)) {
+          itemMovements.set(key, { name: m.item?.name || 'Inconnu', quantity: 0, direction: m.direction });
+        }
+        itemMovements.get(key)!.quantity += qty;
+      }
+
+      stats.inventory!.topMovedItems = Array.from(itemMovements.values())
+        .sort((a, b) => b.quantity - a.quantity)
+        .slice(0, 5);
 
 
       // 1. Financial Aggregation (Traceability 360)
@@ -289,6 +343,11 @@ export async function getActivityStatsInPeriod(start: Date, end: Date, label?: s
           actParticipants = report.participantsCountReported || 0;
           actGirls = report.girlsCount || 0;
           actBoys = report.boysCount || 0;
+
+          // Quality Audit (Audit Royal)
+          const hasImages = report.images && Array.isArray(report.images) && report.images.length > 0;
+          const hasAttachments = report.attachments && Array.isArray(report.attachments) && report.attachments.length > 0;
+          if (hasImages || hasAttachments) stats.metrics.qualityScore++;
 
           if (report.status === 'approved') stats.reporting!.approved++;
           else if (report.status === 'rejected') stats.reporting!.rejected++;
@@ -380,11 +439,32 @@ export async function getActivityStatsInPeriod(start: Date, end: Date, label?: s
       stats.metrics.avgSubmissionDelay = reportsCount > 0 ? Math.round(totalSubmissionDelay / reportsCount) : 0;
       stats.metrics.avgReviewDelay = reviewsCount > 0 ? Math.round(totalReviewDelay / reviewsCount) : 0;
 
-      // Retention (heuristic)
+      stats.metrics.qualityScore = reportsCount > 0 ? Math.round((stats.metrics.qualityScore / reportsCount) * 100) : 0;
+
       const siteAvgCompletion = stats.sitePerformance.length > 0
         ? stats.sitePerformance.reduce((acc, s) => acc + s.activitiesCount, 0) / sites.length
         : 0;
       stats.metrics.retentionRate = Math.min(100, Math.round(siteAvgCompletion * 25));
+
+      // 5. Trend Analysis (Audit Royal) - Recursive check to avoid loop
+      const isTrendCalculation = (label === 'PREVIOUS_PERIOD_INTERNAL');
+      if (!isTrendCalculation) {
+        const prevStart = subMonths(queryStart, 1);
+        const prevEnd = endOfMonth(prevStart);
+        
+        // We bypass RLS wrapper here to avoid nesting, but the second call will respect it
+        const prevStatsResult = await getActivityStatsInPeriod(prevStart, prevEnd, 'PREVIOUS_PERIOD_INTERNAL');
+        
+        if (prevStatsResult.success && prevStatsResult.data) {
+          const prev = prevStatsResult.data;
+          stats.trends = {
+            incomeDelta: prev.financials.totalIncome > 0 ? Math.round(((stats.financials.totalIncome - prev.financials.totalIncome) / prev.financials.totalIncome) * 100) : 0,
+            expenseDelta: prev.financials.totalExpenses > 0 ? Math.round(((stats.financials.totalExpenses - prev.financials.totalExpenses) / prev.financials.totalExpenses) * 100) : 0,
+            activityDelta: prev.totalActivities > 0 ? Math.round(((stats.totalActivities - prev.totalActivities) / prev.totalActivities) * 100) : 0,
+            participationDelta: prev.participation.total > 0 ? Math.round(((stats.participation.total - prev.participation.total) / prev.participation.total) * 100) : 0
+          };
+        }
+      }
 
       return stats;
     });
@@ -415,77 +495,71 @@ export interface ReportNarrative {
 
 export async function generateNarrative(stats: PeriodStats): Promise<ReportNarrative> {
   const { label } = stats.period;
+  const { trends, financials, metrics, inventory } = stats;
 
   // 1. Introduction
   const intro = `Chers Coordonnateurs,
+  
+Nous souhaitons vous adresser nos salutations les plus cordiales. La période "${label}" vient de s'achever, et l'Audit Royal de performance a été effectué sur l'ensemble de vos activités. Ce rapport offre une vision à 360° pour guider nos décisions stratégiques.`;
 
-Nous tenons à vous adresser nos salutations les plus cordiales et espérons que vous vous portez bien.
-
-Nous souhaitons exprimer notre sincère gratitude pour votre engagement constant et votre présence active sur le terrain. Grâce à vos efforts dévoués, la période "${label}" s'est achevée sur une dynamique particulièrement encourageante à travers l'ensemble de nos sites.`;
-
-  // 2. General Summary Bullets
+  // 2. Strategic Summary Bullets
   const bullets: string[] = [];
 
   if (stats.totalActivities === 0) {
-    bullets.push(`Aucune activité n’a été enregistrée pour cette période.`);
+    bullets.push(`🚨 ALERTE CRITIQUE : Aucune activité enregistrée sur la période. Un audit de terrain est requis pour comprendre cet arrêt de production.`);
   } else {
-    bullets.push(`Durant cette période (${label}), un total de ${stats.totalActivities} activités a été mené sur l’ensemble du territoire, témoignant de la diversité et de l’impact croissant de notre travail.`);
+    // Activities & Trends
+    const actTrend = trends?.activityDelta ?? 0;
+    const actTrendText = actTrend >= 0 ? `une progression de +${actTrend}%` : `une baisse de ${actTrend}%`;
+    bullets.push(`Activité : ${stats.totalActivities} initiatives menées (${actTrendText} par rapport au mois précédent).`);
 
-    Object.entries(stats.activitiesByType).forEach(([type, count]) => {
-      bullets.push(`${count} ${type} ont été organisées.`);
-    });
-
-    if (stats.specialActivities.length > 0) {
-      const specialByType: Record<string, string[]> = {};
-      stats.specialActivities.forEach(act => {
-        if (!specialByType[act.type]) specialByType[act.type] = [];
-        specialByType[act.type].push(`${act.siteName}`);
-      });
-
-      Object.entries(specialByType).forEach(([type, sites]) => {
-        const distinctSites = Array.from(new Set(sites)).join(', ');
-        bullets.push(`${sites.length} ${type} ont eu lieu, menées notamment par les équipes de ${distinctSites}.`);
-      });
+    // Financial Strategy
+    const expTrend = trends?.expenseDelta ?? 0;
+    const incTrend = trends?.incomeDelta ?? 0;
+    bullets.push(`Finance : Le volume de revenus a évolué de ${incTrend >= 0 ? '+' : ''}${incTrend}%, tandis que les dépenses ont varié de ${expTrend >= 0 ? '+' : ''}${expTrend}%.`);
+    
+    if (financials.reportedExpenses > financials.accountedExpenses * 1.2) {
+      bullets.push(`⚠️ ATTENTION : Les dépenses déclarées (${financials.reportedExpenses} USD) dépassent largement les transactions validées (${financials.accountedExpenses} USD). Une réconciliation comptable urgente est nécessaire.`);
     }
 
-    // Financial Highlights
-    const { totalIncome, totalExpenses, allocationsReceived } = stats.financials;
-    if (allocationsReceived > 0) {
-      bullets.push(`Le bureau national a injecté un total de ${allocationsReceived.toLocaleString()} USD dans le réseau via des allocations directes.`);
-    }
-    bullets.push(`Le volume financier total géré sur la période s'élève à ${totalIncome.toLocaleString()} USD de revenus contre ${totalExpenses.toLocaleString()} USD de dépenses comptabilisées.`);
+    // Reporting Quality & Proof
+    bullets.push(`Reporting : Taux de complétion à ${metrics.reportingRate}%. Le score de qualité (preuves/photos) s'élève à ${metrics.qualityScore}%, ce qui est ${metrics.qualityScore < 70 ? 'insuffisant pour garantir la traçabilité totale' : 'satisfaisant'}.`);
 
-    // Reporting Performance
-    if (stats.metrics.reportingRate < 100) {
-      bullets.push(`Note de suivi : Le taux de complétion des rapports est de ${stats.metrics.reportingRate}%. Il est impératif que les activités passées soient toutes documentées pour assurer une traçabilité à 360°.`);
-    } else {
-      bullets.push(`Félicitations : 100% des activités de la période ont fait l'objet d'un rapport complet.`);
+    if (metrics.avgSubmissionDelay > 5) {
+      bullets.push(`⏱️ RETARD : Le délai moyen de soumission est de ${metrics.avgSubmissionDelay} jours. Pour une gestion agile, ce délai doit être réduit à moins de 48h.`);
+    }
+
+    // Inventory & Assets
+    if (inventory && (inventory.movementsIn > 0 || inventory.movementsOut > 0)) {
+      bullets.push(`Patrimoine : ${inventory.movementsIn + inventory.movementsOut} mouvements d'inventaire enregistrés. Total entrées : ${inventory.totalQuantityIn} unités.`);
+    }
+
+    // Site Alerts
+    const criticalSites = stats.sitePerformance.filter(s => s.activitiesCount < 2);
+    if (criticalSites.length > 0) {
+      bullets.push(`🏁 SITES CRITIQUES : ${criticalSites.map(s => s.name).join(', ')} affichent un volume d'activité trop faible pour la période.`);
     }
   }
 
-  // 3. Participation Narrative
-  let participation = "";
-  if (stats.participation.total === 0) {
-    participation = "Aucune participation enregistrée pour cette période.";
-  } else {
-    participation = `Les activités de la période ont mobilisé un total de ${stats.participation.total} participants, répartis comme suit :
-* ${stats.participation.men} hommes
-* ${stats.participation.women} femmes`;
-  }
+  // 3. Participation & Growth
+  const partTrend = trends?.participationDelta ?? 0;
+  const participation = `Performance Sociale :
+- Total participants : ${stats.participation.total} personnes (${partTrend >= 0 ? '+' : ''}${partTrend}% de tendance).
+- Structure : ${stats.participation.men} hommes / ${stats.participation.women} femmes.
+- Conversion : ${metrics.conversionRate}% des participants se sont enregistrés comme membres officiels.`;
 
-  // 4. Active Sites Narrative
-  let activeSites = "";
-  if (stats.activeSites.length === 0) {
-    activeSites = "Aucun site actif sur cette période.";
-  } else {
-    activeSites = `Ces initiatives ont été organisées avec succès dans les sites suivants :
-${stats.activeSites.map(s => `* ${s}`).join('\n')}`;
-  }
+  // 4. Site Performance Rankings
+  const topSite = stats.sitePerformance.sort((a,b) => b.activitiesCount - a.activitiesCount)[0];
+  const activeSites = stats.activeSites.length === 0 
+    ? "Aucun site opérationnel." 
+    : `Déploiement National :
+- ${stats.activeSites.length} sites opérationnels.
+- Champion de la période : Site de ${topSite?.name || 'Inconnu'} avec ${topSite?.activitiesCount || 0} activités.`;
 
-  // 5. Conclusion
-  const conclusion = `Ensemble, nous poursuivons notre mission fondamentale de construire des leaders dotés d'un cœur de service.
+  // 5. Strategic Conclusion
+  const conclusion = `L'analyse Royal indique que l'organisation est dans une phase de ${trends?.activityDelta ?? 0 >= 0 ? 'croissance' : 'consolidation'}. Nous recommandons de focus sur ${metrics.qualityScore < 80 ? 'la collecte de preuves visuelles' : 'le respect des délais administratifs'} pour le mois prochain.
 
-Bonne continuité à toutes et à tous !`;
+Leadership de Coeur et de Service.`;
 
   return {
     intro,

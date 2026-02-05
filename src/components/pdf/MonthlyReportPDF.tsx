@@ -64,7 +64,18 @@ export const MonthlyReportPDF = ({ narrative, period, stats }: MonthlyReportPdfP
                     <View style={{ flex: 1, alignItems: 'center', padding: 10 }}>
                         <Text style={{ fontSize: 8, color: '#64748b' }}>Taux de Reporting</Text>
                         <Text style={{ fontSize: 14, fontWeight: 'bold' }}>{stats?.metrics?.reportingRate || 0}%</Text>
+                        {stats?.trends?.activityDelta !== undefined && (
+                            <Text style={{ fontSize: 7, color: stats.trends.activityDelta >= 0 ? '#16a34a' : '#dc2626' }}>
+                                {stats.trends.activityDelta >= 0 ? '↑' : '↓'} {Math.abs(stats.trends.activityDelta)}% vs M-1
+                            </Text>
+                        )}
                     </View>
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'center', borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 5 }}>
+                    <Text style={{ fontSize: 8, color: '#64748b' }}>Score de Qualité (Preuves) : </Text>
+                    <Text style={{ fontSize: 9, fontWeight: 'bold', color: (stats?.metrics?.qualityScore || 0) < 70 ? '#dc2626' : '#16a34a' }}>
+                        {stats?.metrics?.qualityScore || 0}%
+                    </Text>
                 </View>
             </View>
 
@@ -123,6 +134,11 @@ export const MonthlyReportPDF = ({ narrative, period, stats }: MonthlyReportPdfP
                     <View style={{ width: '50%', marginBottom: 8 }}>
                         <Text style={{ fontSize: 8, color: '#64748b' }}>Statistiques Membres</Text>
                         <Text style={{ fontSize: 10, fontWeight: 'bold' }}>{stats?.organizational?.totalMembers} membres (+{stats?.organizational?.newMembers})</Text>
+                        {stats?.trends?.participationDelta !== undefined && (
+                            <Text style={{ fontSize: 7, color: stats.trends.participationDelta >= 0 ? '#16a34a' : '#dc2626' }}>
+                                Tendance : {stats.trends.participationDelta >= 0 ? '+' : ''}{stats.trends.participationDelta}%
+                            </Text>
+                        )}
                     </View>
                     <View style={{ width: '50%', marginBottom: 8 }}>
                         <Text style={{ fontSize: 8, color: '#64748b' }}>Sites & Groupes</Text>
@@ -139,9 +155,34 @@ export const MonthlyReportPDF = ({ narrative, period, stats }: MonthlyReportPdfP
                 </View>
             </View>
 
-            {/* SECTION 5: RÉSUMÉ NARRATIF */}
+            {/* SECTION 5: MOUVEMENTS D'INVENTAIRE (Audit Royal) */}
+            {stats?.inventory && (stats.inventory.movementsIn > 0 || stats.inventory.movementsOut > 0) && (
+                <View style={styles.section}>
+                    <Text style={styles.sectionHeader}>5. Gestion Patrimoniale (Inventaire)</Text>
+                    <View style={styles.table}>
+                        <View style={[styles.tableRow, { backgroundColor: '#f8fafc' }]}>
+                            <View style={[styles.tableCol, { width: '40%' }]}><Text style={styles.tableCellHeader}>Article</Text></View>
+                            <View style={[styles.tableCol, { width: '30%' }]}><Text style={styles.tableCellHeader}>Direction</Text></View>
+                            <View style={[styles.tableCol, { width: '30%' }]}><Text style={styles.tableCellHeader}>Quantité</Text></View>
+                        </View>
+                        {stats.inventory.topMovedItems.map((item: any, i: number) => (
+                            <View key={i} style={styles.tableRow}>
+                                <View style={[styles.tableCol, { width: '40%' }]}><Text style={styles.tableCell}>{item.name}</Text></View>
+                                <View style={[styles.tableCol, { width: '30%' }]}>
+                                    <Text style={[styles.tableCell, { color: item.direction === 'in' ? '#16a34a' : '#dc2626' }]}>
+                                        {item.direction === 'in' ? 'Entrée' : 'Sortie'}
+                                    </Text>
+                                </View>
+                                <View style={[styles.tableCol, { width: '30%' }]}><Text style={styles.tableCell}>{item.quantity}</Text></View>
+                            </View>
+                        ))}
+                    </View>
+                </View>
+            )}
+
+            {/* SECTION 6: RÉSUMÉ NARRATIF */}
             <View style={styles.section}>
-                <Text style={styles.sectionHeader}>5. Synthèse des Activités</Text>
+                <Text style={styles.sectionHeader}>{stats?.inventory ? '6' : '5'}. Synthèse Stratégique</Text>
                 {narrative.generalSummary.map((point, i) => (
                     <View key={i} style={{ flexDirection: 'row', marginBottom: 4, paddingLeft: 10 }}>
                         <Text style={{ width: 10, fontSize: 10 }}>•</Text>
@@ -150,9 +191,9 @@ export const MonthlyReportPDF = ({ narrative, period, stats }: MonthlyReportPdfP
                 ))}
             </View>
 
-            {/* SECTION 6: CONCLUSION & PERSPECTIVES */}
+            {/* SECTION CONCLUSION */}
             <View style={{ marginTop: 20, paddingHorizontal: 10 }}>
-                <Text style={styles.sectionHeader}>6. Conclusion</Text>
+                <Text style={styles.sectionHeader}>{stats?.inventory ? '7' : '6'}. Conclusion & Recommandations</Text>
                 <Text style={[styles.textParagraph, { fontSize: 10 }]}>{narrative.conclusion}</Text>
             </View>
 
