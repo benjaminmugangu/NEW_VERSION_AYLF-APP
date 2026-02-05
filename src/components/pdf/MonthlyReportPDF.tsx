@@ -24,7 +24,7 @@ const styles = StyleSheet.create({
     sectionHeader: {
         fontSize: 12,
         fontWeight: 'bold',
-        martinTop: 15,
+        marginTop: 15,
         marginBottom: 8,
         color: '#000',
         textDecoration: 'underline',
@@ -57,9 +57,13 @@ export const MonthlyReportPDF = ({ narrative, period, stats }: MonthlyReportPdfP
                         <Text style={{ fontSize: 8, color: '#64748b' }}>Taux de Rétention</Text>
                         <Text style={{ fontSize: 14, fontWeight: 'bold' }}>{stats?.metrics?.retentionRate || 0}%</Text>
                     </View>
-                    <View style={{ flex: 1, alignItems: 'center', padding: 10 }}>
+                    <View style={{ flex: 1, alignItems: 'center', padding: 10, borderRightWidth: 1, borderRightColor: '#e2e8f0' }}>
                         <Text style={{ fontSize: 8, color: '#64748b' }}>Taux de Conversion</Text>
                         <Text style={{ fontSize: 14, fontWeight: 'bold' }}>{stats?.metrics?.conversionRate || 0}%</Text>
+                    </View>
+                    <View style={{ flex: 1, alignItems: 'center', padding: 10 }}>
+                        <Text style={{ fontSize: 8, color: '#64748b' }}>Taux de Reporting</Text>
+                        <Text style={{ fontSize: 14, fontWeight: 'bold' }}>{stats?.metrics?.reportingRate || 0}%</Text>
                     </View>
                 </View>
             </View>
@@ -73,16 +77,20 @@ export const MonthlyReportPDF = ({ narrative, period, stats }: MonthlyReportPdfP
                         <View style={[styles.tableCol, { width: '50%' }]}><Text style={styles.tableCellHeader}>Montant (FC/USD)</Text></View>
                     </View>
                     <View style={styles.tableRow}>
-                        <View style={[styles.tableCol, { width: '50%' }]}><Text style={styles.tableCell}>Total Revenus / Allocations</Text></View>
-                        <View style={[styles.tableCol, { width: '50%' }]}><Text style={[styles.tableCell, { fontWeight: 'bold', color: '#16a34a' }]}>{stats?.financials?.totalIncome.toLocaleString()} </Text></View>
+                        <View style={[styles.tableCol, { width: '50%' }]}><Text style={styles.tableCell}>Allocations Nationales Reçues</Text></View>
+                        <View style={[styles.tableCol, { width: '50%' }]}><Text style={[styles.tableCell, { fontWeight: 'bold', color: '#16a34a' }]}>{stats?.financials?.allocationsReceived?.toLocaleString()} USD</Text></View>
                     </View>
                     <View style={styles.tableRow}>
-                        <View style={[styles.tableCol, { width: '50%' }]}><Text style={styles.tableCell}>Total Dépenses</Text></View>
-                        <View style={[styles.tableCol, { width: '50%' }]}><Text style={[styles.tableCell, { fontWeight: 'bold', color: '#dc2626' }]}>{stats?.financials?.totalExpenses.toLocaleString()} </Text></View>
+                        <View style={[styles.tableCol, { width: '50%' }]}><Text style={styles.tableCell}>Dépenses Déclarées (Rapports)</Text></View>
+                        <View style={[styles.tableCol, { width: '50%' }]}><Text style={[styles.tableCell, { fontWeight: 'bold', color: '#dc2626' }]}>{stats?.financials?.reportedExpenses?.toLocaleString()} USD</Text></View>
+                    </View>
+                    <View style={styles.tableRow}>
+                        <View style={[styles.tableCol, { width: '50%' }]}><Text style={styles.tableCell}>Dépenses Comptabilisées (Transactions)</Text></View>
+                        <View style={[styles.tableCol, { width: '50%' }]}><Text style={[styles.tableCell, { fontWeight: 'bold', color: '#dc2626' }]}>{stats?.financials?.accountedExpenses?.toLocaleString()} USD</Text></View>
                     </View>
                     <View style={[styles.tableRow, { backgroundColor: '#f1f5f9' }]}>
-                        <View style={[styles.tableCol, { width: '50%' }]}><Text style={[styles.tableCell, { fontWeight: 'bold' }]}>Solde Net</Text></View>
-                        <View style={[styles.tableCol, { width: '50%' }]}><Text style={[styles.tableCell, { fontWeight: 'bold' }]}>{stats?.financials?.balance.toLocaleString()} </Text></View>
+                        <View style={[styles.tableCol, { width: '50%' }]}><Text style={[styles.tableCell, { fontWeight: 'bold' }]}>Solde Net de Période</Text></View>
+                        <View style={[styles.tableCol, { width: '50%' }]}><Text style={[styles.tableCell, { fontWeight: 'bold' }]}>{stats?.financials?.balance?.toLocaleString()} USD</Text></View>
                     </View>
                 </View>
             </View>
@@ -108,9 +116,32 @@ export const MonthlyReportPDF = ({ narrative, period, stats }: MonthlyReportPdfP
                 </View>
             </View>
 
-            {/* SECTION 4: RÉSUMÉ NARRATIF */}
+            {/* SECTION 4: QUALITÉ DU REPORTING & ORGANISATION */}
             <View style={styles.section}>
-                <Text style={styles.sectionHeader}>4. Synthèse des Activités</Text>
+                <Text style={styles.sectionHeader}>4. Qualité du Reporting & Organisation</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 5 }}>
+                    <View style={{ width: '50%', marginBottom: 8 }}>
+                        <Text style={{ fontSize: 8, color: '#64748b' }}>Statistiques Membres</Text>
+                        <Text style={{ fontSize: 10, fontWeight: 'bold' }}>{stats?.organizational?.totalMembers} membres (+{stats?.organizational?.newMembers})</Text>
+                    </View>
+                    <View style={{ width: '50%', marginBottom: 8 }}>
+                        <Text style={{ fontSize: 8, color: '#64748b' }}>Sites & Groupes</Text>
+                        <Text style={{ fontSize: 10, fontWeight: 'bold' }}>{stats?.organizational?.sitesCount} sites / {stats?.organizational?.smallGroupsCount} groupes</Text>
+                    </View>
+                    <View style={{ width: '50%', marginBottom: 8 }}>
+                        <Text style={{ fontSize: 8, color: '#64748b' }}>Délai Moyen de Soumission</Text>
+                        <Text style={{ fontSize: 10, fontWeight: 'bold' }}>{stats?.metrics?.avgSubmissionDelay} jours</Text>
+                    </View>
+                    <View style={{ width: '50%', marginBottom: 8 }}>
+                        <Text style={{ fontSize: 8, color: '#64748b' }}>Délai Moyen d'Approbation</Text>
+                        <Text style={{ fontSize: 10, fontWeight: 'bold' }}>{stats?.metrics?.avgReviewDelay} jours</Text>
+                    </View>
+                </View>
+            </View>
+
+            {/* SECTION 5: RÉSUMÉ NARRATIF */}
+            <View style={styles.section}>
+                <Text style={styles.sectionHeader}>5. Synthèse des Activités</Text>
                 {narrative.generalSummary.map((point, i) => (
                     <View key={i} style={{ flexDirection: 'row', marginBottom: 4, paddingLeft: 10 }}>
                         <Text style={{ width: 10, fontSize: 10 }}>•</Text>
@@ -119,9 +150,9 @@ export const MonthlyReportPDF = ({ narrative, period, stats }: MonthlyReportPdfP
                 ))}
             </View>
 
-            {/* SECTION 5: CONCLUSION & PERSPECTIVES */}
+            {/* SECTION 6: CONCLUSION & PERSPECTIVES */}
             <View style={{ marginTop: 20, paddingHorizontal: 10 }}>
-                <Text style={styles.sectionHeader}>5. Conclusion</Text>
+                <Text style={styles.sectionHeader}>6. Conclusion</Text>
                 <Text style={[styles.textParagraph, { fontSize: 10 }]}>{narrative.conclusion}</Text>
             </View>
 
