@@ -267,6 +267,12 @@ export interface Financials {
   directAllocationsTotal?: number;
   hierarchicalAllocationsTotal?: number;
   recentActivity?: any[]; // Unified activity stream
+
+  // Strategic "Triple Truth" metrics
+  centralReserve?: number;
+  fieldFloat?: number;
+  annualBudget?: number;
+  totalGlobalExpenses?: number;
 }
 
 // =============================================================================

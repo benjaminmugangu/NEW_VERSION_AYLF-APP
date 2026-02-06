@@ -108,6 +108,16 @@ export async function calculateBudgetAggregates(params: {
     const { role, siteId, smallGroupId, dateFilter } = params;
     const client = tx || prisma;
     const { startDate, endDate } = dateFilter;
+    const currentYear = new Date().getFullYear();
+
+    // Fetch Annual Budget for NC calculations
+    let annualBudget = 0;
+    if (role === 'NATIONAL_COORDINATOR' && !siteId) {
+        const budgetRecord = await client.annualBudget.findUnique({
+            where: { year: currentYear }
+        });
+        annualBudget = Number(budgetRecord?.totalAmount || 0);
+    }
 
     const dateClause = (dateField: string) => {
         if (!startDate && !endDate) return {};
@@ -122,8 +132,8 @@ export async function calculateBudgetAggregates(params: {
 
     const incomeAgg = await client.financialTransaction.aggregate({
         where: {
-            siteId: isNationalScope ? undefined : (siteId || undefined), // Consolidated for NC
-            smallGroupId: isNationalScope ? undefined : (smallGroupId || undefined),
+            siteId: isNationalScope ? null : (siteId || undefined), // Strictly national for Reserve calculation
+            smallGroupId: isNationalScope ? null : (smallGroupId || undefined),
             type: 'income',
             status: 'approved',
             ...dateClause('date')
@@ -134,15 +144,29 @@ export async function calculateBudgetAggregates(params: {
 
     const expenseAgg = await client.financialTransaction.aggregate({
         where: {
-            siteId: isNationalScope ? undefined : (siteId || undefined), // Consolidated for NC
-            smallGroupId: isNationalScope ? undefined : (smallGroupId || undefined),
+            siteId: isNationalScope ? null : (siteId || undefined), // Strictly national for Reserve calculation
+            smallGroupId: isNationalScope ? null : (smallGroupId || undefined),
             type: 'expense',
             status: 'approved',
             ...dateClause('date')
         },
         _sum: { amount: true }
     });
-    const expenses = Number(expenseAgg._sum.amount || 0);
+    const hqExpenses = Number(expenseAgg._sum.amount || 0);
+
+    // Consolidated expenses for Global Vision
+    let totalGlobalExpenses = hqExpenses;
+    if (isNationalScope) {
+        const globalExpenseAgg = await client.financialTransaction.aggregate({
+            where: {
+                type: 'expense',
+                status: 'approved',
+                ...dateClause('date')
+            },
+            _sum: { amount: true }
+        });
+        totalGlobalExpenses = Number(globalExpenseAgg._sum.amount || 0);
+    }
 
     const receivedClause: any = {
         status: 'completed',
@@ -218,20 +242,40 @@ export async function calculateBudgetAggregates(params: {
 
     const totalIncome = directIncome + totalAllocationsReceived;
 
-    // NC CONSOLIDATED VISION:
-    // If we are at national scope, netBalance is what's left in the entire organization (Income - Expenses)
-    // Internal allocations (sent to sites) are NOT subtracted from organizational net balance.
+    // TRIPLE TRUTH LOGIC (NC STRATEGIC VIEW)
+    let centralReserve = 0;
+    let fieldFloat = 0;
+    let globalBalance = 0;
+
+    if (isNationalScope) {
+        // 1. Central Reserve: Money still at HQ (Budget - Sent - HQ Expenses)
+        // Use annualBudget if set, otherwise fallback to directIncome (if NC created a 100k transaction)
+        const budgetAnchor = annualBudget > 0 ? annualBudget : directIncome;
+        centralReserve = budgetAnchor - totalAllocated - hqExpenses;
+
+        // 2. Field Float: Money in sites but not spent (Sent - Reported)
+        fieldFloat = totalAllocated - totalSpentInReports;
+
+        // 3. Global Balance: Total org wealth (Anchor - All Real Expenses)
+        globalBalance = budgetAnchor - totalGlobalExpenses;
+    }
+
     const netBalance = isNationalScope
-        ? totalIncome - expenses
-        : totalIncome - (expenses + totalAllocated);
+        ? globalBalance
+        : totalIncome - (hqExpenses + totalAllocated);
+
     const allocationBalance = totalAllocated - totalSpentInReports;
 
     return {
         income: totalIncome,
+        annualBudget,
         totalAllocationsReceived,
         totalDirectIncome: directIncome,
-        expenses,
+        expenses: hqExpenses,
+        totalGlobalExpenses,
         netBalance,
+        centralReserve,
+        fieldFloat,
         totalAllocated,
         totalSpent: totalSpentInReports,
         allocationBalance,

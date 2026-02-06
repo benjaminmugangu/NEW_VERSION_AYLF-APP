@@ -330,6 +330,20 @@ model AccountingPeriod {
   @@map("accounting_periods")
 }
 
+model AnnualBudget {
+  id          String   @id @default(uuid())
+  year        Int      @unique
+  totalAmount Decimal  @map("total_amount") @db.Decimal(10, 2)
+  currency    String   @default("USD")
+  status      String   @default("active") // active, closed
+  description String?
+  createdById String   @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("annual_budgets")
+}
+
 model InventoryItem {
   id          String              @id @default(uuid())
   name        String

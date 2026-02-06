@@ -170,10 +170,29 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
           description={t('stats.groups_desc')}
           href="/dashboard/small-groups"
         />
+        {userRole === ROLES.NATIONAL_COORDINATOR && (
+          <>
+            <StatCard
+              title={t('stats.central_reserve')}
+              value={initialStats.centralReserve || 0}
+              icon={Briefcase}
+              className="border-primary/50 shadow-md"
+              description={t('stats.reserve_desc', { amount: format.number(initialStats.centralReserve || 0, { style: 'currency', currency: 'USD' }) })}
+              href="/dashboard/finances"
+            />
+            <StatCard
+              title={t('stats.field_float')}
+              value={initialStats.fieldFloat || 0}
+              icon={Zap}
+              description={t('stats.field_desc')}
+              href="/dashboard/finances"
+            />
+          </>
+        )}
         <StatCard
-          title={t('stats.net_balance')}
+          title={userRole === ROLES.NATIONAL_COORDINATOR ? t('stats.net_balance') : t('stats.net_balance')}
           value={initialStats.netBalance}
-          icon={Briefcase}
+          icon={DollarSign}
           description={t('stats.finance_desc', {
             income: initialStats.totalIncome || 0,
             expenses: initialStats.totalExpenses || 0

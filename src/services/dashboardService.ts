@@ -25,6 +25,10 @@ export interface DashboardStats {
   netBalance: number;
   totalIncome: number;
   totalExpenses: number;
+  centralReserve?: number;
+  fieldFloat?: number;
+  annualBudget?: number;
+  totalGlobalExpenses?: number;
   recentActivities: Activity[];
   activityStatusData: { status: string; count: number; fill: string }[];
   memberTypeData: { type: string; count: number; fill: string }[];
@@ -146,6 +150,10 @@ export async function getDashboardStats(user: User | null, dateFilter: DateFilte
       netBalance,
       totalIncome,
       totalExpenses,
+      centralReserve: financials?.centralReserve ?? 0,
+      fieldFloat: financials?.fieldFloat ?? 0,
+      annualBudget: financials?.annualBudget ?? 0,
+      totalGlobalExpenses: financials?.totalGlobalExpenses ?? 0,
       recentActivities: recentActivities as any,
       activityStatusData,
       memberTypeData,

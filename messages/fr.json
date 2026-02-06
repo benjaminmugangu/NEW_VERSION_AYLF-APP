@@ -59,8 +59,12 @@
             "sites_desc": "Sites AYLF enregistrés",
             "total_small_groups": "Total Groupes",
             "groups_desc": "Groupes actifs",
-            "net_balance": "Solde Net",
-            "finance_desc": "Revenus: {income} | Dépenses: {expenses}"
+            "net_balance": "Trésorerie Globale (Org)",
+            "finance_desc": "Revenus: {income} | Dépenses: {expenses}",
+            "central_reserve": "Réserve Centrale (HQ)",
+            "reserve_desc": "Prochaines allocations: {amount}",
+            "field_float": "Reliquat Terrain",
+            "field_desc": "Fonds alloués non dépensés"
         },
         "charts": {
             "activity_status": "Aperçu Statut Activités",
