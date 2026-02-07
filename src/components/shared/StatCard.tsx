@@ -13,9 +13,10 @@ export interface StatCardProps {
   trendData?: number[]; // Array of numbers for sparkline
   trend?: "up" | "down" | "neutral"; // Trend direction color
   variant?: "default" | "danger" | "warning" | "success";
+  className?: string;
 }
 
-export function StatCard({ title, value, icon: Icon, description, href, trendData, trend, variant = "default" }: StatCardProps) {
+export function StatCard({ title, value, icon: Icon, description, href, trendData, trend, variant = "default", className }: StatCardProps) {
   // Glassmorphism classes for dark mode
   const glassClasses = "dark:bg-white/5 dark:backdrop-blur-md dark:border-white/10";
 
@@ -30,7 +31,8 @@ export function StatCard({ title, value, icon: Icon, description, href, trendDat
     <Card className={cn(
       "shadow-md hover:shadow-lg transition-all duration-300 ease-in-out hover:scale-[1.02] h-full border-2",
       variantClasses[variant],
-      glassClasses
+      glassClasses,
+      className
     )}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className={cn(
