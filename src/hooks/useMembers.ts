@@ -77,10 +77,11 @@ export const useMembers = (initialData?: MemberWithDetails[]) => {
     setTypeFilter,
     refetch,
     deleteMember,
-    canCreateMember: isNationalCoordinator || isSiteCoordinator,
+    canCreateMember: isNationalCoordinator || isSiteCoordinator || currentUser?.role === ROLES.SMALL_GROUP_LEADER,
     canEditOrDeleteMember: (member: MemberWithDetails) => {
       if (isNationalCoordinator) return true;
       if (isSiteCoordinator && currentUser?.siteId === member.siteId) return true;
+      if (currentUser?.role === ROLES.SMALL_GROUP_LEADER && currentUser?.smallGroupId === member.smallGroupId) return true;
       return false;
     },
   };

@@ -98,7 +98,7 @@ export function MemberForm({ member, onSubmitForm }: MemberFormProps) {
           if (sitesResponse.success && sitesResponse.data) {
             setSites(sitesResponse.data);
           }
-        } else if (currentUser.role === ROLES.SITE_COORDINATOR && currentUser.siteId) {
+        } else if ((currentUser.role === ROLES.SITE_COORDINATOR || currentUser.role === ROLES.SMALL_GROUP_LEADER) && currentUser.siteId) {
           const siteResponse = await siteService.getSiteById(currentUser.siteId);
           if (siteResponse.success && siteResponse.data) {
             setSites([siteResponse.data]);
