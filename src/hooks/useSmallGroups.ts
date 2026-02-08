@@ -28,6 +28,7 @@ export const useSmallGroups = () => {
       return response.data;
     },
     enabled: !!currentUser, // Only run the query if the user is loaded
+    staleTime: 0,
   });
 
   const createSmallGroupMutation = useMutation<

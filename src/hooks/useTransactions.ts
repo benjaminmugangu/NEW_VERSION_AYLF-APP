@@ -48,8 +48,8 @@ export const useTransactions = ({ user, initialData, initialFilters = {} }: UseT
       }
       return response.data;
     },
-    initialData: initialData,
     enabled: !!user,
+    staleTime: 0,
   });
 
   const mutationOptions = {

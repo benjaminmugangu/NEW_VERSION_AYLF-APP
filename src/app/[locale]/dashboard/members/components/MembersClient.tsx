@@ -25,55 +25,41 @@ interface MembersClientProps {
   user: User;
 }
 
-export function MembersClient({ initialMembers, user }: MembersClientProps) {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
+import { useMembers } from '@/hooks/useMembers';
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [dateFilter, setDateFilter] = useState<DateFilterValue>({ rangeKey: 'all_time', display: 'All Time' });
-  const [typeFilter, setTypeFilter] = useState<Record<Member['type'], boolean>>({ student: true, 'non-student': true });
+export function MembersClient({ initialMembers, user }: MembersClientProps) {
+  const {
+    members,
+    isLoading,
+    error,
+    refetch,
+    filters,
+    setSearchTerm,
+    setDateFilter,
+    setTypeFilter,
+    deleteMember,
+    isDeleting,
+    canCreateMember,
+    canEditOrDeleteMember
+  } = useMembers(initialMembers);
+
+  const { searchTerm, dateFilter, typeFilter } = filters;
   const [memberToDelete, setMemberToDelete] = useState<MemberWithDetails | null>(null);
 
-  const filters = { searchTerm, dateFilter, typeFilter };
+  const { toast } = useToast();
 
-  const { data: members, isLoading, error, refetch } = useQuery({
-    queryKey: ['members', user.id, filters],
-    queryFn: async (): Promise<MemberWithDetails[]> => {
-      const response = await memberService.getFilteredMembers({ user, ...filters });
-      if (!response.success || !response.data) {
-        throw new Error(response.error?.message || 'Failed to fetch members');
-      }
-      return response.data;
-    },
-    initialData: initialMembers,
-    enabled: !!user,
-  });
-
-  const { mutate: deleteMember, isPending: isDeleting } = useMutation<void, Error, string>({
-    mutationFn: async (memberId: string) => {
-      const result = await memberService.deleteMember(memberId);
-      if (!result.success) {
-        throw new Error(result.error?.message || 'Failed to delete member');
-      }
-    },
-    onSuccess: () => {
+  const handleDeleteConfirm = async () => {
+    if (!memberToDelete) return;
+    try {
+      await deleteMember(memberToDelete.id);
       toast({ title: 'Success', description: 'Member has been archived.' });
-      queryClient.invalidateQueries({ queryKey: ['members'] });
-    },
-    onError: (err) => {
+      setMemberToDelete(null);
+    } catch (err: any) {
       toast({ title: 'Error', description: err.message || 'Failed to archive member.', variant: 'destructive' });
-    },
-  });
-
-  const canCreateMember = useMemo(() => [ROLES.NATIONAL_COORDINATOR, ROLES.SITE_COORDINATOR].includes(user.role), [user.role]);
-
-  const canEditOrDeleteMember = (member: MemberWithDetails) => {
-    if (user.role === ROLES.NATIONAL_COORDINATOR) return true;
-    if (user.role === ROLES.SITE_COORDINATOR && user.siteId === member.siteId) return true;
-    return false;
+    }
   };
 
-  if (isLoading && !initialMembers.length) {
+  if (isLoading && !members.length) {
     return <MembersPageSkeleton />;
   }
 
@@ -109,7 +95,7 @@ export function MembersClient({ initialMembers, user }: MembersClientProps) {
         <CardContent>
           {error && (
             <div className='text-center text-red-500 p-4'>
-              <p>Error loading members: {error.message}</p>
+              <p>Error loading members: {error}</p>
               <Button onClick={() => refetch()} className='mt-2'>Try Again</Button>
             </div>
           )}
@@ -222,7 +208,7 @@ export function MembersClient({ initialMembers, user }: MembersClientProps) {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive hover:bg-destructive/90"
-              onClick={() => memberToDelete && deleteMember(memberToDelete.id)}
+              onClick={handleDeleteConfirm}
               disabled={isDeleting}
             >
               {isDeleting ? 'Archiving...' : 'Archive'}

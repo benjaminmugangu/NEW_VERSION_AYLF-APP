@@ -9,7 +9,7 @@ import type { DateFilterValue } from '@/components/shared/DateRangeFilter';
 import { ROLES } from '@/lib/constants';
 import type { Member, MemberWithDetails } from '@/lib/types';
 
-export const useMembers = () => {
+export const useMembers = (initialData?: MemberWithDetails[]) => {
   const { currentUser } = useCurrentUser();
   const queryClient = useQueryClient();
 
@@ -48,6 +48,8 @@ export const useMembers = () => {
       return response.data;
     },
     enabled: !!currentUser, // Only run query if user is logged in
+    initialData,
+    staleTime: 0,
   });
 
   const { mutateAsync: deleteMember, isPending: isDeleting } = useMutation<void, Error, string>({

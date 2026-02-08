@@ -43,8 +43,8 @@ export const useActivities = ({ initialData = [], user }: UseActivitiesParams) =
       }
       return response.data;
     },
-    initialData: initialData,
     enabled: !!user,
+    staleTime: 0,
   });
 
   const activities: Activity[] = rawActivities ?? ([] as Activity[]);

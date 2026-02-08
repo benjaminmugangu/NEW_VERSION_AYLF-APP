@@ -15,6 +15,7 @@ export const useSites = () => {
       return response.data;
     },
     enabled: !!currentUser, // Only run the query if the user is authenticated
+    staleTime: 0,
   });
 
   return { allSites, isLoading, isError, error };

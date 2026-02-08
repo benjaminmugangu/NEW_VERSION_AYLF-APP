@@ -32,21 +32,49 @@ const ActivityReportDownloader = dynamic(
   }
 );
 
+import { useReports } from '@/hooks/useReports';
+
 interface ViewReportsClientProps {
   initialReports: ReportWithDetails[];
   user: User;
 }
 
 export default function ViewReportsClient({ initialReports, user }: ViewReportsClientProps) {
-  const [reports, setReports] = useState(initialReports);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<Record<ReportStatus, boolean>>({ pending: true, submitted: true, approved: false, rejected: false });
-  const [dateFilter, setDateFilter] = useState<DateFilterValue>({ rangeKey: 'all_time', display: 'All Time' });
+  const {
+    reports,
+    isLoading,
+    filters,
+    actions,
+    pageDescription,
+    modal,
+  } = useReports();
+
+  const {
+    searchTerm,
+    dateFilter,
+    statusFilter,
+  } = filters;
+
+  const {
+    setSearchTerm,
+    setDateFilter,
+    setStatusFilter,
+    handleViewDetails,
+    closeModal,
+    confirmRejectReport,
+    handleReportStatusUpdate,
+    setIsRejectingReport,
+    setRejectionNotes,
+  } = actions;
+
+  const {
+    selectedReport,
+    isRejectingReport,
+    rejectionNotes,
+  } = modal;
+
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [isMobile, setIsMobile] = useState(false);
-  const [selectedReport, setSelectedReport] = useState<ReportWithDetails | null>(null);
-  const [isRejectingReport, setIsRejectingReport] = useState<ReportWithDetails | null>(null);
-  const [rejectionNotes, setRejectionNotes] = useState('');
   const [sanitizedContent, setSanitizedContent] = useState('');
   const { toast } = useToast();
 
@@ -65,62 +93,8 @@ export default function ViewReportsClient({ initialReports, user }: ViewReportsC
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  const filteredReports = useMemo(() => {
-    // This filtering is now client-side on the initial data set.
-    // For full server-side filtering, this logic would trigger API calls.
-    return reports.filter(report => {
-      const lowerSearchTerm = searchTerm.toLowerCase();
-      const matchesSearch = lowerSearchTerm === '' ||
-        report.title?.toLowerCase().includes(lowerSearchTerm) ||
-        report.submittedByName?.toLowerCase().includes(lowerSearchTerm);
+  const filteredReports = reports;
 
-      const activeStatuses = Object.entries(statusFilter).filter(([, v]) => v).map(([k]) => k);
-      const matchesStatus = activeStatuses.length === 0 || activeStatuses.includes(report.status);
-
-      // Date filtering would be more complex and is simplified here
-      return matchesSearch && matchesStatus;
-    });
-  }, [reports, searchTerm, statusFilter]);
-
-  const pageDescription = useMemo(() => {
-    switch (user.role) {
-      case ROLES.NATIONAL_COORDINATOR: return 'You can view and manage all reports from all sites and small groups.';
-      case ROLES.SITE_COORDINATOR: return `You are viewing reports from your site: ${user.siteName || 'N/A'}`;
-      case ROLES.SMALL_GROUP_LEADER: return `You are viewing reports from your small group: ${user.smallGroupName || 'N/A'}`;
-      default: return 'Browse submitted reports.';
-    }
-  }, [user]);
-
-  const handleViewDetails = (reportId: string) => {
-    const report = reports.find(r => r.id === reportId);
-    if (report) {
-      setSelectedReport(report);
-    }
-  };
-  const closeModal = () => setSelectedReport(null);
-
-  const handleReportStatusUpdate = async (reportId: string, status: 'approved' | 'rejected', notes?: string) => {
-    try {
-      const updatedReport = await reportService.updateReport(reportId, { status, reviewNotes: notes });
-      setReports(prev => prev.map(r => r.id === reportId ? { ...r, ...updatedReport } : r));
-      toast({ title: 'Success', description: `Report has been ${status}.` });
-      if (status === 'rejected') {
-        setIsRejectingReport(null);
-        setRejectionNotes('');
-      }
-      closeModal();
-    } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Error', description: `Failed to update report: ${error.message}` });
-    }
-  };
-
-  const confirmRejectReport = () => {
-    if (isRejectingReport && rejectionNotes.trim()) {
-      handleReportStatusUpdate(isRejectingReport.id, 'rejected', rejectionNotes);
-    }
-  };
-
-  // Helper functions from original component
   const getReportContextName = (report: ReportWithDetails): string => {
     if (report.level === 'site') return `Site: ${report.siteName || 'N/A'}`;
     if (report.level === 'small_group') return `Small Group: ${report.smallGroupName || 'N/A'}`;
@@ -139,6 +113,9 @@ export default function ViewReportsClient({ initialReports, user }: ViewReportsC
   };
 
   const renderContent = () => {
+    if (isLoading) {
+      return <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    }
     if (filteredReports.length === 0) {
       return <p className="text-center text-muted-foreground py-8">No reports found matching your criteria.</p>;
     }
@@ -186,7 +163,13 @@ export default function ViewReportsClient({ initialReports, user }: ViewReportsC
                 <p className="text-sm font-medium mb-2">Status</p>
                 <div className="flex flex-wrap gap-2">
                   {(['pending', 'submitted', 'approved', 'rejected'] as ReportStatus[]).map(status => (
-                    <Button key={status} variant={statusFilter[status] ? "default" : "outline"} size="sm" onClick={() => setStatusFilter(prev => ({ ...prev, [status]: !prev[status] }))} className="capitalize text-xs h-8">
+                    <Button
+                      key={status}
+                      variant={statusFilter[status] ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setStatusFilter({ ...statusFilter, [status]: !statusFilter[status] })}
+                      className="capitalize text-xs h-8"
+                    >
                       {status}
                     </Button>
                   ))}
@@ -227,6 +210,7 @@ export default function ViewReportsClient({ initialReports, user }: ViewReportsC
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                  {/* Activity Details & Author */}
                   <div className="space-y-4">
                     <div>
                       <h4 className="font-semibold text-lg mb-2">Activity Details</h4>
@@ -250,6 +234,7 @@ export default function ViewReportsClient({ initialReports, user }: ViewReportsC
                     </div>
                   </div>
 
+                  {/* Attendance & Financials */}
                   <div className="space-y-4">
                     <div>
                       <h4 className="font-semibold text-lg mb-2">Attendance</h4>
@@ -351,8 +336,7 @@ export default function ViewReportsClient({ initialReports, user }: ViewReportsC
             </DialogFooter>
           </DialogContent>
         </Dialog >
-      )
-      }
+      )}
     </>
   );
 }

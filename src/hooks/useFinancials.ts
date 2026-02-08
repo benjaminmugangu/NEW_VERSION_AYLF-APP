@@ -25,8 +25,11 @@ const defaultDateFilter: DateFilterValue = {
   display: 'This Year (Current)',
 };
 
-export const useFinancials = (user: User | null, initialDateFilter?: DateFilterValue) => {
-  const [dateFilter, setDateFilter] = useState<DateFilterValue>(initialDateFilter || defaultDateFilter);
+export const useFinancials = (user: User | null, passedDateFilter?: DateFilterValue) => {
+  const [internalDateFilter, setInternalDateFilter] = useState<DateFilterValue>(defaultDateFilter);
+
+  // Prioritize the filter passed from the parent component (e.g., Finance Page)
+  const dateFilter = passedDateFilter || internalDateFilter;
 
   const {
     data: financials,
@@ -44,9 +47,9 @@ export const useFinancials = (user: User | null, initialDateFilter?: DateFilterV
       }
       return response.data;
     },
-    enabled: !!user, // Only run the query if the user is logged in
-    placeholderData: defaultFinancials, // Provide default data while loading
-    staleTime: 0, // Ensure dashboard always reflects recent changes
+    enabled: !!user,
+    staleTime: 0,
+    gcTime: 1000 * 60 * 5, // Keep in cache for 5 mins but always refetch
   });
 
   return {
@@ -55,6 +58,6 @@ export const useFinancials = (user: User | null, initialDateFilter?: DateFilterV
     error: isError ? error.message : null,
     refetch,
     dateFilter,
-    setDateFilter,
+    setDateFilter: setInternalDateFilter,
   };
 };

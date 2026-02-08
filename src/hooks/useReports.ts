@@ -61,6 +61,7 @@ export const useReports = () => {
       return response.data;
     },
     enabled: !!currentUser, // Only run the query if the user is loaded
+    staleTime: 0,
   });
 
   useEffect(() => {

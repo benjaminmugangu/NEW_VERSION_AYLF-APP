@@ -82,9 +82,9 @@ export function DashboardClient({ initialStats, userName, userRole, initialDateF
         params.set('to', filter.to);
       }
     } else if (filter.rangeKey === 'specific_period' && filter.specificYear) {
-      params.set('year', filter.specificYear);
+      params.set('specificYear', filter.specificYear);
       if (filter.specificMonth) {
-        params.set('month', filter.specificMonth);
+        params.set('specificMonth', filter.specificMonth);
       }
     }
 
