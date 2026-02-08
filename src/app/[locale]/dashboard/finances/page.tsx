@@ -12,7 +12,7 @@ import { RecentTransactions } from './components/RecentTransactions';
 import { DateRangeFilter, type DateFilterValue } from "@/components/shared/DateRangeFilter";
 import { PageSkeleton } from "@/components/ui-custom/PageSkeleton";
 import { StatCard } from "@/components/shared/StatCard";
-import { Banknote, TrendingUp, TrendingDown, DollarSign, Plus, Send, Wallet } from "lucide-react";
+import { Banknote, TrendingUp, TrendingDown, DollarSign, Plus, Send, Wallet, PiggyBank } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from 'next-intl';
 import { ROLES } from '@/lib/constants';
@@ -65,12 +65,22 @@ export default function FinancesPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {(currentUser?.role === ROLES.NATIONAL_COORDINATOR || currentUser?.role === ROLES.SITE_COORDINATOR) && (
-            <Button asChild variant="outline" size="sm">
-              <Link href="/dashboard/finances/periods" className="flex items-center gap-2">
-                <Plus className="h-4 w-4" />
-                {currentUser?.role === ROLES.NATIONAL_COORDINATOR ? 'Gérer les Périodes' : 'Cycles Financiers'}
-              </Link>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button asChild variant="outline" size="sm">
+                <Link href="/dashboard/finances/periods" className="flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  {currentUser?.role === ROLES.NATIONAL_COORDINATOR ? 'Gérer les Périodes' : 'Cycles Financiers'}
+                </Link>
+              </Button>
+              {currentUser?.role === ROLES.NATIONAL_COORDINATOR && (
+                <Button asChild variant="outline" size="sm" className="border-primary/50 text-primary hover:bg-primary/5">
+                  <Link href="/dashboard/finances/budget" className="flex items-center gap-2">
+                    <PiggyBank className="h-4 w-4" />
+                    Gérer le Budget
+                  </Link>
+                </Button>
+              )}
+            </div>
           )}
           {canSendFunds && (
             <Button asChild variant="default" size="sm" className="bg-primary hover:bg-primary/90">

@@ -231,6 +231,16 @@ export interface FundAllocation extends BaseEntity {
   proofUrl?: string;
 }
 
+export interface AnnualBudget extends BaseEntity {
+  year: number;
+  totalAmount: number;
+  currency: string;
+  status: 'active' | 'closed';
+  description?: string;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+}
 export interface FundAllocationFormData {
   amount: number;
   allocationDate: string; // ISO date string
@@ -249,6 +259,14 @@ export interface FundAllocationFormData {
   allocationType?: 'hierarchical' | 'direct'; // Internal/Audit field
   bypassReason?: string; // Required when isDirect = true
   idempotencyKey?: string;
+}
+
+export interface AnnualBudgetFormData {
+  year: number;
+  totalAmount: number;
+  currency?: string;
+  description?: string;
+  status?: 'active' | 'closed';
 }
 
 export interface Financials {
