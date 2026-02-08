@@ -9,68 +9,17 @@ import { ROLES } from '@/lib/constants';
 import { createAuditLog } from './auditLogService';
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 
-// Server-safe date filter definition (avoid importing client component module)
-type ServerDateFilter = {
-  rangeKey?: string;
-  from?: Date;
-  to?: Date;
-};
+import { type DateFilterValue, getDateRangeFromFilterValue } from '@/lib/dateUtils';
 
-const computeDateRange = (dateFilter?: ServerDateFilter): { startDate?: Date; endDate?: Date } => {
-  if (!dateFilter) return {};
-  if (dateFilter.from || dateFilter.to) return { startDate: dateFilter.from, endDate: dateFilter.to };
-  const key = dateFilter.rangeKey;
-  if (!key || key === 'all_time') return {};
-  const now = new Date();
-  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  switch (key) {
-    case 'today': {
-      const s = startOfDay(now);
-      const e = new Date(s);
-      e.setDate(e.getDate() + 1);
-      return { startDate: s, endDate: e };
-    }
-    case 'this_week': {
-      const s = startOfDay(now);
-      const day = s.getDay();
-      const diff = (day + 6) % 7; // Monday as start
-      s.setDate(s.getDate() - diff);
-      const e = new Date(s);
-      e.setDate(e.getDate() + 7);
-      return { startDate: s, endDate: e };
-    }
-    case 'this_month': {
-      const s = new Date(now.getFullYear(), now.getMonth(), 1);
-      const e = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-      return { startDate: s, endDate: e };
-    }
-    case 'last_30_days': {
-      const e = startOfDay(now);
-      const s = new Date(e);
-      s.setDate(s.getDate() - 30);
-      return { startDate: s, endDate: e };
-    }
-    case 'last_90_days': {
-      const e = startOfDay(now);
-      const s = new Date(e);
-      s.setDate(s.getDate() - 90);
-      return { startDate: s, endDate: e };
-    }
-    case 'this_year': {
-      const s = new Date(now.getFullYear(), 0, 1);
-      const e = new Date(now.getFullYear() + 1, 0, 1);
-      return { startDate: s, endDate: e };
-    }
-    default:
-      return {};
-  }
+const computeDateRange = (dateFilter?: DateFilterValue): { startDate?: Date; endDate?: Date } => {
+  return getDateRangeFromFilterValue(dateFilter as any);
 };
 
 export interface MemberFilters {
   user: User | null;
   searchTerm?: string;
   smallGroupId?: string;
-  dateFilter?: ServerDateFilter;
+  dateFilter?: DateFilterValue;
   typeFilter?: Record<Member['type'], boolean>;
 }
 

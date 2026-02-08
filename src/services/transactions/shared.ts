@@ -49,8 +49,8 @@ export function applyEntityFilter(where: any, entity: { type: 'site' | 'smallGro
 
 export function applyUserRoleFilter(where: any, user: User) {
     if (user.role === 'NATIONAL_COORDINATOR') {
-        // NC sees national-level transactions (siteId = null)
-        where.siteId = null;
+        // NC can see everything. If we want to restrict to HQ only, we would set siteId: null.
+        // But for 'Vision 360', we leave it open unless filter specified.
     } else if (user.role === 'SITE_COORDINATOR' && user.siteId) {
         where.siteId = user.siteId;
     } else if (user.role === 'SMALL_GROUP_LEADER' && user.smallGroupId) {

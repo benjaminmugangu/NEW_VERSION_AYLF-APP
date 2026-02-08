@@ -60,17 +60,21 @@ export async function getDashboardStats(user: User | null, dateFilter: DateFilte
     const [activitiesResult, membersResult] = await Promise.allSettled([
       activityService.getFilteredActivities({
         user,
-        dateFilter: undefined,
+        dateFilter: dateFilter, // Applied!
         searchTerm: '',
         statusFilter: { planned: true, executed: true, in_progress: true, delayed: true, canceled: true },
         levelFilter: { national: true, site: true, small_group: true },
       }),
-      memberService.getFilteredMembers({ user, dateFilter: undefined, searchTerm: '' }),
+      memberService.getFilteredMembers({ user, dateFilter: dateFilter, searchTerm: '' }), // Applied!
     ]);
 
     // Batch 3: Financials & Reports
     const [reportsResult, financialsResult] = await Promise.allSettled([
-      reportService.getFilteredReports({ user, dateFilter: undefined, statusFilter: { approved: true, pending: true, rejected: true, submitted: true } }),
+      reportService.getFilteredReports({
+        user,
+        dateFilter: dateFilter, // Applied!
+        statusFilter: { approved: true, pending: true, rejected: true, submitted: true }
+      }),
       financialsService.getFinancials(user, dateFilter),
     ]);
 

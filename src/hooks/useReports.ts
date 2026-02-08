@@ -38,25 +38,13 @@ export const useReports = () => {
     statusFilter,
   }), [searchTerm, dateFilter, statusFilter]);
 
-  // Convert DateFilterValue -> { from?: Date; to?: Date } for service layer
-  const serverDateFilter = useMemo(() => {
-    if (!dateFilter) return undefined;
-    const fromDate = (dateFilter as any).from ? new Date((dateFilter as any).from) : undefined;
-    const toDate = (dateFilter as any).to ? new Date((dateFilter as any).to) : undefined;
-    return {
-      rangeKey: (dateFilter as any).rangeKey,
-      from: fromDate,
-      to: toDate,
-    } as { rangeKey?: string; from?: Date; to?: Date };
-  }, [dateFilter]);
-
   // Build service filters expected by reportService
   const serviceFilters: ReportFilters = useMemo(() => ({
     user: currentUser,
     searchTerm: searchTerm || undefined,
-    dateFilter: serverDateFilter,
+    dateFilter: dateFilter,
     statusFilter: statusFilter,
-  }), [currentUser, searchTerm, serverDateFilter, statusFilter]);
+  }), [currentUser, searchTerm, dateFilter, statusFilter]);
 
   const {
     data: reports = [],

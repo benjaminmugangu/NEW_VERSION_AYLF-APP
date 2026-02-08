@@ -36,7 +36,7 @@ export default function FinancesPage() {
   const {
     transactions,
     isLoading: isLoadingTransactions
-  } = useTransactions({ user: currentUser });
+  } = useTransactions({ user: currentUser, initialFilters: { dateFilter } });
 
   if (isLoadingUser || isLoadingFinancials || isLoadingTransactions) {
     return <PageSkeleton type="card" />;

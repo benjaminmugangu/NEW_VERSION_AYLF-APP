@@ -6,70 +6,23 @@ import { Report, ReportWithDetails, User, ServiceResponse, ErrorCode } from '@/l
 import { batchSignAvatars } from '../enrichmentService';
 import { mapPrismaReportToModel } from './shared';
 
-// Server-safe date filter
-export type ServerDateFilter = {
-    rangeKey?: string;
-    from?: Date;
-    to?: Date;
-};
+import { type DateFilterValue, getDateRangeFromFilterValue } from '@/lib/dateUtils';
 
 export interface ReportFilters {
     user?: User | null;
     entity?: { type: 'site' | 'smallGroup'; id: string };
     searchTerm?: string;
-    dateFilter?: ServerDateFilter;
+    dateFilter?: DateFilterValue;
     statusFilter?: Record<Report['status'], boolean>;
     limit?: number;
     offset?: number;
 }
 
-const computeDateRange = (dateFilter?: ServerDateFilter): { startDate?: Date; endDate?: Date } => {
-    if (!dateFilter || (!dateFilter.from && !dateFilter.to && !dateFilter.rangeKey) || dateFilter.rangeKey === 'all_time') return {};
-    if (dateFilter.from || dateFilter.to) return { startDate: dateFilter.from, endDate: dateFilter.to };
-
-    const now = new Date();
-    const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    const s = startOfDay(now);
-
-    const rangeMap: Record<string, () => { startDate: Date; endDate: Date }> = {
-        today: () => {
-            const e = new Date(s);
-            e.setDate(e.getDate() + 1);
-            return { startDate: s, endDate: e };
-        },
-        this_week: () => {
-            const diff = (s.getDay() + 6) % 7;
-            s.setDate(s.getDate() - diff);
-            const e = new Date(s);
-            e.setDate(e.getDate() + 7);
-            return { startDate: s, endDate: e };
-        },
-        this_month: () => {
-            const start = new Date(now.getFullYear(), now.getMonth(), 1);
-            const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-            return { startDate: start, endDate: end };
-        },
-        last_30_days: () => {
-            const start = new Date(s);
-            start.setDate(start.getDate() - 30);
-            return { startDate: start, endDate: s };
-        },
-        last_90_days: () => {
-            const start = new Date(s);
-            start.setDate(start.getDate() - 90);
-            return { startDate: start, endDate: s };
-        },
-        this_year: () => {
-            const start = new Date(now.getFullYear(), 0, 1);
-            const end = new Date(now.getFullYear() + 1, 0, 1);
-            return { startDate: start, endDate: end };
-        }
-    };
-
-    return rangeMap[dateFilter.rangeKey ?? 'all_time']?.() ?? {};
+const computeDateRange = (dateFilter?: DateFilterValue): { startDate?: Date; endDate?: Date } => {
+    return getDateRangeFromFilterValue(dateFilter as any);
 };
 
-function applyDateFilter(where: any, dateFilter: ServerDateFilter) {
+function applyDateFilter(where: any, dateFilter: DateFilterValue) {
     const { startDate, endDate } = computeDateRange(dateFilter);
     if (startDate || endDate) {
         where.activityDate = {};

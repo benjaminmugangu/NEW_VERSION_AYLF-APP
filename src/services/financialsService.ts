@@ -115,45 +115,8 @@ export async function getFinancials(user: User, dateFilter: DateFilterValue): Pr
  * Helper to extract date range from filter
  */
 function calculateDateRange(dateFilter: DateFilterValue): { startDate?: Date; endDate?: Date } {
-  if (dateFilter.from || dateFilter.to) {
-    return {
-      startDate: dateFilter.from ? new Date(dateFilter.from) : undefined,
-      endDate: dateFilter.to ? new Date(dateFilter.to) : undefined
-    };
-  }
-
-  const now = new Date();
-  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const s = startOfDay(now);
-
-  switch (dateFilter.rangeKey) {
-    case 'today':
-      return { startDate: s, endDate: new Date(new Date(s).setDate(s.getDate() + 1)) };
-    case 'this_week':
-      const diff = (s.getDay() + 6) % 7;
-      const startWeek = new Date(s);
-      startWeek.setDate(s.getDate() - diff);
-      const endWeek = new Date(startWeek);
-      endWeek.setDate(endWeek.getDate() + 7);
-      return { startDate: startWeek, endDate: endWeek };
-    case 'this_month':
-      return {
-        startDate: new Date(now.getFullYear(), now.getMonth(), 1),
-        endDate: new Date(now.getFullYear(), now.getMonth() + 1, 1)
-      };
-    case 'this_year':
-      return {
-        startDate: new Date(now.getFullYear(), 0, 1),
-        endDate: new Date(now.getFullYear() + 1, 0, 1)
-      };
-    case 'last_30_days':
-      return {
-        startDate: new Date(new Date(s).setDate(s.getDate() - 30)),
-        endDate: s
-      };
-    default:
-      return {};
-  }
+  const { getDateRangeFromFilterValue } = require('@/lib/dateUtils');
+  return getDateRangeFromFilterValue(dateFilter);
 }
 
 /**

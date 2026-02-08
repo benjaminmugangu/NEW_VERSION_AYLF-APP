@@ -23,7 +23,16 @@ export const useTransactions = ({ user, initialData, initialFilters = {} }: UseT
   const [dateFilter, setDateFilter] = useState<DateFilterValue>(initialFilters.dateFilter || defaultDateFilter);
   const [typeFilter, setTypeFilter] = useState<'income' | 'expense' | 'all'>(initialFilters.typeFilter || 'all');
 
-  const filters: TransactionFilters = { user: user!, searchTerm, dateFilter, typeFilter: typeFilter === 'all' ? undefined : typeFilter, entity: initialFilters.entity };
+  // Use external date filter if provided, otherwise use internal state
+  const activeDateFilter = initialFilters.dateFilter || dateFilter;
+
+  const filters: TransactionFilters = {
+    user: user!,
+    searchTerm,
+    dateFilter: activeDateFilter,
+    typeFilter: typeFilter === 'all' ? undefined : typeFilter,
+    entity: initialFilters.entity
+  };
 
   const {
     data: transactions,

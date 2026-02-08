@@ -50,8 +50,8 @@ export function getDateRangeFromFilterValue(filterValue: DateFilterValue): { sta
     let endDate: Date | undefined;
 
     if (filterValue.rangeKey === 'custom' && filterValue.customRange?.from) {
-        startDate = startOfDay(filterValue.customRange.from);
-        endDate = filterValue.customRange.to ? endOfDay(filterValue.customRange.to) : endOfDay(filterValue.customRange.from);
+        startDate = startOfDay(new Date(filterValue.customRange.from));
+        endDate = filterValue.customRange.to ? endOfDay(new Date(filterValue.customRange.to)) : endOfDay(new Date(filterValue.customRange.from));
     } else if (filterValue.rangeKey === 'specific_period' && filterValue.specificYear) {
         const yearNum = parseInt(filterValue.specificYear, 10);
         if (!isNaN(yearNum)) {
@@ -72,18 +72,22 @@ export function getDateRangeFromFilterValue(filterValue: DateFilterValue): { sta
         }
     } else {
         const now = new Date();
+        const sOD = (d: Date) => startOfDay(d);
+        const eOD = (d: Date) => endOfDay(d);
+
         switch (filterValue.rangeKey) {
             case 'today':
-                startDate = startOfDay(now);
-                endDate = endOfDay(now);
+                startDate = sOD(now);
+                endDate = eOD(now);
                 break;
             case 'this_week':
                 startDate = startOfWeek(now, { weekStartsOn: 1 });
                 endDate = endOfWeek(now, { weekStartsOn: 1 });
                 break;
             case 'last_week':
-                startDate = startOfDay(startOfWeek(subWeeks(now, 1), { weekStartsOn: 1 }));
-                endDate = endOfDay(endOfWeek(subWeeks(now, 1), { weekStartsOn: 1 }));
+                const lastWeek = subWeeks(now, 1);
+                startDate = startOfWeek(lastWeek, { weekStartsOn: 1 });
+                endDate = endOfWeek(lastWeek, { weekStartsOn: 1 });
                 break;
             case 'this_month':
                 startDate = startOfMonth(now);
@@ -99,20 +103,20 @@ export function getDateRangeFromFilterValue(filterValue: DateFilterValue): { sta
                 endDate = endOfYear(now);
                 break;
             case 'last_7_days':
-                startDate = startOfDay(subDays(now, 6));
-                endDate = endOfDay(now);
+                startDate = sOD(subDays(now, 6));
+                endDate = eOD(now);
                 break;
             case 'last_30_days':
-                startDate = startOfDay(subDays(now, 29));
-                endDate = endOfDay(now);
+                startDate = sOD(subDays(now, 29));
+                endDate = eOD(now);
                 break;
             case 'last_90_days':
-                startDate = startOfDay(subDays(now, 89));
-                endDate = endOfDay(now);
+                startDate = sOD(subDays(now, 89));
+                endDate = eOD(now);
                 break;
             case 'last_12_months':
-                startDate = startOfDay(startOfMonth(subMonths(now, 11)));
-                endDate = endOfDay(now);
+                startDate = startOfMonth(subMonths(now, 11));
+                endDate = eOD(now);
                 break;
             default:
                 return {};

@@ -95,14 +95,20 @@ export function buildActivityWhereClause(filters: any) {
     }
 
     // 5. apply Date (if not already handled or additional range provided)
-    if (dateFilter?.from || dateFilter?.to) {
-        if (!where.date) where.date = {};
-        if (dateFilter.from) where.date.gte = dateFilter.from;
-        if (dateFilter.to) {
-            const requestedTo = new Date(dateFilter.to);
-            where.date.lte = where.date.lte
-                ? new Date(Math.min(new Date(where.date.lte).getTime(), requestedTo.getTime()))
-                : requestedTo;
+    if (dateFilter) {
+        const { getDateRangeFromFilterValue } = require('@/lib/dateUtils');
+        const { startDate, endDate } = getDateRangeFromFilterValue(dateFilter);
+
+        if (startDate || endDate) {
+            if (!where.date) where.date = {};
+            if (startDate) where.date.gte = startDate;
+
+            // If reporting context already set lte, use the most restrictive
+            if (endDate) {
+                where.date.lte = where.date.lte
+                    ? (new Date(where.date.lte) < endDate ? where.date.lte : endDate)
+                    : endDate;
+            }
         }
     }
 

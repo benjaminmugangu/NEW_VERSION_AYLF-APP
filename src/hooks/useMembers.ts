@@ -21,27 +21,16 @@ export const useMembers = () => {
   const [dateFilter, setDateFilter] = useState<DateFilterValue>({ rangeKey: 'all_time', display: "All Time" });
   const [typeFilter, setTypeFilter] = useState<Record<Member['type'], boolean>>({ student: true, "non-student": true });
 
-  // Adapt dateFilter to use Date instances expected by the service layer
-  const serverDateFilter = useMemo(() => {
-    if (!dateFilter) return undefined;
-    const fromDate = (dateFilter as any).from ? new Date((dateFilter as any).from) : undefined;
-    const toDate = (dateFilter as any).to ? new Date((dateFilter as any).to) : undefined;
-    return {
-      rangeKey: (dateFilter as any).rangeKey,
-      from: fromDate,
-      to: toDate,
-    } as { rangeKey?: string; from?: Date; to?: Date };
-  }, [dateFilter]);
-
-  // UI filters keep DateFilterValue for components and query keys
+  // UI filters for query keys
   const uiFilters = { searchTerm, dateFilter, typeFilter };
-  // Service filters use serverDateFilter typed with Date
+
+  // Service filters use raw DateFilterValue
   const serviceFilters = {
     user: currentUser!,
     searchTerm,
-    dateFilter: serverDateFilter,
+    dateFilter: dateFilter,
     typeFilter,
-  } as const;
+  };
 
   const {
     data: members,

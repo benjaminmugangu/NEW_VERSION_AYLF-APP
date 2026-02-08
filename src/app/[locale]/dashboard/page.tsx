@@ -10,79 +10,23 @@ import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { withRLS } from "@/lib/prisma";
 import { getSyncProfile } from '@/services/authService';
 
-const isPredefinedRange = (key: any): key is PredefinedRange => {
-  const ranges: PredefinedRange[] = [
-    'all_time', 'today', 'this_week', 'last_week', 'this_month', 'last_month',
-    'this_year', 'specific_period', 'last_7_days', 'last_30_days', 'last_90_days',
-    'last_12_months', 'custom'
-  ];
-  return ranges.includes(key);
-};
+// Role-based helper for search params (optional but cleaner)
+const getDateFilterFromParams = (searchParams: any): DateFilterValue => {
+  const { getDateRangeFromFilterValue } = require('@/lib/dateUtils');
+  const rangeKey = searchParams?.rangeKey || 'all_time';
 
-// Server-side date range calculation
-const getServerDateRange = (rangeKey: PredefinedRange): { from?: Date; to?: Date; display: string } => {
-  const now = new Date();
-  let from: Date | undefined;
-  let to: Date | undefined;
-  let display = '';
-
-  switch (rangeKey) {
-    case 'all_time': display = 'All Time'; break;
-    case 'today':
-      from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      to = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-      display = 'Today';
-      break;
-    case 'this_week':
-      const startOfWeek = new Date(now);
-      startOfWeek.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-      startOfWeek.setHours(0, 0, 0, 0);
-      const endOfWeek = new Date(startOfWeek);
-      endOfWeek.setDate(startOfWeek.getDate() + 6);
-      endOfWeek.setHours(23, 59, 59, 999);
-      from = startOfWeek; to = endOfWeek;
-      display = 'This Week';
-      break;
-    case 'this_month':
-      from = new Date(now.getFullYear(), now.getMonth(), 1);
-      to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-      display = 'This Month';
-      break;
-    case 'this_year':
-      from = new Date(now.getFullYear(), 0, 1);
-      to = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
-      display = 'This Year';
-      break;
-    default:
-      const predefined = getServerDateRange('all_time');
-      return predefined;
-  }
-  return { from, to, display };
-};
-
-// Helper function to get date filter from search params
-const getDateFilterFromParams = (searchParams: { [key: string]: string | string[] | undefined }): DateFilterValue => {
-  const rangeKeyParam = searchParams?.rangeKey as string;
-  const rangeKey = isPredefinedRange(rangeKeyParam) ? rangeKeyParam : 'all_time';
-  const from = searchParams?.from as string;
-  const to = searchParams?.to as string;
-
-  if (rangeKey === 'custom' && from && to) {
-    return {
-      rangeKey: 'custom',
-      from: from, to: to,
-      display: `From ${new Date(from).toLocaleDateString()} to ${new Date(to).toLocaleDateString()}`,
-    };
-  }
-
-  const predefinedRange = getServerDateRange(rangeKey);
+  // Return a standard DateFilterValue
   return {
-    rangeKey,
-    from: predefinedRange.from?.toISOString(),
-    to: predefinedRange.to?.toISOString(),
-    display: predefinedRange.display,
+    rangeKey: rangeKey as any,
+    from: searchParams?.from,
+    to: searchParams?.to,
+    display: searchParams?.display || 'Filtered Range', // Components will handle display
+    specificYear: searchParams?.specificYear,
+    specificMonth: searchParams?.specificMonth,
   };
 };
+
+// No longer needed, logic moved to service or handled by DateFilterValue
 
 export default async function DashboardPage(props: any) {
   const searchParams = await props.searchParams;
