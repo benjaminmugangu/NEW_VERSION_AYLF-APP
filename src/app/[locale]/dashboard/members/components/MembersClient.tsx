@@ -34,19 +34,7 @@ export function MembersClient({ initialMembers, user }: MembersClientProps) {
   const [typeFilter, setTypeFilter] = useState<Record<Member['type'], boolean>>({ student: true, 'non-student': true });
   const [memberToDelete, setMemberToDelete] = useState<MemberWithDetails | null>(null);
 
-  // Adapter le filtre de dates (strings -> Date) pour le service côté serveur
-  const serverDateFilter = useMemo(() => {
-    if (!dateFilter) return undefined;
-    const fromDate = (dateFilter as any).from ? new Date((dateFilter as any).from) : undefined;
-    const toDate = (dateFilter as any).to ? new Date((dateFilter as any).to) : undefined;
-    return {
-      rangeKey: (dateFilter as any).rangeKey,
-      from: fromDate,
-      to: toDate,
-    } as { rangeKey?: string; from?: Date; to?: Date };
-  }, [dateFilter]);
-
-  const filters = { searchTerm, dateFilter: serverDateFilter, typeFilter };
+  const filters = { searchTerm, dateFilter, typeFilter };
 
   const { data: members, isLoading, error, refetch } = useQuery({
     queryKey: ['members', user.id, filters],
