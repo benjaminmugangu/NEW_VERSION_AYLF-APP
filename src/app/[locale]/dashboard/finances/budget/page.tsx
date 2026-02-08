@@ -47,7 +47,7 @@ export default async function BudgetPage() {
                 <div>
                     <h2 className="text-3xl font-bold tracking-tight text-slate-900">Gouvernance Budgétaire</h2>
                     <p className="text-muted-foreground">
-                        Pilotez l'enveloppe annuelle de la Caisse Centrale.
+                        {"Pilotez l'enveloppe annuelle de la Caisse Centrale."}
                     </p>
                 </div>
             </div>

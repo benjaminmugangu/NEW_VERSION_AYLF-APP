@@ -81,7 +81,7 @@ export function BudgetManager({ currentBudgets, financialStats }: BudgetManagerP
                             )}
                         </div>
                         <CardDescription>
-                            Définissez l'enveloppe globale qui alimente la Caisse Centrale.
+                            {"Définissez l'enveloppe globale qui alimente la Caisse Centrale."}
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4 pt-4">
@@ -156,7 +156,7 @@ export function BudgetManager({ currentBudgets, financialStats }: BudgetManagerP
                     <Card>
                         <CardHeader className="pb-2">
                             <CardTitle className="text-sm font-medium text-muted-foreground uppercase">
-                                État de la Réserve Centrale
+                                {"État de la Réserve Centrale"}
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
